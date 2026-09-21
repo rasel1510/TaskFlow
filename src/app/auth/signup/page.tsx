@@ -19,16 +19,7 @@ import {
   Check,
 } from 'lucide-react';
 
-const roles = [
-  'Product Manager',
-  'Frontend Engineer',
-  'Backend Engineer',
-  'Fullstack Developer',
-  'UI/UX Designer',
-  'QA / DevOps',
-  'Engineering Lead',
-  'Other',
-];
+const roles = ['Admin', 'User'];
 
 export default function SignupPage() {
   const router = useRouter();
@@ -36,7 +27,7 @@ export default function SignupPage() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    role: 'Product Manager',
+    role: 'User',
     password: '',
     agreeToTerms: true,
   });

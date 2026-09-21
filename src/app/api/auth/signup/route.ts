@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
-    const userRole = role?.trim() || 'Team Member';
+    const userRole = role?.trim() || 'User';
     const avatar = getInitials(name);
     const hashedPassword = await bcrypt.hash(password, 10);
 
