@@ -23,7 +23,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
-import { tasks as mockTasks } from '@/data/mockData';
+import { getAllStoredUsers } from '@/data/userStore';
+import { users as mockUsers } from '@/data/mockData';
 
 // Prisma-generated enum types (used for strict typing in create/update calls)
 type PrismaStatus   = Prisma.TaskCreateInput['status'];
@@ -61,12 +62,11 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Return real DB data when available; fall back to mock data in dev/offline
-    const tasks = dbTasks.length > 0 ? dbTasks : mockTasks;
-    return NextResponse.json(tasks, { status: 200 });
-  } catch {
-    // Graceful fallback when the database is unavailable (offline dev mode)
-    return NextResponse.json(mockTasks, { status: 200 });
+    // Always return database tasks (clean empty list when 0 tasks exist)
+    return NextResponse.json(dbTasks, { status: 200 });
+  } catch (err) {
+    console.error('[GET /api/tasks] Error fetching tasks from DB:', err);
+    return NextResponse.json([], { status: 200 });
   }
 }
 
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { title, projectId, assigneeId, status, priority, dueDate, description } = body;
+    const { title, projectId, assigneeId, status, priority, dueDate, description, estimate, labels } = body;
 
     // Validate required fields
     if (!title || typeof title !== 'string' || !title.trim()) {
@@ -94,21 +94,99 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (!projectId || typeof projectId !== 'string') {
-      return NextResponse.json(
-        { message: 'projectId is required' },
-        { status: 400 }
-      );
+
+    // Ensure valid projectId or fallback to default project
+    let targetProjectId = typeof projectId === 'string' && projectId ? projectId : undefined;
+    if (!targetProjectId) {
+      const firstProject = await prisma.project.findFirst();
+      if (firstProject) {
+        targetProjectId = firstProject.id;
+      } else {
+        const defaultProj = await prisma.project.create({
+          data: {
+            id: 'p1',
+            name: 'General Project',
+            description: 'Default project workspace',
+            color: '#2563EB',
+            ownerId: 'u1',
+          },
+        });
+        targetProjectId = defaultProj.id;
+      }
+    } else {
+      // Verify project exists in DB
+      const projExists = await prisma.project.findUnique({ where: { id: targetProjectId } });
+      if (!projExists) {
+        const firstProject = await prisma.project.findFirst();
+        if (firstProject) {
+          targetProjectId = firstProject.id;
+        }
+      }
     }
+
+    // Resolve assigneeId: check DB first, then upsert from local/mock stores
+    let targetAssigneeId: string | undefined = undefined;
+    if (typeof assigneeId === 'string' && assigneeId) {
+      // Check if user already exists in DB
+      let dbUser = await prisma.user.findUnique({ where: { id: assigneeId } });
+
+      if (!dbUser) {
+        // Try to find in local stored users
+        const storedUsers = getAllStoredUsers();
+        const storedUser = storedUsers.find(u => u.id === assigneeId);
+        if (storedUser) {
+          dbUser = await prisma.user.upsert({
+            where: { id: storedUser.id },
+            update: {},
+            create: {
+              id: storedUser.id,
+              name: storedUser.name,
+              email: storedUser.email,
+              avatar: storedUser.avatar,
+              role: storedUser.role,
+            },
+          });
+        }
+      }
+
+      if (!dbUser) {
+        // Try mock users
+        const mockUser = mockUsers.find(u => u.id === assigneeId);
+        if (mockUser) {
+          dbUser = await prisma.user.upsert({
+            where: { id: mockUser.id },
+            update: {},
+            create: {
+              id: mockUser.id,
+              name: mockUser.name,
+              email: mockUser.email,
+              avatar: mockUser.avatar,
+              role: mockUser.role,
+            },
+          });
+        }
+      }
+
+      if (dbUser) {
+        targetAssigneeId = dbUser.id;
+      }
+    }
+
+    // Auto-generate taskNumber TF-XXX
+    const taskCount = await prisma.task.count();
+    const taskNumber = `TF-${String(taskCount + 1).padStart(3, '0')}`;
 
     const newTask = await prisma.task.create({
       data: {
+        taskNumber,
         title:       (title as string).trim(),
-        projectId:   projectId as string,
-        assigneeId:  assigneeId as string | undefined,
+        projectId:   targetProjectId as string,
+        assigneeId:  targetAssigneeId,
         status:      ((status   as string | undefined) ?? 'todo')     as PrismaStatus,
         priority:    ((priority as string | undefined) ?? 'medium')   as PrismaPriority,
-        description: description as string | undefined,
+        description: typeof description === 'string' ? description.trim() : undefined,
+        estimate:    typeof estimate === 'string' ? estimate.trim() : undefined,
+        labels:      Array.isArray(labels) ? labels : [],
         dueDate:     dueDate ? new Date(dueDate as string) : undefined,
       },
       include: {
@@ -120,7 +198,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(newTask, { status: 201 });
   } catch (error) {
-    console.error('[POST /api/tasks] Error:', error);
+    console.error('[POST /api/tasks] Error creating task:', error);
     return NextResponse.json(
       { message: 'Internal server error while creating task' },
       { status: 500 }

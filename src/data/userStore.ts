@@ -90,3 +90,7 @@ export function saveStoredUser(data: {
   saveUsers(allUsers);
   return newUser;
 }
+
+export function getAllStoredUsers(): StoredUser[] {
+  return loadUsers();
+}

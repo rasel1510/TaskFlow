@@ -13,6 +13,7 @@ import KanbanBoard from '@/views/KanbanBoard';
 import Projects from '@/views/Projects';
 import Reports from '@/views/Reports';
 import Settings from '@/views/Settings';
+import { TaskProvider } from '@/context/TaskContext';
 
 type View = 'dashboard' | 'tasks' | 'kanban' | 'projects' | 'calendar' | 'timeline' | 'reports' | 'settings' | 'inbox';
 
@@ -167,32 +168,34 @@ export default function Page() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white">
-      <Sidebar
-        currentView={view}
-        onNavigate={navigateTo}
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(c => !c)}
-      />
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <Header currentView={view} onCreateTask={() => setShowCreateTask(true)} />
-        <main className="flex flex-1 overflow-hidden">
-          {renderView()}
-        </main>
-      </div>
-
-      {/* Task Detail Drawer */}
-      {selectedTask && (
-        <TaskDetail
-          taskId={selectedTask}
-          onClose={() => setSelectedTask(null)}
+    <TaskProvider>
+      <div className="flex h-screen overflow-hidden bg-white">
+        <Sidebar
+          currentView={view}
+          onNavigate={navigateTo}
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(c => !c)}
         />
-      )}
+        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+          <Header currentView={view} onCreateTask={() => setShowCreateTask(true)} />
+          <main className="flex flex-1 overflow-hidden">
+            {renderView()}
+          </main>
+        </div>
 
-      {/* Create Task Modal */}
-      {showCreateTask && (
-        <CreateTaskModal onClose={() => setShowCreateTask(false)} />
-      )}
-    </div>
+        {/* Task Detail Drawer */}
+        {selectedTask && (
+          <TaskDetail
+            taskId={selectedTask}
+            onClose={() => setSelectedTask(null)}
+          />
+        )}
+
+        {/* Create Task Modal */}
+        {showCreateTask && (
+          <CreateTaskModal onClose={() => setShowCreateTask(false)} />
+        )}
+      </div>
+    </TaskProvider>
   );
 }

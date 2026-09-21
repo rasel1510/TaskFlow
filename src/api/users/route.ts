@@ -1,0 +1,80 @@
+import { NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+import { users as mockUsers } from '@/data/mockData';
+import { getAllStoredUsers } from '@/data/userStore';
+
+export async function GET() {
+  try {
+    let dbUsers: Array<{
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+      avatar: string;
+    }> = [];
+
+    try {
+      dbUsers = await prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          avatar: true,
+        },
+        orderBy: { name: 'asc' },
+      });
+    } catch (dbErr) {
+      console.warn('[GET /api/users] DB user fetch failed, fallback to store:', dbErr);
+    }
+
+    const storedUsers = getAllStoredUsers();
+
+    // Merge users uniquely by email or id
+    const userMap = new Map<string, { id: string; name: string; email: string; role: string; avatar: string }>();
+
+    // 1. Add mock users as base
+    for (const u of mockUsers) {
+      userMap.set(u.email.toLowerCase(), {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        avatar: u.avatar,
+      });
+    }
+
+    // 2. Add local stored users
+    for (const u of storedUsers) {
+      userMap.set(u.email.toLowerCase(), {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        avatar: u.avatar,
+      });
+    }
+
+    // 3. Add DB users (highest priority)
+    for (const u of dbUsers) {
+      userMap.set(u.email.toLowerCase(), {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        avatar: u.avatar,
+      });
+    }
+
+    const mergedList = Array.from(userMap.values());
+    return NextResponse.json(mergedList, { status: 200 });
+  } catch (error) {
+    console.error('[GET /api/users] Error:', error);
+    return NextResponse.json(mockUsers, { status: 200 });
+  }
+}
+
+
+
+
+
