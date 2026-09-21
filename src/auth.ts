@@ -23,7 +23,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error('Please enter both email and password');
+          return null;
         }
 
         const email = String(credentials.email).toLowerCase().trim();
@@ -39,7 +39,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             if (dbUser.password) {
               const isValid = await bcrypt.compare(password, dbUser.password);
               if (!isValid) {
-                throw new Error('Invalid email or password');
+                return null;
               }
             }
             return {
@@ -50,8 +50,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               role: dbUser.role,
             };
           }
-        } catch (dbError) {
-          console.warn('Prisma lookup failed, checking fallback mock users:', dbError);
+        } catch {
+          // Prisma database connection fallback
         }
 
         // Graceful fallback for mock/demo users
@@ -70,7 +70,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           };
         }
 
-        throw new Error('No user found with this email');
+        return null;
       },
     }),
   ],
