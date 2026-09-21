@@ -114,8 +114,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
         {/* Page header */}
         <div className="flex items-start justify-between mb-6">
           <div>
-            <h1 className="text-[26px] font-bold text-[#111111] mb-1">Good {greeting}, {userName}</h1>
-            <p className="text-[14px] text-[rgba(17,17,17,0.5)]">Here's what needs your attention today.</p>
+            <h1 className="text-[26px] font-bold text-[#111111]">Good {greeting}, {userName}</h1>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-[13px] text-[rgba(17,17,17,0.5)]">

@@ -34,5 +34,13 @@ body {
 ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
 
+/* Suppress Next.js floating dev indicator badge in development UI */
+nextjs-portal,
+[data-nextjs-dev-tools-button],
+[data-nextjs-route-announcer],
+div[data-nextjs-toast] {
+  display: none !important;
+}
+
 
 

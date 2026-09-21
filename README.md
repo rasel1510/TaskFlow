@@ -1,6 +1,7 @@
 # TaskFlow
 
-> Modern, high-velocity project and task management SaaS platform built with Next.js 15, React 19, Tailwind CSS, shadcn/ui, NextAuth, and Prisma.
+> Modern, high-velocity project and task management SaaS platform built with Next.js 15, React 19, Tailwind CSS, shadcn/ui, NextAuth, and Prisma.  
+> 📐 **Scalability & Engineering Standards:** See [ARCHITECTURE.md](file:///c:/Users/DELL/Desktop/TaskFlow/ARCHITECTURE.md) for time/space complexity budgets, noise-free UI design guidelines, and system architecture for millions of users.
 
 ---
 

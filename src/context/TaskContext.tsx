@@ -73,6 +73,8 @@ interface TaskContextValue {
   error: string | null;
   createTask: (payload: CreateTaskPayload) => Promise<DBTask>;
   updateTaskStatus: (taskId: string, status: string) => Promise<void>;
+  updateTask: (taskId: string, payload: Partial<CreateTaskPayload>) => Promise<DBTask>;
+  deleteTask: (taskId: string) => Promise<void>;
   refreshTasks: () => Promise<void>;
 }
 
@@ -170,8 +172,68 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchTasks]);
 
+  const updateTask = useCallback(async (taskId: string, payload: Partial<CreateTaskPayload>): Promise<DBTask> => {
+    // Optimistic update in state
+    setTasks(prev =>
+      prev.map(t => {
+        if (t.id !== taskId) return t;
+        const updatedAssignee = payload.assigneeId
+          ? users.find(u => u.id === payload.assigneeId) ?? t.assignee
+          : t.assignee;
+        return {
+          ...t,
+          ...payload,
+          assignee: updatedAssignee,
+        } as DBTask;
+      })
+    );
+
+    try {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        await fetchTasks();
+        const errBody = await res.json().catch(() => ({ message: 'Update failed' }));
+        throw new Error(errBody.message || `Update task failed: ${res.status}`);
+      }
+
+      const updatedTask: DBTask = await res.json();
+      setTasks(prev => prev.map(t => (t.id === taskId ? { ...t, ...updatedTask } : t)));
+      return updatedTask;
+    } catch (err) {
+      console.error('[TaskContext] updateTask error:', err);
+      await fetchTasks();
+      throw err;
+    }
+  }, [fetchTasks, users]);
+
+  const deleteTask = useCallback(async (taskId: string): Promise<void> => {
+    // Optimistic removal from state
+    setTasks(prev => prev.filter(t => t.id !== taskId));
+
+    try {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        await fetchTasks();
+        const errBody = await res.json().catch(() => ({ message: 'Delete failed' }));
+        throw new Error(errBody.message || `Delete task failed: ${res.status}`);
+      }
+    } catch (err) {
+      console.error('[TaskContext] deleteTask error:', err);
+      await fetchTasks();
+      throw err;
+    }
+  }, [fetchTasks]);
+
   return (
-    <TaskContext.Provider value={{ tasks, users, isLoading, error, createTask, updateTaskStatus, refreshTasks }}>
+    <TaskContext.Provider value={{ tasks, users, isLoading, error, createTask, updateTaskStatus, updateTask, deleteTask, refreshTasks }}>
       {children}
     </TaskContext.Provider>
   );

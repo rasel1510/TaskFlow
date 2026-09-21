@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useTasks, type DBTask } from '@/context/TaskContext';
+import EditTaskModal from '@/components/EditTaskModal';
 import { statusColors, priorityColors, type Status, type Priority } from '../data/mockData';
 
 interface MyTasksProps {
@@ -46,10 +47,15 @@ function formatDate(d: string | null): string {
 }
 
 export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
-  const { tasks, isLoading } = useTasks();
+  const { tasks, isLoading, deleteTask } = useTasks();
   const [statusFilter, setStatusFilter] = useState<Status | 'all'>('all');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Task mutation states
+  const [editingTask, setEditingTask] = useState<DBTask | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<DBTask | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filtered: DBTask[] = tasks.filter(t => {
     if (statusFilter !== 'all' && t.status !== statusFilter) return false;
@@ -72,6 +78,38 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
     } else {
       setSelected(new Set(filtered.map(t => t.id)));
     }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!taskToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteTask(taskToDelete.id);
+      setSelected(prev => {
+        const next = new Set(prev);
+        next.delete(taskToDelete.id);
+        return next;
+      });
+      setTaskToDelete(null);
+    } catch (err) {
+      console.error('Delete task failed:', err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selected.size === 0) return;
+    const confirmed = window.confirm(`Are you sure you want to delete ${selected.size} selected tasks?`);
+    if (!confirmed) return;
+    for (const id of selected) {
+      try {
+        await deleteTask(id);
+      } catch (err) {
+        console.error('Bulk delete task error:', err);
+      }
+    }
+    setSelected(new Set());
   };
 
   // Safe status/priority color helpers
@@ -154,7 +192,15 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
             <span className="text-[13px] font-medium text-[#2563EB]">{selected.size} selected</span>
             <div className="flex items-center gap-2 ml-3">
               {['Set Status', 'Set Priority', 'Assign', 'Archive', 'Delete'].map(action => (
-                <button key={action} className={`text-[12.5px] px-2.5 py-1 rounded-md border transition-colors ${action === 'Delete' ? 'border-[#FECACA] text-[#DC2626] hover:bg-[#FEF2F2]' : 'border-[#BFDBFE] text-[#2563EB] hover:bg-white'}`}>
+                <button
+                  key={action}
+                  onClick={action === 'Delete' ? handleBulkDelete : undefined}
+                  className={`text-[12.5px] px-2.5 py-1 rounded-md border transition-colors ${
+                    action === 'Delete'
+                      ? 'border-[#FECACA] text-[#DC2626] hover:bg-[#FEF2F2]'
+                      : 'border-[#BFDBFE] text-[#2563EB] hover:bg-white'
+                  }`}
+                >
                   {action}
                 </button>
               ))}
@@ -180,7 +226,7 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
             <span className="w-28">Assignee</span>
             <span className="w-28">Due Date</span>
             <span className="w-16">Est.</span>
-            <span className="w-8" />
+            <span className="w-16 text-right pr-1">Actions</span>
           </div>
 
           {/* Rows */}
@@ -273,14 +319,38 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
                 <span className="w-28 text-[12.5px] text-[rgba(17,17,17,0.6)]">{formatDate(task.dueDate)}</span>
                 <span className="w-16 text-[12.5px] text-[rgba(17,17,17,0.5)]">{task.estimate ?? '—'}</span>
 
-                <button
+                {/* Edit & Delete Action Buttons */}
+                <div
+                  className="w-16 flex items-center justify-end gap-1 shrink-0"
                   onClick={e => e.stopPropagation()}
-                  className="w-8 h-8 flex items-center justify-center rounded hover:bg-[#F3F4F6] text-[rgba(17,17,17,0.35)] transition-colors opacity-0 group-hover:opacity-100"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
-                  </svg>
-                </button>
+                  <button
+                    type="button"
+                    title="Edit task"
+                    aria-label="Edit task"
+                    onClick={() => setEditingTask(task)}
+                    className="w-7 h-7 flex items-center justify-center rounded-md text-[rgba(17,17,17,0.45)] hover:text-[#2563EB] hover:bg-[#EFF6FF] transition-all"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    title="Delete task"
+                    aria-label="Delete task"
+                    onClick={() => setTaskToDelete(task)}
+                    className="w-7 h-7 flex items-center justify-center rounded-md text-[rgba(17,17,17,0.45)] hover:text-[#DC2626] hover:bg-[#FEF2F2] transition-all"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      <line x1="10" y1="11" x2="10" y2="17" />
+                      <line x1="14" y1="11" x2="14" y2="17" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             ))
           )}
@@ -292,6 +362,66 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
           </span>
         </div>
       </div>
+
+      {/* Edit Task Modal */}
+      {editingTask && (
+        <EditTaskModal
+          task={editingTask}
+          onClose={() => setEditingTask(null)}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {taskToDelete && (
+        <div
+          className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-[1px]"
+          onClick={() => !isDeleting && setTaskToDelete(null)}
+        >
+          <div
+            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in duration-150 p-6"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 text-[#DC2626] flex items-center justify-center shrink-0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  <line x1="10" y1="11" x2="10" y2="17" />
+                  <line x1="14" y1="11" x2="14" y2="17" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-[16px] font-semibold text-[#111111]">Delete Task</h3>
+                <p className="text-[13px] text-[rgba(17,17,17,0.6)] mt-1.5 leading-relaxed break-words">
+                  Are you sure you want to delete <span className="font-semibold text-[#111111]">"{taskToDelete.title}"</span>? This action cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 mt-6">
+              <button
+                type="button"
+                onClick={() => setTaskToDelete(null)}
+                disabled={isDeleting}
+                className="px-4 py-2 border border-[#E5E7EB] rounded-lg text-[13px] font-medium text-[rgba(17,17,17,0.6)] hover:bg-[#F9FAFB] disabled:opacity-40 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 bg-[#DC2626] text-white rounded-lg text-[13px] font-semibold hover:bg-[#B91C1C] disabled:opacity-40 transition-colors flex items-center gap-2"
+              >
+                {isDeleting && (
+                  <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                )}
+                {isDeleting ? 'Deleting...' : 'Delete Task'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

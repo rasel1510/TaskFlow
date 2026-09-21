@@ -2,6 +2,32 @@
 
 Next.js + Tailwind CSS + shadcn/ui project for project and task management.
 
+> 📖 **Full Architecture & Scalability Guide:** Refer to [ARCHITECTURE.md](file:///c:/Users/DELL/Desktop/TaskFlow/ARCHITECTURE.md) for complete engineering standards, complexity budgets, and scaling protocols.
+
+---
+
+## 🏛️ High-Scale Engineering Mandates (Millions of Users)
+
+All code contributed to TaskFlow must adhere to Staff/Principal-level engineering standards:
+
+1. **Lowest Time & Space Complexity ($O(1)$ / $O(\log N)$ First)**:
+   - **No Quadratic Iteration**: Never nest `.find()` or `.filter()` inside loops ($O(N^2)$). Always index data using `Map<string, T>` or `Set<string>` for $O(1)$ lookups.
+   - **Memory Discipline**: Never query entire tables or use unprojected `SELECT *`. Always use Prisma `select: { ... }` to fetch only strictly needed fields.
+   - **Bounded Memory**: Enforce cursor-based pagination ($K \le 100$ items) on all list endpoints. Never accumulate unbounded datasets in V8 heap memory.
+   - **Zero Client Leaks**: Always clean up listeners, intervals, and subscriptions in React `useEffect` cleanups.
+
+2. **Simple, Noise-Free User Interface**:
+   - **Clutter-Free Minimalism**: Linear/Supabase inspired aesthetics. Prioritize high-signal content, calm typography (Inter), and clean whitespace over visual decoration.
+   - **Zero Layout Shift (CLS = 0)**: Maintain rigid skeleton loaders and fixed layout geometry.
+   - **Instantaneous Perceived Latency**: Use optimistic UI updates with automatic rollback on error. Keep micro-interactions under 150ms with CSS `ease-out`.
+
+3. **Efficient & Scalable API Architecture**:
+   - **Strict Layer Separation**: Transport bridges in `src/app/api/` must remain thin re-exports. All validation, business logic, and Prisma operations belong strictly in `src/api/`.
+   - **Unified API Envelope**: Always wrap responses in standard `ApiResponse<T>` with `{ success, data, error, meta }`.
+   - **Graceful Degradation**: Always catch database exceptions and provide reliable fallbacks or structured sanitized error messages.
+
+---
+
 ## Project Structure
 
 ### App (Next.js App Router)
