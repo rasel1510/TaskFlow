@@ -10,7 +10,6 @@ import {
   Lock,
   Mail,
   ArrowRight,
-  Sparkles,
   AlertCircle,
   Loader2,
   CheckCircle2,
@@ -126,33 +125,8 @@ function LoginForm() {
 
   return (
     <div className="w-full max-w-[440px] space-y-7">
-      {/* Mobile Logo Banner */}
-      <div className="flex lg:hidden items-center gap-2.5 justify-center mb-4">
-        <div className="w-8 h-8 rounded-lg bg-[#2563EB] flex items-center justify-center shadow-sm">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-            <path
-              d="M9 11l3 3L22 4"
-              stroke="white"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-            />
-            <path
-              d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-            />
-          </svg>
-        </div>
-        <span className="font-bold text-xl text-[#111111] tracking-tight">TaskFlow</span>
-      </div>
-
       {/* Header */}
-      <div className="text-center lg:text-left">
+      <div className="text-center">
         <h2 className="text-2xl font-bold tracking-tight text-[#111111]">
           Welcome back
         </h2>
@@ -361,101 +335,20 @@ function LoginForm() {
 }
 
 // ---------------------------------------------------------------------------
-// LoginPage — full page layout exported as default
+// LoginPage — centered full-screen layout
 // ---------------------------------------------------------------------------
 export default function LoginPage() {
   return (
-    <div className="min-h-screen w-full flex bg-[#F9FAFB]">
-      {/* Left Column: Brand & Value Showcase */}
-      <div className="hidden lg:flex lg:w-[48%] bg-gradient-to-br from-[#0F172A] via-[#111827] to-[#1E293B] text-white p-12 flex-col justify-between relative overflow-hidden">
-        {/* Subtle glow effects */}
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-[#2563EB]/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-[#3B82F6]/15 rounded-full blur-3xl pointer-events-none" />
-
-        {/* Brand Header */}
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#2563EB] flex items-center justify-center shadow-lg shadow-blue-500/30">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-              <path
-                d="M9 11l3 3L22 4"
-                stroke="white"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
-              <path
-                d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
-                stroke="white"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
-            </svg>
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#F9FAFB] p-6">
+      <Suspense
+        fallback={
+          <div className="flex items-center justify-center p-12">
+            <Loader2 className="w-8 h-8 animate-spin text-[#2563EB]" />
           </div>
-          <span className="font-bold text-[20px] tracking-tight text-white">TaskFlow</span>
-          <span className="ml-2 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-500/20 text-blue-300 border border-blue-400/20">
-            Enterprise Ready
-          </span>
-        </div>
-
-        {/* Middle Value Proposition */}
-        <div className="relative z-10 my-auto py-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-xs text-blue-200 font-medium mb-6 backdrop-blur-md">
-            <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-            Accelerate Your Engineering Roadmap
-          </div>
-
-          <h1 className="text-3xl xl:text-4xl font-extrabold tracking-tight text-white leading-tight">
-            The single source of truth for your entire team.
-          </h1>
-          <p className="mt-4 text-base text-gray-400 leading-relaxed max-w-lg">
-            Track roadmaps, automate sprint reporting, and eliminate sync meetings with real-time collaborative workspaces.
-          </p>
-
-          {/* Quick Metrics Grid */}
-          <div className="mt-8 grid grid-cols-2 gap-4 max-w-md">
-            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-4">
-              <p className="text-2xl font-black text-white">99.98%</p>
-              <p className="text-xs text-gray-400 mt-1">Platform Uptime &amp; SLA</p>
-            </div>
-            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-4">
-              <p className="text-2xl font-black text-blue-400">4.2x</p>
-              <p className="text-xs text-gray-400 mt-1">Faster Sprint Velocity</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Quote */}
-        <div className="relative z-10 pt-6 border-t border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#10B981] flex items-center justify-center font-bold text-sm text-white">
-              DK
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-white">David Kim</p>
-              <p className="text-xs text-gray-400">Principal Architect at CloudScale</p>
-            </div>
-          </div>
-          <p className="mt-2.5 text-xs text-gray-400 italic">
-            &ldquo;From onboarding to sprint delivery, TaskFlow has made our development pipeline seamless and transparent.&rdquo;
-          </p>
-        </div>
-      </div>
-
-      {/* Right Column: Login Form Wrapped in Suspense */}
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-12 overflow-y-auto">
-        <Suspense
-          fallback={
-            <div className="flex items-center justify-center p-12">
-              <Loader2 className="w-8 h-8 animate-spin text-[#2563EB]" />
-            </div>
-          }
-        >
-          <LoginForm />
-        </Suspense>
-      </div>
+        }
+      >
+        <LoginForm />
+      </Suspense>
     </div>
   );
 }
