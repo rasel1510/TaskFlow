@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTasks, type DBTask } from '@/context/TaskContext';
 import EditTaskModal from '@/components/EditTaskModal';
 import { statusColors, priorityColors, type Status, type Priority } from '../data/mockData';
@@ -56,6 +56,14 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
   const [editingTask, setEditingTask] = useState<DBTask | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<DBTask | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  // Close three-dot menu when clicking anywhere outside
+  useEffect(() => {
+    const handleClickOutside = () => setOpenMenuId(null);
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, []);
 
   const filtered: DBTask[] = tasks.filter(t => {
     if (statusFilter !== 'all' && t.status !== statusFilter) return false;
@@ -210,9 +218,9 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
         )}
 
         {/* Table */}
-        <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden">
+        <div className="bg-white border border-[#E5E7EB] rounded-xl">
           {/* Table header */}
-          <div className="flex items-center gap-3 px-5 py-3 bg-[#F9FAFB] border-b border-[#E5E7EB] text-[11.5px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)]">
+          <div className="flex items-center gap-3 px-5 py-3 bg-[#F9FAFB] border-b border-[#E5E7EB] rounded-t-xl text-[11.5px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)]">
             <input
               type="checkbox"
               checked={selected.size === filtered.length && filtered.length > 0}
@@ -226,7 +234,7 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
             <span className="w-28">Assignee</span>
             <span className="w-28">Due Date</span>
             <span className="w-16">Est.</span>
-            <span className="w-16 text-right pr-1">Actions</span>
+            <span className="w-8" />
           </div>
 
           {/* Rows */}
@@ -260,7 +268,7 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
                 onClick={() => onTaskClick(task.id)}
                 className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer transition-colors hover:bg-[#F9FAFB] group ${
                   selected.has(task.id) ? 'bg-[#FAFBFF]' : ''
-                } ${i < filtered.length - 1 ? 'border-b border-[#F3F4F6]' : ''}`}
+                } ${i < filtered.length - 1 ? 'border-b border-[#F3F4F6]' : 'rounded-b-xl'}`}
               >
                 <input
                   type="checkbox"
@@ -319,37 +327,69 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
                 <span className="w-28 text-[12.5px] text-[rgba(17,17,17,0.6)]">{formatDate(task.dueDate)}</span>
                 <span className="w-16 text-[12.5px] text-[rgba(17,17,17,0.5)]">{task.estimate ?? '—'}</span>
 
-                {/* Edit & Delete Action Buttons */}
+                {/* Three-dot action menu with Edit & Delete options */}
                 <div
-                  className="w-16 flex items-center justify-end gap-1 shrink-0"
+                  className="relative w-8 flex items-center justify-end shrink-0"
                   onClick={e => e.stopPropagation()}
                 >
                   <button
                     type="button"
-                    title="Edit task"
-                    aria-label="Edit task"
-                    onClick={() => setEditingTask(task)}
-                    className="w-7 h-7 flex items-center justify-center rounded-md text-[rgba(17,17,17,0.45)] hover:text-[#2563EB] hover:bg-[#EFF6FF] transition-all"
+                    title="Task actions"
+                    aria-label="Task actions"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setOpenMenuId(prev => (prev === task.id ? null : task.id));
+                    }}
+                    className={`w-7 h-7 flex items-center justify-center rounded-md hover:bg-[#F3F4F6] text-[rgba(17,17,17,0.45)] hover:text-[#111111] transition-all ${
+                      openMenuId === task.id ? 'bg-[#F3F4F6] text-[#111111] opacity-100' : 'opacity-0 group-hover:opacity-100'
+                    }`}
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="5" r="1.5" fill="currentColor" stroke="none" />
+                      <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+                      <circle cx="12" cy="19" r="1.5" fill="currentColor" stroke="none" />
                     </svg>
                   </button>
-                  <button
-                    type="button"
-                    title="Delete task"
-                    aria-label="Delete task"
-                    onClick={() => setTaskToDelete(task)}
-                    className="w-7 h-7 flex items-center justify-center rounded-md text-[rgba(17,17,17,0.45)] hover:text-[#DC2626] hover:bg-[#FEF2F2] transition-all"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      <line x1="10" y1="11" x2="10" y2="17" />
-                      <line x1="14" y1="11" x2="14" y2="17" />
-                    </svg>
-                  </button>
+
+                  {openMenuId === task.id && (
+                    <div
+                      className={`absolute right-0 w-36 bg-white border border-[#E5E7EB] rounded-lg shadow-xl py-1 z-30 animate-in fade-in duration-100 ${
+                        i >= filtered.length - 2 && filtered.length > 2 ? 'bottom-full mb-1' : 'top-full mt-1'
+                      }`}
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenMenuId(null);
+                          setEditingTask(task);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-[12.5px] font-medium text-[#111111] hover:bg-[#F3F4F6] transition-colors text-left"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-[#2563EB]">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                        Edit Task
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenMenuId(null);
+                          setTaskToDelete(task);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-[12.5px] font-medium text-[#DC2626] hover:bg-[#FEF2F2] transition-colors text-left"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          <line x1="10" y1="11" x2="10" y2="17" />
+                          <line x1="14" y1="11" x2="14" y2="17" />
+                        </svg>
+                        Delete Task
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))
