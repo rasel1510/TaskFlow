@@ -1,0 +1,20 @@
+[
+  {
+    "id": "user_1789994384642_ojagz",
+    "name": "Alex Mercer",
+    "email": "alex@company.com",
+    "password": "$2b$10$TAocIiwN/L/Y2nUSy0Dq8exP4EEDivp9LMFVdXqju2AFSs4D8tHJ6",
+    "role": "Admin",
+    "avatar": "AM",
+    "createdAt": "2026-09-21T12:39:44.642Z"
+  },
+  {
+    "id": "user_1789994538180_yysfq",
+    "name": "Mohammed",
+    "email": "raselmohammed302@gmail.com",
+    "password": "$2b$10$nPSvBvVs9m5OLxBE827RHOW2QoIw7Dpa8/NPabaM2bYfRxvvxaeNW",
+    "role": "User",
+    "avatar": "MO",
+    "createdAt": "2026-09-21T12:42:18.180Z"
+  }
+]

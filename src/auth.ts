@@ -3,6 +3,7 @@ import Credentials from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
 import { users as mockUsers } from '@/data/mockData';
+import { findStoredUserByEmail } from '@/data/userStore';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'taskflow-secure-nextauth-secret-key-32chars',
@@ -52,6 +53,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
         } catch {
           // Prisma database connection fallback
+        }
+
+        // Check persistent local user store (registered users)
+        try {
+          const storedUser = findStoredUserByEmail(email);
+          if (storedUser) {
+            if (storedUser.password) {
+              const isValid = await bcrypt.compare(password, storedUser.password);
+              if (!isValid) {
+                return null;
+              }
+            }
+            return {
+              id: storedUser.id,
+              name: storedUser.name,
+              email: storedUser.email,
+              image: storedUser.avatar,
+              role: storedUser.role,
+            };
+          }
+        } catch (storeError) {
+          console.warn('[auth.ts] Error checking local user store:', storeError);
         }
 
         // Graceful fallback for mock/demo users

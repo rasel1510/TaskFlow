@@ -1,29 +1,10 @@
-/**
- * src/api/auth/signup/route.ts
- *
- * Auth — Signup endpoint core handler.
- *
- * Endpoint (re-exported via src/app/api/auth/signup/route.ts):
- *   POST /api/auth/signup — Create a new user account
- *
- * Request body:
- *   { name: string; email: string; password: string; role?: string }
- *
- * Responses:
- *   201 — Account created successfully (includes sanitised user object)
- *   400 — Validation error (missing fields, weak password)
- *   409 — Email already registered
- *   500 — Internal server error
- *
- * Architecture note:
- *   Business logic lives here. The Next.js App Router bridge at
- *   src/app/api/auth/signup/route.ts simply re-exports this handler.
- */
+
 
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
 import { users as mockUsers } from '@/data/mockData';
+import { findStoredUserByEmail, saveStoredUser } from '@/data/userStore';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -69,9 +50,21 @@ export async function POST(req: Request) {
     }
 
     const normalizedEmail = (email as string).toLowerCase().trim();
-    const userRole        = (role as string | undefined)?.trim() || 'User';
-    const avatar          = getInitials(name as string);
-    const hashedPassword  = await bcrypt.hash(password as string, 10);
+    const userRole = (role as string | undefined)?.trim() || 'User';
+    const avatar = getInitials(name as string);
+    const hashedPassword = await bcrypt.hash(password as string, 10);
+
+    // First check fallback store / mock users for existing account
+    const existingStored = findStoredUserByEmail(normalizedEmail);
+    const existingMock = mockUsers.find(
+      u => u.email.toLowerCase() === normalizedEmail
+    );
+    if (existingStored || existingMock) {
+      return NextResponse.json(
+        { message: 'An account with this email already exists' },
+        { status: 409 }
+      );
+    }
 
     try {
       // Check for duplicate email in database
@@ -86,53 +79,61 @@ export async function POST(req: Request) {
         );
       }
 
-      // Persist new user
+      // Persist new user in database
       const newUser = await prisma.user.create({
         data: {
-          name:     (name as string).trim(),
-          email:    normalizedEmail,
+          name: (name as string).trim(),
+          email: normalizedEmail,
           password: hashedPassword,
-          role:     userRole,
+          role: userRole,
           avatar,
         },
+      });
+
+      // Also persist to local userStore for seamless failover
+      saveStoredUser({
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        password: hashedPassword,
+        role: newUser.role,
+        avatar: newUser.avatar,
       });
 
       return NextResponse.json(
         {
           message: 'Account created successfully',
           user: {
-            id:     newUser.id,
-            name:   newUser.name,
-            email:  newUser.email,
-            role:   newUser.role,
+            id: newUser.id,
+            name: newUser.name,
+            email: newUser.email,
+            role: newUser.role,
             avatar: newUser.avatar,
           },
         },
         { status: 201 }
       );
     } catch (dbError) {
-      // Database unavailable — use simulated response for offline demo
-      console.warn('[POST /api/auth/signup] Prisma unavailable, using demo fallback:', dbError);
+      // Database unavailable / auth failure — persist safely to userStore
+      console.warn('[POST /api/auth/signup] Prisma unavailable, saving to local store:', dbError);
 
-      const existingMock = mockUsers.find(
-        u => u.email.toLowerCase() === normalizedEmail
-      );
-      if (existingMock) {
-        return NextResponse.json(
-          { message: 'An account with this email already exists' },
-          { status: 409 }
-        );
-      }
+      const storedUser = saveStoredUser({
+        name: (name as string).trim(),
+        email: normalizedEmail,
+        password: hashedPassword,
+        role: userRole,
+        avatar,
+      });
 
       return NextResponse.json(
         {
-          message: 'Account created successfully (demo mode)',
+          message: 'Account created successfully',
           user: {
-            id:     `user-${Date.now()}`,
-            name:   (name as string).trim(),
-            email:  normalizedEmail,
-            role:   userRole,
-            avatar,
+            id: storedUser.id,
+            name: storedUser.name,
+            email: storedUser.email,
+            role: storedUser.role,
+            avatar: storedUser.avatar,
           },
         },
         { status: 201 }

@@ -17,7 +17,7 @@ Next.js + Tailwind CSS + shadcn/ui project for project and task management.
 
 ### Middleware (`src/middleware/`)
 - `src/middleware.ts` — ⭐ Next.js entry point — delegates to `./middleware/`
-- `src/middleware/index.ts` — Middleware orchestrator / chain runner
+- `src/middleware/chain.ts` — Middleware orchestrator / chain runner
 - `src/middleware/auth.ts` — Auth session-token checks & route-protection logic
 
 ### API Layer (`src/api/`) — Canonical business logic
@@ -65,9 +65,10 @@ Request → src/app/api/tasks/route.ts (bridge)
 
 ## Scripts
 
-- `pnpm dev` — Start Next.js development server
-- `pnpm build` — Build the application for production
-- `pnpm start` — Start the production server
-- `pnpm prisma:generate` — Regenerate Prisma client
-- `pnpm prisma:push` — Push schema to database
-- `pnpm prisma:studio` — Open Prisma Studio
+- `npm run dev` — Start Next.js development server
+- `npm run build` — Build the application for production
+- `npm start` — Start the production server
+- `npm run prisma:generate` — Regenerate Prisma client
+- `npm run prisma:push` — Push schema to database
+- `npm run prisma:studio` — Open Prisma Studio
+

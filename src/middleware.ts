@@ -5,15 +5,15 @@
  * All middleware logic is delegated to the modular `src/middleware/` directory:
  *
  *   src/middleware/
- *   ├── index.ts    — orchestrator: chains all handlers in order
+ *   ├── chain.ts    — orchestrator: chains all handlers in order
  *   └── auth.ts     — session-token checks & auth/protected-route redirects
  *
  * To add new middleware, create a handler in src/middleware/ and register
- * it in src/middleware/index.ts — no changes needed here.
+ * it in src/middleware/chain.ts — no changes needed here.
  */
 
 import type { NextRequest } from 'next/server';
-import { runMiddleware } from './middleware/index';
+import { runMiddleware } from './middleware/chain';
 
 export function middleware(request: NextRequest) {
   return runMiddleware(request);
