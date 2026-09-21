@@ -1,24 +1,10 @@
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { tasks as mockTasks } from '@/data/mockData';
-
-export async function GET() {
-  try {
-    const dbTasks = await prisma.task.findMany({
-      include: {
-        assignee: true,
-        project: true,
-        subtasks: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    if (dbTasks && dbTasks.length > 0) {
-      return NextResponse.json(dbTasks);
-    }
-    return NextResponse.json(mockTasks);
-  } catch {
-    // If PostgreSQL is not connected yet, gracefully fallback to mock data
-    return NextResponse.json(mockTasks);
-  }
-}
+/**
+ * src/app/api/tasks/route.ts  — Next.js App Router bridge
+ *
+ * This file serves as the HTTP entry point for /api/tasks.
+ * All business logic lives in `src/api/tasks/route.ts`.
+ *
+ * Next.js requires named exports (GET, POST, …) from this exact location.
+ * We simply re-export them from the canonical API module.
+ */
+export { GET, POST } from '@/api/tasks/route';

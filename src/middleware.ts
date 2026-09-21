@@ -1,54 +1,32 @@
-import { NextResponse } from 'next/server';
+/**
+ * src/middleware.ts  — Next.js Middleware Entry Point
+ *
+ * This file is the single entry point required by Next.js.
+ * All middleware logic is delegated to the modular `src/middleware/` directory:
+ *
+ *   src/middleware/
+ *   ├── index.ts    — orchestrator: chains all handlers in order
+ *   └── auth.ts     — session-token checks & auth/protected-route redirects
+ *
+ * To add new middleware, create a handler in src/middleware/ and register
+ * it in src/middleware/index.ts — no changes needed here.
+ */
+
 import type { NextRequest } from 'next/server';
+import { runMiddleware } from './middleware/index';
 
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  // Allow static files, api routes, and Next.js internals
-  if (
-    pathname.startsWith('/api') ||
-    pathname.startsWith('/_next') ||
-    pathname.includes('.') ||
-    pathname === '/favicon.ico'
-  ) {
-    return NextResponse.next();
-  }
-
-  // Check for NextAuth session token cookies (standard + secure prefixes)
-  const sessionToken =
-    request.cookies.get('authjs.session-token')?.value ||
-    request.cookies.get('__Secure-authjs.session-token')?.value ||
-    request.cookies.get('next-auth.session-token')?.value ||
-    request.cookies.get('__Secure-next-auth.session-token')?.value;
-
-  const isAuthRoute = pathname.startsWith('/auth');
-
-  // If user is not logged in and trying to access protected route -> redirect to login
-  if (!sessionToken && !isAuthRoute) {
-    const loginUrl = new URL('/auth/login', request.url);
-    // Keep callbackUrl so user can return to their target page after login
-    if (pathname !== '/') {
-      loginUrl.searchParams.set('callbackUrl', pathname);
-    }
-    return NextResponse.redirect(loginUrl);
-  }
-
-  // If user is already logged in and tries to access login or signup -> redirect to app root
-  if (sessionToken && isAuthRoute) {
-    return NextResponse.redirect(new URL('/', request.url));
-  }
-
-  return NextResponse.next();
+  return runMiddleware(request);
 }
 
 export const config = {
   matcher: [
     /*
      * Match all paths except:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico, images, and any file with an extension (.png, .jpg, .svg, .js, etc.)
+     * - api          (API routes — handled server-side)
+     * - _next/static (Next.js static file chunks)
+     * - _next/image  (Next.js image optimisation)
+     * - favicon.ico and any file with an extension (.png, .jpg, .svg, .js …)
      */
     '/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)',
   ],
