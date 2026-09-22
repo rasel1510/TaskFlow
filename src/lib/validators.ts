@@ -162,6 +162,41 @@ export type CreateSubtaskInput = z.infer<typeof CreateSubtaskSchema>;
 export type UpdateSubtaskInput = z.infer<typeof UpdateSubtaskSchema>;
 
 // ---------------------------------------------------------------------------
+// Profile and password schemas
+// ---------------------------------------------------------------------------
+
+export const UpdateProfileSchema = z.object({
+  name: z
+    .string()
+    .min(2, 'Name must be at least 2 characters')
+    .max(100, 'Name must be 100 characters or fewer')
+    .trim(),
+  role: z
+    .string()
+    .max(50, 'Role must be 50 characters or fewer')
+    .trim()
+    .optional(),
+  avatar: z
+    .string()
+    .max(10, 'Avatar initials must be 10 characters or fewer')
+    .trim()
+    .optional(),
+});
+
+export const ChangePasswordSchema = z.object({
+  currentPassword: z
+    .string()
+    .min(1, 'Current password is required'),
+  newPassword: z
+    .string()
+    .min(6, 'New password must be at least 6 characters')
+    .max(128, 'New password must be 128 characters or fewer'),
+});
+
+export type UpdateProfileInput = z.infer<typeof UpdateProfileSchema>;
+export type ChangePasswordInput = z.infer<typeof ChangePasswordSchema>;
+
+// ---------------------------------------------------------------------------
 // Auth schemas
 // ---------------------------------------------------------------------------
 

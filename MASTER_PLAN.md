@@ -778,10 +778,10 @@ src/
 - [x] 2.8 taskNumber (TF-001) displayed in TaskDetail, MyTasks, Kanban
 
 ### Phase 3 — Settings and Profile
-- [ ] 3.1 Profile settings saves name, role, avatar to DB
-- [ ] 3.2 Change Password — bcrypt verify + hash + update
-- [ ] 3.3 Members list reads from real users API
-- [ ] 3.4 Notification preferences model + save/load
+- [x] 3.1 Profile settings saves name, role, avatar to DB
+- [x] 3.2 Change Password — bcrypt verify + hash + update
+- [x] 3.3 Members list reads from real users API
+- [x] 3.4 Notification preferences model + save/load
 
 ### Phase 4 — Differentiators
 - [ ] 4.1 Global Command Palette (Ctrl+K) with real task/project search
