@@ -30,11 +30,11 @@ const breadcrumbs: Record<View, string[]> = {
 
 interface HeaderProps {
   currentView: View;
-  onCreateTask: () => void;
+  onCreateTask?: () => void;
   onMenuToggle: () => void;
 }
 
-export default function Header({ currentView, onCreateTask, onMenuToggle }: HeaderProps) {
+export default function Header({ currentView, onMenuToggle }: HeaderProps) {
   const [searchFocused, setSearchFocused] = useState(false);
   const [showNotifs, setShowNotifs] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -106,26 +106,6 @@ export default function Header({ currentView, onCreateTask, onMenuToggle }: Head
 
       {/* Right actions */}
       <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
-        {/* New Task — icon only on mobile, full button on desktop */}
-        <button
-          onClick={onCreateTask}
-          className="flex items-center justify-center gap-1.5 w-9 h-9 md:w-auto md:h-auto md:px-3.5 md:py-1.5 bg-[#2563EB] text-white rounded-lg text-[13px] font-semibold hover:bg-[#1D4ED8] transition-colors"
-          aria-label="New task"
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-          <span className="hidden md:inline">New Task</span>
-        </button>
-
-        {/* Help — desktop only */}
-        <button className="hidden md:flex w-8 h-8 items-center justify-center rounded-lg hover:bg-[#F3F4F6] text-[rgba(17,17,17,0.45)] hover:text-[#111111] transition-colors">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/>
-          </svg>
-        </button>
-
         {/* Notifications */}
         <div className="relative">
           <button
