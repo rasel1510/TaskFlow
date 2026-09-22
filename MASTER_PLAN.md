@@ -520,7 +520,104 @@ model Notification {
 
 ---
 
-### Step 4.8 — useEffect Cleanup and Memory Leak Prevention
+### Step 4.8 — Automated Project Health & Predictive SLA Risk Engine
+**Problem**: In basic task apps, project health (`on_track`, `at_risk`, `delayed`) is static or manually guessed, quickly falling out of sync with actual development velocity.
+**Solution**: A deterministic predictive algorithm evaluated automatically on task mutations and project lookups:
+- **Mathematical Heuristic**:
+  - If `now > dueDate` and `progress < 100` → `health = 'delayed'`, `riskScore = 100`, `slaBreached = true`.
+  - If `daysUntilDue <= 3` and `progress < 70` OR `overdueTasks >= 2` → `health = 'at_risk'`, `riskScore = 75`.
+  - Velocity Forecast: If `projectedDaysRemaining = (remainingTasks / max(velocityLast7Days, 0.2)) > daysUntilDue` → `health = 'at_risk'`.
+  - Otherwise → `health = 'on_track'`, `riskScore = 10`.
+**Create:** `src/lib/projectHealthEngine.ts` — pure deterministic calculation function with unit test coverage.
+**Modify:** `src/api/projects/[id]/route.ts` & `src/api/reports/summary/route.ts` — compute dynamic health, risk score, and SLA breach warnings.
+**Recruiter Signal**: Demonstrates automated business logic, predictive heuristics, and real-time SLA risk monitoring.
+
+---
+
+### Step 4.9 — Project Milestones & Release Sprint Roadmaps
+**Goal**: Allow engineering teams to partition projects into sequenced deliverables (e.g., "v1.0 Core Engine", "Beta Release", "Security Audit").
+**Add to `prisma/schema.prisma`:**
+```prisma
+model ProjectMilestone {
+  id          String    @id @default(cuid())
+  projectId   String
+  title       String
+  description String?
+  targetDate  DateTime?
+  completed   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+
+  @@index([projectId, completed])
+}
+```
+**Create:** `src/api/projects/[id]/milestones/route.ts` — `GET` (milestones with task progress) and `POST` (create milestone).
+**Modify:** `src/views/ProjectDetail.tsx` — interactive roadmap timeline showing milestone progress bars, task groupings, and target release delivery flags.
+**Recruiter Signal**: Normalized relational modeling, hierarchical delivery architecture, agile/scrum release planning.
+
+---
+
+### Step 4.10 — Project-Scoped Role-Based Access Control (RBAC) & Team Management
+**Goal**: Enterprise-grade multi-role permission boundaries on project resources.
+**Roles**:
+- `OWNER`: Full project destruction, settings modification, transfer ownership.
+- `LEAD`: Milestone management, project settings editing, member role modification.
+- `CONTRIBUTOR`: Task creation, assignment, status progression, comment authoring.
+- `VIEWER`: Read-only access to Kanban, lists, and burndown analytics.
+**Add to `prisma/schema.prisma`:**
+```prisma
+enum ProjectRole {
+  OWNER
+  LEAD
+  CONTRIBUTOR
+  VIEWER
+}
+
+model ProjectMember {
+  id        String      @id @default(cuid())
+  projectId String
+  userId    String
+  role      ProjectRole @default(CONTRIBUTOR)
+  joinedAt  DateTime    @default(now())
+
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([projectId, role])
+  @@index([userId])
+}
+```
+**Create:** `src/lib/permissions.ts` — `assertProjectRole(sessionUserId, projectId, minimumRole)`
+**Create:** `src/api/projects/[id]/members/route.ts` — list members, invite member with role, change role, remove member.
+**Recruiter Signal**: Enterprise security posture, least-privilege enforcement, multi-tenant RBAC.
+
+---
+
+### Step 4.11 — Project Lifecycle State Machine & Audited Archival
+**Goal**: Manage enterprise project lifecycle without destructive deletes that corrupt historical reporting.
+**Lifecycle States**: `PLANNING` → `ACTIVE` → `PAUSED` → `COMPLETED` → `ARCHIVED`.
+- **Soft Deletion & Archival**: `archivedAt DateTime?` on `Project`.
+- Active queries filter `where: { archivedAt: null }` while reporting and audit logs preserve historical attribution.
+- Project restoration with 1-click unarchive.
+**Recruiter Signal**: State-machine architecture, data warehouse integrity, compliance audit logging, non-destructive lifecycle management.
+
+---
+
+### Step 4.12 — Project Burndown & Velocity Analytics Engine
+**Goal**: Real-time project completion trajectory comparing ideal burn line vs actual remaining work.
+**Create:** `src/api/projects/[id]/burndown/route.ts`
+- Computes daily task resolution points over project duration `[startDate, dueDate]`.
+- Calculates ideal daily resolution slope: `slope = totalTasks / totalDays`.
+- Returns actual remaining tasks per day using `Task` `createdAt` and `Activity` completion events.
+**Modify:** `src/views/ProjectDetail.tsx` — render SVG Burndown Chart with projected completion target date based on team velocity.
+**Recruiter Signal**: Mathematical visualization, historical event aggregation, enterprise sprint velocity tracking.
+
+---
+
+### Step 4.13 — useEffect Cleanup and Memory Leak Prevention
 
 **Modify:** `src/context/TaskContext.tsx`
 - Wrap all fetch calls with AbortController
@@ -694,6 +791,12 @@ src/
 - [ ] 4.5 Auto-recompute project progress on every task status change
 - [ ] 4.6 Bulk task operations using Prisma updateMany and deleteMany
 - [ ] 4.7 CSV export from Reports
+- [ ] 4.8 Automated Project Health & Predictive SLA Risk Engine
+- [ ] 4.9 Project Milestones & Release Sprint Roadmaps
+- [ ] 4.10 Project-Scoped Role-Based Access Control (RBAC) & Team Management
+- [ ] 4.11 Project Lifecycle State Machine & Audited Archival
+- [ ] 4.12 Project Burndown & Velocity Analytics Engine
+- [ ] 4.13 Memory Leak & AbortController cleanup across views
 
 ### Phase 5 — Polish
 - [ ] 5.1 Skeleton loaders on all data-fetching views
@@ -715,6 +818,10 @@ src/
 | React Patterns | Context + optimistic updates + rollback, custom hooks, useEffect cleanup |
 | Performance Thinking | O(1) lookups, _count not full relations, bounded pagination |
 | Real-Time UX | Optimistic updates, toast feedback, skeleton loaders, drag-and-drop |
+| Enterprise Project Lifecycle | Audited state machine (`PLANNING` → `ACTIVE` → `ARCHIVED`), soft deletion, data warehouse integrity |
+| Algorithmic SLA & Health Engine | Deterministic predictive heuristic calculating deadline risk, velocity forecast, and SLA warnings |
+| Multi-Tenant Project RBAC | Fine-grained project member roles (`OWNER`, `LEAD`, `CONTRIBUTOR`, `VIEWER`), least-privilege enforcement |
+| Milestones & Burndown Analytics | Relational sprint milestone roadmaps, dynamic burn-down trajectory curve calculation |
 | Production Readiness | Error boundaries, empty states, build clean, mobile responsive |
 | Code Quality | TypeScript strict, no any, meaningful variable names, documented architecture |
 | Product Sense | Every feature works end-to-end — nothing is faked or stubbed |
