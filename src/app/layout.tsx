@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'TaskFlow - Modern Project & Task Management',
+  title: 'FlowSync - Modern Project & Task Management',
   description:
     'Industry-level SaaS platform for managing tasks, projects, and teams with advanced collaboration, reporting, and productivity tools.',
 };

@@ -1,12 +1,4 @@
-/**
- * src/api/services/projects.service.ts
- *
- * Client-side service layer for the Projects API.
- *
- * Usage:
- *   import { projectsService } from '@/api/services/projects.service';
- *   const result = await projectsService.getAll();
- */
+
 
 import { apiClient } from '@/api/client';
 

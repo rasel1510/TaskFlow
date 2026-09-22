@@ -20,9 +20,9 @@ import {
 // Demo accounts for 1-Click Quick Login
 // ---------------------------------------------------------------------------
 const demoAccounts = [
-  { name: 'Sarah Chen', role: 'Frontend Engineer', email: 'sarah@taskflow.io', avatar: 'SC' },
-  { name: 'Rasel Ahmed', role: 'Product Manager', email: 'rasel@taskflow.io', avatar: 'RA' },
-  { name: 'Ahmed Malik', role: 'Backend Engineer', email: 'ahmed@taskflow.io', avatar: 'AM' },
+  { name: 'Sarah Chen', role: 'Frontend Engineer', email: 'sarah@flowsync.io', avatar: 'SC' },
+  { name: 'Rasel Ahmed', role: 'Product Manager', email: 'rasel@flowsync.io', avatar: 'RA' },
+  { name: 'Ahmed Malik', role: 'Backend Engineer', email: 'ahmed@flowsync.io', avatar: 'AM' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -131,7 +131,7 @@ function LoginForm() {
           Welcome back
         </h2>
         <p className="text-sm text-gray-500 mt-1.5">
-          Enter your credentials to access your TaskFlow workspace.
+          Enter your credentials to access your FlowSync workspace.
         </p>
       </div>
 
@@ -211,7 +211,7 @@ function LoginForm() {
             <input
               type="email"
               required
-              placeholder="sarah@taskflow.io"
+              placeholder="sarah@flowsync.io"
               value={email}
               onChange={e => setEmail(e.target.value)}
               className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all shadow-xs"

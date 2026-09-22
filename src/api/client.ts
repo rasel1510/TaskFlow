@@ -1,7 +1,7 @@
 /**
  * src/api/client.ts
  *
- * Centralised, typed HTTP client for all TaskFlow API calls.
+ * Centralised, typed HTTP client for all FlowSync API calls.
  *
  * Usage (client-side):
  *   import { apiClient } from '@/api/client';

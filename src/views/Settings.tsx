@@ -98,7 +98,7 @@ export default function Settings() {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-[20px] font-bold text-[#111111] mb-1">Members</h2>
-                <p className="text-[13px] text-[rgba(17,17,17,0.45)]">{users.length} members in TaskFlow Inc.</p>
+                <p className="text-[13px] text-[rgba(17,17,17,0.45)]">{users.length} members in FlowSync Inc.</p>
               </div>
               <button className="flex items-center gap-2 px-4 py-2 bg-[#2563EB] text-white rounded-lg text-[13px] font-semibold hover:bg-[#1D4ED8] transition-colors">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -141,7 +141,7 @@ export default function Settings() {
         {section === 'integrations' && (
           <div>
             <h2 className="text-[20px] font-bold text-[#111111] mb-1">Integrations</h2>
-            <p className="text-[13px] text-[rgba(17,17,17,0.45)] mb-6">Connect your tools with TaskFlow</p>
+            <p className="text-[13px] text-[rgba(17,17,17,0.45)] mb-6">Connect your tools with FlowSync</p>
             <div className="grid grid-cols-2 gap-4">
               {integrations.map(integration => (
                 <div key={integration.name} className="flex items-start gap-4 p-5 border border-[#E5E7EB] rounded-xl hover:border-[#93C5FD] transition-colors">
@@ -288,8 +288,8 @@ export default function Settings() {
             <p className="text-[13px] text-[rgba(17,17,17,0.45)] mb-6">Manage your workspace settings</p>
             <div className="space-y-4">
               {[
-                { label: 'Workspace Name', value: 'TaskFlow Inc.' },
-                { label: 'Workspace URL', value: 'taskflow-inc.taskflow.io' },
+                { label: 'Workspace Name', value: 'FlowSync Inc.' },
+                { label: 'Workspace URL', value: 'flowsync-inc.flowsync.io' },
                 { label: 'Industry', value: 'Software / Technology' },
               ].map(({ label, value }) => (
                 <div key={label}>

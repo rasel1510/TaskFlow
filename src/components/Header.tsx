@@ -4,24 +4,37 @@ import { currentUser, notifications } from '../data/mockData';
 
 type View = 'dashboard' | 'tasks' | 'kanban' | 'projects' | 'calendar' | 'timeline' | 'reports' | 'settings' | 'inbox';
 
+const pageTitles: Record<View, string> = {
+  dashboard: 'Dashboard',
+  tasks: 'My Tasks',
+  kanban: 'Board',
+  projects: 'Projects',
+  calendar: 'Calendar',
+  timeline: 'Timeline',
+  reports: 'Reports',
+  settings: 'Settings',
+  inbox: 'Inbox',
+};
+
 const breadcrumbs: Record<View, string[]> = {
-  dashboard: ['TaskFlow Inc.', 'Dashboard'],
-  tasks: ['TaskFlow Inc.', 'My Tasks'],
-  kanban: ['TaskFlow Inc.', 'Board'],
-  projects: ['TaskFlow Inc.', 'Projects'],
-  calendar: ['TaskFlow Inc.', 'Calendar'],
-  timeline: ['TaskFlow Inc.', 'Timeline'],
-  reports: ['TaskFlow Inc.', 'Reports'],
-  settings: ['TaskFlow Inc.', 'Settings'],
-  inbox: ['TaskFlow Inc.', 'Inbox'],
+  dashboard: ['FlowSync Inc.', 'Dashboard'],
+  tasks: ['FlowSync Inc.', 'My Tasks'],
+  kanban: ['FlowSync Inc.', 'Board'],
+  projects: ['FlowSync Inc.', 'Projects'],
+  calendar: ['FlowSync Inc.', 'Calendar'],
+  timeline: ['FlowSync Inc.', 'Timeline'],
+  reports: ['FlowSync Inc.', 'Reports'],
+  settings: ['FlowSync Inc.', 'Settings'],
+  inbox: ['FlowSync Inc.', 'Inbox'],
 };
 
 interface HeaderProps {
   currentView: View;
   onCreateTask: () => void;
+  onMenuToggle: () => void;
 }
 
-export default function Header({ currentView, onCreateTask }: HeaderProps) {
+export default function Header({ currentView, onCreateTask, onMenuToggle }: HeaderProps) {
   const [searchFocused, setSearchFocused] = useState(false);
   const [showNotifs, setShowNotifs] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -37,9 +50,28 @@ export default function Header({ currentView, onCreateTask }: HeaderProps) {
     (session?.user?.name ? session.user.name.slice(0, 2).toUpperCase() : currentUser.avatar);
 
   return (
-    <header className="flex items-center gap-4 px-6 bg-white border-b border-[#E5E7EB] shrink-0" style={{ height: 57 }}>
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-[13px]">
+    <header className="flex items-center gap-2 md:gap-4 px-4 md:px-6 bg-white border-b border-[#E5E7EB] shrink-0" style={{ height: 57 }}>
+
+      {/* Hamburger — mobile only */}
+      <button
+        onClick={onMenuToggle}
+        className="md:hidden w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[#F3F4F6] text-[rgba(17,17,17,0.6)] transition-colors shrink-0"
+        aria-label="Open menu"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+
+      {/* Page title — mobile only */}
+      <span className="md:hidden text-[15px] font-bold text-[#111111] flex-1 truncate">
+        {pageTitles[currentView]}
+      </span>
+
+      {/* Breadcrumb — desktop only */}
+      <nav className="hidden md:flex items-center gap-1.5 text-[13px] shrink-0">
         {crumbs.map((crumb, i) => (
           <span key={i} className="flex items-center gap-1.5">
             {i > 0 && <span className="text-[#D1D5DB]">/</span>}
@@ -50,8 +82,8 @@ export default function Header({ currentView, onCreateTask }: HeaderProps) {
         ))}
       </nav>
 
-      {/* Search */}
-      <div className="flex-1 flex justify-center">
+      {/* Search — desktop only */}
+      <div className="hidden md:flex flex-1 justify-center">
         <div
           className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${
             searchFocused ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]' : 'border-[#E5E7EB]'
@@ -73,19 +105,21 @@ export default function Header({ currentView, onCreateTask }: HeaderProps) {
       </div>
 
       {/* Right actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
+        {/* New Task — icon only on mobile, full button on desktop */}
         <button
           onClick={onCreateTask}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#2563EB] text-white rounded-lg text-[13px] font-semibold hover:bg-[#1D4ED8] transition-colors"
+          className="flex items-center justify-center gap-1.5 w-9 h-9 md:w-auto md:h-auto md:px-3.5 md:py-1.5 bg-[#2563EB] text-white rounded-lg text-[13px] font-semibold hover:bg-[#1D4ED8] transition-colors"
+          aria-label="New task"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
-          New Task
+          <span className="hidden md:inline">New Task</span>
         </button>
 
-        {/* Help */}
-        <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F3F4F6] text-[rgba(17,17,17,0.45)] hover:text-[#111111] transition-colors">
+        {/* Help — desktop only */}
+        <button className="hidden md:flex w-8 h-8 items-center justify-center rounded-lg hover:bg-[#F3F4F6] text-[rgba(17,17,17,0.45)] hover:text-[#111111] transition-colors">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10"/>
             <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/>
@@ -95,8 +129,9 @@ export default function Header({ currentView, onCreateTask }: HeaderProps) {
         {/* Notifications */}
         <div className="relative">
           <button
-            onClick={() => setShowNotifs(!showNotifs)}
-            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F3F4F6] text-[rgba(17,17,17,0.45)] hover:text-[#111111] transition-colors relative"
+            onClick={() => { setShowNotifs(!showNotifs); setShowUserMenu(false); }}
+            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[#F3F4F6] text-[rgba(17,17,17,0.45)] hover:text-[#111111] transition-colors relative"
+            aria-label="Notifications"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/>
@@ -109,12 +144,12 @@ export default function Header({ currentView, onCreateTask }: HeaderProps) {
           {showNotifs && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowNotifs(false)} />
-              <div className="absolute right-0 top-10 w-80 bg-white border border-[#E5E7EB] rounded-xl shadow-lg z-20 overflow-hidden">
+              <div className="absolute right-0 top-11 w-[calc(100vw-2rem)] max-w-sm bg-white border border-[#E5E7EB] rounded-xl shadow-lg z-20 overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-[#E5E7EB]">
                   <span className="font-semibold text-[14px]">Notifications</span>
                   <button className="text-[12px] text-[#2563EB] hover:underline">Mark all read</button>
                 </div>
-                <div className="max-h-80 overflow-y-auto">
+                <div className="max-h-72 overflow-y-auto">
                   {notifications.map(n => (
                     <div
                       key={n.id}
@@ -144,13 +179,14 @@ export default function Header({ currentView, onCreateTask }: HeaderProps) {
         {/* Avatar & User Dropdown */}
         <div className="relative">
           <button
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-2 px-1 py-0.5 rounded-lg hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+            onClick={() => { setShowUserMenu(!showUserMenu); setShowNotifs(false); }}
+            className="flex items-center gap-1.5 px-1 py-0.5 rounded-lg hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+            aria-label="User menu"
           >
             <div className="w-7 h-7 rounded-full bg-[#2563EB] flex items-center justify-center">
               <span className="text-[11px] font-bold text-white">{userAvatar}</span>
             </div>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2">
+            <svg className="hidden md:block" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2">
               <path d="M6 9l6 6 6-6"/>
             </svg>
           </button>
@@ -158,7 +194,7 @@ export default function Header({ currentView, onCreateTask }: HeaderProps) {
           {showUserMenu && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowUserMenu(false)} />
-              <div className="absolute right-0 top-10 w-64 bg-white border border-[#E5E7EB] rounded-xl shadow-lg z-20 overflow-hidden py-1">
+              <div className="absolute right-0 top-11 w-64 bg-white border border-[#E5E7EB] rounded-xl shadow-lg z-20 overflow-hidden py-1">
                 <div className="px-4 py-3 border-b border-[#E5E7EB]">
                   <p className="text-[13px] font-semibold text-[#111111] truncate">{userName}</p>
                   <p className="text-[11px] text-[rgba(17,17,17,0.5)] truncate">{userEmail}</p>

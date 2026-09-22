@@ -6,7 +6,7 @@ import { users as mockUsers } from '@/data/mockData';
 import { findStoredUserByEmail } from '@/data/userStore';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'taskflow-secure-nextauth-secret-key-32chars',
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'flowsync-secure-nextauth-secret-key-32chars',
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days

@@ -110,21 +110,21 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
 
   return (
     <div className="flex-1 overflow-y-auto bg-white">
-      <div className="max-w-[1280px] mx-auto px-6 py-6">
+      <div className="max-w-[1280px] mx-auto px-4 md:px-6 py-4 md:py-6">
         {/* Page header */}
-        <div className="flex items-start justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-5 md:mb-6 gap-1">
           <div>
-            <h1 className="text-[26px] font-bold text-[#111111]">Good {greeting}, {userName}</h1>
+            <h1 className="text-[22px] md:text-[26px] font-bold text-[#111111]">Good {greeting}, {userName}</h1>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-[13px] text-[rgba(17,17,17,0.5)]">
+            <span className="text-[12px] md:text-[13px] text-[rgba(17,17,17,0.5)]">
               {now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
             </span>
           </div>
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-5 md:mb-6">
           <StatCard
             label="Total Tasks"
             value={isLoading ? '...' : tasks.length}
@@ -156,9 +156,9 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
         </div>
 
         {/* Main grid */}
-        <div className="grid grid-cols-3 gap-5 mb-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5 mb-4 md:mb-5">
           {/* My Tasks */}
-          <div className="col-span-2 bg-white border border-[#E5E7EB] rounded-xl overflow-hidden">
+          <div className="lg:col-span-2 bg-white border border-[#E5E7EB] rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5E7EB]">
               <div>
                 <h2 className="text-[15px] font-semibold text-[#111111]">My Tasks</h2>
@@ -242,7 +242,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
         </div>
 
         {/* Second row */}
-        <div className="grid grid-cols-3 gap-5 mb-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5 mb-4 md:mb-5">
           {/* Weekly Chart */}
           <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5E7EB]">
@@ -269,7 +269,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
           </div>
 
           {/* Projects */}
-          <div className="col-span-2 bg-white border border-[#E5E7EB] rounded-xl overflow-hidden">
+          <div className="lg:col-span-2 bg-white border border-[#E5E7EB] rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5E7EB]">
               <h2 className="text-[15px] font-semibold text-[#111111]">Project Progress</h2>
               <button onClick={() => onViewChange('projects')} className="text-[12.5px] text-[#2563EB] hover:underline font-medium">View all</button>
@@ -306,9 +306,9 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
         </div>
 
         {/* Third row */}
-        <div className="grid grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5">
           {/* Team workload */}
-          <div className="col-span-2 bg-white border border-[#E5E7EB] rounded-xl overflow-hidden">
+          <div className="lg:col-span-2 bg-white border border-[#E5E7EB] rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5E7EB]">
               <h2 className="text-[15px] font-semibold text-[#111111]">Team Workload</h2>
               <button onClick={() => onViewChange('reports')} className="text-[12.5px] text-[#2563EB] hover:underline font-medium">View report</button>

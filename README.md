@@ -1,4 +1,4 @@
-# TaskFlow
+# FlowSync
 
 > Modern, high-velocity project and task management SaaS platform built with Next.js 15, React 19, Tailwind CSS, shadcn/ui, NextAuth, and Prisma.  
 > 📐 **Scalability & Engineering Standards:** See [ARCHITECTURE.md](file:///c:/Users/DELL/Desktop/TaskFlow/ARCHITECTURE.md) for time/space complexity budgets, noise-free UI design guidelines, and system architecture for millions of users.
@@ -7,7 +7,7 @@
 
 ## 🚀 Overview
 
-TaskFlow is an enterprise-grade project management application designed for agile product, engineering, and design teams. It brings together sprint roadmaps, kanban boards, task tracking, team analytics, and secure authentication into one unified, lightning-fast workspace.
+FlowSync is an enterprise-grade project management application designed for agile product, engineering, and design teams. It brings together sprint roadmaps, kanban boards, task tracking, team analytics, and secure authentication into one unified, lightning-fast workspace.
 
 ---
 
