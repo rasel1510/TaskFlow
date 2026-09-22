@@ -50,12 +50,12 @@ export interface Project {
 }
 
 export const users: User[] = [
-  { id: 'u1', name: 'Rasel Ahmed', avatar: 'RA', role: 'Product Manager', email: 'rasel@taskflow.io' },
-  { id: 'u2', name: 'Sarah Chen', avatar: 'SC', role: 'Frontend Engineer', email: 'sarah@taskflow.io' },
-  { id: 'u3', name: 'Ahmed Malik', avatar: 'AM', role: 'Backend Engineer', email: 'ahmed@taskflow.io' },
-  { id: 'u4', name: 'John Torres', avatar: 'JT', role: 'QA Engineer', email: 'john@taskflow.io' },
-  { id: 'u5', name: 'Maria Lopez', avatar: 'ML', role: 'UI Designer', email: 'maria@taskflow.io' },
-  { id: 'u6', name: 'David Kim', avatar: 'DK', role: 'DevOps Engineer', email: 'david@taskflow.io' },
+  { id: 'u1', name: 'Rasel Ahmed', avatar: 'RA', role: 'Product Manager', email: 'rasel@flowsync.io' },
+  { id: 'u2', name: 'Sarah Chen', avatar: 'SC', role: 'Frontend Engineer', email: 'sarah@flowsync.io' },
+  { id: 'u3', name: 'Ahmed Malik', avatar: 'AM', role: 'Backend Engineer', email: 'ahmed@flowsync.io' },
+  { id: 'u4', name: 'John Torres', avatar: 'JT', role: 'QA Engineer', email: 'john@flowsync.io' },
+  { id: 'u5', name: 'Maria Lopez', avatar: 'ML', role: 'UI Designer', email: 'maria@flowsync.io' },
+  { id: 'u6', name: 'David Kim', avatar: 'DK', role: 'DevOps Engineer', email: 'david@flowsync.io' },
 ];
 
 export const currentUser = users[0];

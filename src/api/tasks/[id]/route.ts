@@ -15,6 +15,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { users as mockUsers } from '@/data/mockData';
+import { getAllStoredUsers } from '@/data/userStore';
 
 // Route-segment context provided by Next.js App Router
 interface RouteContext {
@@ -76,8 +78,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     // Only allow known, safe fields to be updated (whitelist approach)
     const allowedFields = [
       'title', 'description', 'status', 'priority',
-      'assigneeId', 'projectId', 'dueDate', 'estimate',
-      'labels', 'progress',
+      'dueDate', 'estimate', 'labels', 'progress',
     ];
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -87,6 +88,78 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         updateData[field] = field === 'dueDate' && body[field]
           ? new Date(body[field] as string)
           : body[field];
+      }
+    }
+
+    // Handle assigneeId carefully to prevent foreign key constraint violations
+    if ('assigneeId' in body) {
+      const rawAssigneeId = body.assigneeId;
+      if (!rawAssigneeId || rawAssigneeId === 'unassigned') {
+        updateData.assigneeId = null;
+      } else if (typeof rawAssigneeId === 'string') {
+        const trimmed = rawAssigneeId.trim();
+        // Check if user exists in DB by ID or email
+        let dbUser = await prisma.user.findFirst({
+          where: { OR: [{ id: trimmed }, { email: trimmed }] },
+        });
+
+        if (!dbUser) {
+          // Check local stored users
+          const storedUsers = getAllStoredUsers();
+          const storedUser = storedUsers.find(
+            u => u.id === trimmed || u.email.toLowerCase() === trimmed.toLowerCase()
+          );
+          if (storedUser) {
+            dbUser = await prisma.user.upsert({
+              where: { id: storedUser.id },
+              update: {},
+              create: {
+                id: storedUser.id,
+                name: storedUser.name,
+                email: storedUser.email,
+                avatar: storedUser.avatar,
+                role: storedUser.role,
+              },
+            });
+          }
+        }
+
+        if (!dbUser) {
+          // Check mock users
+          const mockUser = mockUsers.find(
+            u => u.id === trimmed || u.email.toLowerCase() === trimmed.toLowerCase()
+          );
+          if (mockUser) {
+            dbUser = await prisma.user.upsert({
+              where: { id: mockUser.id },
+              update: {},
+              create: {
+                id: mockUser.id,
+                name: mockUser.name,
+                email: mockUser.email,
+                avatar: mockUser.avatar,
+                role: mockUser.role,
+              },
+            });
+          }
+        }
+
+        if (dbUser) {
+          updateData.assigneeId = dbUser.id;
+        } else {
+          console.warn(`[PATCH /api/tasks/:id] Assignee "${trimmed}" not found, defaulting to null`);
+          updateData.assigneeId = null;
+        }
+      }
+    }
+
+    // Handle projectId carefully to prevent foreign key constraint violations
+    if ('projectId' in body) {
+      if (typeof body.projectId === 'string' && body.projectId.trim()) {
+        const proj = await prisma.project.findUnique({ where: { id: body.projectId.trim() } });
+        if (proj) {
+          updateData.projectId = proj.id;
+        }
       }
     }
 

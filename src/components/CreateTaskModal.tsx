@@ -75,13 +75,17 @@ export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center sm:p-4"
         onClick={onClose}
       >
         <div
-          className="bg-white rounded-2xl border border-[#E5E7EB] shadow-xl w-full max-w-lg"
+          className="bg-white rounded-t-2xl sm:rounded-2xl border border-[#E5E7EB] shadow-xl w-full sm:max-w-lg max-h-[92vh] overflow-y-auto"
           onClick={e => e.stopPropagation()}
         >
+          {/* Mobile drag handle */}
+          <div className="flex justify-center pt-3 pb-1 sm:hidden">
+            <div className="w-9 h-1 rounded-full bg-[#E5E7EB]" />
+          </div>
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB]">
             <h2 className="text-[16px] font-semibold text-[#111111]">Create Task</h2>
@@ -125,7 +129,7 @@ export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Project */}
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)] mb-1.5">Project</label>
@@ -181,7 +185,7 @@ export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Due Date */}
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)] mb-1.5">Due Date</label>
@@ -207,19 +211,19 @@ export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex items-center justify-end gap-2 pt-2 pb-2">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={submitting}
-                className="px-4 py-2 border border-[#E5E7EB] rounded-lg text-[13px] font-medium text-[rgba(17,17,17,0.6)] hover:bg-[#F9FAFB] disabled:opacity-40 transition-colors"
+                className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 border border-[#E5E7EB] rounded-xl sm:rounded-lg text-[13px] font-medium text-[rgba(17,17,17,0.6)] hover:bg-[#F9FAFB] disabled:opacity-40 transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={!title.trim() || submitting}
-                className="px-4 py-2 bg-[#2563EB] text-white rounded-lg text-[13px] font-semibold hover:bg-[#1D4ED8] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 bg-[#2563EB] text-white rounded-xl sm:rounded-lg text-[13px] font-semibold hover:bg-[#1D4ED8] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
                 {submitting && (
                   <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />

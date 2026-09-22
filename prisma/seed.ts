@@ -7,35 +7,35 @@ async function main() {
 
   // Create Users
   const rasel = await prisma.user.upsert({
-    where: { email: 'rasel@taskflow.io' },
+    where: { email: 'rasel@flowsync.io' },
     update: {},
     create: {
       name: 'Rasel Ahmed',
       avatar: 'RA',
       role: 'Product Manager',
-      email: 'rasel@taskflow.io',
+      email: 'rasel@flowsync.io',
     },
   });
 
   const sarah = await prisma.user.upsert({
-    where: { email: 'sarah@taskflow.io' },
+    where: { email: 'sarah@flowsync.io' },
     update: {},
     create: {
       name: 'Sarah Chen',
       avatar: 'SC',
       role: 'Frontend Engineer',
-      email: 'sarah@taskflow.io',
+      email: 'sarah@flowsync.io',
     },
   });
 
   const ahmed = await prisma.user.upsert({
-    where: { email: 'ahmed@taskflow.io' },
+    where: { email: 'ahmed@flowsync.io' },
     update: {},
     create: {
       name: 'Ahmed Malik',
       avatar: 'AM',
       role: 'Backend Engineer',
-      email: 'ahmed@taskflow.io',
+      email: 'ahmed@flowsync.io',
     },
   });
 
@@ -45,7 +45,7 @@ async function main() {
     update: {},
     create: {
       id: 'proj-1',
-      name: 'TaskFlow Platform v2',
+      name: 'FlowSync Platform v2',
       description: 'Core web application revamp with Next.js, shadcn/ui, and Prisma ORM.',
       color: '#2563EB',
       health: ProjectHealth.on_track,

@@ -58,7 +58,7 @@ export interface CreateTaskPayload {
   title: string;
   description?: string;
   projectId?: string;
-  assigneeId?: string;
+  assigneeId?: string | null;
   status?: string;
   priority?: string;
   dueDate?: string;
@@ -179,6 +179,8 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         if (t.id !== taskId) return t;
         const updatedAssignee = payload.assigneeId
           ? users.find(u => u.id === payload.assigneeId) ?? t.assignee
+          : payload.assigneeId === null || payload.assigneeId === ''
+          ? null
           : t.assignee;
         return {
           ...t,

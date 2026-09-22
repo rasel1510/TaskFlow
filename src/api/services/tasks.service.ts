@@ -31,7 +31,7 @@ export interface TaskFilters {
 export interface CreateTaskPayload {
   title: string;
   projectId: string;
-  assigneeId?: string;
+  assigneeId?: string | null;
   status?: string;
   priority?: string;
   description?: string;
@@ -43,7 +43,7 @@ export interface UpdateTaskPayload {
   description?: string;
   status?: string;
   priority?: string;
-  assigneeId?: string;
+  assigneeId?: string | null;
   projectId?: string;
   dueDate?: string;
   estimate?: string;
