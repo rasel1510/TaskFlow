@@ -674,9 +674,9 @@ src/
 - [x] 2.1 Comments API + wire TaskDetail comments tab end-to-end
 - [x] 2.2 Activity log API + auto-log on PATCH + wire TaskDetail activity tab
 - [x] 2.3 Projects view fetches DB data + CreateProjectModal
-- [ ] 2.4 Reports summary API + wire Dashboard to real data
-- [ ] 2.5 Wire Reports view to real DB aggregations
-- [ ] 2.6 Kanban drag-and-drop with @dnd-kit
+- [x] 2.4 Reports summary API + wire Dashboard to real data
+- [x] 2.5 Wire Reports view to real DB aggregations
+- [x] 2.6 Kanban drag-and-drop with @dnd-kit
 - [ ] 2.7 Subtask toggle + create + delete, persisted to DB
 - [ ] 2.8 taskNumber (TF-001) displayed in TaskDetail, MyTasks, Kanban
 
