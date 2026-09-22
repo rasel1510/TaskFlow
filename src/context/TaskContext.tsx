@@ -76,6 +76,9 @@ interface TaskContextValue {
   updateTaskStatus: (taskId: string, status: string) => Promise<void>;
   updateTask: (taskId: string, payload: Partial<CreateTaskPayload>) => Promise<DBTask>;
   deleteTask: (taskId: string) => Promise<void>;
+  createSubtask: (taskId: string, title: string) => Promise<DBSubTask>;
+  toggleSubtask: (taskId: string, subtaskId: string, done: boolean) => Promise<void>;
+  deleteSubtask: (taskId: string, subtaskId: string) => Promise<void>;
   refreshTasks: () => Promise<void>;
 }
 
@@ -279,8 +282,151 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchTasks, sessionUserId, toast]);
 
+  const createSubtask = useCallback(async (taskId: string, title: string): Promise<DBSubTask> => {
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/subtasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
+      });
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({ message: 'Failed to create subtask' }));
+        const msg = errBody?.error?.message || errBody.message || 'Failed to create subtask';
+        toast.error(msg);
+        throw new Error(msg);
+      }
+
+      const envelope = await res.json();
+      const newSubtask: DBSubTask = {
+        id: envelope.data.id,
+        title: envelope.data.title,
+        done: envelope.data.done,
+      };
+
+      setTasks(prev =>
+        prev.map(t => {
+          if (t.id !== taskId) return t;
+          const nextSubs = [...(t.subtasks || []), newSubtask];
+          return {
+            ...t,
+            subtasks: nextSubs,
+            progress: envelope.data.taskProgress ?? t.progress,
+          };
+        })
+      );
+
+      toast.success('Subtask added');
+      return newSubtask;
+    } catch (err) {
+      console.error('[TaskContext] createSubtask error:', err);
+      if (!(err instanceof Error && err.message.startsWith('Failed to create subtask'))) {
+        toast.error(err instanceof Error ? err.message : 'Failed to create subtask');
+      }
+      throw err;
+    }
+  }, [toast]);
+
+  const toggleSubtask = useCallback(async (taskId: string, subtaskId: string, done: boolean): Promise<void> => {
+    // Optimistic update
+    setTasks(prev =>
+      prev.map(t => {
+        if (t.id !== taskId) return t;
+        const nextSubs = (t.subtasks || []).map(s => (s.id === subtaskId ? { ...s, done } : s));
+        const doneCount = nextSubs.filter(s => s.done).length;
+        const newProgress = nextSubs.length > 0 ? Math.round((doneCount / nextSubs.length) * 100) : 0;
+        return {
+          ...t,
+          subtasks: nextSubs,
+          progress: newProgress,
+        };
+      })
+    );
+
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/subtasks/${subtaskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ done }),
+      });
+
+      if (!res.ok) {
+        await fetchTasks();
+        toast.error('Failed to update subtask');
+        return;
+      }
+
+      const envelope = await res.json();
+      if (envelope?.data?.taskProgress !== undefined) {
+        setTasks(prev =>
+          prev.map(t => (t.id === taskId ? { ...t, progress: envelope.data.taskProgress } : t))
+        );
+      }
+    } catch (err) {
+      console.error('[TaskContext] toggleSubtask error:', err);
+      await fetchTasks();
+      toast.error('Failed to update subtask');
+    }
+  }, [fetchTasks, toast]);
+
+  const deleteSubtask = useCallback(async (taskId: string, subtaskId: string): Promise<void> => {
+    // Optimistic removal
+    setTasks(prev =>
+      prev.map(t => {
+        if (t.id !== taskId) return t;
+        const nextSubs = (t.subtasks || []).filter(s => s.id !== subtaskId);
+        const doneCount = nextSubs.filter(s => s.done).length;
+        const newProgress = nextSubs.length > 0 ? Math.round((doneCount / nextSubs.length) * 100) : 0;
+        return {
+          ...t,
+          subtasks: nextSubs,
+          progress: newProgress,
+        };
+      })
+    );
+
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/subtasks/${subtaskId}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        await fetchTasks();
+        toast.error('Failed to delete subtask');
+        return;
+      }
+
+      const envelope = await res.json();
+      if (envelope?.data?.taskProgress !== undefined) {
+        setTasks(prev =>
+          prev.map(t => (t.id === taskId ? { ...t, progress: envelope.data.taskProgress } : t))
+        );
+      }
+      toast.success('Subtask deleted');
+    } catch (err) {
+      console.error('[TaskContext] deleteSubtask error:', err);
+      await fetchTasks();
+      toast.error('Failed to delete subtask');
+    }
+  }, [fetchTasks, toast]);
+
   return (
-    <TaskContext.Provider value={{ tasks, users, isLoading, error, createTask, updateTaskStatus, updateTask, deleteTask, refreshTasks }}>
+    <TaskContext.Provider
+      value={{
+        tasks,
+        users,
+        isLoading,
+        error,
+        createTask,
+        updateTaskStatus,
+        updateTask,
+        deleteTask,
+        createSubtask,
+        toggleSubtask,
+        deleteSubtask,
+        refreshTasks,
+      }}
+    >
       {children}
     </TaskContext.Provider>
   );

@@ -12,6 +12,7 @@ export interface User {
 
 export interface Task {
   id: string;
+  taskNumber?: string | null;
   title: string;
   projectId: string;
   status: Status;

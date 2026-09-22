@@ -77,11 +77,9 @@ function KanbanCard({
       {/* Priority & Labels */}
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-1.5 flex-wrap">
-          {task.taskNumber && (
-            <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-[#F3F4F6] text-[rgba(17,17,17,0.55)]">
-              {task.taskNumber}
-            </span>
-          )}
+          <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-[#F3F4F6] text-[rgba(17,17,17,0.55)] border border-[#E5E7EB]">
+            {task.taskNumber ?? task.id}
+          </span>
           {labels.slice(0, 2).map(label => (
             <span key={label} className="text-[10px] px-1.5 py-0.5 rounded bg-[#F3F4F6] text-[rgba(17,17,17,0.5)]">
               {label}
