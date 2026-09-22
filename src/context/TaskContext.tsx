@@ -5,6 +5,7 @@
 
 import React, { createContext, useContext, useCallback, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { useToast } from '@/components/ui/Toast';
 
 // -------------------------------------------------------------------------
 // Types
@@ -87,6 +88,7 @@ const TaskContext = createContext<TaskContextValue | null>(null);
 export function TaskProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const sessionUserId = (session?.user as { id?: string })?.id;
+  const toast = useToast();
   const [tasks, setTasks] = useState<DBTask[]>([]);
   const [users, setUsers] = useState<DBUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -100,7 +102,9 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch(`/api/tasks?userId=${encodeURIComponent(sessionUserId)}`, { cache: 'no-store' });
       if (!res.ok) throw new Error(`Failed to fetch tasks: ${res.status}`);
-      const data: DBTask[] = await res.json();
+      const envelope = await res.json();
+      // Handle both old raw-array and new { success, data } envelope shapes
+      const data: DBTask[] = Array.isArray(envelope) ? envelope : (envelope?.data ?? []);
       // Ensure only this user's tasks are stored in state
       setTasks(data.filter(t => t.assigneeId === sessionUserId));
       setError(null);
@@ -140,30 +144,43 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     };
 
     const qs = activeUserId ? `?userId=${encodeURIComponent(activeUserId)}` : '';
-    const res = await fetch(`/api/tasks${qs}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(finalPayload),
-    });
+    try {
+      const res = await fetch(`/api/tasks${qs}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(finalPayload),
+      });
 
-    if (!res.ok) {
-      const errBody = await res.json().catch(() => ({ message: 'Unknown error' }));
-      throw new Error(errBody.message || `Create task failed: ${res.status}`);
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({ error: { message: 'Unknown error' } }));
+        const message = errBody?.error?.message || errBody?.message || `Create task failed: ${res.status}`;
+        toast.error(message);
+        throw new Error(message);
+      }
+
+      const envelope = await res.json();
+      // Unwrap { success, data } envelope; fall back to raw object for compatibility
+      const newTask: DBTask = envelope?.data ?? envelope;
+
+      // Optimistically prepend to state so it appears instantly
+      setTasks(prev => [newTask, ...prev]);
+      toast.success(`Task "${newTask.title}" created successfully`);
+      return newTask;
+    } catch (err) {
+      if (!(err instanceof Error && err.message.startsWith('Create task failed'))) {
+        toast.error(err instanceof Error ? err.message : 'Failed to create task');
+      }
+      throw err;
     }
-
-    const newTask: DBTask = await res.json();
-
-    // Optimistically prepend to state so it appears instantly
-    setTasks(prev => [newTask, ...prev]);
-
-    return newTask;
-  }, [session]);
+  }, [session, toast]);
 
   const updateTaskStatus = useCallback(async (taskId: string, status: string) => {
     // Optimistic update
     setTasks(prev =>
       prev.map(t => t.id === taskId ? { ...t, status } : t)
     );
+
+    const formattedStatus = status.replace(/_/g, ' ');
 
     try {
       const qs = sessionUserId ? `?userId=${encodeURIComponent(sessionUserId)}` : '';
@@ -175,11 +192,15 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) {
         // Revert on failure
         await fetchTasks();
+        toast.error('Failed to update task status');
+        return;
       }
+      toast.info(`Task status updated to ${formattedStatus}`);
     } catch {
       await fetchTasks();
+      toast.error('Failed to update task status');
     }
-  }, [fetchTasks, sessionUserId]);
+  }, [fetchTasks, sessionUserId, toast]);
 
   const updateTask = useCallback(async (taskId: string, payload: Partial<CreateTaskPayload>): Promise<DBTask> => {
     // Optimistic update in state
@@ -210,18 +231,25 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) {
         await fetchTasks();
         const errBody = await res.json().catch(() => ({ message: 'Update failed' }));
-        throw new Error(errBody.message || `Update task failed: ${res.status}`);
+        const message = errBody.message || `Update task failed: ${res.status}`;
+        toast.error(message);
+        throw new Error(message);
       }
 
-      const updatedTask: DBTask = await res.json();
+      const envelope = await res.json();
+      const updatedTask: DBTask = envelope?.data ?? envelope;
       setTasks(prev => prev.map(t => (t.id === taskId ? { ...t, ...updatedTask } : t)));
+      toast.success('Task details updated');
       return updatedTask;
     } catch (err) {
       console.error('[TaskContext] updateTask error:', err);
       await fetchTasks();
+      if (!(err instanceof Error && err.message.startsWith('Update task failed'))) {
+        toast.error(err instanceof Error ? err.message : 'Failed to update task');
+      }
       throw err;
     }
-  }, [fetchTasks, users, sessionUserId]);
+  }, [fetchTasks, users, sessionUserId, toast]);
 
   const deleteTask = useCallback(async (taskId: string): Promise<void> => {
     // Optimistic removal from state
@@ -236,14 +264,20 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) {
         await fetchTasks();
         const errBody = await res.json().catch(() => ({ message: 'Delete failed' }));
-        throw new Error(errBody.message || `Delete task failed: ${res.status}`);
+        const message = errBody.message || `Delete task failed: ${res.status}`;
+        toast.error(message);
+        throw new Error(message);
       }
+      toast.success('Task deleted successfully');
     } catch (err) {
       console.error('[TaskContext] deleteTask error:', err);
       await fetchTasks();
+      if (!(err instanceof Error && err.message.startsWith('Delete task failed'))) {
+        toast.error(err instanceof Error ? err.message : 'Failed to delete task');
+      }
       throw err;
     }
-  }, [fetchTasks]);
+  }, [fetchTasks, sessionUserId, toast]);
 
   return (
     <TaskContext.Provider value={{ tasks, users, isLoading, error, createTask, updateTaskStatus, updateTask, deleteTask, refreshTasks }}>

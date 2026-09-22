@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import { useTasks, type DBTask } from '@/context/TaskContext';
+import { useToast } from '@/components/ui/Toast';
 import EditTaskModal from './EditTaskModal';
 import { tasks, statusColors, priorityColors, getProjectName, type Status, type Priority } from '../data/mockData';
 
@@ -8,26 +10,113 @@ interface TaskDetailProps {
   onClose: () => void;
 }
 
-const comments = [
-  { id: 'c1', user: { name: 'Sarah Chen', avatar: 'SC', color: '#7C3AED' }, text: 'I\'ve started working on the hero section. The mockup is attached — let me know if the layout works for you.', time: '2 hours ago', reactions: ['👍 3', '🔥 1'] },
-  { id: 'c2', user: { name: 'Ahmed Malik', avatar: 'AM', color: '#0891B2' }, text: 'Looks great! One thing — can we make the CTA button a bit larger on mobile?', time: '1 hour ago', reactions: ['👍 2'] },
-  { id: 'c3', user: { name: 'Rasel Ahmed', avatar: 'RA', color: '#2563EB' }, text: 'Good point, @Ahmed. I\'ll update the specs. Let\'s target 44px minimum touch target per accessibility guidelines.', time: '45 minutes ago', reactions: [] },
-];
+interface DBComment {
+  id: string;
+  text: string;
+  reactions: string[];
+  createdAt: string;
+  timeAgo: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    avatar: string;
+    role?: string;
+  };
+}
 
-const activity = [
-  { text: 'Rasel Ahmed changed status to In Progress', time: '3 hours ago', icon: '🔄' },
-  { text: 'Sarah Chen was assigned to this task', time: '1 day ago', icon: '👤' },
-  { text: 'Priority changed to High', time: '1 day ago', icon: '⚡' },
-  { text: 'Task created by Rasel Ahmed', time: '2 days ago', icon: '✨' },
-];
+interface DBActivity {
+  id: string;
+  text: string;
+  icon: string;
+  createdAt: string;
+  timeAgo: string;
+}
 
+function getAvatarColor(name: string): string {
+  const colors = ['#2563EB', '#7C3AED', '#0891B2', '#16A34A', '#D97706', '#DC2626'];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+}
 
 export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
+  const { data: session } = useSession();
+  const toast = useToast();
   const { tasks: ctxTasks } = useTasks();
   const [editing, setEditing] = useState(false);
   const task = ctxTasks.find(t => t.id === taskId) || tasks.find(t => t.id === taskId);
   const [commentText, setCommentText] = useState('');
   const [activeTab, setActiveTab] = useState<'details' | 'comments' | 'activity'>('details');
+
+  const [comments, setComments] = useState<DBComment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [activities, setActivities] = useState<DBActivity[]>([]);
+  const [loadingActivities, setLoadingActivities] = useState(false);
+  const [submittingComment, setSubmittingComment] = useState(false);
+
+  const loadComments = useCallback(async () => {
+    if (!taskId) return;
+    setLoadingComments(true);
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/comments`);
+      const envelope = await res.json();
+      const list: DBComment[] = Array.isArray(envelope) ? envelope : (envelope?.data ?? []);
+      setComments(list);
+    } catch (err) {
+      console.error('[TaskDetail] Failed to load comments:', err);
+    } finally {
+      setLoadingComments(false);
+    }
+  }, [taskId]);
+
+  const loadActivities = useCallback(async () => {
+    if (!taskId) return;
+    setLoadingActivities(true);
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/activities`);
+      const envelope = await res.json();
+      const list: DBActivity[] = Array.isArray(envelope) ? envelope : (envelope?.data ?? []);
+      setActivities(list);
+    } catch (err) {
+      console.error('[TaskDetail] Failed to load activities:', err);
+    } finally {
+      setLoadingActivities(false);
+    }
+  }, [taskId]);
+
+  useEffect(() => {
+    if (activeTab === 'comments') loadComments();
+    if (activeTab === 'activity') loadActivities();
+  }, [activeTab, loadComments, loadActivities]);
+
+  const handleAddComment = async () => {
+    if (!commentText.trim() || !taskId || submittingComment) return;
+    const textToSend = commentText.trim();
+    setSubmittingComment(true);
+
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: textToSend }),
+      });
+      const envelope = await res.json();
+      if (!res.ok) {
+        throw new Error(envelope?.error?.message || 'Failed to post comment');
+      }
+      const newComment = envelope.data ?? envelope;
+      setComments(prev => [...prev, newComment]);
+      setCommentText('');
+      toast.success('Comment added');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to post comment');
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
 
   if (!task) return null;
 
@@ -186,7 +275,8 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
                         : 'border-transparent text-[rgba(17,17,17,0.5)] hover:text-[#111111]'
                       }`}
                   >
-                    {tab} {tab === 'comments' && `(${comments.length})`}
+                    {tab} {tab === 'comments' && `(${comments.length || task.commentsCount || 0})`}
+                    {tab === 'activity' && activities.length > 0 && `(${activities.length})`}
                   </button>
                 ))}
               </div>
@@ -195,41 +285,78 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
             {/* Tab content */}
             {activeTab === 'comments' && (
               <div className="space-y-4">
-                {comments.map(c => (
-                  <div key={c.id} className="flex gap-3">
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ backgroundColor: c.user.color }}>
-                      {c.user.avatar}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-baseline gap-2 mb-1">
-                        <span className="text-[13px] font-semibold text-[#111111]">{c.user.name}</span>
-                        <span className="text-[11px] text-[rgba(17,17,17,0.4)]">{c.time}</span>
-                      </div>
-                      <p className="text-[13px] text-[rgba(17,17,17,0.8)] leading-relaxed">{c.text}</p>
-                      {c.reactions.length > 0 && (
-                        <div className="flex gap-1.5 mt-2">
-                          {c.reactions.map(r => (
-                            <span key={r} className="text-[11px] px-2 py-0.5 rounded-full bg-[#F3F4F6] cursor-pointer hover:bg-[#E5E7EB] transition-colors">{r}</span>
-                          ))}
+                {loadingComments ? (
+                  <div className="space-y-3 py-2">
+                    {[1, 2].map(i => (
+                      <div key={i} className="flex gap-3 animate-pulse">
+                        <div className="w-7 h-7 rounded-full bg-[#E5E7EB] shrink-0" />
+                        <div className="flex-1 space-y-1.5">
+                          <div className="w-24 h-3 bg-[#E5E7EB] rounded" />
+                          <div className="w-full h-3 bg-[#F3F4F6] rounded" />
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                ) : comments.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-[13px] text-[rgba(17,17,17,0.4)]">No comments yet.</p>
+                    <p className="text-[12px] text-[rgba(17,17,17,0.3)] mt-0.5">Start the conversation below.</p>
+                  </div>
+                ) : (
+                  comments.map(c => (
+                    <div key={c.id} className="flex gap-3">
+                      <div
+                        className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                        style={{ backgroundColor: getAvatarColor(c.user?.name || '') }}
+                      >
+                        {c.user?.avatar || (c.user?.name ? c.user.name.slice(0, 2).toUpperCase() : 'U')}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline gap-2 mb-1">
+                          <span className="text-[13px] font-semibold text-[#111111] truncate">{c.user?.name || 'User'}</span>
+                          <span className="text-[11px] text-[rgba(17,17,17,0.4)] shrink-0">{c.timeAgo}</span>
+                        </div>
+                        <p className="text-[13px] text-[rgba(17,17,17,0.8)] leading-relaxed whitespace-pre-wrap break-words">{c.text}</p>
+                        {c.reactions && c.reactions.length > 0 && (
+                          <div className="flex gap-1.5 mt-2">
+                            {c.reactions.map(r => (
+                              <span key={r} className="text-[11px] px-2 py-0.5 rounded-full bg-[#F3F4F6] cursor-pointer hover:bg-[#E5E7EB] transition-colors">{r}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             )}
 
             {activeTab === 'activity' && (
               <div className="space-y-3">
-                {activity.map((a, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <span className="text-[14px] mt-0.5">{a.icon}</span>
-                    <div>
-                      <p className="text-[12.5px] text-[rgba(17,17,17,0.75)]">{a.text}</p>
-                      <p className="text-[11px] text-[rgba(17,17,17,0.4)] mt-0.5">{a.time}</p>
-                    </div>
+                {loadingActivities ? (
+                  <div className="space-y-3 py-2">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="flex items-center gap-3 animate-pulse">
+                        <div className="w-5 h-5 rounded-full bg-[#E5E7EB]" />
+                        <div className="flex-1 h-3 bg-[#F3F4F6] rounded" />
+                      </div>
+                    ))}
                   </div>
-                ))}
+                ) : activities.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-[13px] text-[rgba(17,17,17,0.4)]">No activity recorded yet.</p>
+                  </div>
+                ) : (
+                  activities.map((a, i) => (
+                    <div key={a.id || i} className="flex items-start gap-3">
+                      <span className="text-[14px] mt-0.5 select-none">{a.icon}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[12.5px] text-[rgba(17,17,17,0.75)] break-words">{a.text}</p>
+                        <p className="text-[11px] text-[rgba(17,17,17,0.4)] mt-0.5">{a.timeAgo}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             )}
 
@@ -238,7 +365,7 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
                 <div>
                   <div className="text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.35)] mb-2">Time Tracking</div>
                   <div className="grid grid-cols-3 gap-3">
-                    {[['Estimated', task.estimate], ['Tracked', '3h 20m'], ['Remaining', '4h 40m']].map(([label, val]) => (
+                    {[['Estimated', task.estimate || 'Not set'], ['Tracked', '3h 20m'], ['Remaining', '4h 40m']].map(([label, val]) => (
                       <div key={label} className="bg-[#F9FAFB] rounded-lg p-3 text-center">
                         <div className="text-[14px] font-semibold text-[#111111]">{val}</div>
                         <div className="text-[10.5px] text-[rgba(17,17,17,0.4)] mt-0.5">{label}</div>
@@ -276,33 +403,40 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
           </div>
         </div>
 
-        {/* Comment input — always visible */}
+        {/* Comment input — always visible when on comments tab */}
         {activeTab === 'comments' && (
           <div className="border-t border-[#E5E7EB] p-4 shrink-0">
             <div className="flex gap-2.5">
-              <div className="w-7 h-7 rounded-full bg-[#2563EB] flex items-center justify-center text-[10px] font-bold text-white shrink-0">RA</div>
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                style={{ backgroundColor: getAvatarColor(session?.user?.name || 'Me') }}
+              >
+                {session?.user?.name
+                  ? session.user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                  : 'ME'}
+              </div>
               <div className="flex-1 border border-[#E5E7EB] rounded-xl overflow-hidden focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-[#DBEAFE] transition-all">
                 <textarea
                   value={commentText}
                   onChange={e => setCommentText(e.target.value)}
-                  placeholder="Add a comment... Use @ to mention"
+                  onKeyDown={e => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddComment();
+                    }
+                  }}
+                  placeholder="Add a comment... (Ctrl+Enter to post)"
                   rows={2}
                   className="w-full px-3 pt-2.5 pb-1 text-[13px] text-[#111111] placeholder-[#9CA3AF] outline-none resize-none"
                 />
                 <div className="flex items-center gap-1 px-2 pb-1.5">
-                  {[
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>,
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01" /></svg>,
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>,
-                  ].map((icon, i) => (
-                    <button key={i} className="w-6 h-6 flex items-center justify-center rounded text-[rgba(17,17,17,0.35)] hover:text-[#111111] transition-colors">{icon}</button>
-                  ))}
+                  <span className="text-[10.5px] text-[rgba(17,17,17,0.35)] px-1">Press Ctrl+Enter</span>
                   <button
-                    disabled={!commentText.trim()}
-                    className="ml-auto px-3 py-1 text-[12px] font-semibold bg-[#2563EB] text-white rounded-lg disabled:opacity-40 hover:bg-[#1D4ED8] disabled:cursor-not-allowed transition-colors"
-                    onClick={() => setCommentText('')}
+                    disabled={!commentText.trim() || submittingComment}
+                    className="ml-auto px-3 py-1 text-[12px] font-semibold bg-[#2563EB] text-white rounded-lg disabled:opacity-40 hover:bg-[#1D4ED8] disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                    onClick={handleAddComment}
                   >
-                    Send
+                    {submittingComment ? 'Sending...' : 'Send'}
                   </button>
                 </div>
               </div>

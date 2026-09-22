@@ -86,6 +86,13 @@ model Task {
   subtasks         SubTask[]
   comments         Comment[]
   activities       Activity[]
+
+  // Performance indexes — required for scalable queries
+  @@index([assigneeId])                // GET /api/tasks?userId=...
+  @@index([projectId, status])         // GET /api/tasks?projectId=...&status=...
+  @@index([assigneeId, dueDate])       // upcoming deadlines, overdue checks
+  @@index([status])                    // filter by status alone
+  @@index([createdAt])                 // ordering
 }
 
 model SubTask {
@@ -101,7 +108,6 @@ model Comment {
   id        String   @id @default(cuid())
   text      String
   reactions String[] @default([])
-  timeAgo   String?
   createdAt DateTime @default(now())
 
   taskId    String
@@ -109,15 +115,19 @@ model Comment {
 
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])   // load all comments for a task
+  @@index([userId])   // load all comments by a user
 }
 
 model Activity {
   id        String   @id @default(cuid())
   text      String
   icon      String   @default("🔄")
-  timeAgo   String?
   createdAt DateTime @default(now())
 
   taskId    String
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])   // load all activities for a task
 }

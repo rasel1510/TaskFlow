@@ -1,10 +1,10 @@
 
-
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
 import { users as mockUsers } from '@/data/mockData';
 import { findStoredUserByEmail, saveStoredUser } from '@/data/userStore';
+import { SignupSchema, validationError } from '@/lib/validators';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -22,37 +22,25 @@ function getInitials(name: string): string {
 // ---------------------------------------------------------------------------
 export async function POST(req: Request) {
   try {
-    // Parse and validate body
+    // Parse body
     let body: Record<string, unknown>;
     try {
       body = await req.json();
     } catch {
       return NextResponse.json(
-        { message: 'Invalid JSON request payload' },
+        { success: false, error: { code: 'BAD_REQUEST', message: 'Invalid JSON request payload' } },
         { status: 400 }
       );
     }
 
-    const { name, email, password, role } = body ?? {};
+    // --- Zod validation ---
+    const parsed = SignupSchema.safeParse(body);
+    if (!parsed.success) return validationError(parsed.error);
 
-    if (!name || !email || !password) {
-      return NextResponse.json(
-        { message: 'Name, email, and password are required' },
-        { status: 400 }
-      );
-    }
+    const { name, email: normalizedEmail, password, role: userRole } = parsed.data;
 
-    if ((password as string).length < 6) {
-      return NextResponse.json(
-        { message: 'Password must be at least 6 characters long' },
-        { status: 400 }
-      );
-    }
-
-    const normalizedEmail = (email as string).toLowerCase().trim();
-    const userRole = (role as string | undefined)?.trim() || 'User';
-    const avatar = getInitials(name as string);
-    const hashedPassword = await bcrypt.hash(password as string, 10);
+    const avatar = getInitials(name);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     // First check fallback store / mock users for existing account
     const existingStored = findStoredUserByEmail(normalizedEmail);

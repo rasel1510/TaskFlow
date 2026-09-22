@@ -21,11 +21,27 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+
+/**
+ * Parse a date string from the client and validate that the resulting year
+ * is within a sane range (2000-2100). Returns `undefined` for empty / invalid
+ * / out-of-range values instead of letting Prisma receive a garbage Date.
+ */
+function parseSafeDate(raw: unknown): Date | undefined {
+  if (!raw || typeof raw !== 'string') return undefined;
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return undefined;
+  const year = d.getUTCFullYear();
+  if (year < 2000 || year > 2100) return undefined;
+  return d;
+}
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { getAllStoredUsers } from '@/data/userStore';
 import { users as mockUsers } from '@/data/mockData';
 import { auth } from '@/auth';
+import { CreateTaskSchema, TaskQuerySchema, validationError } from '@/lib/validators';
+import { logActivity } from '@/lib/activity';
 
 // Prisma-generated enum types (used for strict typing in create/update calls)
 type PrismaStatus   = Prisma.TaskCreateInput['status'];
@@ -51,41 +67,86 @@ export async function GET(request: NextRequest) {
     // Session takes highest precedence to prevent spoofing
     const targetUserId = sessionUserId || requestedUserId;
 
+    // Parse and validate query parameters (limits, cursor, filters)
+    const rawParams = {
+      limit:      searchParams.get('limit')      ?? undefined,
+      cursor:     searchParams.get('cursor')     ?? undefined,
+      status:     searchParams.get('status')     ?? undefined,
+      priority:   searchParams.get('priority')   ?? undefined,
+      projectId:  searchParams.get('projectId')  ?? undefined,
+      search:     searchParams.get('search')     ?? undefined,
+      userId:     requestedUserId                ?? undefined,
+      assigneeId: searchParams.get('assigneeId') ?? undefined,
+    };
+
+    const parsedQuery = TaskQuerySchema.safeParse(rawParams);
+    const query = parsedQuery.success ? parsedQuery.data : {
+      limit: 50,
+      cursor: undefined,
+      status: undefined,
+      priority: undefined,
+      projectId: undefined,
+      search: undefined,
+    };
+
+    const limit = query.limit ?? 50;
+    const cursor = query.cursor;
+
     // If no user is identified, return empty list (never expose tasks without user scope)
     if (!targetUserId) {
-      return NextResponse.json([], { status: 200 });
+      return NextResponse.json({
+        success: true,
+        data: [],
+        meta: { hasMore: false, nextCursor: null, limit },
+      }, { status: 200 });
     }
-
-    const status     = searchParams.get('status')     ?? undefined;
-    const priority   = searchParams.get('priority')   ?? undefined;
-    const projectId  = searchParams.get('projectId')  ?? undefined;
-    const search     = searchParams.get('search')     ?? undefined;
 
     // Build a Prisma where clause strictly bounded to the target user
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: Record<string, any> = {
       assigneeId: targetUserId,
     };
-    if (status)     where.status     = status;
-    if (priority)   where.priority   = priority;
-    if (projectId)  where.projectId  = projectId;
-    if (search)     where.title      = { contains: search, mode: 'insensitive' };
+    if (query.status)     where.status     = query.status;
+    if (query.priority)   where.priority   = query.priority;
+    if (query.projectId)  where.projectId  = query.projectId;
+    if (query.search)     where.title      = { contains: query.search, mode: 'insensitive' };
 
+    // Fetch limit + 1 items to determine if subsequent pages exist without full count query
     const dbTasks = await prisma.task.findMany({
       where,
+      take: limit + 1,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       include: {
         assignee: true,
         project: true,
         subtasks: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ],
     });
 
-    // Always return database tasks (clean empty list when 0 tasks exist for this user)
-    return NextResponse.json(dbTasks, { status: 200 });
+    const hasMore = dbTasks.length > limit;
+    const items = hasMore ? dbTasks.slice(0, limit) : dbTasks;
+    const nextCursor = hasMore && items.length > 0 ? items[items.length - 1].id : null;
+
+    return NextResponse.json({
+      success: true,
+      data: items,
+      meta: {
+        hasMore,
+        nextCursor,
+        limit,
+      },
+    }, { status: 200 });
   } catch (err) {
     console.error('[GET /api/tasks] Error fetching tasks from DB:', err);
-    return NextResponse.json([], { status: 200 });
+    return NextResponse.json({
+      success: true,
+      data: [],
+      meta: { hasMore: false, nextCursor: null, limit: 50 },
+    }, { status: 200 });
   }
 }
 
@@ -99,20 +160,16 @@ export async function POST(request: NextRequest) {
       body = await request.json();
     } catch {
       return NextResponse.json(
-        { message: 'Invalid JSON request payload' },
+        { success: false, error: { code: 'BAD_REQUEST', message: 'Invalid JSON request payload' } },
         { status: 400 }
       );
     }
 
-    const { title, projectId, assigneeId, status, priority, dueDate, description, estimate, labels } = body;
+    // --- Zod validation ---
+    const parsed = CreateTaskSchema.safeParse(body);
+    if (!parsed.success) return validationError(parsed.error);
 
-    // Validate required fields
-    if (!title || typeof title !== 'string' || !title.trim()) {
-      return NextResponse.json(
-        { message: 'Task title is required' },
-        { status: 400 }
-      );
-    }
+    const { title, projectId, assigneeId, status, priority, dueDate, description, estimate, labels } = parsed.data;
 
     // Ensure valid projectId or fallback to default project
     let targetProjectId = typeof projectId === 'string' && projectId ? projectId : undefined;
@@ -215,7 +272,7 @@ export async function POST(request: NextRequest) {
         description: typeof description === 'string' ? description.trim() : undefined,
         estimate:    typeof estimate === 'string' ? estimate.trim() : undefined,
         labels:      Array.isArray(labels) ? labels : [],
-        dueDate:     dueDate ? new Date(dueDate as string) : undefined,
+        dueDate:     parseSafeDate(dueDate),
       },
       include: {
         assignee: true,
@@ -224,11 +281,16 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(newTask, { status: 201 });
+    // Record initial task creation activity
+    try {
+      await logActivity(newTask.id, 'Task created', '✨');
+    } catch {}
+
+    return NextResponse.json({ success: true, data: newTask }, { status: 201 });
   } catch (error) {
     console.error('[POST /api/tasks] Error creating task:', error);
     return NextResponse.json(
-      { message: 'Internal server error while creating task' },
+      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error while creating task' } },
       { status: 500 }
     );
   }

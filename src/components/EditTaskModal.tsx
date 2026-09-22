@@ -39,7 +39,8 @@ export default function EditTaskModal({ task, onClose }: EditTaskModalProps) {
   useEffect(() => {
     fetch('/api/projects')
       .then(r => r.json())
-      .then((data: DBProject[]) => {
+      .then(envelope => {
+        const data: DBProject[] = Array.isArray(envelope) ? envelope : (envelope?.data ?? []);
         setProjects(data);
       })
       .catch(() => {});
@@ -232,6 +233,8 @@ export default function EditTaskModal({ task, onClose }: EditTaskModalProps) {
               <input
                 type="date"
                 value={dueDate}
+                min="2000-01-01"
+                max="2100-12-31"
                 onChange={e => setDueDate(e.target.value)}
                 className="w-full text-[13px] text-[#111111] border border-[#E5E7EB] rounded-lg px-3 py-2 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all"
               />

@@ -15,6 +15,7 @@ export const metadata: Metadata = {
 };
 
 import AuthProvider from '@/components/providers/AuthProvider';
+import { ToastProvider } from '@/components/ui/Toast';
 
 export default function RootLayout({
   children,
@@ -24,7 +25,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="antialiased bg-white text-[#111111]">
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <ToastProvider>
+            {children}
+          </ToastProvider>
+        </AuthProvider>
       </body>
     </html>
   );

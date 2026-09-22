@@ -14,10 +14,26 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+
+/**
+ * Parse a date string from the client and validate that the resulting year
+ * is within a sane range (2000-2100). Returns `undefined` for empty / invalid
+ * / out-of-range values instead of letting Prisma receive a garbage Date.
+ */
+function parseSafeDate(raw: unknown): Date | undefined {
+  if (!raw || typeof raw !== 'string') return undefined;
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return undefined;
+  const year = d.getUTCFullYear();
+  if (year < 2000 || year > 2100) return undefined;
+  return d;
+}
 import prisma from '@/lib/prisma';
 import { users as mockUsers } from '@/data/mockData';
 import { getAllStoredUsers } from '@/data/userStore';
 import { auth } from '@/auth';
+import { UpdateTaskSchema, validationError } from '@/lib/validators';
+import { logActivity } from '@/lib/activity';
 
 // Route-segment context provided by Next.js App Router
 interface RouteContext {
@@ -37,8 +53,28 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         assignee: true,
         project: true,
         subtasks: true,
-        comments: { include: { user: true }, orderBy: { createdAt: 'desc' } },
-        activities: { orderBy: { createdAt: 'desc' } },
+        comments: {
+          select: {
+            id: true,
+            text: true,
+            reactions: true,
+            createdAt: true,
+            userId: true,
+            taskId: true,
+            user: { select: { id: true, name: true, email: true, avatar: true, role: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        activities: {
+          select: {
+            id: true,
+            text: true,
+            icon: true,
+            createdAt: true,
+            taskId: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
 
@@ -66,11 +102,11 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       );
     }
 
-    return NextResponse.json(task, { status: 200 });
+    return NextResponse.json({ success: true, data: task }, { status: 200 });
   } catch (error) {
     console.error('[GET /api/tasks/:id] Error:', error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },
       { status: 500 }
     );
   }
@@ -88,10 +124,16 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       body = await request.json();
     } catch {
       return NextResponse.json(
-        { message: 'Invalid JSON request payload' },
+        { success: false, error: { code: 'BAD_REQUEST', message: 'Invalid JSON request payload' } },
         { status: 400 }
       );
     }
+
+    // --- Zod validation ---
+    const parsed = UpdateTaskSchema.safeParse(body);
+    if (!parsed.success) return validationError(parsed.error);
+    // Use the validated + coerced body for all subsequent logic
+    body = parsed.data as Record<string, unknown>;
 
     const existing = await prisma.task.findUnique({ where: { id } });
     if (!existing) {
@@ -128,7 +170,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     for (const field of allowedFields) {
       if (field in body) {
         updateData[field] = field === 'dueDate' && body[field]
-          ? new Date(body[field] as string)
+          ? parseSafeDate(body[field] as string)
           : body[field];
       }
     }
@@ -218,15 +260,47 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         data: updateData,
         include: { assignee: true, project: true, subtasks: true },
       });
-      return NextResponse.json(updated, { status: 200 });
+
+      // Audit activity logging for modified fields
+      try {
+        if (updateData.status && updateData.status !== existing.status) {
+          const from = existing.status.replace(/_/g, ' ');
+          const to = updateData.status.replace(/_/g, ' ');
+          await logActivity(id, `Status changed from ${from} to ${to}`, '🔄');
+        }
+        if (updateData.priority && updateData.priority !== existing.priority) {
+          await logActivity(id, `Priority changed to ${updateData.priority}`, '⚡');
+        }
+        if ('assigneeId' in updateData && updateData.assigneeId !== existing.assigneeId) {
+          const name = updated.assignee?.name || 'Unassigned';
+          await logActivity(id, `Assigned to ${name}`, '👤');
+        }
+        if ('dueDate' in updateData) {
+          const oldTime = existing.dueDate ? new Date(existing.dueDate).getTime() : 0;
+          const newTime = updateData.dueDate ? new Date(updateData.dueDate).getTime() : 0;
+          if (oldTime !== newTime) {
+            const dateStr = updateData.dueDate
+              ? new Date(updateData.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+              : 'None';
+            await logActivity(id, `Due date set to ${dateStr}`, '📅');
+          }
+        }
+        if (updateData.title && updateData.title !== existing.title) {
+          await logActivity(id, `Title updated to "${updateData.title}"`, '✏️');
+        }
+      } catch (logErr) {
+        console.error('[PATCH /api/tasks/:id] Activity log failed:', logErr);
+      }
+
+      return NextResponse.json({ success: true, data: updated }, { status: 200 });
     } catch (dbErr: unknown) {
       console.warn('[PATCH /api/tasks/:id] Prisma update failed, fallback to optimistic response:', dbErr);
-      return NextResponse.json({ id, ...updateData }, { status: 200 });
+      return NextResponse.json({ success: true, data: { id, ...updateData } }, { status: 200 });
     }
   } catch (error: unknown) {
     console.error('[PATCH /api/tasks/:id] Error:', error);
     return NextResponse.json(
-      { message: 'Internal server error while updating task' },
+      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error while updating task' } },
       { status: 500 }
     );
   }
@@ -269,13 +343,13 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     }
 
     return NextResponse.json(
-      { message: 'Task deleted successfully' },
+      { success: true, data: { message: 'Task deleted successfully' } },
       { status: 200 }
     );
   } catch (error: unknown) {
     console.error('[DELETE /api/tasks/:id] Error:', error);
     return NextResponse.json(
-      { message: 'Internal server error while deleting task' },
+      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error while deleting task' } },
       { status: 500 }
     );
   }

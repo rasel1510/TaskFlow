@@ -19,9 +19,17 @@
 // Response envelope
 // ---------------------------------------------------------------------------
 
+export type ApiMeta = {
+  hasMore?: boolean;
+  nextCursor?: string | null;
+  limit?: number;
+  total?: number;
+};
+
 export type ApiSuccess<T> = {
   success: true;
   data: T;
+  meta?: ApiMeta;
   status: number;
 };
 
@@ -83,11 +91,25 @@ async function request<T>(
     }
 
     if (!res.ok) {
-      const message =
-        typeof data === 'object' && data !== null && 'message' in data
-          ? String((data as Record<string, unknown>).message)
-          : `Request failed with status ${res.status}`;
+      let message = `Request failed with status ${res.status}`;
+      if (typeof data === 'object' && data !== null) {
+        const obj = data as Record<string, unknown>;
+        if (typeof obj.message === 'string') message = obj.message;
+        else if (typeof obj.error === 'object' && obj.error !== null && 'message' in obj.error) {
+          message = String((obj.error as Record<string, unknown>).message);
+        }
+      }
       return { success: false, message, status: res.status };
+    }
+
+    if (typeof data === 'object' && data !== null && 'success' in data && 'data' in data) {
+      const envelope = data as { success: boolean; data: T; meta?: ApiMeta };
+      return {
+        success: true,
+        data: envelope.data,
+        meta: envelope.meta,
+        status: res.status,
+      };
     }
 
     return { success: true, data: data as T, status: res.status };

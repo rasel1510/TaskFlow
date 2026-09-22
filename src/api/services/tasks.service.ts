@@ -26,6 +26,8 @@ export interface TaskFilters {
   projectId?: string;
   assigneeId?: string;
   search?: string;
+  cursor?: string;
+  limit?: number;
 }
 
 export interface CreateTaskPayload {
@@ -64,6 +66,8 @@ export const tasksService = {
     if (filters?.projectId)  params.set('projectId', filters.projectId);
     if (filters?.assigneeId) params.set('assigneeId', filters.assigneeId);
     if (filters?.search)     params.set('search', filters.search);
+    if (filters?.cursor)     params.set('cursor', filters.cursor);
+    if (filters?.limit)      params.set('limit', String(filters.limit));
 
     const qs = params.toString();
     return apiClient.get<unknown[]>(`/api/tasks${qs ? `?${qs}` : ''}`);
