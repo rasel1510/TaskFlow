@@ -774,8 +774,8 @@ src/
 - [x] 2.4 Reports summary API + wire Dashboard to real data
 - [x] 2.5 Wire Reports view to real DB aggregations
 - [x] 2.6 Kanban drag-and-drop with @dnd-kit
-- [ ] 2.7 Subtask toggle + create + delete, persisted to DB
-- [ ] 2.8 taskNumber (TF-001) displayed in TaskDetail, MyTasks, Kanban
+- [x] 2.7 Subtask toggle + create + delete, persisted to DB
+- [x] 2.8 taskNumber (TF-001) displayed in TaskDetail, MyTasks, Kanban
 
 ### Phase 3 — Settings and Profile
 - [ ] 3.1 Profile settings saves name, role, avatar to DB
