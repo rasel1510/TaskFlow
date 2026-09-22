@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { tasks, statusColors, priorityColors, getProjectName, type Status, type Task } from '../data/mockData';
+import { useTasks, type DBTask } from '@/context/TaskContext';
+import { statusColors, priorityColors, getProjectName, type Status } from '../data/mockData';
 
 interface KanbanBoardProps {
   onTaskClick: (taskId: string) => void;
@@ -14,13 +15,16 @@ const columns: { status: Status; label: string }[] = [
   { status: 'done', label: 'Done' },
 ];
 
-function PriorityDot({ priority }: { priority: Task['priority'] }) {
-  return <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: priorityColors[priority].color }} />;
+function PriorityDot({ priority }: { priority: string }) {
+  const p = priorityColors[priority as keyof typeof priorityColors] || priorityColors.medium;
+  return <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: p.color }} />;
 }
 
-function KanbanCard({ task, onClick }: { task: Task; onClick: () => void }) {
+function KanbanCard({ task, onClick }: { task: DBTask; onClick: () => void }) {
   const subtaskDone = task.subtasks?.filter(s => s.done).length ?? 0;
   const subtaskTotal = task.subtasks?.length ?? 0;
+  const pConfig = priorityColors[task.priority as keyof typeof priorityColors] || priorityColors.medium;
+  const labels = Array.isArray(task.labels) ? task.labels : [];
 
   return (
     <div
@@ -30,19 +34,19 @@ function KanbanCard({ task, onClick }: { task: Task; onClick: () => void }) {
       {/* Priority bar */}
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-1.5 flex-wrap">
-          {task.labels.slice(0, 2).map(label => (
+          {labels.slice(0, 2).map(label => (
             <span key={label} className="text-[10px] px-1.5 py-0.5 rounded bg-[#F3F4F6] text-[rgba(17,17,17,0.5)]">{label}</span>
           ))}
         </div>
         <div className="flex items-center gap-1">
           <PriorityDot priority={task.priority} />
-          <span className="text-[10px] text-[rgba(17,17,17,0.5)]">{priorityColors[task.priority].label}</span>
+          <span className="text-[10px] text-[rgba(17,17,17,0.5)]">{pConfig.label}</span>
         </div>
       </div>
 
       <p className="text-[13px] font-medium text-[#111111] leading-snug mb-2.5">{task.title}</p>
 
-      <div className="text-[11px] text-[rgba(17,17,17,0.4)] mb-2.5">{getProjectName(task.projectId)}</div>
+      <div className="text-[11px] text-[rgba(17,17,17,0.4)] mb-2.5">{task.project?.name ?? getProjectName(task.projectId)}</div>
 
       {subtaskTotal > 0 && (
         <div className="mb-2.5">
@@ -59,20 +63,22 @@ function KanbanCard({ task, onClick }: { task: Task; onClick: () => void }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-5.5 h-5.5 rounded-full bg-[#E5E7EB] flex items-center justify-center text-[9px] font-bold text-[#555]" style={{ width: 22, height: 22 }}>
-            {task.assignee.avatar}
+            {task.assignee?.avatar ?? 'ME'}
           </div>
           {task.dueDate && (
-            <span className="text-[10.5px] text-[rgba(17,17,17,0.4)]">{task.dueDate.replace(', 2026', '')}</span>
+            <span className="text-[10.5px] text-[rgba(17,17,17,0.4)]">
+              {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </span>
           )}
         </div>
         <div className="flex items-center gap-2 text-[rgba(17,17,17,0.35)]">
-          {task.commentsCount > 0 && (
+          {(task.commentsCount ?? 0) > 0 && (
             <span className="flex items-center gap-0.5 text-[10.5px]">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
               {task.commentsCount}
             </span>
           )}
-          {task.attachmentsCount > 0 && (
+          {(task.attachmentsCount ?? 0) > 0 && (
             <span className="flex items-center gap-0.5 text-[10.5px]">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
               {task.attachmentsCount}
@@ -86,6 +92,7 @@ function KanbanCard({ task, onClick }: { task: Task; onClick: () => void }) {
 }
 
 export default function KanbanBoard({ onTaskClick, onCreateTask }: KanbanBoardProps) {
+  const { tasks } = useTasks();
   const [search, setSearch] = useState('');
 
   const getColumnTasks = (status: Status) =>

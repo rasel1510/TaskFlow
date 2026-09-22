@@ -57,7 +57,7 @@ export default function EditTaskModal({ task, onClose }: EditTaskModalProps) {
         title: title.trim(),
         description: description.trim() || undefined,
         projectId: projectId || undefined,
-        assigneeId: assigneeId ? assigneeId : null,
+        assigneeId: task.assigneeId || undefined,
         status,
         priority,
         dueDate: dueDate || undefined,
@@ -161,18 +161,13 @@ export default function EditTaskModal({ task, onClose }: EditTaskModalProps) {
               <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)] mb-1.5">
                 Assignee
               </label>
-              <select
-                value={assigneeId}
-                onChange={e => setAssigneeId(e.target.value)}
-                className="w-full text-[13px] text-[#111111] border border-[#E5E7EB] rounded-lg px-3 py-2 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] bg-white transition-all"
-              >
-                <option value="">Unassigned</option>
-                {ctxUsers.map(u => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                  </option>
-                ))}
-              </select>
+              <div className="w-full flex items-center gap-2 px-3 py-2 border border-[#E5E7EB] rounded-lg bg-[#F9FAFB] text-[13px] text-[#111111]">
+                <span className="w-5 h-5 rounded-full bg-[#2563EB] text-white text-[9px] font-bold flex items-center justify-center shrink-0">
+                  {task.assignee?.avatar || 'ME'}
+                </span>
+                <span className="font-medium truncate">{task.assignee?.name || 'You'}</span>
+                <span className="ml-auto text-[11px] text-[rgba(17,17,17,0.4)]">(You)</span>
+              </div>
             </div>
 
             {/* Status */}

@@ -25,6 +25,7 @@ import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { getAllStoredUsers } from '@/data/userStore';
 import { users as mockUsers } from '@/data/mockData';
+import { auth } from '@/auth';
 
 // Prisma-generated enum types (used for strict typing in create/update calls)
 type PrismaStatus   = Prisma.TaskCreateInput['status'];
@@ -37,19 +38,37 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl;
 
+    // Strict user-level task isolation: determine active user
+    let sessionUserId: string | undefined = undefined;
+    try {
+      const session = await auth();
+      sessionUserId = session?.user?.id;
+    } catch {
+      // In case of auth evaluation error
+    }
+
+    const requestedUserId = searchParams.get('userId') || searchParams.get('assigneeId');
+    // Session takes highest precedence to prevent spoofing
+    const targetUserId = sessionUserId || requestedUserId;
+
+    // If no user is identified, return empty list (never expose tasks without user scope)
+    if (!targetUserId) {
+      return NextResponse.json([], { status: 200 });
+    }
+
     const status     = searchParams.get('status')     ?? undefined;
     const priority   = searchParams.get('priority')   ?? undefined;
     const projectId  = searchParams.get('projectId')  ?? undefined;
-    const assigneeId = searchParams.get('assigneeId') ?? undefined;
     const search     = searchParams.get('search')     ?? undefined;
 
-    // Build a Prisma where clause from any filters provided
+    // Build a Prisma where clause strictly bounded to the target user
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: Record<string, any> = {};
+    const where: Record<string, any> = {
+      assigneeId: targetUserId,
+    };
     if (status)     where.status     = status;
     if (priority)   where.priority   = priority;
     if (projectId)  where.projectId  = projectId;
-    if (assigneeId) where.assigneeId = assigneeId;
     if (search)     where.title      = { contains: search, mode: 'insensitive' };
 
     const dbTasks = await prisma.task.findMany({
@@ -62,7 +81,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Always return database tasks (clean empty list when 0 tasks exist)
+    // Always return database tasks (clean empty list when 0 tasks exist for this user)
     return NextResponse.json(dbTasks, { status: 200 });
   } catch (err) {
     console.error('[GET /api/tasks] Error fetching tasks from DB:', err);
@@ -124,52 +143,61 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Resolve assigneeId: check DB first, then upsert from local/mock stores
-    let targetAssigneeId: string | undefined = undefined;
-    if (typeof assigneeId === 'string' && assigneeId) {
-      // Check if user already exists in DB
-      let dbUser = await prisma.user.findUnique({ where: { id: assigneeId } });
+    // Resolve creator / assignee ID from session or payload
+    let sessionUserId: string | undefined = undefined;
+    try {
+      const session = await auth();
+      sessionUserId = session?.user?.id;
+    } catch {}
 
-      if (!dbUser) {
-        // Try to find in local stored users
-        const storedUsers = getAllStoredUsers();
-        const storedUser = storedUsers.find(u => u.id === assigneeId);
-        if (storedUser) {
-          dbUser = await prisma.user.upsert({
-            where: { id: storedUser.id },
-            update: {},
-            create: {
-              id: storedUser.id,
-              name: storedUser.name,
-              email: storedUser.email,
-              avatar: storedUser.avatar,
-              role: storedUser.role,
-            },
-          });
-        }
-      }
+    const creatorUserId = sessionUserId || (typeof assigneeId === 'string' && assigneeId ? assigneeId : undefined);
+    if (!creatorUserId) {
+      return NextResponse.json(
+        { message: 'Unauthorized. Please sign in to create tasks.' },
+        { status: 401 }
+      );
+    }
 
-      if (!dbUser) {
-        // Try mock users
-        const mockUser = mockUsers.find(u => u.id === assigneeId);
-        if (mockUser) {
-          dbUser = await prisma.user.upsert({
-            where: { id: mockUser.id },
-            update: {},
-            create: {
-              id: mockUser.id,
-              name: mockUser.name,
-              email: mockUser.email,
-              avatar: mockUser.avatar,
-              role: mockUser.role,
-            },
-          });
-        }
+    let targetAssigneeId: string = creatorUserId;
+    // Verify or upsert creator in DB
+    let dbUser = await prisma.user.findUnique({ where: { id: creatorUserId } });
+    if (!dbUser) {
+      // Check stored users
+      const storedUsers = getAllStoredUsers();
+      const storedUser = storedUsers.find(u => u.id === creatorUserId || u.email.toLowerCase() === creatorUserId.toLowerCase());
+      if (storedUser) {
+        dbUser = await prisma.user.upsert({
+          where: { id: storedUser.id },
+          update: {},
+          create: {
+            id: storedUser.id,
+            name: storedUser.name,
+            email: storedUser.email,
+            avatar: storedUser.avatar,
+            role: storedUser.role,
+          },
+        });
       }
-
-      if (dbUser) {
-        targetAssigneeId = dbUser.id;
+    }
+    if (!dbUser) {
+      // Check mock users
+      const mockUser = mockUsers.find(u => u.id === creatorUserId || u.email.toLowerCase() === creatorUserId.toLowerCase());
+      if (mockUser) {
+        dbUser = await prisma.user.upsert({
+          where: { id: mockUser.id },
+          update: {},
+          create: {
+            id: mockUser.id,
+            name: mockUser.name,
+            email: mockUser.email,
+            avatar: mockUser.avatar,
+            role: mockUser.role,
+          },
+        });
       }
+    }
+    if (dbUser) {
+      targetAssigneeId = dbUser.id;
     }
 
     // Auto-generate taskNumber TF-XXX

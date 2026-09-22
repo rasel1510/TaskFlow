@@ -99,11 +99,8 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
   const inProgress   = tasks.filter(t => t.status === 'in_progress').length;
   const done         = tasks.filter(t => t.status === 'done').length;
 
-  // My tasks = tasks assigned to current session user, or latest 5
-  const sessionUserId = (session?.user as { id?: string })?.id;
-  const myTasks: DBTask[] = sessionUserId
-    ? tasks.filter(t => t.assigneeId === sessionUserId).slice(0, 5)
-    : tasks.slice(0, 5);
+  // My tasks = latest 5 tasks belonging to this user
+  const myTasks: DBTask[] = tasks.slice(0, 5);
 
   // Upcoming deadlines (first 4 non-done tasks)
   const upcomingDeadlines = tasks.filter(t => t.status !== 'done').slice(0, 4);

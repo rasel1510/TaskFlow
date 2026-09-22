@@ -86,23 +86,29 @@ const TaskContext = createContext<TaskContextValue | null>(null);
 
 export function TaskProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
+  const sessionUserId = (session?.user as { id?: string })?.id;
   const [tasks, setTasks] = useState<DBTask[]>([]);
   const [users, setUsers] = useState<DBUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchTasks = useCallback(async () => {
+    if (!sessionUserId) {
+      setTasks([]);
+      return;
+    }
     try {
-      const res = await fetch('/api/tasks', { cache: 'no-store' });
+      const res = await fetch(`/api/tasks?userId=${encodeURIComponent(sessionUserId)}`, { cache: 'no-store' });
       if (!res.ok) throw new Error(`Failed to fetch tasks: ${res.status}`);
       const data: DBTask[] = await res.json();
-      setTasks(data);
+      // Ensure only this user's tasks are stored in state
+      setTasks(data.filter(t => t.assigneeId === sessionUserId));
       setError(null);
     } catch (err) {
       console.error('[TaskContext] fetchTasks error:', err);
       setError('Failed to load tasks. Please refresh.');
     }
-  }, []);
+  }, [sessionUserId]);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -115,24 +121,26 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Initial load
+  // Initial and reactive load whenever session changes
   useEffect(() => {
     setIsLoading(true);
     Promise.all([fetchTasks(), fetchUsers()]).finally(() => setIsLoading(false));
-  }, [fetchTasks, fetchUsers]);
+  }, [fetchTasks, fetchUsers, sessionUserId]);
 
   const refreshTasks = useCallback(async () => {
     await fetchTasks();
   }, [fetchTasks]);
 
   const createTask = useCallback(async (payload: CreateTaskPayload): Promise<DBTask> => {
-    // Default assigneeId to the logged-in user if not specified
+    // Strictly bind assignee to the active logged-in user who created the task
+    const activeUserId = (session?.user as { id?: string })?.id;
     const finalPayload = {
       ...payload,
-      assigneeId: payload.assigneeId || (session?.user as { id?: string })?.id || undefined,
+      assigneeId: activeUserId || payload.assigneeId,
     };
 
-    const res = await fetch('/api/tasks', {
+    const qs = activeUserId ? `?userId=${encodeURIComponent(activeUserId)}` : '';
+    const res = await fetch(`/api/tasks${qs}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(finalPayload),
@@ -158,7 +166,8 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     );
 
     try {
-      const res = await fetch(`/api/tasks/${taskId}`, {
+      const qs = sessionUserId ? `?userId=${encodeURIComponent(sessionUserId)}` : '';
+      const res = await fetch(`/api/tasks/${taskId}${qs}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
@@ -170,7 +179,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     } catch {
       await fetchTasks();
     }
-  }, [fetchTasks]);
+  }, [fetchTasks, sessionUserId]);
 
   const updateTask = useCallback(async (taskId: string, payload: Partial<CreateTaskPayload>): Promise<DBTask> => {
     // Optimistic update in state
@@ -191,7 +200,8 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     );
 
     try {
-      const res = await fetch(`/api/tasks/${taskId}`, {
+      const qs = sessionUserId ? `?userId=${encodeURIComponent(sessionUserId)}` : '';
+      const res = await fetch(`/api/tasks/${taskId}${qs}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -211,14 +221,15 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       await fetchTasks();
       throw err;
     }
-  }, [fetchTasks, users]);
+  }, [fetchTasks, users, sessionUserId]);
 
   const deleteTask = useCallback(async (taskId: string): Promise<void> => {
     // Optimistic removal from state
     setTasks(prev => prev.filter(t => t.id !== taskId));
 
     try {
-      const res = await fetch(`/api/tasks/${taskId}`, {
+      const qs = sessionUserId ? `?userId=${encodeURIComponent(sessionUserId)}` : '';
+      const res = await fetch(`/api/tasks/${taskId}${qs}`, {
         method: 'DELETE',
       });
 

@@ -17,6 +17,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { users as mockUsers } from '@/data/mockData';
 import { getAllStoredUsers } from '@/data/userStore';
+import { auth } from '@/auth';
 
 // Route-segment context provided by Next.js App Router
 interface RouteContext {
@@ -48,6 +49,23 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       );
     }
 
+    // Strict user-level task scoping check
+    let sessionUserId: string | undefined = undefined;
+    try {
+      const session = await auth();
+      sessionUserId = session?.user?.id;
+    } catch {}
+
+    const requestedUserId = _request.nextUrl.searchParams.get('userId');
+    const currentUserId = sessionUserId || requestedUserId;
+
+    if (currentUserId && task.assigneeId && task.assigneeId !== currentUserId) {
+      return NextResponse.json(
+        { message: `Task with id "${id}" was not found` },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json(task, { status: 200 });
   } catch (error) {
     console.error('[GET /api/tasks/:id] Error:', error);
@@ -72,6 +90,30 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return NextResponse.json(
         { message: 'Invalid JSON request payload' },
         { status: 400 }
+      );
+    }
+
+    const existing = await prisma.task.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json(
+        { message: `Task with id "${id}" was not found` },
+        { status: 404 }
+      );
+    }
+
+    let sessionUserId: string | undefined = undefined;
+    try {
+      const session = await auth();
+      sessionUserId = session?.user?.id;
+    } catch {}
+
+    const requestedUserId = request.nextUrl.searchParams.get('userId');
+    const currentUserId = sessionUserId || requestedUserId;
+
+    if (currentUserId && existing.assigneeId && existing.assigneeId !== currentUserId) {
+      return NextResponse.json(
+        { message: 'Forbidden: you cannot modify tasks belonging to other users' },
+        { status: 403 }
       );
     }
 
@@ -196,6 +238,29 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
+    const existing = await prisma.task.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json(
+        { message: 'Task deleted successfully' },
+        { status: 200 }
+      );
+    }
+
+    let sessionUserId: string | undefined = undefined;
+    try {
+      const session = await auth();
+      sessionUserId = session?.user?.id;
+    } catch {}
+
+    const requestedUserId = _request.nextUrl.searchParams.get('userId');
+    const currentUserId = sessionUserId || requestedUserId;
+
+    if (currentUserId && existing.assigneeId && existing.assigneeId !== currentUserId) {
+      return NextResponse.json(
+        { message: 'Forbidden: you cannot delete tasks belonging to other users' },
+        { status: 403 }
+      );
+    }
 
     try {
       await prisma.task.delete({ where: { id } });
