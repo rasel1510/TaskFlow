@@ -155,15 +155,40 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#F9FAFB] p-6">
-      <div className="w-full max-w-[460px] space-y-7">
-        {/* Header */}
-        <div className="text-center">
-          <h2 className="text-2xl font-bold tracking-tight text-[#111111]">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-white px-4 py-8 relative selection:bg-blue-50 selection:text-[#2563EB]">
+      <div className="w-full max-w-[440px] bg-white border border-[#E5E7EB] rounded-2xl p-7 sm:p-8 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06)] space-y-6">
+        {/* Brand Header */}
+        <div className="flex flex-col items-center text-center">
+          <Link href="/" className="inline-flex items-center gap-2.5 mb-5 group">
+            <div className="w-10 h-10 rounded-xl bg-[#2563EB] flex items-center justify-center shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform duration-200">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+                <path
+                  d="M9 11l3 3L22 4"
+                  stroke="white"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+                <path
+                  d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              </svg>
+            </div>
+            <span className="text-[20px] font-bold tracking-tight text-[#111111]">
+              FlowSync
+            </span>
+          </Link>
+          <h1 className="text-xl font-bold tracking-tight text-[#111111]">
             Create your account
-          </h2>
-          <p className="text-sm text-gray-500 mt-1.5">
-            Start collaborating with high-velocity engineering teams.
+          </h1>
+          <p className="text-xs text-gray-500 mt-1">
+            Start collaborating with high-velocity engineering teams
           </p>
         </div>
 
@@ -209,9 +234,9 @@ export default function SignupPage() {
           </button>
         </div>
 
-        <div className="relative flex items-center justify-center">
+        <div className="relative flex items-center justify-center my-1">
           <div className="border-t border-[#E5E7EB] w-full" />
-          <span className="bg-[#F9FAFB] px-3 text-[11px] uppercase tracking-wider text-gray-400 font-medium absolute">
+          <span className="bg-white px-3 text-[11px] uppercase tracking-wider text-gray-400 font-medium absolute">
             Or register with email
           </span>
         </div>
@@ -391,6 +416,10 @@ export default function SignupPage() {
           </p>
         </div>
       </div>
+
+      <footer className="mt-8 text-center text-[11px] text-gray-400">
+        © {new Date().getFullYear()} FlowSync Inc. All rights reserved.
+      </footer>
     </div>
   );
 }

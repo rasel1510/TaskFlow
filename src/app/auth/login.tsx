@@ -13,17 +13,8 @@ import {
   AlertCircle,
   Loader2,
   CheckCircle2,
-  Zap,
+  Info,
 } from 'lucide-react';
-
-// ---------------------------------------------------------------------------
-// Demo accounts for 1-Click Quick Login
-// ---------------------------------------------------------------------------
-const demoAccounts = [
-  { name: 'Sarah Chen', role: 'Frontend Engineer', email: 'sarah@flowsync.io', avatar: 'SC' },
-  { name: 'Rasel Ahmed', role: 'Product Manager', email: 'rasel@flowsync.io', avatar: 'RA' },
-  { name: 'Ahmed Malik', role: 'Backend Engineer', email: 'ahmed@flowsync.io', avatar: 'AM' },
-];
 
 // ---------------------------------------------------------------------------
 // LoginForm — uses useSearchParams, must be wrapped in <Suspense>
@@ -40,6 +31,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<'google' | 'github' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [forgotNotice, setForgotNotice] = useState(false);
   const [success, setSuccess] = useState<string | null>(
     registered ? 'Account created successfully! Please sign in.' : null
   );
@@ -48,6 +40,7 @@ function LoginForm() {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+    setForgotNotice(false);
 
     if (!email.trim()) {
       setError('Please enter your email address');
@@ -68,52 +61,19 @@ function LoginForm() {
       });
 
       if (res?.error) {
-        setError('Invalid email or password. Please try again.');
+        setError('Invalid email or password. Please verify and try again.');
         setLoading(false);
         return;
       }
 
-      setSuccess('Authentication successful! Redirecting...');
-      setTimeout(() => {
-        router.push('/');
-        router.refresh();
-      }, 800);
-    } catch (err: unknown) {
-      console.error('Sign in error:', err);
-      setError('Unable to sign in. Please verify your credentials and try again.');
-      setLoading(false);
-    }
-  };
-
-  const handleDemoLogin = async (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword('password123');
-    setError(null);
-    setSuccess(null);
-    setLoading(true);
-
-    try {
-      const res = await signIn('credentials', {
-        email: demoEmail,
-        password: 'password123',
-        redirect: false,
-      });
-
-      if (res?.error) {
-        // Even if credentials check fails on password, demo fallback
-        router.push('/');
-        router.refresh();
-        return;
-      }
-
-      setSuccess(`Signed in as ${demoEmail}! Redirecting...`);
+      setSuccess('Authentication successful! Redirecting to workspace...');
       setTimeout(() => {
         router.push('/');
         router.refresh();
       }, 700);
-    } catch {
-      router.push('/');
-    } finally {
+    } catch (err: unknown) {
+      console.error('Sign in error:', err);
+      setError('Unable to sign in. Please verify your credentials and try again.');
       setLoading(false);
     }
   };
@@ -124,14 +84,39 @@ function LoginForm() {
   };
 
   return (
-    <div className="w-full max-w-[440px] space-y-7">
-      {/* Header */}
-      <div className="text-center">
-        <h2 className="text-2xl font-bold tracking-tight text-[#111111]">
+    <div className="w-full max-w-[420px] bg-white border border-[#E5E7EB] rounded-2xl p-7 sm:p-8 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06)] space-y-6">
+      {/* Brand Header */}
+      <div className="flex flex-col items-center text-center">
+        <Link href="/" className="inline-flex items-center gap-2.5 mb-5 group">
+          <div className="w-10 h-10 rounded-xl bg-[#2563EB] flex items-center justify-center shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform duration-200">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+              <path
+                d="M9 11l3 3L22 4"
+                stroke="white"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+              />
+              <path
+                d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+              />
+            </svg>
+          </div>
+          <span className="text-[20px] font-bold tracking-tight text-[#111111]">
+            FlowSync
+          </span>
+        </Link>
+        <h1 className="text-xl font-bold tracking-tight text-[#111111]">
           Welcome back
-        </h2>
-        <p className="text-sm text-gray-500 mt-1.5">
-          Enter your credentials to access your FlowSync workspace.
+        </h1>
+        <p className="text-xs text-gray-500 mt-1">
+          Enter your credentials to access your workspace
         </p>
       </div>
 
@@ -141,16 +126,28 @@ function LoginForm() {
           type="button"
           onClick={() => handleSocialSignIn('google')}
           disabled={!!socialLoading || loading}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 border border-[#E5E7EB] rounded-xl text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm active:scale-[0.99] disabled:opacity-60 cursor-pointer"
+          className="flex items-center justify-center gap-2.5 px-4 py-2.5 border border-[#E5E7EB] rounded-xl text-xs font-semibold text-[#111111] bg-white hover:bg-gray-50 hover:border-gray-300 transition-all shadow-xs active:scale-[0.99] disabled:opacity-60 cursor-pointer"
         >
           {socialLoading === 'google' ? (
             <Loader2 className="w-4 h-4 animate-spin text-gray-600" />
           ) : (
             <svg className="w-4 h-4" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+              <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+              />
             </svg>
           )}
           Google
@@ -160,7 +157,7 @@ function LoginForm() {
           type="button"
           onClick={() => handleSocialSignIn('github')}
           disabled={!!socialLoading || loading}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 border border-[#E5E7EB] rounded-xl text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm active:scale-[0.99] disabled:opacity-60 cursor-pointer"
+          className="flex items-center justify-center gap-2.5 px-4 py-2.5 border border-[#E5E7EB] rounded-xl text-xs font-semibold text-[#111111] bg-white hover:bg-gray-50 hover:border-gray-300 transition-all shadow-xs active:scale-[0.99] disabled:opacity-60 cursor-pointer"
         >
           {socialLoading === 'github' ? (
             <Loader2 className="w-4 h-4 animate-spin text-gray-600" />
@@ -177,9 +174,10 @@ function LoginForm() {
         </button>
       </div>
 
-      <div className="relative flex items-center justify-center">
+      {/* Divider */}
+      <div className="relative flex items-center justify-center my-1">
         <div className="border-t border-[#E5E7EB] w-full" />
-        <span className="bg-[#F9FAFB] px-3 text-[11px] uppercase tracking-wider text-gray-400 font-medium absolute">
+        <span className="bg-white px-3 text-[11px] uppercase tracking-wider text-gray-400 font-medium absolute">
           Or sign in with email
         </span>
       </div>
@@ -188,14 +186,34 @@ function LoginForm() {
       {error && (
         <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5 animate-fadeIn">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
-          <span>{error}</span>
+          <span className="leading-relaxed">{error}</span>
         </div>
       )}
 
       {success && (
         <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-start gap-2.5 animate-fadeIn">
           <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
-          <span>{success}</span>
+          <span className="leading-relaxed">{success}</span>
+        </div>
+      )}
+
+      {forgotNotice && (
+        <div className="p-3.5 rounded-xl bg-blue-50/80 border border-blue-200 text-blue-800 text-xs flex items-start gap-2.5 animate-fadeIn">
+          <Info className="w-4 h-4 shrink-0 mt-0.5 text-[#2563EB]" />
+          <div className="flex-1 leading-relaxed text-[11.5px]">
+            To reset your password, please contact your workspace administrator or reach out to{' '}
+            <a href="mailto:support@flowsync.io" className="underline font-semibold hover:text-[#1D4ED8]">
+              support@flowsync.io
+            </a>.
+          </div>
+          <button
+            type="button"
+            onClick={() => setForgotNotice(false)}
+            className="text-blue-500 hover:text-blue-800 font-bold text-sm leading-none ml-1 cursor-pointer"
+            aria-label="Dismiss notice"
+          >
+            ×
+          </button>
         </div>
       )}
 
@@ -207,14 +225,14 @@ function LoginForm() {
             Work Email
           </label>
           <div className="relative">
-            <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             <input
               type="email"
               required
-              placeholder="sarah@flowsync.io"
+              placeholder="name@company.com"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all shadow-xs"
+              className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-3 focus:ring-[#2563EB]/10 transition-all shadow-xs"
             />
           </div>
         </div>
@@ -227,26 +245,27 @@ function LoginForm() {
             </label>
             <button
               type="button"
-              onClick={() => alert('Demo Mode: You can enter any password or use the 1-Click Quick Demo accounts below.')}
-              className="text-[11px] text-[#2563EB] hover:underline cursor-pointer"
+              onClick={() => setForgotNotice(true)}
+              className="text-[11px] text-[#2563EB] hover:text-[#1D4ED8] hover:underline cursor-pointer"
             >
               Forgot password?
             </button>
           </div>
           <div className="relative">
-            <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             <input
               type={showPassword ? 'text' : 'password'}
               required
               placeholder="••••••••"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              className="w-full pl-10 pr-10 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all shadow-xs"
+              className="w-full pl-10 pr-10 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-3 focus:ring-[#2563EB]/10 transition-all shadow-xs"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
@@ -260,7 +279,7 @@ function LoginForm() {
             type="checkbox"
             checked={rememberMe}
             onChange={e => setRememberMe(e.target.checked)}
-            className="w-4 h-4 text-[#2563EB] border-gray-300 rounded focus:ring-[#2563EB] cursor-pointer"
+            className="w-4 h-4 text-[#2563EB] border-gray-300 rounded focus:ring-[#2563EB] cursor-pointer accent-[#2563EB]"
           />
           <label htmlFor="remember" className="text-xs text-gray-600 cursor-pointer select-none">
             Remember this device for 30 days
@@ -271,7 +290,7 @@ function LoginForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold text-xs rounded-xl shadow-md shadow-blue-500/20 active:scale-[0.99] transition-all disabled:opacity-60 cursor-pointer"
+          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold text-xs rounded-xl shadow-sm hover:shadow-md hover:shadow-blue-500/15 active:scale-[0.99] transition-all disabled:opacity-60 cursor-pointer"
         >
           {loading ? (
             <>
@@ -287,44 +306,13 @@ function LoginForm() {
         </button>
       </form>
 
-      {/* 1-Click Quick Demo Login helper */}
-      <div className="p-3.5 bg-white border border-[#E5E7EB] rounded-xl shadow-xs">
-        <div className="flex items-center gap-1.5 text-xs font-semibold text-[#111111] mb-2">
-          <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-          <span>Quick Demo Access (1-Click Login):</span>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          {demoAccounts.map(demo => (
-            <button
-              key={demo.email}
-              type="button"
-              onClick={() => handleDemoLogin(demo.email)}
-              disabled={loading}
-              className="flex items-center gap-2 p-2 rounded-lg border border-gray-100 bg-[#F9FAFB] hover:bg-blue-50 hover:border-blue-200 transition-all text-left cursor-pointer group"
-            >
-              <div className="w-6 h-6 rounded-full bg-[#2563EB] text-[10px] font-bold text-white flex items-center justify-center shrink-0">
-                {demo.avatar}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-semibold text-gray-800 truncate group-hover:text-blue-600">
-                  {demo.name}
-                </p>
-                <p className="text-[9.5px] text-gray-400 truncate">
-                  {demo.role.split(' ')[0]}
-                </p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Switch to Signup */}
       <div className="text-center pt-2 border-t border-[#E5E7EB]">
         <p className="text-xs text-gray-500">
           Don&apos;t have an account?{' '}
           <Link
             href="/auth/signup"
-            className="text-[#2563EB] font-semibold hover:underline ml-1"
+            className="text-[#2563EB] font-semibold hover:text-[#1D4ED8] hover:underline ml-1"
           >
             Create free account
           </Link>
@@ -335,11 +323,11 @@ function LoginForm() {
 }
 
 // ---------------------------------------------------------------------------
-// LoginPage — centered full-screen layout
+// LoginPage — centered full-screen clean white layout
 // ---------------------------------------------------------------------------
 export default function LoginPage() {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#F9FAFB] p-6">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-white px-4 py-8 relative selection:bg-blue-50 selection:text-[#2563EB]">
       <Suspense
         fallback={
           <div className="flex items-center justify-center p-12">
@@ -349,6 +337,10 @@ export default function LoginPage() {
       >
         <LoginForm />
       </Suspense>
+
+      <footer className="mt-8 text-center text-[11px] text-gray-400">
+        © {new Date().getFullYear()} FlowSync Inc. All rights reserved.
+      </footer>
     </div>
   );
 }
