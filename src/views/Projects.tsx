@@ -6,6 +6,7 @@ import CreateProjectModal from '@/components/CreateProjectModal';
 
 interface ProjectsProps {
   onViewChange?: (view: 'kanban') => void;
+  onSelectProject?: (projectId: string) => void;
 }
 
 interface UIProject {
@@ -50,7 +51,7 @@ const healthIcons: Record<ProjectHealth, React.ReactNode> = {
   completed: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>,
 };
 
-export default function Projects({ onViewChange }: ProjectsProps) {
+export default function Projects({ onViewChange, onSelectProject }: ProjectsProps) {
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [search, setSearch] = useState('');
   const [projects, setProjects] = useState<UIProject[]>([]);
@@ -197,7 +198,7 @@ export default function Projects({ onViewChange }: ProjectsProps) {
             {filtered.map(p => (
               <div
                 key={p.id}
-                onClick={() => onViewChange?.('kanban')}
+                onClick={() => (onSelectProject ? onSelectProject(p.id) : onViewChange?.('kanban'))}
                 className="bg-white border border-[#E5E7EB] rounded-xl p-5 hover:border-[#93C5FD] hover:shadow-sm transition-all cursor-pointer group"
               >
                 {/* Header */}
@@ -312,7 +313,7 @@ export default function Projects({ onViewChange }: ProjectsProps) {
             {filtered.map((p, i) => (
               <div
                 key={p.id}
-                onClick={() => onViewChange?.('kanban')}
+                onClick={() => (onSelectProject ? onSelectProject(p.id) : onViewChange?.('kanban'))}
                 className={`flex items-center gap-4 px-5 py-4 hover:bg-[#F9FAFB] cursor-pointer transition-colors ${i < filtered.length - 1 ? 'border-b border-[#F3F4F6]' : ''}`}
               >
                 <div className="flex-1 flex items-center gap-3 min-w-0">

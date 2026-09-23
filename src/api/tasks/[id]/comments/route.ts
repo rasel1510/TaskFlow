@@ -95,7 +95,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     // Verify task exists
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      select: { id: true },
+      select: { id: true, title: true, taskNumber: true, assigneeId: true },
     });
 
     if (!task) {
@@ -136,6 +136,28 @@ export async function POST(request: NextRequest, context: RouteContext) {
         data: { commentsCount: { increment: 1 } },
       }),
     ]);
+
+    // Notify task assignee if someone else commented
+    if (task.assigneeId && task.assigneeId !== authorId) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const notifModel = (prisma as any).notification;
+        if (notifModel) {
+          const authorName = newComment.user?.name ?? 'Someone';
+          await notifModel.create({
+            data: {
+              userId: task.assigneeId,
+              type: 'comment_mention',
+              title: `New comment on ${task.taskNumber ?? task.title}`,
+              body: `${authorName}: "${parsed.data.text.slice(0, 100)}"`,
+              taskId: task.id,
+            },
+          });
+        }
+      } catch (notifErr) {
+        console.warn('[POST /api/tasks/:id/comments] Notification creation ignored:', notifErr);
+      }
+    }
 
     const formattedComment = {
       ...newComment,

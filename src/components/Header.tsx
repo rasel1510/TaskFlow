@@ -32,10 +32,10 @@ interface HeaderProps {
   currentView: View;
   onCreateTask?: () => void;
   onMenuToggle: () => void;
+  onOpenCommandPalette?: () => void;
 }
 
-export default function Header({ currentView, onMenuToggle }: HeaderProps) {
-  const [searchFocused, setSearchFocused] = useState(false);
+export default function Header({ currentView, onMenuToggle, onOpenCommandPalette }: HeaderProps) {
   const [showNotifs, setShowNotifs] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const unread = notifications.filter(n => !n.read).length;
@@ -82,26 +82,25 @@ export default function Header({ currentView, onMenuToggle }: HeaderProps) {
         ))}
       </nav>
 
-      {/* Search — desktop only */}
+      {/* Search — desktop only (triggers Command Palette) */}
       <div className="hidden md:flex flex-1 justify-center">
-        <div
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${
-            searchFocused ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]' : 'border-[#E5E7EB]'
-          } bg-[#F9FAFB]`}
+        <button
+          type="button"
+          onClick={onOpenCommandPalette}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#E5E7EB] hover:border-[#CBD5E1] bg-[#F9FAFB] hover:bg-[#F3F4F6] transition-all text-left group"
           style={{ width: 320 }}
+          aria-label="Open command palette"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:stroke-[#2563EB] transition-colors">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
-          <input
-            type="text"
-            placeholder="Search tasks, projects, people..."
-            className="flex-1 bg-transparent text-[13px] text-[#111111] placeholder-[#9CA3AF] outline-none"
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setSearchFocused(false)}
-          />
-          <kbd className="text-[10px] text-[#9CA3AF] border border-[#E5E7EB] rounded px-1 py-0.5 font-mono">⌘K</kbd>
-        </div>
+          <span className="flex-1 text-[13px] text-[#9CA3AF] select-none">
+            Search tasks, projects, actions...
+          </span>
+          <kbd className="text-[10px] text-[#9CA3AF] border border-[#E5E7EB] bg-white rounded px-1.5 py-0.5 font-mono shadow-xs">
+            ⌘K
+          </kbd>
+        </button>
       </div>
 
       {/* Right actions */}

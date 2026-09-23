@@ -286,6 +286,27 @@ export async function POST(request: NextRequest) {
       await logActivity(newTask.id, 'Task created', '✨');
     } catch {}
 
+    // Trigger notification for assignee
+    if (newTask.assigneeId) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const notifModel = (prisma as any).notification;
+        if (notifModel) {
+          await notifModel.create({
+            data: {
+              userId: newTask.assigneeId,
+              type: 'task_assigned',
+              title: 'Assigned to new task',
+              body: `You were assigned to ${newTask.taskNumber ?? 'task'}: ${newTask.title}`,
+              taskId: newTask.id,
+            },
+          });
+        }
+      } catch (notifErr) {
+        console.warn('[POST /api/tasks] Notification creation ignored:', notifErr);
+      }
+    }
+
     return NextResponse.json({ success: true, data: newTask }, { status: 201 });
   } catch (error) {
     console.error('[POST /api/tasks] Error creating task:', error);

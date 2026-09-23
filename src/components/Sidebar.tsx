@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { currentUser, projects } from '../data/mockData';
 
@@ -83,6 +83,7 @@ const navItems: NavItem[] = [
 
 export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const [projectsOpen, setProjectsOpen] = useState(true);
+  const [unreadInboxCount, setUnreadInboxCount] = useState<number>(0);
 
   const { data: session } = useSession();
   const userName = session?.user?.name || currentUser.name;
@@ -90,6 +91,29 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
   const userAvatar =
     (session?.user as { avatar?: string })?.avatar ||
     (session?.user?.name ? session.user.name.slice(0, 2).toUpperCase() : currentUser.avatar);
+
+  // Poll unread notifications count
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchUnreadCount() {
+      try {
+        const res = await fetch('/api/notifications?unreadOnly=true&countOnly=true');
+        const json = await res.json();
+        if (isMounted && json.success && json.data) {
+          setUnreadInboxCount(json.data.count ?? 0);
+        }
+      } catch {
+        // Fallback silently if offline
+      }
+    }
+
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 25000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [currentView]);
 
   const handleNavigate = (view: View) => {
     onNavigate(view);
@@ -165,6 +189,7 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
       <nav className="flex-1 overflow-y-auto py-2 px-2">
         {navItems.map(item => {
           const active = currentView === item.id;
+          const effectiveBadge = item.id === 'inbox' ? (unreadInboxCount > 0 ? unreadInboxCount : undefined) : item.badge;
           return (
             <button
               key={item.id}
@@ -181,14 +206,14 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
               </span>
               {/* Always show label on mobile; respect collapsed on desktop */}
               <span className={`flex-1 text-left md:${collapsed ? 'hidden' : 'block'}`}>{item.label}</span>
-              {item.badge && (
+              {effectiveBadge && (
                 <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#2563EB] text-white leading-none md:${collapsed ? 'hidden' : 'block'}`}>
-                  {item.badge}
+                  {effectiveBadge}
                 </span>
               )}
-              {collapsed && item.badge && (
+              {collapsed && effectiveBadge && (
                 <span className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-[#2563EB] text-[8px] text-white flex items-center justify-center font-bold hidden md:flex">
-                  {item.badge}
+                  {effectiveBadge}
                 </span>
               )}
             </button>

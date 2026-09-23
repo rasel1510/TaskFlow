@@ -42,6 +42,7 @@ model User {
   tasksAssigned Task[]    @relation("TaskAssignee")
   projectsOwned Project[] @relation("ProjectOwner")
   comments      Comment[]
+  notifications Notification[]
 }
 
 model Project {
@@ -130,4 +131,19 @@ model Activity {
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([taskId])   // load all activities for a task
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // task_assigned, comment_mention, task_overdue, status_change
+  title     String
+  body      String
+  taskId    String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
 }
