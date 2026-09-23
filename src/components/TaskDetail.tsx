@@ -62,30 +62,32 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [creatingSubtask, setCreatingSubtask] = useState(false);
 
-  const loadComments = useCallback(async () => {
+  const loadComments = useCallback(async (signal?: AbortSignal) => {
     if (!taskId) return;
     setLoadingComments(true);
     try {
-      const res = await fetch(`/api/tasks/${taskId}/comments`);
+      const res = await fetch(`/api/tasks/${taskId}/comments`, { signal });
       const envelope = await res.json();
       const list: DBComment[] = Array.isArray(envelope) ? envelope : (envelope?.data ?? []);
       setComments(list);
-    } catch (err) {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') return;
       console.error('[TaskDetail] Failed to load comments:', err);
     } finally {
       setLoadingComments(false);
     }
   }, [taskId]);
 
-  const loadActivities = useCallback(async () => {
+  const loadActivities = useCallback(async (signal?: AbortSignal) => {
     if (!taskId) return;
     setLoadingActivities(true);
     try {
-      const res = await fetch(`/api/tasks/${taskId}/activities`);
+      const res = await fetch(`/api/tasks/${taskId}/activities`, { signal });
       const envelope = await res.json();
       const list: DBActivity[] = Array.isArray(envelope) ? envelope : (envelope?.data ?? []);
       setActivities(list);
-    } catch (err) {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') return;
       console.error('[TaskDetail] Failed to load activities:', err);
     } finally {
       setLoadingActivities(false);
@@ -93,8 +95,12 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
   }, [taskId]);
 
   useEffect(() => {
-    if (activeTab === 'comments') loadComments();
-    if (activeTab === 'activity') loadActivities();
+    const controller = new AbortController();
+    if (activeTab === 'comments') loadComments(controller.signal);
+    if (activeTab === 'activity') loadActivities(controller.signal);
+    return () => {
+      controller.abort();
+    };
   }, [activeTab, loadComments, loadActivities]);
 
   const handleAddSubtask = async (e: React.FormEvent) => {
@@ -166,7 +172,7 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
       <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
 
       {/* Drawer */}
-      <div className="fixed right-0 top-0 bottom-0 w-[520px] bg-white border-l border-[#E5E7EB] z-50 flex flex-col shadow-xl">
+      <div className="fixed inset-y-0 right-0 w-full sm:w-[520px] max-w-full bg-white sm:border-l border-[#E5E7EB] z-50 flex flex-col shadow-xl">
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-[#E5E7EB] shrink-0">
           <div className="flex items-center gap-2">

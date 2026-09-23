@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTasks, type DBTask } from '@/context/TaskContext';
 import { healthColors, priorityColors, statusColors, type ProjectHealth } from '../data/mockData';
+import { StatCardSkeleton, TaskRowSkeleton } from '@/components/ui/Skeleton';
 
 interface DashboardProps {
   onTaskClick: (taskId: string) => void;
@@ -135,14 +136,23 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
   } | null>(null);
 
   useEffect(() => {
-    fetch('/api/reports/summary')
+    const controller = new AbortController();
+    fetch('/api/reports/summary', { signal: controller.signal })
       .then(r => r.json())
       .then(d => {
         if (d.success && d.data) {
           setSummary(d.data);
         }
       })
-      .catch(() => {});
+      .catch(err => {
+        if (err.name !== 'AbortError') {
+          // ignore or handle
+        }
+      });
+
+    return () => {
+      controller.abort();
+    };
   }, []);
 
   const now = new Date();
@@ -180,32 +190,41 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-5 md:mb-6">
-          <StatCard
-            label="Total Tasks"
-            value={isLoading ? '...' : tasks.length}
-            accent="#2563EB"
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>}
-          />
-          <StatCard
-            label="In Progress"
-            value={isLoading ? '...' : inProgress}
-            accent="#EA580C"
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>}
-          />
-          <StatCard
-            label="Completed"
-            value={isLoading ? '...' : done}
-            accent="#16A34A"
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>}
-          />
-          <StatCard
-            label="Overdue"
-            value={isLoading ? '...' : overdueCount}
-            accent="#DC2626"
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>}
-          />
-        </div>
+        {isLoading ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-5 md:mb-6">
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-5 md:mb-6">
+            <StatCard
+              label="Total Tasks"
+              value={tasks.length}
+              accent="#2563EB"
+              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>}
+            />
+            <StatCard
+              label="In Progress"
+              value={inProgress}
+              accent="#EA580C"
+              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>}
+            />
+            <StatCard
+              label="Completed"
+              value={done}
+              accent="#16A34A"
+              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>}
+            />
+            <StatCard
+              label="Overdue"
+              value={overdueCount}
+              accent="#DC2626"
+              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>}
+            />
+          </div>
+        )}
 
         {/* Main grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5 mb-4 md:mb-5">
@@ -220,9 +239,10 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
             </div>
             <div>
               {isLoading ? (
-                <div className="flex items-center justify-center py-10 text-[13px] text-[rgba(17,17,17,0.4)]">
-                  <div className="w-4 h-4 border-2 border-[#2563EB] border-t-transparent rounded-full animate-spin mr-2" />
-                  Loading tasks...
+                <div>
+                  <TaskRowSkeleton />
+                  <TaskRowSkeleton />
+                  <TaskRowSkeleton />
                 </div>
               ) : myTasks.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 text-center">

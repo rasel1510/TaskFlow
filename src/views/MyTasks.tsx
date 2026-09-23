@@ -1,9 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useTasks, type DBTask } from '@/context/TaskContext';
 import EditTaskModal from '@/components/EditTaskModal';
 import { statusColors, priorityColors, type Status, type Priority } from '../data/mockData';
+import { useToast } from '@/components/ui/Toast';
+import { TaskRowSkeleton } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/EmptyState';
 
 interface MyTasksProps {
   onTaskClick: (taskId: string) => void;
@@ -26,10 +29,14 @@ function formatDate(d: string | null): string {
 }
 
 export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
-  const { tasks, isLoading, deleteTask } = useTasks();
+  const { tasks, isLoading, deleteTask, refreshTasks } = useTasks();
+  const toast = useToast();
   const [statusFilter, setStatusFilter] = useState<Status | 'all'>('all');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkStatusMenu, setBulkStatusMenu] = useState(false);
+  const [bulkPriorityMenu, setBulkPriorityMenu] = useState(false);
 
   // Task mutation states
   const [editingTask, setEditingTask] = useState<DBTask | null>(null);
@@ -78,19 +85,42 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
     }
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkAction = useCallback(async (
+    action: 'delete' | 'update',
+    payload?: { status?: string; priority?: string }
+  ) => {
     if (selected.size === 0) return;
-    const confirmed = window.confirm(`Are you sure you want to delete ${selected.size} selected tasks?`);
-    if (!confirmed) return;
-    for (const id of selected) {
-      try {
-        await deleteTask(id);
-      } catch (err) {
-        console.error('Bulk delete task error:', err);
-      }
+    if (action === 'delete') {
+      const ok = window.confirm(`Delete ${selected.size} selected task(s)? This cannot be undone.`);
+      if (!ok) return;
     }
-    setSelected(new Set());
-  };
+    setBulkLoading(true);
+    setBulkStatusMenu(false);
+    setBulkPriorityMenu(false);
+    try {
+      const res = await fetch('/api/tasks/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selected), action, payload }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const countMsg = `${data.data?.count ?? selected.size} task${(data.data?.count ?? selected.size) !== 1 ? 's' : ''}`;
+        toast.success(action === 'delete' ? `🗑️ Deleted ${countMsg}` : `✅ Updated ${countMsg}`);
+        setSelected(new Set());
+        if (typeof refreshTasks === 'function') await refreshTasks();
+      } else {
+        toast.error(data.error?.message || 'Bulk operation failed');
+      }
+    } catch {
+      toast.error('Network error during bulk operation');
+    } finally {
+      setBulkLoading(false);
+    }
+  }, [selected, toast, refreshTasks]);
+
+  // Legacy single-task delete
+  const handleBulkDelete = () => handleBulkAction('delete');
 
   // Safe status/priority color helpers
   const sc = (s: string) => {
@@ -167,26 +197,69 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
           </div>
         </div>
 
-        {/* Bulk actions */}
+        {/* Bulk actions — floating toolbar */}
         {selected.size > 0 && (
-          <div className="flex items-center gap-3 px-4 py-2.5 mb-3 bg-[#EFF6FF] border border-[#BFDBFE] rounded-lg">
-            <span className="text-[13px] font-medium text-[#2563EB]">{selected.size} selected</span>
-            <div className="flex items-center gap-2 ml-3">
-              {['Set Status', 'Set Priority', 'Assign', 'Archive', 'Delete'].map(action => (
+          <div className="flex flex-wrap items-center gap-2 px-4 py-3 mb-3 bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl shadow-sm">
+            <span className="text-[13px] font-semibold text-[#2563EB]">{selected.size} selected</span>
+            <div className="flex items-center gap-1.5 ml-2 flex-wrap">
+
+              {/* Status Change */}
+              <div className="relative">
                 <button
-                  key={action}
-                  onClick={action === 'Delete' ? handleBulkDelete : undefined}
-                  className={`text-[12.5px] px-2.5 py-1 rounded-md border transition-colors ${
-                    action === 'Delete'
-                      ? 'border-[#FECACA] text-[#DC2626] hover:bg-[#FEF2F2]'
-                      : 'border-[#BFDBFE] text-[#2563EB] hover:bg-white'
-                  }`}
+                  disabled={bulkLoading}
+                  onClick={() => { setBulkStatusMenu(v => !v); setBulkPriorityMenu(false); }}
+                  className="text-[12.5px] px-3 py-1.5 rounded-lg border border-[#BFDBFE] text-[#2563EB] hover:bg-white transition-colors font-medium"
                 >
-                  {action}
+                  Change Status ▾
                 </button>
-              ))}
+                {bulkStatusMenu && (
+                  <div className="absolute left-0 top-full mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 min-w-[160px] py-1">
+                    {['backlog','todo','in_progress','in_review','done'].map(s => (
+                      <button key={s} onClick={() => handleBulkAction('update', { status: s })}
+                        className="w-full text-left px-3 py-2 text-[12.5px] hover:bg-[#F3F4F6] capitalize">
+                        {s.replace(/_/g, ' ')}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Priority Change */}
+              <div className="relative">
+                <button
+                  disabled={bulkLoading}
+                  onClick={() => { setBulkPriorityMenu(v => !v); setBulkStatusMenu(false); }}
+                  className="text-[12.5px] px-3 py-1.5 rounded-lg border border-[#BFDBFE] text-[#2563EB] hover:bg-white transition-colors font-medium"
+                >
+                  Change Priority ▾
+                </button>
+                {bulkPriorityMenu && (
+                  <div className="absolute left-0 top-full mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 min-w-[140px] py-1">
+                    {['low','medium','high','urgent'].map(p => (
+                      <button key={p} onClick={() => handleBulkAction('update', { priority: p })}
+                        className="w-full text-left px-3 py-2 text-[12.5px] hover:bg-[#F3F4F6] capitalize">
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Bulk Delete */}
+              <button
+                disabled={bulkLoading}
+                onClick={handleBulkDelete}
+                className="text-[12.5px] px-3 py-1.5 rounded-lg border border-[#FECACA] text-[#DC2626] hover:bg-[#FEF2F2] transition-colors font-medium"
+              >
+                {bulkLoading ? 'Working...' : 'Delete Selected'}
+              </button>
             </div>
-            <button onClick={() => setSelected(new Set())} className="ml-auto text-[#2563EB] hover:underline text-[12.5px]">Clear</button>
+            <button
+              onClick={() => { setSelected(new Set()); setBulkStatusMenu(false); setBulkPriorityMenu(false); }}
+              className="ml-auto text-[12.5px] text-[#6B7280] hover:text-[#111111]"
+            >
+              ✕ Clear
+            </button>
           </div>
         )}
 
@@ -212,23 +285,19 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
 
           {/* Desktop Rows */}
           {isLoading ? (
-            <div className="flex items-center justify-center py-16 text-[13px] text-[rgba(17,17,17,0.4)]">
-              <div className="w-4 h-4 border-2 border-[#2563EB] border-t-transparent rounded-full animate-spin mr-2" />
-              Loading tasks...
+            <div>
+              <TaskRowSkeleton />
+              <TaskRowSkeleton />
+              <TaskRowSkeleton />
+              <TaskRowSkeleton />
+              <TaskRowSkeleton />
             </div>
           ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="1.5" className="mb-3">
-                <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-              </svg>
-              <p className="text-[14px] font-medium text-[rgba(17,17,17,0.4)]">No tasks found</p>
-              <p className="text-[12.5px] text-[rgba(17,17,17,0.3)] mt-1">
-                {search || statusFilter !== 'all' ? 'Try adjusting your filters' : 'Create your first task to get started'}
-              </p>
-              {!search && statusFilter === 'all' && (
-                <button onClick={onCreateTask} className="mt-4 px-4 py-2 bg-[#2563EB] text-white rounded-lg text-[13px] font-semibold hover:bg-[#1D4ED8] transition-colors">Create Task</button>
-              )}
-            </div>
+            <EmptyState
+              title="No tasks found"
+              description={search || statusFilter !== 'all' ? 'Try adjusting your filters or search query' : 'Create your first task to start organizing work'}
+              action={!search && statusFilter === 'all' ? { label: 'Create Task', onClick: onCreateTask } : undefined}
+            />
           ) : (
             filtered.map((task, i) => (
               <div
@@ -280,23 +349,17 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
         {/* ── Mobile Card List ── */}
         <div className="md:hidden space-y-2">
           {isLoading ? (
-            <div className="flex items-center justify-center py-12 text-[13px] text-[rgba(17,17,17,0.4)]">
-              <div className="w-4 h-4 border-2 border-[#2563EB] border-t-transparent rounded-full animate-spin mr-2" />
-              Loading tasks...
+            <div className="space-y-2">
+              <TaskRowSkeleton />
+              <TaskRowSkeleton />
+              <TaskRowSkeleton />
             </div>
           ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="1.5" className="mb-3">
-                <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-              </svg>
-              <p className="text-[14px] font-medium text-[rgba(17,17,17,0.4)]">No tasks found</p>
-              <p className="text-[12.5px] text-[rgba(17,17,17,0.3)] mt-1">
-                {search || statusFilter !== 'all' ? 'Try adjusting your filters' : 'Create your first task to get started'}
-              </p>
-              {!search && statusFilter === 'all' && (
-                <button onClick={onCreateTask} className="mt-4 px-4 py-2.5 bg-[#2563EB] text-white rounded-xl text-[13px] font-semibold hover:bg-[#1D4ED8] transition-colors">Create Task</button>
-              )}
-            </div>
+            <EmptyState
+              title="No tasks found"
+              description={search || statusFilter !== 'all' ? 'Try adjusting your filters' : 'Create your first task to get started'}
+              action={!search && statusFilter === 'all' ? { label: 'Create Task', onClick: onCreateTask } : undefined}
+            />
           ) : (
             filtered.map(task => (
               <div

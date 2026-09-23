@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { healthColors, type ProjectHealth } from '../data/mockData';
+import { useToast } from '@/components/ui/Toast';
 
 interface VelocityItem {
   day: string;
@@ -128,18 +129,47 @@ function DonutChart({ segments }: { segments: SegmentItem[] }) {
 export default function Reports() {
   const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
-    fetch('/api/reports/summary')
+    const controller = new AbortController();
+    fetch('/api/reports/summary', { signal: controller.signal })
       .then(r => r.json())
       .then(envelope => {
         if (envelope.success && envelope.data) {
           setReport(envelope.data);
         }
       })
-      .catch(err => console.error('[Reports] Error loading report data:', err))
+      .catch(err => { if (err.name !== 'AbortError') console.error('[Reports] Error loading report data:', err); })
       .finally(() => setLoading(false));
+    return () => controller.abort();
   }, []);
+
+  const handleExportCSV = useCallback(async () => {
+    setExporting(true);
+    toast.info('⏳ Preparing CSV export...');
+    try {
+      const res = await fetch('/api/reports/export?format=csv');
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const dateStamp = new Date().toISOString().split('T')[0];
+      a.href = url;
+      a.download = `taskflow-tasks-${dateStamp}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('✅ CSV export downloaded successfully!');
+    } catch (err) {
+      console.error('[Reports] CSV export error:', err);
+      toast.error('❌ Failed to export CSV. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  }, [toast]);
 
   const totalTasks = report?.totalTasks ?? 0;
 
@@ -153,6 +183,18 @@ export default function Reports() {
             <p className="text-[13px] text-[rgba(17,17,17,0.45)] mt-0.5">Live PostgreSQL Aggregations</p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportCSV}
+              disabled={exporting}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-[12.5px] font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-60"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              {exporting ? 'Exporting...' : 'Export CSV'}
+            </button>
             <button
               onClick={() => window.print()}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2563EB] text-white rounded-lg text-[12.5px] font-semibold hover:bg-[#1D4ED8] transition-colors"

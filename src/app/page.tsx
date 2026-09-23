@@ -18,6 +18,7 @@ import Inbox from '@/views/Inbox';
 import Reports from '@/views/Reports';
 import Settings from '@/views/Settings';
 import { TaskProvider } from '@/context/TaskContext';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 type View =
   | 'dashboard'
@@ -206,7 +207,11 @@ export default function Page() {
             onMenuToggle={() => setMobileSidebarOpen(o => !o)}
             onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           />
-          <main className="flex flex-1 overflow-hidden">{renderView()}</main>
+          <main className="flex flex-1 overflow-hidden">
+            <ErrorBoundary viewName={view}>
+              {renderView()}
+            </ErrorBoundary>
+          </main>
         </div>
 
         {/* Task Detail Drawer */}

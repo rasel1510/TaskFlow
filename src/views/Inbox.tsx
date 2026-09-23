@@ -24,14 +24,15 @@ export default function Inbox({ onTaskClick }: InboxProps) {
   const [tab, setTab] = useState<'all' | 'unread' | 'assigned' | 'comments'>('all');
   const toast = useToast();
 
-  const fetchNotifications = useCallback(async () => {
+  const fetchNotifications = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch('/api/notifications');
+      const res = await fetch('/api/notifications', { signal });
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         setNotifications(json.data);
       }
-    } catch (err) {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') return;
       console.error('[Inbox] Error fetching notifications:', err);
     } finally {
       setLoading(false);
@@ -39,7 +40,11 @@ export default function Inbox({ onTaskClick }: InboxProps) {
   }, []);
 
   useEffect(() => {
-    fetchNotifications();
+    const controller = new AbortController();
+    fetchNotifications(controller.signal);
+    return () => {
+      controller.abort();
+    };
   }, [fetchNotifications]);
 
   const markAsRead = async (id: string, read = true) => {

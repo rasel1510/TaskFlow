@@ -34,6 +34,7 @@ import { getAllStoredUsers } from '@/data/userStore';
 import { auth } from '@/auth';
 import { UpdateTaskSchema, validationError } from '@/lib/validators';
 import { logActivity } from '@/lib/activity';
+import { recomputeProjectProgress } from '@/lib/projectProgress';
 
 // Route-segment context provided by Next.js App Router
 interface RouteContext {
@@ -292,6 +293,20 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         console.error('[PATCH /api/tasks/:id] Activity log failed:', logErr);
       }
 
+      // Auto-recompute progress for affected project(s) (Step 4.5)
+      try {
+        if (updateData.status || updateData.projectId) {
+          if (updated.projectId) {
+            await recomputeProjectProgress(updated.projectId);
+          }
+          if (existing.projectId && existing.projectId !== updated.projectId) {
+            await recomputeProjectProgress(existing.projectId);
+          }
+        }
+      } catch (progressErr) {
+        console.warn('[PATCH /api/tasks/:id] Progress recompute warning:', progressErr);
+      }
+
       return NextResponse.json({ success: true, data: updated }, { status: 200 });
     } catch (dbErr: unknown) {
       console.warn('[PATCH /api/tasks/:id] Prisma update failed, fallback to optimistic response:', dbErr);
@@ -338,6 +353,9 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
 
     try {
       await prisma.task.delete({ where: { id } });
+      if (existing.projectId) {
+        await recomputeProjectProgress(existing.projectId);
+      }
     } catch (dbErr: unknown) {
       console.warn('[DELETE /api/tasks/:id] Prisma delete failed, fallback to mock delete:', dbErr);
     }

@@ -42,6 +42,7 @@ import { users as mockUsers } from '@/data/mockData';
 import { auth } from '@/auth';
 import { CreateTaskSchema, TaskQuerySchema, validationError } from '@/lib/validators';
 import { logActivity } from '@/lib/activity';
+import { recomputeProjectProgress } from '@/lib/projectProgress';
 
 // Prisma-generated enum types (used for strict typing in create/update calls)
 type PrismaStatus   = Prisma.TaskCreateInput['status'];
@@ -304,6 +305,15 @@ export async function POST(request: NextRequest) {
         }
       } catch (notifErr) {
         console.warn('[POST /api/tasks] Notification creation ignored:', notifErr);
+      }
+    }
+
+    // Auto-recompute progress for project (Step 4.5)
+    if (newTask.projectId) {
+      try {
+        await recomputeProjectProgress(newTask.projectId);
+      } catch (progressErr) {
+        console.warn('[POST /api/tasks] Progress recompute warning:', progressErr);
       }
     }
 

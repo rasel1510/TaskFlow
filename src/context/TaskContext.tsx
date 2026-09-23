@@ -97,13 +97,13 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchTasks = useCallback(async () => {
+  const fetchTasks = useCallback(async (signal?: AbortSignal) => {
     if (!sessionUserId) {
       setTasks([]);
       return;
     }
     try {
-      const res = await fetch(`/api/tasks?userId=${encodeURIComponent(sessionUserId)}`, { cache: 'no-store' });
+      const res = await fetch(`/api/tasks?userId=${encodeURIComponent(sessionUserId)}`, { cache: 'no-store', signal });
       if (!res.ok) throw new Error(`Failed to fetch tasks: ${res.status}`);
       const envelope = await res.json();
       // Handle both old raw-array and new { success, data } envelope shapes
@@ -112,26 +112,31 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       setTasks(data.filter(t => t.assigneeId === sessionUserId));
       setError(null);
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
       console.error('[TaskContext] fetchTasks error:', err);
       setError('Failed to load tasks. Please refresh.');
     }
   }, [sessionUserId]);
 
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch('/api/users', { cache: 'no-store' });
+      const res = await fetch('/api/users', { cache: 'no-store', signal });
       if (!res.ok) throw new Error(`Failed to fetch users: ${res.status}`);
       const data: DBUser[] = await res.json();
       setUsers(data);
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
       console.error('[TaskContext] fetchUsers error:', err);
     }
   }, []);
 
-  // Initial and reactive load whenever session changes
+  // Initial and reactive load whenever session changes — AbortController cleanup (Step 4.13)
   useEffect(() => {
+    const controller = new AbortController();
     setIsLoading(true);
-    Promise.all([fetchTasks(), fetchUsers()]).finally(() => setIsLoading(false));
+    Promise.all([fetchTasks(controller.signal), fetchUsers(controller.signal)])
+      .finally(() => setIsLoading(false));
+    return () => controller.abort();
   }, [fetchTasks, fetchUsers, sessionUserId]);
 
   const refreshTasks = useCallback(async () => {

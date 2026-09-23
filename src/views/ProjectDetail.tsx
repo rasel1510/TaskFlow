@@ -3,6 +3,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { healthColors, statusColors, priorityColors, type ProjectHealth, type Status, type Priority } from '@/data/mockData';
 import { useToast } from '@/components/ui/Toast';
+import { LIFECYCLE_STATE_CONFIG, validateLifecycleTransition, type ProjectLifecycleState } from '@/lib/projectLifecycle';
+import { ROLE_DESCRIPTIONS, type ProjectRole } from '@/lib/permissions';
+import type { MilestoneRecord } from '@/api/projects/[id]/milestones/route';
+import type { MemberRecord } from '@/api/projects/[id]/members/route';
+import type { BurndownResult } from '@/api/projects/[id]/burndown/route';
 
 interface ProjectTask {
   id: string;
@@ -63,9 +68,28 @@ export default function ProjectDetail({
 }: ProjectDetailProps) {
   const [project, setProject] = useState<ProjectData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'milestones' | 'members' | 'burndown' | 'settings'>('overview');
   const [taskSearch, setTaskSearch] = useState('');
   const [taskStatusFilter, setTaskStatusFilter] = useState('all');
+
+  // Milestones state
+  const [milestones, setMilestones] = useState<MilestoneRecord[]>([]);
+  const [milestonesLoading, setMilestonesLoading] = useState(false);
+  const [newMilestoneTitle, setNewMilestoneTitle] = useState('');
+  const [newMilestoneDate, setNewMilestoneDate] = useState('');
+  const [addingMilestone, setAddingMilestone] = useState(false);
+
+  // Members state
+  const [members, setMembers] = useState<MemberRecord[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+
+  // Burndown state
+  const [burndown, setBurndown] = useState<BurndownResult | null>(null);
+  const [burndownLoading, setBurndownLoading] = useState(false);
+
+  // Lifecycle state
+  const [lifecycleState, setLifecycleState] = useState<ProjectLifecycleState>('ACTIVE');
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Edit settings form state
   const [editName, setEditName] = useState('');
@@ -77,10 +101,10 @@ export default function ProjectDetail({
 
   const toast = useToast();
 
-  const fetchProject = useCallback(async () => {
+  const fetchProject = useCallback(async (signal?: AbortSignal) => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/projects/${projectId}`);
+      const res = await fetch(`/api/projects/${projectId}`, { signal });
       const json = await res.json();
       if (json.success && json.data) {
         setProject(json.data);
@@ -91,11 +115,14 @@ export default function ProjectDetail({
         setEditDueDate(
           json.data.dueDate ? new Date(json.data.dueDate).toISOString().split('T')[0] : ''
         );
+        setLifecycleState(json.data.lifecycleState || 'ACTIVE');
       } else {
+        if (signal?.aborted) return;
         toast.error('Project not found');
         onBack();
       }
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
       console.error('[ProjectDetail] Fetch error:', err);
       toast.error('Failed to load project details');
     } finally {
@@ -103,9 +130,47 @@ export default function ProjectDetail({
     }
   }, [projectId, onBack, toast]);
 
+  const fetchMilestones = useCallback(async () => {
+    setMilestonesLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/milestones`);
+      const json = await res.json();
+      if (json.success) setMilestones(json.data || []);
+    } catch (e) { console.warn('[ProjectDetail] Milestones fetch error:', e); }
+    finally { setMilestonesLoading(false); }
+  }, [projectId]);
+
+  const fetchMembers = useCallback(async () => {
+    setMembersLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/members`);
+      const json = await res.json();
+      if (json.success) setMembers(json.data || []);
+    } catch (e) { console.warn('[ProjectDetail] Members fetch error:', e); }
+    finally { setMembersLoading(false); }
+  }, [projectId]);
+
+  const fetchBurndown = useCallback(async () => {
+    setBurndownLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/burndown`);
+      const json = await res.json();
+      if (json.success) setBurndown(json.data);
+    } catch (e) { console.warn('[ProjectDetail] Burndown fetch error:', e); }
+    finally { setBurndownLoading(false); }
+  }, [projectId]);
+
   useEffect(() => {
-    fetchProject();
+    const controller = new AbortController();
+    fetchProject(controller.signal);
+    return () => controller.abort();
   }, [fetchProject]);
+
+  useEffect(() => {
+    if (activeTab === 'milestones') fetchMilestones();
+    if (activeTab === 'members') fetchMembers();
+    if (activeTab === 'burndown') fetchBurndown();
+  }, [activeTab, fetchMilestones, fetchMembers, fetchBurndown]);
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,20 +217,80 @@ export default function ProjectDetail({
 
   const handleDeleteProject = async () => {
     if (!project) return;
-    if (!window.confirm(`Are you sure you want to delete project "${project.name}"?`)) return;
-
+    if (!window.confirm(`Are you sure you want to archive project "${project.name}"? It will be soft-archived and can be restored.`)) return;
     try {
       const res = await fetch(`/api/projects/${project.id}`, { method: 'DELETE' });
       const json = await res.json();
       if (json.success) {
-        toast.success('Project deleted successfully');
+        toast.success('Project archived successfully');
         onBack();
       } else {
-        toast.error('Failed to delete project');
+        toast.error('Failed to archive project');
       }
-    } catch (err) {
-      console.error('[ProjectDetail] Delete error:', err);
-      toast.error('Failed to delete project');
+    } catch {
+      toast.error('Failed to archive project');
+    }
+  };
+
+  const handleLifecycleTransition = async (targetState: ProjectLifecycleState) => {
+    if (!project) return;
+    const validation = validateLifecycleTransition(lifecycleState, targetState);
+    if (!validation.valid) {
+      toast.error(validation.error || 'Invalid state transition');
+      return;
+    }
+    setIsTransitioning(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lifecycleState: targetState }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setLifecycleState(targetState);
+        toast.success(`Project moved to ${LIFECYCLE_STATE_CONFIG[targetState].label}`);
+      } else {
+        toast.error(json.error?.message || 'Lifecycle transition failed');
+      }
+    } catch {
+      toast.error('Failed to update lifecycle state');
+    } finally {
+      setIsTransitioning(false);
+    }
+  };
+
+  const handleAddMilestone = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMilestoneTitle.trim()) return;
+    setAddingMilestone(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/milestones`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newMilestoneTitle.trim(), targetDate: newMilestoneDate || undefined }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setMilestones(prev => [...prev, json.data]);
+        setNewMilestoneTitle('');
+        setNewMilestoneDate('');
+        toast.success('Milestone added');
+      } else {
+        toast.error(json.error?.message || 'Failed to add milestone');
+      }
+    } catch { toast.error('Failed to add milestone'); }
+    finally { setAddingMilestone(false); }
+  };
+
+  const handleToggleMilestone = async (ms: MilestoneRecord) => {
+    const res = await fetch(`/api/projects/${projectId}/milestones`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: ms.id, milestoneId: ms.id, completed: !ms.completed }),
+    }).catch(() => null);
+    if (res?.ok) {
+      setMilestones(prev => prev.map(m => m.id === ms.id ? { ...m, completed: !m.completed, progress: !m.completed ? 100 : m.progress } : m));
     }
   };
 
@@ -266,37 +391,27 @@ export default function ProjectDetail({
         </div>
 
         {/* Tabs switcher */}
-        <div className="flex items-center gap-6 mt-6 border-b border-[#F3F4F6] text-[13px]">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`pb-2.5 font-medium border-b-2 transition-colors ${
-              activeTab === 'overview'
-                ? 'border-[#2563EB] text-[#2563EB] font-semibold'
-                : 'border-transparent text-[rgba(17,17,17,0.5)] hover:text-[#111111]'
-            }`}
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveTab('tasks')}
-            className={`pb-2.5 font-medium border-b-2 transition-colors ${
-              activeTab === 'tasks'
-                ? 'border-[#2563EB] text-[#2563EB] font-semibold'
-                : 'border-transparent text-[rgba(17,17,17,0.5)] hover:text-[#111111]'
-            }`}
-          >
-            Tasks ({project.totalTasks})
-          </button>
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`pb-2.5 font-medium border-b-2 transition-colors ${
-              activeTab === 'settings'
-                ? 'border-[#2563EB] text-[#2563EB] font-semibold'
-                : 'border-transparent text-[rgba(17,17,17,0.5)] hover:text-[#111111]'
-            }`}
-          >
-            Settings & Danger Zone
-          </button>
+        <div className="flex items-center gap-5 mt-6 border-b border-[#F3F4F6] text-[13px] overflow-x-auto">
+          {([
+            { key: 'overview', label: 'Overview' },
+            { key: 'tasks', label: `Tasks (${project.totalTasks})` },
+            { key: 'milestones', label: 'Roadmap' },
+            { key: 'members', label: 'Team & RBAC' },
+            { key: 'burndown', label: 'Burndown' },
+            { key: 'settings', label: 'Settings' },
+          ] as { key: typeof activeTab; label: string }[]).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`pb-2.5 font-medium border-b-2 whitespace-nowrap transition-colors ${
+                activeTab === key
+                  ? 'border-[#2563EB] text-[#2563EB] font-semibold'
+                  : 'border-transparent text-[rgba(17,17,17,0.5)] hover:text-[#111111]'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -441,6 +556,202 @@ export default function ProjectDetail({
                 })}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Tab 3: Milestones / Roadmap (Step 4.9) */}
+        {activeTab === 'milestones' && (
+          <div className="space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[16px] font-semibold text-[#111111]">Sprint Milestones &amp; Roadmap</h3>
+              <span className="text-[12px] text-[rgba(17,17,17,0.4)]">{milestones.filter(m => m.completed).length}/{milestones.length} completed</span>
+            </div>
+            <form onSubmit={handleAddMilestone} className="flex items-center gap-2">
+              <input type="text" placeholder="New milestone title..." value={newMilestoneTitle}
+                onChange={e => setNewMilestoneTitle(e.target.value)}
+                className="flex-1 text-[13px] px-3 py-2 border border-[#E5E7EB] rounded-lg outline-none focus:border-[#2563EB]" />
+              <input type="date" value={newMilestoneDate} onChange={e => setNewMilestoneDate(e.target.value)}
+                className="text-[12px] px-2 py-2 border border-[#E5E7EB] rounded-lg outline-none" />
+              <button type="submit" disabled={addingMilestone || !newMilestoneTitle.trim()}
+                className="px-4 py-2 bg-[#2563EB] text-white text-[12.5px] font-medium rounded-lg disabled:opacity-50">
+                {addingMilestone ? 'Adding...' : '+ Add'}
+              </button>
+            </form>
+            {milestonesLoading ? (
+              <div className="py-10 text-center text-[13px] text-[rgba(17,17,17,0.4)]">Loading milestones...</div>
+            ) : milestones.length === 0 ? (
+              <div className="py-10 text-center text-[13px] text-[rgba(17,17,17,0.4)]">No milestones yet. Add your first sprint milestone above.</div>
+            ) : (
+              <div className="space-y-3">
+                {milestones.map(ms => (
+                  <div key={ms.id} className={`p-4 rounded-xl border ${ms.completed ? 'border-[#D1FAE5] bg-[#ECFDF5]' : 'border-[#E5E7EB] bg-white'}`}>
+                    <div className="flex items-start gap-3">
+                      <button onClick={() => handleToggleMilestone(ms)}
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${ms.completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-[#D1D5DB] hover:border-[#2563EB]'}`}>
+                        {ms.completed && (
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`text-[14px] font-semibold ${ms.completed ? 'line-through text-[rgba(17,17,17,0.4)]' : 'text-[#111111]'}`}>{ms.title}</span>
+                          {ms.targetDate && (
+                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#F3F4F6] text-[rgba(17,17,17,0.5)]">
+                              Due {new Date(ms.targetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </span>
+                          )}
+                        </div>
+                        {ms.description && <p className="text-[12px] text-[rgba(17,17,17,0.5)] mt-0.5">{ms.description}</p>}
+                        <div className="mt-2 flex items-center gap-3">
+                          <div className="flex-1 h-1.5 rounded-full bg-[#F3F4F6] overflow-hidden">
+                            <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${ms.progress}%` }} />
+                          </div>
+                          <span className="text-[11px] font-semibold text-[rgba(17,17,17,0.5)] shrink-0">{ms.progress}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab 4: Team & RBAC (Step 4.10) */}
+        {activeTab === 'members' && (
+          <div className="space-y-4">
+            <h3 className="text-[16px] font-semibold text-[#111111]">Team &amp; Access Control (RBAC)</h3>
+            {membersLoading ? (
+              <div className="py-10 text-center text-[13px] text-[rgba(17,17,17,0.4)]">Loading team members...</div>
+            ) : members.length === 0 ? (
+              <div className="py-10 text-center text-[13px] text-[rgba(17,17,17,0.4)]">No members assigned to this project.</div>
+            ) : (
+              <div className="space-y-2">
+                {members.map(m => {
+                  const roleConfig = ROLE_DESCRIPTIONS[(m.role as ProjectRole)] || ROLE_DESCRIPTIONS['VIEWER'];
+                  return (
+                    <div key={m.userId} className="flex items-center gap-4 p-4 rounded-xl border border-[#E5E7EB] bg-white">
+                      <div className="w-10 h-10 rounded-full bg-[#EFF6FF] flex items-center justify-center font-bold text-[13px] text-[#2563EB] shrink-0">
+                        {m.name?.slice(0, 2).toUpperCase() || '?'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13.5px] font-semibold text-[#111111]">{m.name}</div>
+                        <div className="text-[12px] text-[rgba(17,17,17,0.45)]">{m.email}</div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold border ${roleConfig.badgeColor}`}>
+                          {roleConfig.label}
+                        </span>
+                        <div className="text-[10.5px] text-[rgba(17,17,17,0.35)] mt-0.5">
+                          Joined {new Date(m.joinedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab 5: Burndown & Velocity (Step 4.12) */}
+        {activeTab === 'burndown' && (
+          <div className="space-y-5">
+            <h3 className="text-[16px] font-semibold text-[#111111]">Burndown &amp; Velocity Analytics</h3>
+            {burndownLoading ? (
+              <div className="py-10 text-center text-[13px] text-[rgba(17,17,17,0.4)]">Computing burndown chart...</div>
+            ) : !burndown ? (
+              <div className="py-10 text-center text-[13px] text-[rgba(17,17,17,0.4)]">Burndown data unavailable for this project.</div>
+            ) : (
+              <>
+                {/* KPI strip */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Total Tasks', value: String(burndown.totalTasks), color: '#2563EB' },
+                    { label: 'Completed', value: String(burndown.completedTasks), color: '#16A34A' },
+                    { label: 'Velocity (7d)', value: `${burndown.velocityLast7Days} tasks`, color: '#7C3AED' },
+                    { label: 'Forecast', value: burndown.forecastedCompletionDate || 'N/A', color: burndown.isOnTrack ? '#16A34A' : '#DC2626' },
+                  ].map(k => (
+                    <div key={k.label} className="p-4 rounded-xl border border-[#E5E7EB] bg-white">
+                      <div className="text-[11.5px] text-[rgba(17,17,17,0.45)]">{k.label}</div>
+                      <div className="text-[18px] font-bold mt-1" style={{ color: k.color }}>{k.value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* SLA status banner */}
+                <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-[13px] font-medium ${burndown.isOnTrack ? 'bg-[#ECFDF5] border-[#D1FAE5] text-emerald-700' : 'bg-[#FEF2F2] border-[#FECACA] text-[#DC2626]'}`}>
+                  <span>{burndown.isOnTrack ? '✅ On Track — within SLA' : '⚠️ At Risk — velocity below target'}</span>
+                  {burndown.daysUntilForecastedCompletion !== null && (
+                    <span className="ml-auto text-[12px] opacity-70">~{burndown.daysUntilForecastedCompletion}d to projected completion</span>
+                  )}
+                </div>
+
+                {/* SVG Burndown Chart */}
+                {burndown.series.length > 1 && (
+                  <div className="p-5 rounded-xl border border-[#E5E7EB] bg-white">
+                    <div className="flex items-center gap-5 text-[12px] mb-4 text-[rgba(17,17,17,0.6)]">
+                      <span className="flex items-center gap-1.5">
+                        <span className="inline-block w-6 border-b-2 border-dashed border-[#9CA3AF]"></span>Ideal Burndown
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="inline-block w-6 border-b-2 border-[#2563EB]"></span>Actual Remaining
+                      </span>
+                    </div>
+                    <svg width="100%" viewBox="0 0 640 220" style={{ overflow: 'visible' }}>
+                      {/* Grid lines */}
+                      {[0, 0.25, 0.5, 0.75, 1].map(t => {
+                        const maxY = Math.max(burndown.totalTasks, 1);
+                        const y = 10 + 180 - (t * 180);
+                        return (
+                          <g key={t}>
+                            <line x1={40} x2={620} y1={y} y2={y} stroke="#F3F4F6" strokeWidth="1" />
+                            <text x={36} y={y + 4} textAnchor="end" fontSize="9" fill="#9CA3AF">{Math.round(maxY * t)}</text>
+                          </g>
+                        );
+                      })}
+                      {/* Ideal line (dashed grey) */}
+                      <path
+                        d={burndown.series.map((p, i) => {
+                          const maxY = Math.max(burndown.totalTasks, 1);
+                          const x = 40 + (i / (burndown.series.length - 1)) * 580;
+                          const y = 10 + 180 - (p.ideal / maxY) * 180;
+                          return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+                        }).join(' ')}
+                        fill="none" stroke="#9CA3AF" strokeWidth="1.5" strokeDasharray="4 3"
+                      />
+                      {/* Actual line (solid blue) */}
+                      <path
+                        d={burndown.series
+                          .map((p, i) => ({ p, i }))
+                          .filter(({ p }) => p.actual !== null)
+                          .map(({ p, i }, idx) => {
+                            const maxY = Math.max(burndown.totalTasks, 1);
+                            const x = 40 + (i / (burndown.series.length - 1)) * 580;
+                            const y = 10 + 180 - ((p.actual as number) / maxY) * 180;
+                            return `${idx === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+                          }).join(' ')}
+                        fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round"
+                      />
+                      {/* X-axis date labels */}
+                      {burndown.series
+                        .filter((_, i) => i % Math.max(1, Math.floor(burndown.series.length / 6)) === 0)
+                        .map((p, idx) => {
+                          const origIdx = burndown.series.indexOf(p);
+                          const x = 40 + (origIdx / (burndown.series.length - 1)) * 580;
+                          return (
+                            <text key={idx} x={x} y={215} textAnchor="middle" fontSize="9" fill="#9CA3AF">
+                              {p.date.slice(5)}
+                            </text>
+                          );
+                        })}
+                    </svg>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 
@@ -600,18 +911,53 @@ export default function ProjectDetail({
               </div>
             </form>
 
+            {/* Lifecycle State Machine (Step 4.11) */}
+            <div className="p-6 rounded-2xl border border-[#E5E7EB] bg-[#FAFAFB] space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-[15px] font-semibold text-[#111111]">Project Lifecycle</h3>
+                <span className={`px-3 py-1 rounded-full text-[12px] font-semibold border ${
+                  LIFECYCLE_STATE_CONFIG[lifecycleState]?.badgeClass || 'bg-[#F3F4F6] text-[#6B7280] border-[#E5E7EB]'
+                }`}>
+                  {LIFECYCLE_STATE_CONFIG[lifecycleState]?.label || lifecycleState}
+                </span>
+              </div>
+              <p className="text-[12.5px] text-[rgba(17,17,17,0.55)]">
+                {LIFECYCLE_STATE_CONFIG[lifecycleState]?.description || 'Manage the project lifecycle state.'}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {(['PLANNING', 'ACTIVE', 'ON_HOLD', 'COMPLETED', 'ARCHIVED'] as ProjectLifecycleState[]).map(state => {
+                  const cfg = LIFECYCLE_STATE_CONFIG[state];
+                  const isCurrent = state === lifecycleState;
+                  return (
+                    <button
+                      key={state}
+                      disabled={isCurrent || isTransitioning}
+                      onClick={() => handleLifecycleTransition(state)}
+                      className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-colors ${
+                        isCurrent
+                          ? 'bg-[#EFF6FF] border-[#93C5FD] text-[#2563EB] cursor-default'
+                          : 'border-[#E5E7EB] text-[rgba(17,17,17,0.6)] hover:bg-white hover:border-[#2563EB] hover:text-[#2563EB]'
+                      }`}
+                    >
+                      {isCurrent && '✓ '}{cfg?.label || state}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Danger Zone */}
             <div className="p-6 rounded-2xl border border-[#FECACA] bg-[#FEF2F2]/40 space-y-3">
               <h3 className="text-[15px] font-semibold text-[#DC2626]">Danger Zone</h3>
               <p className="text-[12.5px] text-[#7F1D1D]/80">
-                Deleting this project will permanently remove it along with all associated tasks.
+                Archiving moves this project to ARCHIVED state. All tasks remain intact and the project can be restored.
               </p>
               <button
                 type="button"
                 onClick={handleDeleteProject}
                 className="px-3.5 py-1.5 rounded-lg bg-[#DC2626] hover:bg-[#B91C1C] text-white text-[12.5px] font-semibold transition-colors"
               >
-                Delete this project
+                Archive this project
               </button>
             </div>
           </div>

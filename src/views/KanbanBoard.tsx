@@ -28,6 +28,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useTasks, type DBTask } from '@/context/TaskContext';
 import { statusColors, priorityColors, getProjectName, type Status } from '../data/mockData';
+import { KanbanCardSkeleton } from '@/components/ui/Skeleton';
 
 interface KanbanBoardProps {
   onTaskClick: (taskId: string) => void;
@@ -169,12 +170,14 @@ function KanbanColumn({
   status,
   label,
   tasks,
+  isLoading,
   onTaskClick,
   onCreateTask,
 }: {
   status: Status;
   label: string;
   tasks: DBTask[];
+  isLoading?: boolean;
   onTaskClick: (taskId: string) => void;
   onCreateTask: () => void;
 }) {
@@ -186,7 +189,7 @@ function KanbanColumn({
   const colors = statusColors[status] || statusColors.todo;
 
   return (
-    <div className="flex flex-col" style={{ width: 272, minWidth: 272 }}>
+    <div className="flex flex-col snap-center md:snap-align-none" style={{ width: 272, minWidth: 272 }}>
       {/* Column Header */}
       <div className="flex items-center gap-2 mb-3 px-1">
         <span
@@ -195,7 +198,9 @@ function KanbanColumn({
         >
           {label}
         </span>
-        <span className="text-[12px] font-semibold text-[rgba(17,17,17,0.35)]">{tasks.length}</span>
+        <span className="text-[12px] font-semibold text-[rgba(17,17,17,0.35)]">
+          {isLoading ? '...' : tasks.length}
+        </span>
       </div>
 
       {/* Droppable Drop Zone */}
@@ -205,7 +210,12 @@ function KanbanColumn({
           isOver ? 'bg-[#EFF6FF] ring-2 ring-[#93C5FD] ring-offset-1' : 'bg-[#F9FAFB]'
         }`}
       >
-        {tasks.length === 0 ? (
+        {isLoading ? (
+          <div>
+            <KanbanCardSkeleton />
+            <KanbanCardSkeleton />
+          </div>
+        ) : tasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-28 text-center select-none">
             <p className="text-[12px] text-[rgba(17,17,17,0.3)]">No tasks</p>
           </div>
@@ -235,7 +245,7 @@ function KanbanColumn({
 // ---------------------------------------------------------------------------
 
 export default function KanbanBoard({ onTaskClick, onCreateTask }: KanbanBoardProps) {
-  const { tasks, updateTaskStatus } = useTasks();
+  const { tasks, isLoading, updateTaskStatus } = useTasks();
   const [search, setSearch] = useState('');
   const [activeTask, setActiveTask] = useState<DBTask | null>(null);
 
@@ -330,7 +340,7 @@ export default function KanbanBoard({ onTaskClick, onCreateTask }: KanbanBoardPr
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex-1 overflow-x-auto overflow-y-hidden px-4 md:px-6 py-4 md:py-5">
+        <div className="flex-1 overflow-x-auto overflow-y-hidden px-4 md:px-6 py-4 md:py-5 snap-x snap-mandatory md:snap-none">
           <div className="flex gap-3 md:gap-4 h-full" style={{ minWidth: columns.length * 260 }}>
             {columns.map(col => (
               <KanbanColumn
@@ -338,6 +348,7 @@ export default function KanbanBoard({ onTaskClick, onCreateTask }: KanbanBoardPr
                 status={col.status}
                 label={col.label}
                 tasks={getColumnTasks(col.status)}
+                isLoading={isLoading}
                 onTaskClick={onTaskClick}
                 onCreateTask={onCreateTask}
               />

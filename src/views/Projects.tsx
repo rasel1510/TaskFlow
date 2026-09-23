@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { healthColors, type ProjectHealth, type User } from '../data/mockData';
 import CreateProjectModal from '@/components/CreateProjectModal';
+import { ProjectCardSkeleton } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/EmptyState';
 
 interface ProjectsProps {
   onViewChange?: (view: 'kanban') => void;
@@ -58,9 +60,9 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const fetchProjects = useCallback(async () => {
+  const fetchProjects = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch('/api/projects');
+      const res = await fetch('/api/projects', { signal });
       const envelope = await res.json();
       const rawList = Array.isArray(envelope) ? envelope : (envelope?.data ?? []);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -79,7 +81,8 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
         members: p.members ?? (p.owner ? [p.owner] : []),
       }));
       setProjects(normalized);
-    } catch (err) {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') return;
       console.error('[Projects] Error fetching projects:', err);
     } finally {
       setLoading(false);
@@ -87,7 +90,11 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
   }, []);
 
   useEffect(() => {
-    fetchProjects();
+    const controller = new AbortController();
+    fetchProjects(controller.signal);
+    return () => {
+      controller.abort();
+    };
   }, [fetchProjects]);
 
   const filtered = projects.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
@@ -165,19 +172,9 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
         {loading ? (
           view === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="border border-[#E5E7EB] rounded-xl p-5 bg-white space-y-4 animate-pulse">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-[#E5E7EB]" />
-                    <div className="space-y-1.5 flex-1">
-                      <div className="w-28 h-4 bg-[#E5E7EB] rounded" />
-                      <div className="w-16 h-3 bg-[#F3F4F6] rounded" />
-                    </div>
-                  </div>
-                  <div className="w-full h-8 bg-[#F3F4F6] rounded" />
-                  <div className="h-10 bg-[#F9FAFB] rounded" />
-                </div>
-              ))}
+              <ProjectCardSkeleton />
+              <ProjectCardSkeleton />
+              <ProjectCardSkeleton />
             </div>
           ) : (
             <div className="border border-[#E5E7EB] rounded-xl overflow-hidden bg-white divide-y divide-[#F3F4F6]">
@@ -193,6 +190,12 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
               ))}
             </div>
           )
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            title="No projects found"
+            description={search ? `No projects match "${search}".` : "Create your first project to organize your team's tasks."}
+            action={!search ? { label: 'Create Project', onClick: () => setShowCreateModal(true) } : undefined}
+          />
         ) : view === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map(p => (

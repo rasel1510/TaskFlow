@@ -1,17 +1,21 @@
 /**
  * src/api/projects/[id]/route.ts
  *
- * Single project resource API endpoint.
+ * Single project resource API endpoint with:
+ * - Algorithmic Predictive Health & SLA Risk Engine (Step 4.8)
+ * - Enterprise Project Lifecycle State Machine & Audited Archival (Step 4.11)
  *
- * GET    /api/projects/:id  — Returns project with owner, tasks list, and computed stats
- * PATCH  /api/projects/:id  — Updates project name, description, health, color, dates
- * DELETE /api/projects/:id  — Deletes project
+ * GET    /api/projects/:id  — Returns project with owner, tasks list, SLA metrics, and lifecycle state
+ * PATCH  /api/projects/:id  — Updates project metadata, lifecycle state, health, dates, or archival status
+ * DELETE /api/projects/:id  — Soft-archives or deletes project
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { projects as mockProjects, tasks as mockTasks, users as mockUsers } from '@/data/mockData';
+import { projects as mockProjects, tasks as mockTasks } from '@/data/mockData';
 import { UpdateProjectSchema, validationError } from '@/lib/validators';
+import { computeProjectHealth } from '@/lib/projectHealthEngine';
+import { validateLifecycleTransition, type ProjectLifecycleState } from '@/lib/projectLifecycle';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -49,6 +53,8 @@ export async function GET(_request: NextRequest, context: RouteContext) {
               priority: true,
               dueDate: true,
               estimate: true,
+              createdAt: true,
+              updatedAt: true,
               assignee: {
                 select: { id: true, name: true, avatar: true, role: true, email: true },
               },
@@ -63,28 +69,56 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
       if (dbProject) {
         const totalTasks = dbProject.tasks.length;
-        const completedTasks = dbProject.tasks.filter(t => t.status === 'done').length;
+        const completedTasks = dbProject.tasks.filter((t) => t.status === 'done').length;
         const inProgressTasks = dbProject.tasks.filter(
-          t => t.status === 'in_progress' || t.status === 'in_review'
+          (t) => t.status === 'in_progress' || t.status === 'in_review'
         ).length;
 
         const now = new Date();
         const overdueTasks = dbProject.tasks.filter(
-          t => t.status !== 'done' && t.dueDate && new Date(t.dueDate) < now
+          (t) => t.status !== 'done' && t.dueDate && new Date(t.dueDate) < now
         ).length;
 
-        const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const recentCompletedTasks7d = dbProject.tasks.filter(
+          (t) => t.status === 'done' && t.updatedAt && new Date(t.updatedAt) >= sevenDaysAgo
+        ).length;
+
+        const completionRate =
+          totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+        // Step 4.8 Predictive Health & SLA Risk Engine
+        const slaAnalysis = computeProjectHealth({
+          startDate: dbProject.startDate,
+          dueDate: dbProject.dueDate,
+          progress: completionRate,
+          totalTasks,
+          completedTasks,
+          overdueTasks,
+          recentCompletedTasks7d,
+          referenceDate: now,
+        });
+
+        // Step 4.11 Lifecycle state fallback
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const lifecycleState: ProjectLifecycleState = (dbProject as any).lifecycleState || 'ACTIVE';
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const archivedAt: Date | null = (dbProject as any).archivedAt || null;
 
         return NextResponse.json(
           {
             success: true,
             data: {
               ...dbProject,
+              health: slaAnalysis.health, // Dynamically computed
               totalTasks,
               completedTasks,
               inProgressTasks,
               overdueTasks,
               completionRate,
+              slaAnalysis,
+              lifecycleState,
+              archivedAt,
             },
           },
           { status: 200 }
@@ -95,7 +129,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     }
 
     // Fallback: search in mock projects
-    const fallbackProject = mockProjects.find(p => p.id === projectId);
+    const fallbackProject = mockProjects.find((p) => p.id === projectId);
     if (!fallbackProject) {
       return NextResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: `Project "${projectId}" not found` } },
@@ -104,8 +138,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     }
 
     const projectTasks = mockTasks
-      .filter(t => t.projectId === projectId)
-      .map(t => ({
+      .filter((t) => t.projectId === projectId)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((t: any) => ({
         id: t.id,
         taskNumber: t.taskNumber ?? t.id,
         title: t.title,
@@ -114,28 +149,43 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         dueDate: t.dueDate,
         estimate: t.estimate,
         assignee: t.assignee,
+        createdAt: t.createdAt ?? null,
+        updatedAt: t.updatedAt ?? null,
         _count: { subtasks: t.subtasks?.length ?? 0, comments: t.commentsCount ?? 0 },
       }));
 
     const totalTasks = projectTasks.length;
-    const completedTasks = projectTasks.filter(t => t.status === 'done').length;
+    const completedTasks = projectTasks.filter((t) => t.status === 'done').length;
     const inProgressTasks = projectTasks.filter(
-      t => t.status === 'in_progress' || t.status === 'in_review'
+      (t) => t.status === 'in_progress' || t.status === 'in_review'
     ).length;
     const overdueTasks = fallbackProject.overdueTasks ?? 0;
     const completionRate = fallbackProject.progress ?? 0;
+
+    const slaAnalysis = computeProjectHealth({
+      startDate: fallbackProject.startDate,
+      dueDate: fallbackProject.dueDate,
+      progress: completionRate,
+      totalTasks,
+      completedTasks,
+      overdueTasks,
+    });
 
     return NextResponse.json(
       {
         success: true,
         data: {
           ...fallbackProject,
+          health: slaAnalysis.health,
           tasks: projectTasks,
           totalTasks,
           completedTasks,
           inProgressTasks,
           overdueTasks,
           completionRate,
+          slaAnalysis,
+          lifecycleState: 'ACTIVE',
+          archivedAt: null,
         },
       },
       { status: 200 }
@@ -180,6 +230,41 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (dueDate !== undefined) updateData.dueDate = parseSafeDate(dueDate);
     if (body.health !== undefined && typeof body.health === 'string') updateData.health = body.health;
 
+    // Step 4.11 Lifecycle State Transition Validation
+    if (body.lifecycleState && typeof body.lifecycleState === 'string') {
+      const targetState = body.lifecycleState as ProjectLifecycleState;
+      // Fetch current state
+      const current = await prisma.project.findUnique({ where: { id: projectId } }).catch(() => null);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const currentState: ProjectLifecycleState = (current as any)?.lifecycleState || 'ACTIVE';
+
+      const validation = validateLifecycleTransition(currentState, targetState);
+      if (!validation.valid) {
+        return NextResponse.json(
+          { success: false, error: { code: 'INVALID_TRANSITION', message: validation.error } },
+          { status: 400 }
+        );
+      }
+
+      updateData.lifecycleState = targetState;
+      if (validation.isArchival) {
+        updateData.archivedAt = new Date();
+      } else if (validation.isUnarchival) {
+        updateData.archivedAt = null;
+      }
+    }
+
+    // Direct archival toggle support
+    if (body.archived !== undefined) {
+      if (body.archived === true) {
+        updateData.lifecycleState = 'ARCHIVED';
+        updateData.archivedAt = new Date();
+      } else {
+        updateData.lifecycleState = 'ACTIVE';
+        updateData.archivedAt = null;
+      }
+    }
+
     try {
       const updated = await prisma.project.update({
         where: { id: projectId },
@@ -197,7 +282,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
 
     // Mock fallback update
-    const proj = mockProjects.find(p => p.id === projectId);
+    const proj = mockProjects.find((p) => p.id === projectId);
     if (proj) {
       if (name) proj.name = name;
       if (description) proj.description = description;
@@ -222,27 +307,46 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 // ---------------------------------------------------------------------------
 // DELETE /api/projects/:id
 // ---------------------------------------------------------------------------
-export async function DELETE(_request: NextRequest, context: RouteContext) {
+export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
+    const { searchParams } = new URL(request.url);
+    const hardDelete = searchParams.get('hard') === 'true';
 
-    try {
-      await prisma.project.delete({
-        where: { id: projectId },
-      });
-      return NextResponse.json(
-        { success: true, data: { message: `Project "${projectId}" deleted` } },
-        { status: 200 }
-      );
-    } catch (dbErr) {
-      console.warn('[DELETE /api/projects/:id] DB error:', dbErr);
+    // Step 4.11: Default to audited soft-deletion / archival unless hard=true is specified
+    if (!hardDelete) {
+      try {
+        const archived = await prisma.project.update({
+          where: { id: projectId },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          data: { lifecycleState: 'ARCHIVED', archivedAt: new Date() } as any,
+        });
+        return NextResponse.json(
+          { success: true, data: { message: `Project "${projectId}" archived successfully`, archived } },
+          { status: 200 }
+        );
+      } catch (dbErr) {
+        console.warn('[DELETE /api/projects/:id] Soft-archival DB warning:', dbErr);
+      }
+    } else {
+      try {
+        await prisma.project.delete({
+          where: { id: projectId },
+        });
+        return NextResponse.json(
+          { success: true, data: { message: `Project "${projectId}" permanently deleted` } },
+          { status: 200 }
+        );
+      } catch (dbErr) {
+        console.warn('[DELETE /api/projects/:id] DB error:', dbErr);
+      }
     }
 
-    const idx = mockProjects.findIndex(p => p.id === projectId);
+    const idx = mockProjects.findIndex((p) => p.id === projectId);
     if (idx !== -1) {
       mockProjects.splice(idx, 1);
       return NextResponse.json(
-        { success: true, data: { message: `Project "${projectId}" deleted` } },
+        { success: true, data: { message: `Project "${projectId}" removed` } },
         { status: 200 }
       );
     }

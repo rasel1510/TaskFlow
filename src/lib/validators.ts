@@ -229,6 +229,88 @@ export const SignupSchema = z.object({
 export type SignupInput = z.infer<typeof SignupSchema>;
 
 // ---------------------------------------------------------------------------
+// Bulk Task Operations Schema (Step 4.6)
+// ---------------------------------------------------------------------------
+
+export const BulkTaskActionSchema = z.object({
+  ids: z
+    .array(z.string())
+    .min(1, 'At least one task ID must be selected')
+    .max(100, 'Cannot operate on more than 100 tasks in a single batch'),
+  action: z.enum(['update', 'delete'], {
+    error: 'Action must be "update" or "delete"',
+  }),
+  payload: z
+    .object({
+      status: z.enum(TASK_STATUSES).optional(),
+      priority: z.enum(TASK_PRIORITIES).optional(),
+      assigneeId: z.string().nullable().optional(),
+    })
+    .optional(),
+});
+
+export type BulkTaskActionInput = z.infer<typeof BulkTaskActionSchema>;
+
+// ---------------------------------------------------------------------------
+// Milestone Schemas (Step 4.9)
+// ---------------------------------------------------------------------------
+
+export const CreateMilestoneSchema = z.object({
+  title: z
+    .string()
+    .min(1, 'Milestone title cannot be empty')
+    .max(150, 'Title must be 150 characters or fewer')
+    .trim(),
+  description: z.string().max(1000).optional(),
+  targetDate: z.string().optional(),
+});
+
+export const UpdateMilestoneSchema = CreateMilestoneSchema.partial().extend({
+  completed: z.boolean().optional(),
+});
+
+export type CreateMilestoneInput = z.infer<typeof CreateMilestoneSchema>;
+export type UpdateMilestoneInput = z.infer<typeof UpdateMilestoneSchema>;
+
+// ---------------------------------------------------------------------------
+// Project Member & RBAC Schemas (Step 4.10)
+// ---------------------------------------------------------------------------
+
+export const PROJECT_ROLES = ['OWNER', 'LEAD', 'CONTRIBUTOR', 'VIEWER'] as const;
+
+export const ProjectMemberInviteSchema = z.object({
+  userId: z.string().min(1, 'User ID is required'),
+  role: z.enum(PROJECT_ROLES).default('CONTRIBUTOR'),
+});
+
+export const ProjectMemberUpdateSchema = z.object({
+  role: z.enum(PROJECT_ROLES),
+});
+
+export type ProjectMemberInviteInput = z.infer<typeof ProjectMemberInviteSchema>;
+export type ProjectMemberUpdateInput = z.infer<typeof ProjectMemberUpdateSchema>;
+
+// ---------------------------------------------------------------------------
+// Project Lifecycle Transition Schema (Step 4.11)
+// ---------------------------------------------------------------------------
+
+export const PROJECT_LIFECYCLE_STATES = [
+  'PLANNING',
+  'ACTIVE',
+  'PAUSED',
+  'COMPLETED',
+  'ARCHIVED',
+] as const;
+
+export const ProjectLifecycleTransitionSchema = z.object({
+  targetState: z.enum(PROJECT_LIFECYCLE_STATES),
+});
+
+export type ProjectLifecycleTransitionInput = z.infer<
+  typeof ProjectLifecycleTransitionSchema
+>;
+
+// ---------------------------------------------------------------------------
 // Shared error response helper
 // ---------------------------------------------------------------------------
 

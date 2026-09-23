@@ -105,6 +105,18 @@ export default function Header({ currentView, onMenuToggle, onOpenCommandPalette
 
       {/* Right actions */}
       <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
+        {/* Mobile Search Icon */}
+        <button
+          type="button"
+          onClick={onOpenCommandPalette}
+          className="md:hidden w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[#F3F4F6] text-[rgba(17,17,17,0.55)] transition-colors"
+          aria-label="Search"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+        </button>
+
         {/* Notifications */}
         <div className="relative">
           <button
