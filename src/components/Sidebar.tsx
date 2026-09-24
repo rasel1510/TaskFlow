@@ -126,11 +126,11 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
     <aside
       className={[
         // Mobile: fixed overlay drawer
-        'fixed inset-y-0 left-0 z-40 flex flex-col h-full border-r border-[#E5E7EB] bg-white transition-transform duration-300 md:relative md:translate-x-0 md:z-auto md:transition-all md:duration-200 shrink-0',
+        'fixed inset-y-0 left-0 z-50 flex flex-col h-full border-r border-[#E5E7EB] bg-white transition-transform duration-300 md:relative md:translate-x-0 md:z-auto md:transition-all md:duration-200 shrink-0 pt-safe pb-safe shadow-2xl md:shadow-none w-[270px] max-w-[85vw] md:w-auto',
         // Mobile open/close
         mobileOpen ? 'translate-x-0' : '-translate-x-full',
       ].join(' ')}
-      style={{ width: 240, ['--sidebar-width' as string]: collapsed ? '60px' : '240px' }}
+      style={{ ['--sidebar-width' as string]: collapsed ? '60px' : '240px' }}
     >
       {/* Apply collapsed width on md+ */}
       <style>{`@media (min-width: 768px) { aside { width: ${collapsed ? 60 : 240}px !important; } }`}</style>

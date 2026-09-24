@@ -44,7 +44,7 @@ export default function Page() {
   const [showCreateTask, setShowCreateTask] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
-  // Close mobile sidebar on route change
+  // Close mobile sidebar on view change
   useEffect(() => {
     setMobileSidebarOpen(false);
   }, [view]);
@@ -81,7 +81,7 @@ export default function Page() {
 
   if (status === 'loading') {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-[#F9FAFB]">
+      <div className="flex h-[100dvh] w-screen items-center justify-center bg-[#F9FAFB]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-11 h-11 rounded-xl bg-[#2563EB] flex items-center justify-center shadow-lg shadow-blue-500/20 animate-pulse">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
@@ -182,12 +182,13 @@ export default function Page() {
 
   return (
     <TaskProvider>
-      <div className="flex h-screen overflow-hidden bg-white">
+      <div className="flex h-[100dvh] overflow-hidden bg-white">
         {/* Mobile sidebar backdrop */}
         {mobileSidebarOpen && (
           <div
-            className="fixed inset-0 bg-black/40 z-30 md:hidden"
+            className="fixed inset-0 bg-black/40 z-40 md:hidden backdrop-blur-xs transition-opacity duration-200"
             onClick={() => setMobileSidebarOpen(false)}
+            aria-label="Close sidebar overlay"
           />
         )}
 
@@ -207,11 +208,100 @@ export default function Page() {
             onMenuToggle={() => setMobileSidebarOpen(o => !o)}
             onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           />
-          <main className="flex flex-1 overflow-hidden">
+          <main className="flex flex-1 overflow-hidden min-h-0">
             <ErrorBoundary viewName={view}>
               {renderView()}
             </ErrorBoundary>
           </main>
+
+          {/* Mobile Bottom Navigation Bar (PWA & Mobile touch experience) */}
+          <nav
+            className="md:hidden flex items-center justify-around bg-white border-t border-[#E5E7EB] px-2 py-1 shrink-0 z-30 pb-safe shadow-[0_-2px_10px_rgba(0,0,0,0.03)]"
+            aria-label="Mobile Navigation"
+          >
+            {/* Dashboard */}
+            <button
+              onClick={() => navigateTo('dashboard')}
+              className={`flex flex-col items-center justify-center py-1 px-2.5 min-w-[54px] min-h-[44px] rounded-lg transition-colors ${
+                view === 'dashboard'
+                  ? 'text-[#2563EB]'
+                  : 'text-[rgba(17,17,17,0.5)] active:text-[#111111]'
+              }`}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={view === 'dashboard' ? '2.2' : '1.75'} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
+              </svg>
+              <span className={`text-[10px] mt-0.5 tracking-tight ${view === 'dashboard' ? 'font-bold' : 'font-medium'}`}>
+                Home
+              </span>
+            </button>
+
+            {/* My Tasks */}
+            <button
+              onClick={() => navigateTo('tasks')}
+              className={`flex flex-col items-center justify-center py-1 px-2.5 min-w-[54px] min-h-[44px] rounded-lg transition-colors ${
+                view === 'tasks'
+                  ? 'text-[#2563EB]'
+                  : 'text-[rgba(17,17,17,0.5)] active:text-[#111111]'
+              }`}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={view === 'tasks' ? '2.2' : '1.75'} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 11l3 3L22 4" />
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+              </svg>
+              <span className={`text-[10px] mt-0.5 tracking-tight ${view === 'tasks' ? 'font-bold' : 'font-medium'}`}>
+                Tasks
+              </span>
+            </button>
+
+            {/* Center Quick Add Floating Button */}
+            <button
+              onClick={() => setShowCreateTask(true)}
+              aria-label="Create Task"
+              className="flex items-center justify-center w-11 h-11 -mt-4 rounded-full bg-[#2563EB] text-white shadow-lg shadow-blue-500/30 hover:bg-[#1D4ED8] active:scale-95 transition-all"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
+
+            {/* Board */}
+            <button
+              onClick={() => navigateTo('kanban')}
+              className={`flex flex-col items-center justify-center py-1 px-2.5 min-w-[54px] min-h-[44px] rounded-lg transition-colors ${
+                view === 'kanban'
+                  ? 'text-[#2563EB]'
+                  : 'text-[rgba(17,17,17,0.5)] active:text-[#111111]'
+              }`}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={view === 'kanban' ? '2.2' : '1.75'} strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M8 7v10M12 7v6M16 7v8" />
+              </svg>
+              <span className={`text-[10px] mt-0.5 tracking-tight ${view === 'kanban' ? 'font-bold' : 'font-medium'}`}>
+                Board
+              </span>
+            </button>
+
+            {/* Projects */}
+            <button
+              onClick={() => navigateTo('projects')}
+              className={`flex flex-col items-center justify-center py-1 px-2.5 min-w-[54px] min-h-[44px] rounded-lg transition-colors ${
+                view === 'projects' || view === 'project-detail'
+                  ? 'text-[#2563EB]'
+                  : 'text-[rgba(17,17,17,0.5)] active:text-[#111111]'
+              }`}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={view === 'projects' || view === 'project-detail' ? '2.2' : '1.75'} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z" />
+              </svg>
+              <span className={`text-[10px] mt-0.5 tracking-tight ${view === 'projects' || view === 'project-detail' ? 'font-bold' : 'font-medium'}`}>
+                Projects
+              </span>
+            </button>
+          </nav>
         </div>
 
         {/* Task Detail Drawer */}

@@ -50,12 +50,12 @@ export default function Header({ currentView, onMenuToggle, onOpenCommandPalette
     (session?.user?.name ? session.user.name.slice(0, 2).toUpperCase() : currentUser.avatar);
 
   return (
-    <header className="flex items-center gap-2 md:gap-4 px-4 md:px-6 bg-white border-b border-[#E5E7EB] shrink-0" style={{ height: 57 }}>
+    <header className="flex items-center gap-2 md:gap-4 px-3.5 sm:px-4 md:px-6 bg-white border-b border-[#E5E7EB] shrink-0 z-30 pt-safe h-[56px] md:h-[57px]">
 
       {/* Hamburger — mobile only */}
       <button
         onClick={onMenuToggle}
-        className="md:hidden w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[#F3F4F6] text-[rgba(17,17,17,0.6)] transition-colors shrink-0"
+        className="md:hidden w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[#F3F4F6] active:bg-[#E5E7EB] text-[rgba(17,17,17,0.6)] transition-colors shrink-0"
         aria-label="Open menu"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
