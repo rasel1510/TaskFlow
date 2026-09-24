@@ -115,9 +115,6 @@ function LoginForm() {
         <h1 className="text-xl font-bold tracking-tight text-[#111111]">
           Welcome back
         </h1>
-        <p className="text-xs text-gray-500 mt-1">
-          Enter your credentials to access your workspace
-        </p>
       </div>
 
       {/* Social Logins */}
