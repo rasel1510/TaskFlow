@@ -1,10 +1,11 @@
-
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
 import { users as mockUsers } from '@/data/mockData';
 import { findStoredUserByEmail, saveStoredUser } from '@/data/userStore';
 import { SignupSchema, validationError } from '@/lib/validators';
+import { generateOtp, storeVerificationOtp } from '@/lib/verification';
+import { sendVerificationOtpEmail } from '@/lib/mail';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -54,6 +55,8 @@ export async function POST(req: Request) {
       );
     }
 
+    let createdUserId: string | undefined;
+
     try {
       // Check for duplicate email in database
       const existingUser = await prisma.user.findUnique({
@@ -67,7 +70,7 @@ export async function POST(req: Request) {
         );
       }
 
-      // Persist new user in database
+      // Persist new user in database with unverified email state
       const newUser = await prisma.user.create({
         data: {
           name: (name as string).trim(),
@@ -75,8 +78,11 @@ export async function POST(req: Request) {
           password: hashedPassword,
           role: userRole,
           avatar,
+          emailVerified: null,
         },
       });
+
+      createdUserId = newUser.id;
 
       // Also persist to local userStore for seamless failover
       saveStoredUser({
@@ -87,20 +93,6 @@ export async function POST(req: Request) {
         role: newUser.role,
         avatar: newUser.avatar,
       });
-
-      return NextResponse.json(
-        {
-          message: 'Account created successfully',
-          user: {
-            id: newUser.id,
-            name: newUser.name,
-            email: newUser.email,
-            role: newUser.role,
-            avatar: newUser.avatar,
-          },
-        },
-        { status: 201 }
-      );
     } catch (dbError) {
       // Database unavailable / auth failure — persist safely to userStore
       console.warn('[POST /api/auth/signup] Prisma unavailable, saving to local store:', dbError);
@@ -113,20 +105,38 @@ export async function POST(req: Request) {
         avatar,
       });
 
-      return NextResponse.json(
-        {
-          message: 'Account created successfully',
-          user: {
-            id: storedUser.id,
-            name: storedUser.name,
-            email: storedUser.email,
-            role: storedUser.role,
-            avatar: storedUser.avatar,
-          },
-        },
-        { status: 201 }
-      );
+      createdUserId = storedUser.id;
     }
+
+    // --- SMTP Verification Phase ---
+    // Generate secure 6-digit OTP
+    const otp = generateOtp();
+
+    // Store OTP in database & memory store
+    await storeVerificationOtp(normalizedEmail, otp, 10);
+
+    // Dispatch verification email via SMTP
+    const mailResult = await sendVerificationOtpEmail({
+      to: normalizedEmail,
+      name: (name as string).trim(),
+      otp,
+      expiresInMinutes: 10,
+    });
+
+    return NextResponse.json(
+      {
+        success: true,
+        requiresVerification: true,
+        email: normalizedEmail,
+        userId: createdUserId,
+        devMode: mailResult.devMode,
+        previewCode: mailResult.previewCode,
+        message: mailResult.devMode
+          ? 'Verification code generated (check server logs or preview below).'
+          : 'A 6-digit verification code has been dispatched to your email.',
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('[POST /api/auth/signup] Unexpected error:', error);
     return NextResponse.json(

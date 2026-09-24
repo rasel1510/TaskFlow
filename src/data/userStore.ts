@@ -8,6 +8,7 @@ export interface StoredUser {
   password: string; // bcrypt hash
   role: string;
   avatar: string;
+  emailVerified?: string;
   createdAt: string;
 }
 
@@ -66,6 +67,7 @@ export function saveStoredUser(data: {
   password: string;
   role: string;
   avatar: string;
+  emailVerified?: string;
 }): StoredUser {
   const allUsers = loadUsers();
   const normalized = data.email.toLowerCase().trim();
@@ -78,7 +80,8 @@ export function saveStoredUser(data: {
     password: data.password,
     role: data.role || 'User',
     avatar: data.avatar,
-    createdAt: new Date().toISOString(),
+    emailVerified: data.emailVerified !== undefined ? data.emailVerified : (existingIndex >= 0 ? allUsers[existingIndex].emailVerified : undefined),
+    createdAt: existingIndex >= 0 ? allUsers[existingIndex].createdAt : new Date().toISOString(),
   };
 
   if (existingIndex >= 0) {
