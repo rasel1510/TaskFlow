@@ -78,7 +78,7 @@ export default function EditTaskModal({ task, onClose }: EditTaskModalProps) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-t-2xl sm:rounded-2xl border border-[#E5E7EB] shadow-2xl w-full sm:max-w-lg max-h-[92vh] overflow-y-auto"
+        className="bg-white rounded-t-2xl sm:rounded-2xl border border-[#E5E7EB] shadow-2xl w-full sm:max-w-lg max-h-[92dvh] overflow-y-auto pb-safe"
         onClick={e => e.stopPropagation()}
       >
         {/* Mobile drag handle */}

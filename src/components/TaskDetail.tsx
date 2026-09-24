@@ -172,9 +172,9 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
       <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
 
       {/* Drawer */}
-      <div className="fixed inset-y-0 right-0 w-full sm:w-[520px] max-w-full bg-white sm:border-l border-[#E5E7EB] z-50 flex flex-col shadow-xl">
+      <div className="fixed inset-y-0 right-0 w-full sm:w-[520px] max-w-full bg-white sm:border-l border-[#E5E7EB] z-50 flex flex-col shadow-2xl pt-safe pb-safe">
         {/* Header */}
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-[#E5E7EB] shrink-0">
+        <div className="flex items-center gap-3 px-4 sm:px-5 py-3.5 sm:py-4 border-b border-[#E5E7EB] shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-[11.5px] font-semibold text-[rgba(17,17,17,0.55)] font-mono bg-[#F3F4F6] px-2 py-0.5 rounded tracking-wide border border-[#E5E7EB]">
               {task.taskNumber ?? task.id}

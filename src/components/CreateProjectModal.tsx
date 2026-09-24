@@ -100,17 +100,17 @@ export default function CreateProjectModal({ onClose, onSuccess }: CreateProject
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       {/* Backdrop */}
       <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] transition-opacity" onClick={onClose} />
 
       {/* Modal Card */}
-      <div className="relative w-full max-w-lg bg-white rounded-xl shadow-2xl border border-[#E5E7EB] z-10 overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-lg bg-white rounded-t-2xl sm:rounded-xl shadow-2xl border border-[#E5E7EB] z-10 overflow-hidden flex flex-col max-h-[92dvh] pb-safe">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] bg-white">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-[#E5E7EB] bg-white">
           <div>
-            <h2 className="text-[17px] font-bold text-[#111111]">Create New Project</h2>
-            <p className="text-[12px] text-[rgba(17,17,17,0.45)] mt-0.5">Define your project scope, timeline, and color theme.</p>
+            <h2 className="text-[16px] sm:text-[17px] font-bold text-[#111111]">Create New Project</h2>
+            <p className="text-[11.5px] sm:text-[12px] text-[rgba(17,17,17,0.45)] mt-0.5">Define your project scope, timeline, and color theme.</p>
           </div>
           <button
             onClick={onClose}

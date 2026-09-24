@@ -76,11 +76,11 @@ export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center sm:p-4"
+        className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-xs"
         onClick={onClose}
       >
         <div
-          className="bg-white rounded-t-2xl sm:rounded-2xl border border-[#E5E7EB] shadow-xl w-full sm:max-w-lg max-h-[92vh] overflow-y-auto"
+          className="bg-white rounded-t-2xl sm:rounded-2xl border border-[#E5E7EB] shadow-2xl w-full sm:max-w-lg max-h-[92dvh] overflow-y-auto pb-safe"
           onClick={e => e.stopPropagation()}
         >
           {/* Mobile drag handle */}
