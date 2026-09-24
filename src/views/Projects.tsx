@@ -101,12 +101,12 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
 
   return (
     <div className="flex-1 overflow-y-auto bg-white">
-      <div className="max-w-[1280px] mx-auto px-6 py-6">
+      <div className="max-w-[1280px] mx-auto px-4 md:px-6 py-4 md:py-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
           <div>
-            <h1 className="text-[24px] font-bold text-[#111111]">Projects</h1>
-            <p className="text-[13px] text-[rgba(17,17,17,0.45)] mt-0.5">
+            <h1 className="text-[20px] md:text-[24px] font-bold text-[#111111]">Projects</h1>
+            <p className="text-[12px] md:text-[13px] text-[rgba(17,17,17,0.45)] mt-0.5">
               {loading ? 'Loading projects...' : `${projects.length} active projects`}
             </p>
           </div>
@@ -303,65 +303,67 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
           </div>
         ) : (
           /* List view */
-          <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden">
-            <div className="flex items-center gap-4 px-5 py-3 bg-[#F9FAFB] border-b border-[#E5E7EB] text-[11.5px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)]">
-              <span className="flex-1">Project</span>
-              <span className="w-28">Health</span>
-              <span className="w-20">Progress</span>
-              <span className="w-20">Tasks</span>
-              <span className="w-24">Members</span>
-              <span className="w-28">Deadline</span>
-              <span className="w-8" />
-            </div>
-            {filtered.map((p, i) => (
-              <div
-                key={p.id}
-                onClick={() => (onSelectProject ? onSelectProject(p.id) : onViewChange?.('kanban'))}
-                className={`flex items-center gap-4 px-5 py-4 hover:bg-[#F9FAFB] cursor-pointer transition-colors ${i < filtered.length - 1 ? 'border-b border-[#F3F4F6]' : ''}`}
-              >
-                <div className="flex-1 flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: p.color + '20' }}>
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.color }} />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-[13.5px] font-medium text-[#111111] truncate">{p.name}</div>
-                    <div className="text-[11.5px] text-[rgba(17,17,17,0.4)] truncate mt-0.5">{p.description}</div>
-                  </div>
-                </div>
-                <div className="w-28">
-                  <span className="flex items-center gap-1.5 text-[11.5px] font-medium" style={{ color: healthColors[p.health].text }}>
-                    {healthIcons[p.health]}
-                    {healthColors[p.health].label}
-                  </span>
-                </div>
-                <div className="w-20 flex items-center gap-2">
-                  <div className="flex-1 h-1.5 bg-[#F3F4F6] rounded-full overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${p.progress}%`, backgroundColor: p.color }} />
-                  </div>
-                  <span className="text-[11.5px] text-[rgba(17,17,17,0.5)] shrink-0">{p.progress}%</span>
-                </div>
-                <div className="w-20 text-[12.5px] text-[rgba(17,17,17,0.6)]">{p.completedTasks}/{p.taskCount}</div>
-                <div className="w-24 flex -space-x-1.5">
-                  {p.members.slice(0, 3).map((m, mi) => (
-                    <div
-                      key={mi}
-                      className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-bold text-white"
-                      style={{ backgroundColor: ['#2563EB', '#7C3AED', '#0891B2'][mi % 3] }}
-                    >
-                      {m.avatar}
-                    </div>
-                  ))}
-                </div>
-                <span className="w-28 text-[12.5px] text-[rgba(17,17,17,0.6)]">{p.dueDate}</span>
-                <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-[#F3F4F6] text-[rgba(17,17,17,0.3)] transition-colors">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="5" r="1"/>
-                    <circle cx="12" cy="12" r="1"/>
-                    <circle cx="12" cy="19" r="1"/>
-                  </svg>
-                </button>
+          <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-x-auto shadow-xs">
+            <div className="min-w-[640px]">
+              <div className="flex items-center gap-4 px-5 py-3 bg-[#F9FAFB] border-b border-[#E5E7EB] text-[11.5px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)]">
+                <span className="flex-1">Project</span>
+                <span className="w-28">Health</span>
+                <span className="w-20">Progress</span>
+                <span className="w-20">Tasks</span>
+                <span className="w-24">Members</span>
+                <span className="w-28">Deadline</span>
+                <span className="w-8" />
               </div>
-            ))}
+              {filtered.map((p, i) => (
+                <div
+                  key={p.id}
+                  onClick={() => (onSelectProject ? onSelectProject(p.id) : onViewChange?.('kanban'))}
+                  className={`flex items-center gap-4 px-5 py-4 hover:bg-[#F9FAFB] cursor-pointer transition-colors ${i < filtered.length - 1 ? 'border-b border-[#F3F4F6]' : ''}`}
+                >
+                  <div className="flex-1 flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: p.color + '20' }}>
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.color }} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[13.5px] font-medium text-[#111111] truncate">{p.name}</div>
+                      <div className="text-[11.5px] text-[rgba(17,17,17,0.4)] truncate mt-0.5">{p.description}</div>
+                    </div>
+                  </div>
+                  <div className="w-28">
+                    <span className="flex items-center gap-1.5 text-[11.5px] font-medium" style={{ color: healthColors[p.health].text }}>
+                      {healthIcons[p.health]}
+                      {healthColors[p.health].label}
+                    </span>
+                  </div>
+                  <div className="w-20 flex items-center gap-2">
+                    <div className="flex-1 h-1.5 bg-[#F3F4F6] rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${p.progress}%`, backgroundColor: p.color }} />
+                    </div>
+                    <span className="text-[11.5px] text-[rgba(17,17,17,0.5)] shrink-0">{p.progress}%</span>
+                  </div>
+                  <div className="w-20 text-[12.5px] text-[rgba(17,17,17,0.6)]">{p.completedTasks}/{p.taskCount}</div>
+                  <div className="w-24 flex -space-x-1.5">
+                    {p.members.slice(0, 3).map((m, mi) => (
+                      <div
+                        key={mi}
+                        className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-bold text-white"
+                        style={{ backgroundColor: ['#2563EB', '#7C3AED', '#0891B2'][mi % 3] }}
+                      >
+                        {m.avatar}
+                      </div>
+                    ))}
+                  </div>
+                  <span className="w-28 text-[12.5px] text-[rgba(17,17,17,0.6)]">{p.dueDate}</span>
+                  <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-[#F3F4F6] text-[rgba(17,17,17,0.3)] transition-colors">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="5" r="1"/>
+                      <circle cx="12" cy="12" r="1"/>
+                      <circle cx="12" cy="19" r="1"/>
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

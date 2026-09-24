@@ -281,10 +281,11 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
       {/* Calendar Grid Container */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Days of week header */}
-        <div className="grid grid-cols-7 border-b border-[#E5E7EB] bg-[#F9FAFB] shrink-0 text-center py-2.5">
+        <div className="grid grid-cols-7 border-b border-[#E5E7EB] bg-[#F9FAFB] shrink-0 text-center py-2">
           {DAYS_OF_WEEK.map(day => (
-            <div key={day} className="text-[11px] font-semibold text-[#6B7280] tracking-wider uppercase">
-              {day}
+            <div key={day} className="text-[10px] sm:text-[11px] font-semibold text-[#6B7280] tracking-wider uppercase">
+              <span className="hidden sm:inline">{day}</span>
+              <span className="sm:hidden">{day[0]}</span>
             </div>
           ))}
         </div>
@@ -374,8 +375,9 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
 
         {/* View Mode: Week */}
         {viewMode === 'week' && (
-          <div className="flex-1 grid grid-cols-7 divide-x divide-[#E5E7EB] overflow-y-auto">
-            {weekDays.map((cell, idx) => {
+          <div className="flex-1 overflow-x-auto">
+            <div className="min-w-[660px] h-full grid grid-cols-7 divide-x divide-[#E5E7EB] overflow-y-auto">
+              {weekDays.map((cell, idx) => {
               const dayTasks = tasksByDate.get(cell.dateKey) || [];
 
               return (
@@ -457,6 +459,7 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
                 </div>
               );
             })}
+            </div>
           </div>
         )}
       </div>

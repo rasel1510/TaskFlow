@@ -150,11 +150,11 @@ export default function Inbox({ onTaskClick }: InboxProps) {
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-white">
       {/* Top Header */}
-      <div className="flex items-center justify-between px-6 py-5 border-b border-[#E5E7EB] bg-white shrink-0">
-        <div className="flex items-center gap-3">
-          <h1 className="text-[22px] font-bold text-[#111111] tracking-tight">Inbox</h1>
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-5 border-b border-[#E5E7EB] bg-white shrink-0">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <h1 className="text-[20px] sm:text-[22px] font-bold text-[#111111] tracking-tight">Inbox</h1>
           {unreadCount > 0 && (
-            <span className="px-2 py-0.5 rounded-full text-[12px] font-semibold bg-[#2563EB] text-white">
+            <span className="px-2 py-0.5 rounded-full text-[11.5px] sm:text-[12px] font-semibold bg-[#2563EB] text-white">
               {unreadCount} unread
             </span>
           )}
@@ -163,9 +163,9 @@ export default function Inbox({ onTaskClick }: InboxProps) {
         {unreadCount > 0 && (
           <button
             onClick={markAllAsRead}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E5E7EB] hover:bg-[#F9FAFB] text-[13px] font-medium text-[rgba(17,17,17,0.7)] hover:text-[#111111] transition-colors"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border border-[#E5E7EB] hover:bg-[#F9FAFB] text-[12px] sm:text-[13px] font-medium text-[rgba(17,17,17,0.7)] hover:text-[#111111] transition-colors shadow-2xs"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <polyline points="20 6 9 17 4 12" />
             </svg>
             Mark all read
@@ -174,10 +174,10 @@ export default function Inbox({ onTaskClick }: InboxProps) {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-1 px-6 py-2 border-b border-[#F3F4F6] bg-[#FAFAFB] shrink-0 text-[13px]">
+      <div className="flex items-center gap-1 px-3 sm:px-6 py-2 border-b border-[#F3F4F6] bg-[#FAFAFB] shrink-0 text-[12.5px] sm:text-[13px] overflow-x-auto no-scrollbar">
         <button
           onClick={() => setTab('all')}
-          className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
+          className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap shrink-0 transition-colors ${
             tab === 'all' ? 'bg-white shadow-2xs text-[#111111]' : 'text-[rgba(17,17,17,0.5)] hover:text-[#111111]'
           }`}
         >
@@ -185,7 +185,7 @@ export default function Inbox({ onTaskClick }: InboxProps) {
         </button>
         <button
           onClick={() => setTab('unread')}
-          className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
+          className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap shrink-0 transition-colors ${
             tab === 'unread' ? 'bg-white shadow-2xs text-[#111111]' : 'text-[rgba(17,17,17,0.5)] hover:text-[#111111]'
           }`}
         >
@@ -193,7 +193,7 @@ export default function Inbox({ onTaskClick }: InboxProps) {
         </button>
         <button
           onClick={() => setTab('assigned')}
-          className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
+          className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap shrink-0 transition-colors ${
             tab === 'assigned' ? 'bg-white shadow-2xs text-[#111111]' : 'text-[rgba(17,17,17,0.5)] hover:text-[#111111]'
           }`}
         >
@@ -201,7 +201,7 @@ export default function Inbox({ onTaskClick }: InboxProps) {
         </button>
         <button
           onClick={() => setTab('comments')}
-          className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
+          className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap shrink-0 transition-colors ${
             tab === 'comments' ? 'bg-white shadow-2xs text-[#111111]' : 'text-[rgba(17,17,17,0.5)] hover:text-[#111111]'
           }`}
         >

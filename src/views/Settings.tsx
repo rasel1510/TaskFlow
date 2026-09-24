@@ -308,10 +308,27 @@ export default function Settings() {
      RENDER
   ───────────────────────────────────────── */
   return (
-    <div className="flex-1 flex overflow-hidden bg-white">
+    <div className="flex-1 flex flex-col md:flex-row overflow-hidden bg-white">
 
-      {/* ── Settings nav ── */}
-      <div className="w-52 border-r border-[#E5E7EB] overflow-y-auto shrink-0 py-4 px-2">
+      {/* ── Mobile Category Tabs ── */}
+      <div className="md:hidden flex items-center gap-1 px-3 py-2 border-b border-[#E5E7EB] bg-[#FAFAFB] overflow-x-auto no-scrollbar shrink-0">
+        {navItems.map(item => (
+          <button
+            key={item.id}
+            onClick={() => setSection(item.id)}
+            className={`px-3 py-1.5 rounded-lg text-[12.5px] font-medium whitespace-nowrap transition-colors shrink-0 ${
+              section === item.id
+                ? 'bg-white text-[#2563EB] shadow-2xs font-semibold'
+                : 'text-[rgba(17,17,17,0.55)] hover:text-[#111111]'
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Desktop Settings nav ── */}
+      <div className="hidden md:block w-52 border-r border-[#E5E7EB] overflow-y-auto shrink-0 py-4 px-2">
         {groups.map(group => {
           const items = navItems.filter(i => i.group === group);
           return (
@@ -338,7 +355,7 @@ export default function Settings() {
       </div>
 
       {/* ── Content panel ── */}
-      <div className="flex-1 overflow-y-auto px-8 py-6">
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 md:px-8 py-5 md:py-6">
 
         {/* ━━━━━━━━━━━━━━━━━━━━━━━━
             3.1  PROFILE

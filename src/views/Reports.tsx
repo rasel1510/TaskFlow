@@ -84,8 +84,8 @@ function DonutChart({ segments }: { segments: SegmentItem[] }) {
   const circ = 2 * Math.PI * r;
 
   return (
-    <div className="flex items-center gap-6">
-      <svg width="120" height="120" viewBox="0 0 120 120">
+    <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+      <svg width="120" height="120" viewBox="0 0 120 120" className="shrink-0">
         {total === 0 ? (
           <circle cx="60" cy="60" r={r} fill="none" stroke="#F3F4F6" strokeWidth="14" />
         ) : (
@@ -175,18 +175,18 @@ export default function Reports() {
 
   return (
     <div className="flex-1 overflow-y-auto bg-white">
-      <div className="max-w-[1280px] mx-auto px-6 py-6">
+      <div className="max-w-[1280px] mx-auto px-4 md:px-6 py-4 md:py-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
           <div>
-            <h1 className="text-[24px] font-bold text-[#111111]">Reports & Analytics</h1>
-            <p className="text-[13px] text-[rgba(17,17,17,0.45)] mt-0.5">Live PostgreSQL Aggregations</p>
+            <h1 className="text-[20px] md:text-[24px] font-bold text-[#111111]">Reports & Analytics</h1>
+            <p className="text-[12px] md:text-[13px] text-[rgba(17,17,17,0.45)] mt-0.5">Live PostgreSQL Aggregations</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={handleExportCSV}
               disabled={exporting}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-[12.5px] font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-60"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-[12px] sm:text-[12.5px] font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-60 shadow-2xs"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -197,7 +197,7 @@ export default function Reports() {
             </button>
             <button
               onClick={() => window.print()}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2563EB] text-white rounded-lg text-[12.5px] font-semibold hover:bg-[#1D4ED8] transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2563EB] text-white rounded-lg text-[12px] sm:text-[12.5px] font-semibold hover:bg-[#1D4ED8] transition-colors shadow-2xs"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>

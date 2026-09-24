@@ -62,13 +62,13 @@ function StatCard({
   accent: string;
 }) {
   return (
-    <div className="bg-white border border-[#E5E7EB] rounded-xl p-5 flex items-start gap-4">
-      <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: accent + '20' }}>
+    <div className="bg-white border border-[#E5E7EB] rounded-xl p-3.5 sm:p-5 flex items-start gap-2.5 sm:gap-4 shadow-2xs">
+      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: accent + '20' }}>
         <span style={{ color: accent }}>{icon}</span>
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-[28px] font-bold text-[#111111] leading-none mb-1">{value}</div>
-        <div className="text-[13px] text-[rgba(17,17,17,0.5)] mb-2">{label}</div>
+        <div className="text-[20px] sm:text-[26px] md:text-[28px] font-bold text-[#111111] leading-none mb-1 truncate">{value}</div>
+        <div className="text-[11px] sm:text-[12.5px] text-[rgba(17,17,17,0.5)] truncate">{label}</div>
       </div>
     </div>
   );
@@ -180,7 +180,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
         {/* Page header */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-5 md:mb-6 gap-1">
           <div>
-            <h1 className="text-[22px] md:text-[26px] font-bold text-[#111111]">Good {greeting}, {userName}</h1>
+            <h1 className="text-[19px] sm:text-[22px] md:text-[26px] font-bold text-[#111111] tracking-tight">Good {greeting}, {userName}</h1>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-[12px] md:text-[13px] text-[rgba(17,17,17,0.5)]">

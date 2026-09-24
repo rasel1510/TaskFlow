@@ -325,7 +325,7 @@ export default function ProjectDetail({
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto bg-white">
       {/* Top Banner Navigation */}
-      <div className="border-b border-[#E5E7EB] bg-white px-6 py-4">
+      <div className="border-b border-[#E5E7EB] bg-white px-4 sm:px-6 py-3.5 sm:py-4">
         <button
           onClick={onBack}
           className="flex items-center gap-1.5 text-[12.5px] font-medium text-[rgba(17,17,17,0.5)] hover:text-[#111111] transition-colors mb-3"
@@ -336,19 +336,19 @@ export default function ProjectDetail({
           Back to Projects
         </button>
 
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-xs"
+              className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 shadow-xs"
               style={{ backgroundColor: project.color + '1A', color: project.color }}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z" />
               </svg>
             </div>
             <div>
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-[22px] font-bold text-[#111111] tracking-tight">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="text-[19px] sm:text-[22px] font-bold text-[#111111] tracking-tight">
                   {project.name}
                 </h1>
                 <span
@@ -358,7 +358,7 @@ export default function ProjectDetail({
                   {healthConfig.label}
                 </span>
               </div>
-              <p className="text-[13px] text-[rgba(17,17,17,0.5)] mt-0.5 line-clamp-1">
+              <p className="text-[12.5px] sm:text-[13px] text-[rgba(17,17,17,0.5)] mt-0.5 line-clamp-1">
                 {project.description || 'No description provided'}
               </p>
             </div>
@@ -391,7 +391,7 @@ export default function ProjectDetail({
         </div>
 
         {/* Tabs switcher */}
-        <div className="flex items-center gap-5 mt-6 border-b border-[#F3F4F6] text-[13px] overflow-x-auto">
+        <div className="flex items-center gap-4 sm:gap-5 mt-5 sm:mt-6 border-b border-[#F3F4F6] text-[13px] overflow-x-auto no-scrollbar">
           {([
             { key: 'overview', label: 'Overview' },
             { key: 'tasks', label: `Tasks (${project.totalTasks})` },
@@ -403,7 +403,7 @@ export default function ProjectDetail({
             <button
               key={key}
               onClick={() => setActiveTab(key)}
-              className={`pb-2.5 font-medium border-b-2 whitespace-nowrap transition-colors ${
+              className={`pb-2.5 font-medium border-b-2 whitespace-nowrap transition-colors shrink-0 ${
                 activeTab === key
                   ? 'border-[#2563EB] text-[#2563EB] font-semibold'
                   : 'border-transparent text-[rgba(17,17,17,0.5)] hover:text-[#111111]'
@@ -416,7 +416,7 @@ export default function ProjectDetail({
       </div>
 
       {/* Main Tab Content */}
-      <div className="flex-1 p-6 max-w-6xl w-full mx-auto space-y-6">
+      <div className="flex-1 p-4 sm:p-6 max-w-6xl w-full mx-auto space-y-5 sm:space-y-6">
         {/* KPI Metric Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFB]">
