@@ -20,6 +20,7 @@ import Reports from '@/views/Reports';
 import Settings from '@/views/Settings';
 import { TaskProvider } from '@/context/TaskContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 
 type View =
   | 'dashboard'
@@ -222,6 +223,7 @@ export default function Page() {
             onMenuToggle={() => setMobileSidebarOpen(o => !o)}
             onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           />
+          {/* Main content area — on mobile, reserve space for the bottom nav (56px) */}
           <main className="flex flex-1 overflow-hidden min-h-0">
             <ErrorBoundary viewName={view}>
               {renderView()}
@@ -359,6 +361,9 @@ export default function Page() {
             setCommandPaletteOpen(false);
           }}
         />
+
+        {/* PWA Install Prompt — appears on eligible devices */}
+        <PWAInstallPrompt />
       </div>
     </TaskProvider>
   );

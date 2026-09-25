@@ -367,30 +367,31 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
       {/* ========================================================= */}
       {/* 1. TOP HEADER & CONTROLS TOOLBAR                          */}
       {/* ========================================================= */}
-      <header className="shrink-0 border-b border-[#E5E7EB] bg-white px-4 md:px-6 py-3 space-y-3">
+      <header className="shrink-0 border-b border-[#E5E7EB] bg-white px-3 md:px-6 py-2.5 md:py-3 space-y-2 md:space-y-3">
         {/* Row 1: Title, View Switcher & Action */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE] flex items-center justify-center text-[#2563EB]">
+        <div className="flex flex-wrap items-center justify-between gap-2 md:gap-3">
+          <div className="flex items-center gap-2 md:gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE] flex items-center justify-center text-[#2563EB] shrink-0">
               <Layers className="w-4 h-4" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-[17px] font-bold tracking-tight text-[#111111]">Timeline</h1>
-                <span className="text-[11px] font-semibold text-[#6B7280] bg-[#F3F4F6] px-2 py-0.5 rounded-full">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
+                <h1 className="text-[15px] md:text-[17px] font-bold tracking-tight text-[#111111]">Timeline</h1>
+                <span className="text-[10px] md:text-[11px] font-semibold text-[#6B7280] bg-[#F3F4F6] px-1.5 md:px-2 py-0.5 rounded-full">
                   {scheduledTasks.length} scheduled
                 </span>
                 {unscheduledTasks.length > 0 && (
                   <button
                     onClick={() => setShowUnscheduledDrawer(prev => !prev)}
-                    className="text-[11px] font-medium text-[#D97706] bg-[#FEF3C7] hover:bg-[#FDE68A] px-2 py-0.5 rounded-full transition-colors flex items-center gap-1 cursor-pointer"
+                    className="text-[10px] md:text-[11px] font-medium text-[#D97706] bg-[#FEF3C7] hover:bg-[#FDE68A] px-1.5 md:px-2 py-0.5 rounded-full transition-colors flex items-center gap-1 cursor-pointer"
                   >
                     <span>{unscheduledTasks.length} unscheduled</span>
                   </button>
                 )}
               </div>
-              <p className="text-[11px] text-[#6B7280]">
-                Chronological roadmap & scheduling across all active projects
+              {/* Subtitle — hidden on mobile to save space */}
+              <p className="hidden md:block text-[11px] text-[#6B7280]">
+                Chronological roadmap &amp; scheduling across all active projects
               </p>
             </div>
           </div>
@@ -451,8 +452,8 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
           </div>
         </div>
 
-        {/* Row 2: Search, Filters & Grouping */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1 border-t border-[#F3F4F6]">
+        {/* Row 2: Search, Filters & Grouping — hidden on mobile, shown on sm+ */}
+        <div className="hidden sm:flex flex-wrap items-center justify-between gap-2.5 pt-1 border-t border-[#F3F4F6]">
           <div className="flex flex-wrap items-center gap-2">
             {/* Search */}
             <div className="relative">
@@ -543,8 +544,8 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
       {/* 2. TIMELINE MAIN BODY (Left Task Tree + Right Gantt Canvas) */}
       {/* ========================================================= */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* LEFT COLUMN: Fixed Task / Group Tree (280px) */}
-        <div className="w-[280px] md:w-[320px] shrink-0 border-r border-[#E5E7EB] bg-[#FAFAFC] flex flex-col overflow-hidden z-10">
+        {/* LEFT COLUMN: Fixed Task / Group Tree — hidden on mobile, visible sm+ */}
+        <div className="hidden sm:flex sm:w-[240px] md:w-[280px] lg:w-[320px] shrink-0 border-r border-[#E5E7EB] bg-[#FAFAFC] flex-col overflow-hidden z-10">
           {/* Header match height */}
           <div className="h-[60px] border-b border-[#E5E7EB] bg-white px-4 flex items-center justify-between text-[11px] font-bold text-[#6B7280] uppercase tracking-wider shrink-0">
             <span>Tasks & Milestones</span>
@@ -552,6 +553,7 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
               {scheduledTasks.length} items
             </span>
           </div>
+
 
           {/* Tasks List aligned row-for-row with Timeline Grid */}
           <div className="flex-1 overflow-y-auto divide-y divide-[#F1F3F5]">

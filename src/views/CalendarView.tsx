@@ -287,12 +287,46 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
   }, [viewMode, monthName, year, weekDays]);
 
   return (
-    <div className="flex-1 flex h-full overflow-hidden bg-white select-none">
+    <div className="flex-1 flex h-full overflow-hidden bg-white select-none relative">
       {/* ========================================================= */}
       {/* LEFT: Mini Calendar & Clean Filters                       */}
+      {/* Mobile: slide-over overlay; Desktop: fixed sidebar        */}
       {/* ========================================================= */}
+
+      {/* Mobile backdrop when sidebar open */}
       {sidebarOpen && (
-        <aside className="w-64 lg:w-68 shrink-0 border-r border-[#E5E7EB] bg-[#FAFAFA] flex flex-col h-full overflow-y-auto">
+        <div
+          className="fixed inset-0 bg-black/30 z-30 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden
+        />
+      )}
+
+      {sidebarOpen && (
+        <aside className={[
+          // Desktop: inline sidebar
+          'md:relative md:translate-x-0 md:z-auto md:w-64 lg:w-68 md:shrink-0',
+          'md:border-r md:border-[#E5E7EB] md:bg-[#FAFAFA] md:flex md:flex-col md:h-full md:overflow-y-auto',
+          // Mobile: fixed slide-over overlay
+          'fixed inset-y-0 left-0 z-40 w-72 max-w-[85vw] bg-[#FAFAFA] flex flex-col h-full overflow-y-auto',
+          'border-r border-[#E5E7EB] shadow-2xl md:shadow-none',
+          'pt-safe pb-safe',
+          'transition-transform duration-250',
+        ].join(' ')}>
+          {/* Mobile close button inside sidebar */}
+          <div className="md:hidden flex items-center justify-between px-3.5 pt-3 pb-1">
+            <span className="text-[13px] font-bold text-[#111111]">Calendar</span>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-[#6B7280] hover:text-[#111111] hover:bg-[#F3F4F6] transition-colors"
+              aria-label="Close panel"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+
           {/* Action button */}
           <div className="p-3.5 border-b border-[#E5E7EB]/60">
             <button
@@ -416,17 +450,23 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
       {/* ========================================================= */}
       <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
         {/* Clean Header Bar */}
-        <header className="flex items-center justify-between px-5 py-3 border-b border-[#E5E7EB] bg-white shrink-0">
+        <header className="flex items-center justify-between px-3 sm:px-5 py-2 sm:py-3 border-b border-[#E5E7EB] bg-white shrink-0 gap-2">
           {/* Navigation & Month */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            {/* Sidebar toggle — opens filter panel */}
             <button
               onClick={() => setSidebarOpen(prev => !prev)}
-              className="p-1.5 rounded-lg border border-[#E5E7EB] hover:bg-[#F9FAFB] text-[#6B7280] hover:text-[#111111] transition-colors"
-              title={sidebarOpen ? 'Hide small calendar' : 'Show small calendar'}
+              className="p-1.5 rounded-lg border border-[#E5E7EB] hover:bg-[#F9FAFB] text-[#6B7280] hover:text-[#111111] transition-colors shrink-0"
+              title={sidebarOpen ? 'Hide mini calendar' : 'Show mini calendar'}
+              aria-label="Toggle mini calendar"
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              {/* On mobile show a filter icon; on desktop show the sidebar-panel icon */}
+              <svg className="hidden sm:block" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                 <line x1="9" y1="3" x2="9" y2="21" />
+              </svg>
+              <svg className="sm:hidden" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
               </svg>
             </button>
 
@@ -449,21 +489,22 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
               </button>
             </div>
 
-            <h2 className="text-[17px] font-bold text-[#111111] tracking-tight ml-1">
+            <h2 className="text-[14px] sm:text-[17px] font-bold text-[#111111] tracking-tight truncate">
               {headerTitle}
             </h2>
 
             <button
               onClick={handleToday}
-              className="text-[12px] font-semibold text-[#2563EB] hover:bg-[#EFF6FF] px-2 py-0.5 rounded-md transition-colors ml-1"
+              className="hidden sm:block text-[12px] font-semibold text-[#2563EB] hover:bg-[#EFF6FF] px-2 py-0.5 rounded-md transition-colors"
             >
               Today
             </button>
           </div>
 
           {/* Right Tools: Search & Month/Week Switch */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] text-[12px]">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Search — desktop only; mobile uses sidebar filter */}
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] text-[12px]">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2">
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -474,6 +515,7 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search tasks..."
                 className="bg-transparent text-[#111111] placeholder-[#9CA3AF] outline-none w-28 sm:w-36"
+
               />
             </div>
 
