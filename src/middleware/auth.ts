@@ -52,12 +52,13 @@ export function applyAuthMiddleware(request: NextRequest): NextResponse | null {
   const sessionToken = getSessionToken(request);
   const onAuthRoute = isAuthRoute(pathname);
 
+  // Public routes accessible without authentication
+  const isPublicRoute = pathname === '/' || pathname.startsWith('/landing');
+
   // Rule 1: unauthenticated access to a protected route
-  if (!sessionToken && !onAuthRoute) {
+  if (!sessionToken && !onAuthRoute && !isPublicRoute) {
     const loginUrl = new URL('/auth/login', request.url);
-    if (pathname !== '/') {
-      loginUrl.searchParams.set('callbackUrl', pathname);
-    }
+    loginUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(loginUrl);
   }
 

@@ -18,6 +18,7 @@ import TimelineView from '@/views/TimelineView';
 import Inbox from '@/views/Inbox';
 import Reports from '@/views/Reports';
 import Settings from '@/views/Settings';
+import LandingPage from '@/views/LandingPage';
 import { TaskProvider } from '@/context/TaskContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
@@ -76,11 +77,6 @@ export default function Page() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.replace('/auth/login');
-    }
-  }, [status, router]);
 
   if (status === 'loading') {
     return (
@@ -116,7 +112,7 @@ export default function Page() {
   }
 
   if (status === 'unauthenticated') {
-    return null;
+    return <LandingPage onLaunchApp={() => router.push('/auth/login')} />;
   }
 
   const navigateTo = (v: View) => {

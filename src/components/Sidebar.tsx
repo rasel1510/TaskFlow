@@ -282,6 +282,22 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
           <span className={`md:${collapsed ? 'hidden' : 'block'}`}>Settings</span>
         </button>
 
+        {/* Link to public Product Landing Page */}
+        <a
+          href="/landing"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Explore Product Landing Page"
+          className="w-full flex items-center gap-3 px-3 py-2 md:py-1.5 rounded-lg text-[13px] font-medium text-[rgba(17,17,17,0.65)] hover:bg-[#F3F4F6] hover:text-[#111111] transition-colors mb-1"
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+          <span className={`md:${collapsed ? 'hidden' : 'block'}`}>Product Page</span>
+        </a>
+
         {/* User profile & Logout */}
         <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-[#F3F4F6] transition-colors group">
           <div className="w-7 h-7 rounded-full bg-[#2563EB] flex items-center justify-center shrink-0">
