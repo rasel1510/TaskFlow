@@ -11,6 +11,7 @@ import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
 import { BulkTaskActionSchema, validationError } from '@/lib/validators';
 import { recomputeProjectProgress } from '@/lib/projectProgress';
+import redisCache from '@/lib/redis';
 import type { Prisma } from '@prisma/client';
 
 export async function POST(request: NextRequest) {
@@ -64,6 +65,13 @@ export async function POST(request: NextRequest) {
       // Recompute project progress in parallel
       await Promise.all(distinctProjectIds.map((pId) => recomputeProjectProgress(pId)));
 
+      // Invalidate caches
+      await Promise.all([
+        redisCache.delPattern('tasks:*'),
+        redisCache.delPattern('reports:*'),
+        redisCache.delPattern('projects:*'),
+      ]);
+
       return NextResponse.json(
         {
           success: true,
@@ -92,6 +100,13 @@ export async function POST(request: NextRequest) {
       if (payload.status) {
         await Promise.all(distinctProjectIds.map((pId) => recomputeProjectProgress(pId)));
       }
+
+      // Invalidate caches
+      await Promise.all([
+        redisCache.delPattern('tasks:*'),
+        redisCache.delPattern('reports:*'),
+        redisCache.delPattern('projects:*'),
+      ]);
 
       return NextResponse.json(
         {

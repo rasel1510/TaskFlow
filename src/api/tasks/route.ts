@@ -38,11 +38,12 @@ function parseSafeDate(raw: unknown): Date | undefined {
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { getAllStoredUsers } from '@/data/userStore';
-import { users as mockUsers } from '@/data/mockData';
+import { users as mockUsers, projects as mockProjects } from '@/data/mockData';
 import { auth } from '@/auth';
 import { CreateTaskSchema, TaskQuerySchema, validationError } from '@/lib/validators';
 import { logActivity } from '@/lib/activity';
 import { recomputeProjectProgress } from '@/lib/projectProgress';
+import redisCache from '@/lib/redis';
 
 // Prisma-generated enum types (used for strict typing in create/update calls)
 type PrismaStatus   = Prisma.TaskCreateInput['status'];
@@ -112,35 +113,48 @@ export async function GET(request: NextRequest) {
     if (query.projectId)  where.projectId  = query.projectId;
     if (query.search)     where.title      = { contains: query.search, mode: 'insensitive' };
 
-    // Fetch limit + 1 items to determine if subsequent pages exist without full count query
-    const dbTasks = await prisma.task.findMany({
-      where,
-      take: limit + 1,
-      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
-      include: {
-        assignee: true,
-        project: true,
-        subtasks: true,
-      },
-      orderBy: [
-        { createdAt: 'desc' },
-        { id: 'desc' },
-      ],
-    });
+    const cacheKey = `tasks:${targetUserId}:${JSON.stringify(query)}`;
 
-    const hasMore = dbTasks.length > limit;
-    const items = hasMore ? dbTasks.slice(0, limit) : dbTasks;
-    const nextCursor = hasMore && items.length > 0 ? items[items.length - 1].id : null;
+    // Wrap query in tiered cache with 30s TTL
+    const result = await redisCache.wrap(cacheKey, 30, async () => {
+      // Fetch limit + 1 items to determine if subsequent pages exist without full count query
+      const dbTasks = await prisma.task.findMany({
+        where,
+        take: limit + 1,
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+        include: {
+          assignee: true,
+          project: true,
+          subtasks: true,
+        },
+        orderBy: [
+          { createdAt: 'desc' },
+          { id: 'desc' },
+        ],
+      });
+
+      const hasMore = dbTasks.length > limit;
+      const items = hasMore ? dbTasks.slice(0, limit) : dbTasks;
+      const nextCursor = hasMore && items.length > 0 ? items[items.length - 1].id : null;
+
+      return {
+        items,
+        meta: {
+          hasMore,
+          nextCursor,
+          limit,
+        },
+      };
+    });
 
     return NextResponse.json({
       success: true,
-      data: items,
-      meta: {
-        hasMore,
-        nextCursor,
-        limit,
-      },
-    }, { status: 200 });
+      data: result.items,
+      meta: result.meta,
+    }, {
+      status: 200,
+      headers: { 'Cache-Control': 'private, max-age=15, stale-while-revalidate=60' },
+    });
   } catch (err) {
     console.error('[GET /api/tasks] Error fetching tasks from DB:', err);
     return NextResponse.json({
@@ -172,43 +186,15 @@ export async function POST(request: NextRequest) {
 
     const { title, projectId, assigneeId, status, priority, dueDate, description, estimate, labels } = parsed.data;
 
-    // Ensure valid projectId or fallback to default project
-    let targetProjectId = typeof projectId === 'string' && projectId ? projectId : undefined;
-    if (!targetProjectId) {
-      const firstProject = await prisma.project.findFirst();
-      if (firstProject) {
-        targetProjectId = firstProject.id;
-      } else {
-        const defaultProj = await prisma.project.create({
-          data: {
-            id: 'p1',
-            name: 'General Project',
-            description: 'Default project workspace',
-            color: '#2563EB',
-            ownerId: 'u1',
-          },
-        });
-        targetProjectId = defaultProj.id;
-      }
-    } else {
-      // Verify project exists in DB
-      const projExists = await prisma.project.findUnique({ where: { id: targetProjectId } });
-      if (!projExists) {
-        const firstProject = await prisma.project.findFirst();
-        if (firstProject) {
-          targetProjectId = firstProject.id;
-        }
-      }
-    }
-
-    // Resolve creator / assignee ID from session or payload
+    // 1. Resolve creator / assignee ID from session, payload, or query string
     let sessionUserId: string | undefined = undefined;
     try {
       const session = await auth();
       sessionUserId = session?.user?.id;
     } catch {}
 
-    const creatorUserId = sessionUserId || (typeof assigneeId === 'string' && assigneeId ? assigneeId : undefined);
+    const queryUserId = request.nextUrl.searchParams.get('userId') || undefined;
+    const creatorUserId = sessionUserId || (typeof assigneeId === 'string' && assigneeId ? assigneeId : undefined) || queryUserId;
     if (!creatorUserId) {
       return NextResponse.json(
         { message: 'Unauthorized. Please sign in to create tasks.' },
@@ -216,8 +202,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let targetAssigneeId: string = creatorUserId;
-    // Verify or upsert creator in DB
+    // Verify or upsert creator / assignee in DB
     let dbUser = await prisma.user.findUnique({ where: { id: creatorUserId } });
     if (!dbUser) {
       // Check stored users
@@ -254,11 +239,76 @@ export async function POST(request: NextRequest) {
         });
       }
     }
-    if (dbUser) {
-      targetAssigneeId = dbUser.id;
+    if (!dbUser) {
+      // Fall back to any registered user in the database
+      dbUser = await prisma.user.findFirst();
+    }
+    if (!dbUser) {
+      // If DB has zero users, create a default user record
+      dbUser = await prisma.user.create({
+        data: {
+          id: creatorUserId,
+          name: 'TaskFlow User',
+          email: 'user@taskflow.io',
+          avatar: 'TU',
+          role: 'Member',
+        },
+      });
     }
 
-    // Auto-generate taskNumber TF-XXX
+    const targetAssigneeId = dbUser.id;
+
+    // 2. Ensure valid projectId or fallback to default project (strictly guaranteed to exist in DB)
+    let requestedProjectId = typeof projectId === 'string' && projectId.trim() ? projectId.trim() : undefined;
+    let targetProject = null;
+
+    if (requestedProjectId) {
+      targetProject = await prisma.project.findUnique({ where: { id: requestedProjectId } });
+      if (!targetProject) {
+        // If not yet in DB, check if it matches a preset mock project (e.g. 'p1', 'p2', 'p3', 'p4')
+        const mockProj = mockProjects.find(p => p.id === requestedProjectId);
+        if (mockProj) {
+          targetProject = await prisma.project.upsert({
+            where: { id: mockProj.id },
+            update: {},
+            create: {
+              id: mockProj.id,
+              name: mockProj.name,
+              description: mockProj.description,
+              color: mockProj.color || '#2563EB',
+              health: (mockProj.health as any) || 'on_track',
+              progress: typeof mockProj.progress === 'number' ? mockProj.progress : 0,
+              ownerId: dbUser.id,
+            },
+          });
+        }
+      }
+    }
+
+    // If still no project found, look for any existing project in DB
+    if (!targetProject) {
+      targetProject = await prisma.project.findFirst();
+    }
+
+    // If database has 0 projects, create the initial project
+    if (!targetProject) {
+      const defaultMock = mockProjects[0];
+      targetProject = await prisma.project.create({
+        data: {
+          id: defaultMock?.id || 'p1',
+          name: defaultMock?.name || 'General Project',
+          description: defaultMock?.description || 'Default project workspace',
+          color: defaultMock?.color || '#2563EB',
+          health: (defaultMock?.health as any) || 'on_track',
+          progress: defaultMock?.progress || 0,
+          ownerId: dbUser.id,
+        },
+      });
+    }
+
+    const targetProjectId = targetProject.id;
+
+    // 3. Auto-generate taskNumber TF-XXX
     const taskCount = await prisma.task.count();
     const taskNumber = `TF-${String(taskCount + 1).padStart(3, '0')}`;
 
@@ -316,6 +366,14 @@ export async function POST(request: NextRequest) {
         console.warn('[POST /api/tasks] Progress recompute warning:', progressErr);
       }
     }
+
+    // Invalidate distributed caches for tasks, projects, reports, and notifications
+    await Promise.all([
+      redisCache.delPattern('tasks:*'),
+      redisCache.delPattern('reports:*'),
+      redisCache.delPattern('projects:*'),
+      redisCache.delPattern('notifs:*'),
+    ]);
 
     return NextResponse.json({ success: true, data: newTask }, { status: 201 });
   } catch (error) {

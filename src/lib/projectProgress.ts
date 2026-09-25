@@ -9,6 +9,7 @@
 
 import prisma from '@/lib/prisma';
 import { projects as mockProjects } from '@/data/mockData';
+import redisCache from '@/lib/redis';
 
 export async function recomputeProjectProgress(projectId: string): Promise<number> {
   if (!projectId) return 0;
@@ -31,6 +32,12 @@ export async function recomputeProjectProgress(projectId: string): Promise<numbe
       where: { id: projectId },
       data: { progress },
     });
+
+    // Invalidate project and report caches
+    await Promise.all([
+      redisCache.delPattern('projects:*'),
+      redisCache.delPattern('reports:*'),
+    ]);
 
     // Also update mockProjects array in memory for demo resilience
     const mockProj = mockProjects.find((p) => p.id === projectId);

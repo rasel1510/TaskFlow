@@ -16,6 +16,8 @@ import {
   Info,
 } from 'lucide-react';
 
+
+
 // ---------------------------------------------------------------------------
 // LoginForm — uses useSearchParams, must be wrapped in <Suspense>
 // ---------------------------------------------------------------------------
@@ -82,6 +84,8 @@ function LoginForm() {
     setSocialLoading(provider);
     signIn(provider, { callbackUrl: '/' });
   };
+
+
 
   return (
     <div className="w-full max-w-[420px] bg-white border border-[#E5E7EB] rounded-2xl p-5 sm:p-8 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06)] space-y-6">
@@ -302,6 +306,8 @@ function LoginForm() {
           )}
         </button>
       </form>
+
+
 
       {/* Switch to Signup */}
       <div className="text-center pt-2 border-t border-[#E5E7EB]">

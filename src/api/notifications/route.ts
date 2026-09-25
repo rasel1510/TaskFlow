@@ -12,6 +12,7 @@ import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
 import { timeAgo } from '@/lib/timeAgo';
 import { currentUser } from '@/data/mockData';
+import redisCache from '@/lib/redis';
 
 // Fallback in-memory demo notifications when DB has zero notifications
 const demoNotifications = [
@@ -70,85 +71,96 @@ export async function GET(request: NextRequest) {
     const requestedUserId = searchParams.get('userId');
     const targetUserId = sessionUserId || requestedUserId || currentUser.id;
 
-    const notifModel = getNotificationDelegate();
+    const cacheKey = `notifs:${targetUserId}:${unreadOnly}:${countOnly}:${limit}`;
 
-    if (notifModel) {
-      try {
-        if (countOnly) {
-          const count = await notifModel.count({
-            where: {
-              userId: targetUserId,
-              ...(unreadOnly ? { read: false } : {}),
-            },
-          });
-          return NextResponse.json({ success: true, data: { count } }, { status: 200 });
-        }
+    const cachedData = await redisCache.wrap(cacheKey, 15, async () => {
+      const notifModel = getNotificationDelegate();
 
-        const [items, unreadCount, totalCount] = await Promise.all([
-          notifModel.findMany({
-            where: {
-              userId: targetUserId,
-              ...(unreadOnly ? { read: false } : {}),
-            },
-            take: limit,
-            orderBy: [{ read: 'asc' }, { createdAt: 'desc' }],
-          }),
-          notifModel.count({
-            where: {
-              userId: targetUserId,
-              read: false,
-            },
-          }),
-          notifModel.count({
-            where: {
-              userId: targetUserId,
-            },
-          }),
-        ]);
+      if (notifModel) {
+        try {
+          if (countOnly) {
+            const count = await notifModel.count({
+              where: {
+                userId: targetUserId,
+                ...(unreadOnly ? { read: false } : {}),
+              },
+            });
+            return { type: 'count', data: { count } };
+          }
 
-        if (items.length > 0 || totalCount > 0) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const formatted = items.map((n: any) => ({
-            ...n,
-            timeAgo: timeAgo(n.createdAt),
-          }));
+          const [items, unreadCount, totalCount] = await Promise.all([
+            notifModel.findMany({
+              where: {
+                userId: targetUserId,
+                ...(unreadOnly ? { read: false } : {}),
+              },
+              take: limit,
+              orderBy: [{ read: 'asc' }, { createdAt: 'desc' }],
+            }),
+            notifModel.count({
+              where: {
+                userId: targetUserId,
+                read: false,
+              },
+            }),
+            notifModel.count({
+              where: {
+                userId: targetUserId,
+              },
+            }),
+          ]);
 
-          return NextResponse.json(
-            {
-              success: true,
+          if (items.length > 0 || totalCount > 0) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const formatted = items.map((n: any) => ({
+              ...n,
+              timeAgo: timeAgo(n.createdAt),
+            }));
+
+            return {
+              type: 'list',
               data: formatted,
               meta: { unreadCount, totalCount },
-            },
-            { status: 200 }
-          );
+            };
+          }
+        } catch (dbErr) {
+          console.warn('[GET /api/notifications] DB query warning:', dbErr);
         }
-      } catch (dbErr) {
-        console.warn('[GET /api/notifications] DB query warning:', dbErr);
       }
-    }
 
-    // Fallback mode: return demo notifications
-    const filteredDemo = demoNotifications.filter(n => (unreadOnly ? !n.read : true));
-    if (countOnly) {
-      return NextResponse.json(
-        { success: true, data: { count: demoNotifications.filter(n => !n.read).length } },
-        { status: 200 }
-      );
-    }
+      // Fallback mode: return demo notifications
+      const filteredDemo = demoNotifications.filter(n => (unreadOnly ? !n.read : true));
+      if (countOnly) {
+        return {
+          type: 'count',
+          data: { count: demoNotifications.filter(n => !n.read).length },
+        };
+      }
 
-    const formattedDemo = filteredDemo.map(n => ({
-      ...n,
-      timeAgo: timeAgo(n.createdAt),
-    }));
+      const formattedDemo = filteredDemo.map(n => ({
+        ...n,
+        timeAgo: timeAgo(n.createdAt),
+      }));
 
-    return NextResponse.json(
-      {
-        success: true,
+      return {
+        type: 'list',
         data: formattedDemo,
         meta: {
           unreadCount: demoNotifications.filter(n => !n.read).length,
           totalCount: demoNotifications.length,
         },
+      };
+    });
+
+    if (cachedData.type === 'count') {
+      return NextResponse.json({ success: true, data: cachedData.data }, { status: 200 });
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: cachedData.data,
+        meta: cachedData.meta,
       },
       { status: 200 }
     );
@@ -195,6 +207,7 @@ export async function PATCH(request: NextRequest) {
       demoNotifications.forEach(n => {
         n.read = true;
       });
+      await redisCache.delPattern('notifs:*');
       return NextResponse.json({ success: true, message: 'All notifications marked as read' }, { status: 200 });
     }
 
@@ -211,6 +224,7 @@ export async function PATCH(request: NextRequest) {
       const match = demoNotifications.find(n => n.id === body.id);
       if (match) match.read = readVal;
 
+      await redisCache.delPattern('notifs:*');
       return NextResponse.json({ success: true, message: 'Notification updated' }, { status: 200 });
     }
 

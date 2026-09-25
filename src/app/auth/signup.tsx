@@ -22,12 +22,8 @@ import {
 } from 'lucide-react';
 
 const roles = [
-  'Engineering Lead',
-  'Software Engineer',
-  'Product Manager',
-  'Product Designer',
-  'QA Engineer',
-  'Operations',
+  'User',
+  'Admin',
 ];
 
 export default function SignupPage() {
@@ -40,7 +36,7 @@ export default function SignupPage() {
     name: '',
     email: '',
     password: '',
-    role: roles[1],
+    role: roles[0],
     agreeToTerms: false,
   });
 

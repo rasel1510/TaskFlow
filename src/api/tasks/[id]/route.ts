@@ -29,12 +29,13 @@ function parseSafeDate(raw: unknown): Date | undefined {
   return d;
 }
 import prisma from '@/lib/prisma';
-import { users as mockUsers } from '@/data/mockData';
+import { users as mockUsers, projects as mockProjects } from '@/data/mockData';
 import { getAllStoredUsers } from '@/data/userStore';
 import { auth } from '@/auth';
 import { UpdateTaskSchema, validationError } from '@/lib/validators';
 import { logActivity } from '@/lib/activity';
 import { recomputeProjectProgress } from '@/lib/projectProgress';
+import redisCache from '@/lib/redis';
 
 // Route-segment context provided by Next.js App Router
 interface RouteContext {
@@ -241,7 +242,29 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     // Handle projectId carefully to prevent foreign key constraint violations
     if ('projectId' in body) {
       if (typeof body.projectId === 'string' && body.projectId.trim()) {
-        const proj = await prisma.project.findUnique({ where: { id: body.projectId.trim() } });
+        const pId = body.projectId.trim();
+        let proj = await prisma.project.findUnique({ where: { id: pId } });
+        if (!proj) {
+          const mockProj = mockProjects.find(p => p.id === pId);
+          if (mockProj) {
+            const fallbackOwner = await prisma.user.findFirst();
+            if (fallbackOwner) {
+              proj = await prisma.project.upsert({
+                where: { id: mockProj.id },
+                update: {},
+                create: {
+                  id: mockProj.id,
+                  name: mockProj.name,
+                  description: mockProj.description,
+                  color: mockProj.color || '#2563EB',
+                  health: (mockProj.health as any) || 'on_track',
+                  progress: typeof mockProj.progress === 'number' ? mockProj.progress : 0,
+                  ownerId: fallbackOwner.id,
+                },
+              });
+            }
+          }
+        }
         if (proj) {
           updateData.projectId = proj.id;
         }
@@ -307,6 +330,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         console.warn('[PATCH /api/tasks/:id] Progress recompute warning:', progressErr);
       }
 
+      // Invalidate caches
+      await Promise.all([
+        redisCache.del(`task:${id}`),
+        redisCache.delPattern('tasks:*'),
+        redisCache.delPattern('reports:*'),
+        redisCache.delPattern('projects:*'),
+      ]);
+
       return NextResponse.json({ success: true, data: updated }, { status: 200 });
     } catch (dbErr: unknown) {
       console.warn('[PATCH /api/tasks/:id] Prisma update failed, fallback to optimistic response:', dbErr);
@@ -359,6 +390,14 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     } catch (dbErr: unknown) {
       console.warn('[DELETE /api/tasks/:id] Prisma delete failed, fallback to mock delete:', dbErr);
     }
+
+    // Invalidate caches
+    await Promise.all([
+      redisCache.del(`task:${id}`),
+      redisCache.delPattern('tasks:*'),
+      redisCache.delPattern('reports:*'),
+      redisCache.delPattern('projects:*'),
+    ]);
 
     return NextResponse.json(
       { success: true, data: { message: 'Task deleted successfully' } },
