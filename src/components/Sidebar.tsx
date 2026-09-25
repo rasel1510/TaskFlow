@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { currentUser, projects } from '../data/mockData';
+import { useTaskContext } from '@/context/TaskContext';
 
 type View = 'dashboard' | 'tasks' | 'kanban' | 'projects' | 'calendar' | 'timeline' | 'reports' | 'settings' | 'inbox';
 
@@ -46,7 +47,7 @@ const navItems: NavItem[] = [
     id: 'tasks',
     label: 'My Tasks',
     icon: <Icon path="M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />,
-    badge: 7,
+    // badge is computed dynamically from TaskContext — see effectiveBadge below
   },
   {
     id: 'inbox',
@@ -84,6 +85,10 @@ const navItems: NavItem[] = [
 export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const [projectsOpen, setProjectsOpen] = useState(true);
   const [unreadInboxCount, setUnreadInboxCount] = useState<number>(0);
+
+  // Live task count from context — shows only non-done tasks
+  const { tasks } = useTaskContext();
+  const activeTaskCount = tasks.filter(t => t.status !== 'done').length || undefined;
 
   const { data: session } = useSession();
   const userName = session?.user?.name || currentUser.name;
@@ -189,7 +194,10 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
       <nav className="flex-1 overflow-y-auto py-2 px-2">
         {navItems.map(item => {
           const active = currentView === item.id;
-          const effectiveBadge = item.id === 'inbox' ? (unreadInboxCount > 0 ? unreadInboxCount : undefined) : item.badge;
+          const effectiveBadge =
+            item.id === 'inbox' ? (unreadInboxCount > 0 ? unreadInboxCount : undefined) :
+            item.id === 'tasks' ? activeTaskCount :
+            item.badge;
           return (
             <button
               key={item.id}

@@ -24,3 +24,7 @@ logs/
 # Local user credential store (contains bcrypt password hashes)
 src/data/users.json
 src/data/otps.json
+
+# Scratch and diagnostic scripts
+/*.cjs
+

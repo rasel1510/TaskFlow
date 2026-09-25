@@ -7,9 +7,10 @@ import type { DBUser, DBProject } from '@/context/TaskContext';
 
 interface CreateTaskModalProps {
   onClose: () => void;
+  prefillDate?: string;
 }
 
-export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
+export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModalProps) {
   const { createTask, users: ctxUsers } = useTasks();
   const { data: session } = useSession();
 
@@ -19,7 +20,7 @@ export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
   const [priority, setPriority] = useState('medium');
   const [projectId, setProjectId] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
-  const [dueDate, setDueDate] = useState('');
+  const [dueDate, setDueDate] = useState(prefillDate || '');
   const [estimate, setEstimate] = useState('');
   const [projects, setProjects] = useState<DBProject[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -42,10 +43,8 @@ export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
     const sessionUserId = (session?.user as { id?: string })?.id;
     if (sessionUserId) {
       setAssigneeId(sessionUserId);
-    } else if (ctxUsers.length > 0) {
-      setAssigneeId(ctxUsers[0].id);
     }
-  }, [session, ctxUsers]);
+  }, [session]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

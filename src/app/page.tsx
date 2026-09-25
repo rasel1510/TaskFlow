@@ -42,6 +42,7 @@ export default function Page() {
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [showCreateTask, setShowCreateTask] = useState(false);
+  const [createTaskDate, setCreateTaskDate] = useState<string | undefined>(undefined);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
   // Close mobile sidebar on view change
@@ -166,7 +167,10 @@ export default function Page() {
         return (
           <CalendarView
             onTaskClick={setSelectedTask}
-            onCreateTask={() => setShowCreateTask(true)}
+            onCreateTask={(date) => {
+              setCreateTaskDate(date);
+              setShowCreateTask(true);
+            }}
           />
         );
       case 'inbox':
@@ -314,7 +318,13 @@ export default function Page() {
 
         {/* Create Task Modal */}
         {showCreateTask && (
-          <CreateTaskModal onClose={() => setShowCreateTask(false)} />
+          <CreateTaskModal
+            onClose={() => {
+              setShowCreateTask(false);
+              setCreateTaskDate(undefined);
+            }}
+            prefillDate={createTaskDate}
+          />
         )}
 
         {/* Global Command Palette */}
