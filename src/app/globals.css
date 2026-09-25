@@ -15,51 +15,146 @@
   --radius-card: 10px;
 }
 
-* {
+/* ─────────────────────────────────────────────────────────────────────────
+   RESET & BASE
+   ───────────────────────────────────────────────────────────────────────── */
+
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
+html {
+  /* Prevent flash of incorrect text sizing on iOS after orientation change */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* Smooth scroll for anchor jumps */
+  scroll-behavior: smooth;
+}
+
 html, body {
-  font-family: var(--font-inter, 'Inter', ui-sans-serif, system-ui, sans-serif);
+  font-family: var(--font-sans);
   background: #ffffff;
   color: #111111;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Disable callout & text selection highlights on interactive elements */
   -webkit-tap-highlight-color: transparent;
+  /* Prevent elastic/bounce overscroll at page level */
   overscroll-behavior-y: none;
+  /* Prevent horizontal overflow on small devices */
+  overflow-x: hidden;
 }
 
-/* Safe area padding utilities for mobile & PWA notches / home indicators */
-.pb-safe {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-.pt-safe {
-  padding-top: env(safe-area-inset-top, 0px);
-}
-.pl-safe {
-  padding-left: env(safe-area-inset-left, 0px);
-}
-.pr-safe {
-  padding-right: env(safe-area-inset-right, 0px);
+/* Interactive elements: use touch-manipulation for snappy 0ms tap delay */
+button,
+a,
+[role="button"],
+[role="link"],
+input,
+select,
+textarea {
+  touch-action: manipulation;
 }
 
-/* Hide scrollbar utility for touch swipe bars */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
+/* Remove browser default focus ring — rely on custom :focus-visible rings */
+:focus {
+  outline: none;
 }
+:focus-visible {
+  outline: 2px solid #2563EB;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   SAFE AREA UTILITIES  (notch / home-indicator padding)
+   ───────────────────────────────────────────────────────────────────────── */
+
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.pt-safe { padding-top:    env(safe-area-inset-top,    0px); }
+.pl-safe { padding-left:   env(safe-area-inset-left,   0px); }
+.pr-safe { padding-right:  env(safe-area-inset-right,  0px); }
+
+.mb-safe { margin-bottom: env(safe-area-inset-bottom, 0px); }
+.mt-safe { margin-top:    env(safe-area-inset-top,    0px); }
+
+/* Min-height including safe area — useful for full-height sheets */
+.min-h-safe {
+  min-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   SCROLLBAR STYLES
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Hide scrollbar — touch scroll still works */
+.no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+/* Thin, subtle scrollbars on desktop */
+::-webkit-scrollbar            { width: 5px; height: 5px; }
+::-webkit-scrollbar-track      { background: transparent; }
+::-webkit-scrollbar-thumb      { background: #D1D5DB; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
 
-/* Suppress Next.js floating dev indicator badge in development UI */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar { display: none; }
+  * { scrollbar-width: none; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   MOBILE: PREVENT CONTENT OVERFLOW BELOW BOTTOM NAVIGATION
+   The mobile bottom nav is ~56px + safe-area. Views must account for this.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Applied to main scrollable view containers */
+.mobile-main-scroll {
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  .mobile-main-scroll { padding-bottom: 0; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   TYPOGRAPHY MOBILE FIXES
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Ensure long words/URLs break on narrow screens */
+p, h1, h2, h3, h4, h5, h6, span, label {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   ANIMATIONS
+   ───────────────────────────────────────────────────────────────────────── */
+
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+.animate-toast-in {
+  animation: toastSlideIn 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px);  }
+  to   { opacity: 1; transform: translateY(0);     }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   SUPPRESS NEXT.JS DEV OVERLAY
+   ───────────────────────────────────────────────────────────────────────── */
+
 nextjs-portal,
 [data-nextjs-dev-tools-button],
 [data-nextjs-route-announcer],
@@ -67,17 +162,56 @@ div[data-nextjs-toast] {
   display: none !important;
 }
 
-@keyframes toastSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.96);
+/* ─────────────────────────────────────────────────────────────────────────
+   MODAL & SHEET BACKDROP — prevent body scroll when open
+   ───────────────────────────────────────────────────────────────────────── */
+
+body.modal-open {
+  overflow: hidden;
+  /* Prevent content jump on desktop when scrollbar disappears */
+  padding-right: var(--scrollbar-width, 0px);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   MOBILE: CARD TOUCH FEEDBACK
+   ───────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .touch-card {
+    transition: transform 120ms ease-out, box-shadow 120ms ease-out;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+  .touch-card:active {
+    transform: scale(0.985);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
   }
 }
 
-.animate-toast-in {
-  animation: toastSlideIn 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+/* ─────────────────────────────────────────────────────────────────────────
+   CALENDAR VIEW — mobile sidebar hides by default
+   ───────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 767px) {
+  .calendar-sidebar { display: none; }
+  .calendar-sidebar.open { display: flex; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   TIMELINE — hide left task tree on very narrow screens
+   ───────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .timeline-task-tree { display: none; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   PWA INSTALL PROMPT ANIMATION
+   ───────────────────────────────────────────────────────────────────────── */
+
+@keyframes slideUpIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+.pwa-install-banner {
+  animation: slideUpIn 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
