@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
+import Script from 'next/script';
 import './globals.css';
 import AuthProvider from '@/components/providers/AuthProvider';
 import { ToastProvider } from '@/components/ui/Toast';
-import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -14,7 +14,7 @@ const inter = Inter({
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 5,        // Allow user zoom for accessibility — don't lock at 1
+  maximumScale: 5,
   userScalable: true,
   viewportFit: 'cover',
   themeColor: [
@@ -43,7 +43,6 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/icons/icon-32.png',  sizes: '32x32',  type: 'image/png' },
       { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
     ],
     apple: [
@@ -71,7 +70,7 @@ export default function RootLayout({
         {/* Microsoft Tile */}
         <meta name="msapplication-TileImage" content="/icons/icon-144.png" />
         <meta name="msapplication-TileColor" content="#2563EB" />
-        {/* Splash screen color */}
+        {/* PWA capable flags */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
@@ -81,8 +80,39 @@ export default function RootLayout({
             {children}
           </ToastProvider>
         </AuthProvider>
-        {/* Register service worker after hydration — client only */}
-        <ServiceWorkerRegistrar />
+
+        {/*
+          Service Worker registration — runs after the page is interactive.
+          strategy="afterInteractive" ensures this never blocks page load or LCP.
+        */}
+        <Script
+          id="sw-register"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
+                    .then(function(reg) {
+                      reg.update();
+                      reg.addEventListener('updatefound', function() {
+                        var newWorker = reg.installing;
+                        if (!newWorker) return;
+                        newWorker.addEventListener('statechange', function() {
+                          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            window.dispatchEvent(new CustomEvent('sw-update-available', { detail: reg }));
+                          }
+                        });
+                      });
+                    })
+                    .catch(function(err) {
+                      console.warn('[SW] Registration failed:', err);
+                    });
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );
