@@ -14,6 +14,7 @@ import KanbanBoard from '@/views/KanbanBoard';
 import Projects from '@/views/Projects';
 import ProjectDetail from '@/views/ProjectDetail';
 import CalendarView from '@/views/CalendarView';
+import TimelineView from '@/views/TimelineView';
 import Inbox from '@/views/Inbox';
 import Reports from '@/views/Reports';
 import Settings from '@/views/Settings';
@@ -163,9 +164,18 @@ export default function Page() {
           />
         );
       case 'calendar':
-      case 'timeline':
         return (
           <CalendarView
+            onTaskClick={setSelectedTask}
+            onCreateTask={(date) => {
+              setCreateTaskDate(date);
+              setShowCreateTask(true);
+            }}
+          />
+        );
+      case 'timeline':
+        return (
+          <TimelineView
             onTaskClick={setSelectedTask}
             onCreateTask={(date) => {
               setCreateTaskDate(date);
