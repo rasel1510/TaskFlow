@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyOtp } from '@/lib/verification';
+import { issueResetToken } from '@/lib/resetTokenStore';
 
 const VerifyOtpSchema = z.object({
   email: z.string().email('Please provide a valid email address'),
   code: z.string().length(6, 'Verification code must be 6 digits'),
+  /**
+   * Optional: 'signup' (default) | 'password-reset'
+   * When 'password-reset', a short-lived resetToken is returned on success.
+   */
+  purpose: z.enum(['signup', 'password-reset']).optional().default('signup'),
 });
 
 export async function POST(req: Request) {
@@ -25,7 +31,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: issue }, { status: 422 });
     }
 
-    const { email, code } = parsed.data;
+    const { email, code, purpose } = parsed.data;
 
     const result = await verifyOtp(email, code);
 
@@ -34,6 +40,17 @@ export async function POST(req: Request) {
         { success: false, message: result.message },
         { status: 400 }
       );
+    }
+
+    // For password-reset flow, issue a short-lived server-side reset token
+    if (purpose === 'password-reset') {
+      const resetToken = issueResetToken(email);
+      return NextResponse.json({
+        success: true,
+        verified: true,
+        resetToken,
+        message: 'Code verified. You may now set a new password.',
+      });
     }
 
     return NextResponse.json({

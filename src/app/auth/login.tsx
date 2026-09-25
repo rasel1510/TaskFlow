@@ -13,8 +13,8 @@ import {
   AlertCircle,
   Loader2,
   CheckCircle2,
-  Info,
 } from 'lucide-react';
+import ForgotPasswordModal from '@/components/ForgotPasswordModal';
 
 
 
@@ -33,7 +33,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<'google' | 'github' | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [forgotNotice, setForgotNotice] = useState(false);
+  const [showForgotModal, setShowForgotModal] = useState(false);
   const [success, setSuccess] = useState<string | null>(
     registered ? 'Account created successfully! Please sign in.' : null
   );
@@ -42,7 +42,6 @@ function LoginForm() {
     e.preventDefault();
     setError(null);
     setSuccess(null);
-    setForgotNotice(false);
 
     if (!email.trim()) {
       setError('Please enter your email address');
@@ -198,25 +197,7 @@ function LoginForm() {
         </div>
       )}
 
-      {forgotNotice && (
-        <div className="p-3.5 rounded-xl bg-blue-50/80 border border-blue-200 text-blue-800 text-xs flex items-start gap-2.5 animate-fadeIn">
-          <Info className="w-4 h-4 shrink-0 mt-0.5 text-[#2563EB]" />
-          <div className="flex-1 leading-relaxed text-[11.5px]">
-            To reset your password, please contact your workspace administrator or reach out to{' '}
-            <a href="mailto:support@flowsync.io" className="underline font-semibold hover:text-[#1D4ED8]">
-              support@flowsync.io
-            </a>.
-          </div>
-          <button
-            type="button"
-            onClick={() => setForgotNotice(false)}
-            className="text-blue-500 hover:text-blue-800 font-bold text-sm leading-none ml-1 cursor-pointer"
-            aria-label="Dismiss notice"
-          >
-            ×
-          </button>
-        </div>
-      )}
+      {/* ForgotPasswordModal is rendered at the root so it overlays correctly */}
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -246,7 +227,7 @@ function LoginForm() {
             </label>
             <button
               type="button"
-              onClick={() => setForgotNotice(true)}
+              onClick={() => setShowForgotModal(true)}
               className="text-[11px] text-[#2563EB] hover:text-[#1D4ED8] hover:underline cursor-pointer"
             >
               Forgot password?
@@ -308,6 +289,12 @@ function LoginForm() {
       </form>
 
 
+
+      {/* Forgot Password Modal */}
+      <ForgotPasswordModal
+        isOpen={showForgotModal}
+        onClose={() => setShowForgotModal(false)}
+      />
 
       {/* Switch to Signup */}
       <div className="text-center pt-2 border-t border-[#E5E7EB]">
