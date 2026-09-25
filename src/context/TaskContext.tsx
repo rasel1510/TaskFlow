@@ -89,8 +89,9 @@ interface TaskContextValue {
 const TaskContext = createContext<TaskContextValue | null>(null);
 
 export function TaskProvider({ children }: { children: React.ReactNode }) {
-  const { data: session } = useSession();
-  const sessionUserId = (session?.user as { id?: string })?.id;
+  const { data: session, status } = useSession();
+  const sessionUserId    = (session?.user as { id?: string })?.id;
+  const sessionUserEmail = session?.user?.email ?? undefined;
   const toast = useToast();
   const [tasks, setTasks] = useState<DBTask[]>([]);
   const [users, setUsers] = useState<DBUser[]>([]);
@@ -98,25 +99,27 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchTasks = useCallback(async (signal?: AbortSignal) => {
-    if (!sessionUserId) {
-      setTasks([]);
-      return;
-    }
+    if (status === 'loading') return;
+
     try {
-      const res = await fetch(`/api/tasks?userId=${encodeURIComponent(sessionUserId)}`, { cache: 'no-store', signal });
+      const params = new URLSearchParams();
+      if (sessionUserId)    params.set('userId',    sessionUserId);
+      if (sessionUserEmail) params.set('userEmail', sessionUserEmail);
+      const qs = params.toString() ? `?${params.toString()}` : '';
+
+      const res = await fetch(`/api/tasks${qs}`, { cache: 'no-store', signal });
       if (!res.ok) throw new Error(`Failed to fetch tasks: ${res.status}`);
       const envelope = await res.json();
       // Handle both old raw-array and new { success, data } envelope shapes
       const data: DBTask[] = Array.isArray(envelope) ? envelope : (envelope?.data ?? []);
-      // Ensure only this user's tasks are stored in state
-      setTasks(data.filter(t => t.assigneeId === sessionUserId));
+      setTasks(data);
       setError(null);
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return;
       console.error('[TaskContext] fetchTasks error:', err);
       setError('Failed to load tasks. Please refresh.');
     }
-  }, [sessionUserId]);
+  }, [sessionUserId, sessionUserEmail, status]);
 
   const fetchUsers = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -130,88 +133,121 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Initial and reactive load whenever session changes — AbortController cleanup (Step 4.13)
+  // Reload whenever the session identity or auth status changes
   useEffect(() => {
+    if (status === 'loading') return;
     const controller = new AbortController();
     setIsLoading(true);
     Promise.all([fetchTasks(controller.signal), fetchUsers(controller.signal)])
       .finally(() => setIsLoading(false));
     return () => controller.abort();
-  }, [fetchTasks, fetchUsers, sessionUserId]);
+  }, [fetchTasks, fetchUsers, status]);
 
   const refreshTasks = useCallback(async () => {
     await fetchTasks();
   }, [fetchTasks]);
 
+  // ── createTask — optimistic insert with temp ID, replaced on server confirm ──
   const createTask = useCallback(async (payload: CreateTaskPayload): Promise<DBTask> => {
-    // Strictly bind assignee to the active logged-in user who created the task
-    const activeUserId = (session?.user as { id?: string })?.id;
-    const finalPayload = {
-      ...payload,
-      assigneeId: activeUserId || payload.assigneeId,
+    const activeUserId    = (session?.user as { id?: string })?.id;
+    const activeUserEmail = session?.user?.email ?? undefined;
+
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const optimisticTask: DBTask = {
+      id:               tempId,
+      taskNumber:       null,
+      title:            payload.title,
+      description:      payload.description ?? null,
+      status:           (payload.status   ?? 'todo') as DBTask['status'],
+      priority:         (payload.priority ?? 'medium') as DBTask['priority'],
+      dueDate:          payload.dueDate   ?? null,
+      estimate:         payload.estimate  ?? null,
+      labels:           payload.labels    ?? [],
+      progress:         null,
+      commentsCount:    0,
+      attachmentsCount: 0,
+      createdAt:        new Date().toISOString(),
+      projectId:        payload.projectId ?? '',
+      assigneeId:       activeUserId ?? payload.assigneeId ?? null,
+      assignee:         null,
+      project:          null,
+      subtasks:         [],
     };
 
-    const qs = activeUserId ? `?userId=${encodeURIComponent(activeUserId)}` : '';
+    // Instant UI — prepend temp task
+    setTasks(prev => [optimisticTask, ...prev]);
+    const snapshot = tasks; // capture for rollback
+
+    const finalPayload = { ...payload, assigneeId: activeUserId || payload.assigneeId };
+    const params = new URLSearchParams();
+    if (activeUserId)    params.set('userId',    activeUserId);
+    if (activeUserEmail) params.set('userEmail', activeUserEmail);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+
     try {
       const res = await fetch(`/api/tasks${qs}`, {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(finalPayload),
+        body:    JSON.stringify(finalPayload),
       });
 
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({ error: { message: 'Unknown error' } }));
         const message = errBody?.error?.message || errBody?.message || `Create task failed: ${res.status}`;
+        // Rollback: remove temp task
+        setTasks(prev => prev.filter(t => t.id !== tempId));
         toast.error(message);
         throw new Error(message);
       }
 
       const envelope = await res.json();
-      // Unwrap { success, data } envelope; fall back to raw object for compatibility
       const newTask: DBTask = envelope?.data ?? envelope;
 
-      // Optimistically prepend to state so it appears instantly
-      setTasks(prev => [newTask, ...prev]);
-      toast.success(`Task "${newTask.title}" created successfully`);
+      // Replace temp entry with real server task (preserves list position)
+      setTasks(prev => prev.map(t => t.id === tempId ? newTask : t));
+      toast.success(`Task "${newTask.title}" created`);
       return newTask;
     } catch (err) {
+      // On network error, roll back to snapshot
+      setTasks(snapshot);
       if (!(err instanceof Error && err.message.startsWith('Create task failed'))) {
         toast.error(err instanceof Error ? err.message : 'Failed to create task');
       }
       throw err;
     }
-  }, [session, toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, tasks, toast]);
 
+  // ── updateTaskStatus — already optimistic, just fix rollback to use snapshot ──
   const updateTaskStatus = useCallback(async (taskId: string, status: string) => {
-    // Optimistic update
-    setTasks(prev =>
-      prev.map(t => t.id === taskId ? { ...t, status } : t)
-    );
-
-    const formattedStatus = status.replace(/_/g, ' ');
+    const snapshot = tasks;
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status } : t));
 
     try {
-      const qs = sessionUserId ? `?userId=${encodeURIComponent(sessionUserId)}` : '';
+      const params = new URLSearchParams();
+      if (sessionUserId)    params.set('userId',    sessionUserId);
+      if (sessionUserEmail) params.set('userEmail', sessionUserEmail);
+      const qs = params.toString() ? `?${params.toString()}` : '';
       const res = await fetch(`/api/tasks/${taskId}${qs}`, {
-        method: 'PATCH',
+        method:  'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body:    JSON.stringify({ status }),
       });
       if (!res.ok) {
-        // Revert on failure
-        await fetchTasks();
+        setTasks(snapshot);
         toast.error('Failed to update task status');
-        return;
       }
-      toast.info(`Task status updated to ${formattedStatus}`);
     } catch {
-      await fetchTasks();
+      setTasks(snapshot);
       toast.error('Failed to update task status');
     }
-  }, [fetchTasks, sessionUserId, toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks, sessionUserId, sessionUserEmail, toast]);
 
+  // ── updateTask — optimistic + snapshot rollback ──────────────────────────
   const updateTask = useCallback(async (taskId: string, payload: Partial<CreateTaskPayload>): Promise<DBTask> => {
-    // Optimistic update in state
+    const snapshot = tasks;
+
     setTasks(prev =>
       prev.map(t => {
         if (t.id !== taskId) return t;
@@ -220,24 +256,23 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
           : payload.assigneeId === null || payload.assigneeId === ''
           ? null
           : t.assignee;
-        return {
-          ...t,
-          ...payload,
-          assignee: updatedAssignee,
-        } as DBTask;
+        return { ...t, ...payload, assignee: updatedAssignee } as DBTask;
       })
     );
 
     try {
-      const qs = sessionUserId ? `?userId=${encodeURIComponent(sessionUserId)}` : '';
+      const params = new URLSearchParams();
+      if (sessionUserId)    params.set('userId',    sessionUserId);
+      if (sessionUserEmail) params.set('userEmail', sessionUserEmail);
+      const qs = params.toString() ? `?${params.toString()}` : '';
       const res = await fetch(`/api/tasks/${taskId}${qs}`, {
-        method: 'PATCH',
+        method:  'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body:    JSON.stringify(payload),
       });
 
       if (!res.ok) {
-        await fetchTasks();
+        setTasks(snapshot);
         const errBody = await res.json().catch(() => ({ message: 'Update failed' }));
         const message = errBody.message || `Update task failed: ${res.status}`;
         toast.error(message);
@@ -246,56 +281,70 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
 
       const envelope = await res.json();
       const updatedTask: DBTask = envelope?.data ?? envelope;
-      setTasks(prev => prev.map(t => (t.id === taskId ? { ...t, ...updatedTask } : t)));
-      toast.success('Task details updated');
+      // Merge server response (has real assignee/project objects)
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updatedTask } : t));
+      toast.success('Task updated');
       return updatedTask;
     } catch (err) {
-      console.error('[TaskContext] updateTask error:', err);
-      await fetchTasks();
+      setTasks(snapshot);
       if (!(err instanceof Error && err.message.startsWith('Update task failed'))) {
         toast.error(err instanceof Error ? err.message : 'Failed to update task');
       }
       throw err;
     }
-  }, [fetchTasks, users, sessionUserId, toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks, users, sessionUserId, sessionUserEmail, toast]);
 
+  // ── deleteTask — snapshot rollback ───────────────────────────────────────
   const deleteTask = useCallback(async (taskId: string): Promise<void> => {
-    // Optimistic removal from state
+    const snapshot = tasks;
     setTasks(prev => prev.filter(t => t.id !== taskId));
 
     try {
-      const qs = sessionUserId ? `?userId=${encodeURIComponent(sessionUserId)}` : '';
-      const res = await fetch(`/api/tasks/${taskId}${qs}`, {
-        method: 'DELETE',
-      });
+      const params = new URLSearchParams();
+      if (sessionUserId)    params.set('userId',    sessionUserId);
+      if (sessionUserEmail) params.set('userEmail', sessionUserEmail);
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      const res = await fetch(`/api/tasks/${taskId}${qs}`, { method: 'DELETE' });
 
       if (!res.ok) {
-        await fetchTasks();
-        const errBody = await res.json().catch(() => ({ message: 'Delete failed' }));
-        const message = errBody.message || `Delete task failed: ${res.status}`;
-        toast.error(message);
-        throw new Error(message);
+        setTasks(snapshot);
+        toast.error('Failed to delete task');
+        throw new Error(`Delete task failed: ${res.status}`);
       }
-      toast.success('Task deleted successfully');
+      toast.success('Task deleted');
     } catch (err) {
-      console.error('[TaskContext] deleteTask error:', err);
-      await fetchTasks();
+      setTasks(snapshot);
       if (!(err instanceof Error && err.message.startsWith('Delete task failed'))) {
         toast.error(err instanceof Error ? err.message : 'Failed to delete task');
       }
       throw err;
     }
-  }, [fetchTasks, sessionUserId, toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks, sessionUserId, sessionUserEmail, toast]);
 
+  // ── createSubtask — optimistic insert with temp ID ───────────────────────
   const createSubtask = useCallback(async (taskId: string, title: string): Promise<DBSubTask> => {
+    const tempSubId = `temp_sub_${Date.now()}`;
+    const optimisticSub: DBSubTask = { id: tempSubId, title, done: false };
+    const snapshot = tasks;
+
+    setTasks(prev =>
+      prev.map(t => {
+        if (t.id !== taskId) return t;
+        return { ...t, subtasks: [...(t.subtasks || []), optimisticSub] };
+      })
+    );
+
     try {
       const res = await fetch(`/api/tasks/${taskId}/subtasks`, {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title }),
+        body:    JSON.stringify({ title }),
       });
 
       if (!res.ok) {
+        setTasks(snapshot);
         const errBody = await res.json().catch(() => ({ message: 'Failed to create subtask' }));
         const msg = errBody?.error?.message || errBody.message || 'Failed to create subtask';
         toast.error(msg);
@@ -303,60 +352,59 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       }
 
       const envelope = await res.json();
-      const newSubtask: DBSubTask = {
-        id: envelope.data.id,
+      const realSub: DBSubTask = {
+        id:    envelope.data.id,
         title: envelope.data.title,
-        done: envelope.data.done,
+        done:  envelope.data.done,
       };
 
+      // Replace temp sub with real one
       setTasks(prev =>
         prev.map(t => {
           if (t.id !== taskId) return t;
-          const nextSubs = [...(t.subtasks || []), newSubtask];
           return {
             ...t,
-            subtasks: nextSubs,
+            subtasks: (t.subtasks || []).map(s => s.id === tempSubId ? realSub : s),
             progress: envelope.data.taskProgress ?? t.progress,
           };
         })
       );
 
       toast.success('Subtask added');
-      return newSubtask;
+      return realSub;
     } catch (err) {
-      console.error('[TaskContext] createSubtask error:', err);
+      setTasks(snapshot);
       if (!(err instanceof Error && err.message.startsWith('Failed to create subtask'))) {
         toast.error(err instanceof Error ? err.message : 'Failed to create subtask');
       }
       throw err;
     }
-  }, [toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks, toast]);
 
+  // ── toggleSubtask — optimistic, snapshot rollback ────────────────────────
   const toggleSubtask = useCallback(async (taskId: string, subtaskId: string, done: boolean): Promise<void> => {
-    // Optimistic update
+    const snapshot = tasks;
+
     setTasks(prev =>
       prev.map(t => {
         if (t.id !== taskId) return t;
-        const nextSubs = (t.subtasks || []).map(s => (s.id === subtaskId ? { ...s, done } : s));
+        const nextSubs = (t.subtasks || []).map(s => s.id === subtaskId ? { ...s, done } : s);
         const doneCount = nextSubs.filter(s => s.done).length;
-        const newProgress = nextSubs.length > 0 ? Math.round((doneCount / nextSubs.length) * 100) : 0;
-        return {
-          ...t,
-          subtasks: nextSubs,
-          progress: newProgress,
-        };
+        const progress  = nextSubs.length > 0 ? Math.round((doneCount / nextSubs.length) * 100) : 0;
+        return { ...t, subtasks: nextSubs, progress };
       })
     );
 
     try {
       const res = await fetch(`/api/tasks/${taskId}/subtasks/${subtaskId}`, {
-        method: 'PATCH',
+        method:  'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ done }),
+        body:    JSON.stringify({ done }),
       });
 
       if (!res.ok) {
-        await fetchTasks();
+        setTasks(snapshot);
         toast.error('Failed to update subtask');
         return;
       }
@@ -364,39 +412,35 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       const envelope = await res.json();
       if (envelope?.data?.taskProgress !== undefined) {
         setTasks(prev =>
-          prev.map(t => (t.id === taskId ? { ...t, progress: envelope.data.taskProgress } : t))
+          prev.map(t => t.id === taskId ? { ...t, progress: envelope.data.taskProgress } : t)
         );
       }
-    } catch (err) {
-      console.error('[TaskContext] toggleSubtask error:', err);
-      await fetchTasks();
+    } catch {
+      setTasks(snapshot);
       toast.error('Failed to update subtask');
     }
-  }, [fetchTasks, toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks, toast]);
 
+  // ── deleteSubtask — optimistic, snapshot rollback ────────────────────────
   const deleteSubtask = useCallback(async (taskId: string, subtaskId: string): Promise<void> => {
-    // Optimistic removal
+    const snapshot = tasks;
+
     setTasks(prev =>
       prev.map(t => {
         if (t.id !== taskId) return t;
-        const nextSubs = (t.subtasks || []).filter(s => s.id !== subtaskId);
+        const nextSubs  = (t.subtasks || []).filter(s => s.id !== subtaskId);
         const doneCount = nextSubs.filter(s => s.done).length;
-        const newProgress = nextSubs.length > 0 ? Math.round((doneCount / nextSubs.length) * 100) : 0;
-        return {
-          ...t,
-          subtasks: nextSubs,
-          progress: newProgress,
-        };
+        const progress  = nextSubs.length > 0 ? Math.round((doneCount / nextSubs.length) * 100) : 0;
+        return { ...t, subtasks: nextSubs, progress };
       })
     );
 
     try {
-      const res = await fetch(`/api/tasks/${taskId}/subtasks/${subtaskId}`, {
-        method: 'DELETE',
-      });
+      const res = await fetch(`/api/tasks/${taskId}/subtasks/${subtaskId}`, { method: 'DELETE' });
 
       if (!res.ok) {
-        await fetchTasks();
+        setTasks(snapshot);
         toast.error('Failed to delete subtask');
         return;
       }
@@ -404,16 +448,17 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       const envelope = await res.json();
       if (envelope?.data?.taskProgress !== undefined) {
         setTasks(prev =>
-          prev.map(t => (t.id === taskId ? { ...t, progress: envelope.data.taskProgress } : t))
+          prev.map(t => t.id === taskId ? { ...t, progress: envelope.data.taskProgress } : t)
         );
       }
       toast.success('Subtask deleted');
-    } catch (err) {
-      console.error('[TaskContext] deleteSubtask error:', err);
-      await fetchTasks();
+    } catch {
+      setTasks(snapshot);
       toast.error('Failed to delete subtask');
     }
-  }, [fetchTasks, toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks, toast]);
+
 
   return (
     <TaskContext.Provider
@@ -444,3 +489,6 @@ export function useTasks(): TaskContextValue {
   }
   return ctx;
 }
+
+/** Alias for useTasks — use whichever name reads most clearly in context */
+export const useTaskContext = useTasks;

@@ -56,75 +56,109 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl;
 
-    // Strict user-level task isolation: determine active user
-    let sessionUserId: string | undefined = undefined;
+    // ── Resolve the active user ──────────────────────────────────────────────
+    // Priority: server-side session > ?userId param > ?userEmail param
+    // We intentionally support email-based lookup because session.user.id can
+    // be stale after a password reset, but email is always canonical.
+    let sessionUserId: string | undefined;
+    let sessionUserEmail: string | undefined;
     try {
       const session = await auth();
-      sessionUserId = session?.user?.id;
+      sessionUserId  = session?.user?.id    as string | undefined;
+      sessionUserEmail = session?.user?.email as string | undefined;
     } catch {
-      // In case of auth evaluation error
+      // auth() may throw in some edge cases — fall back to query params
     }
 
-    const requestedUserId = searchParams.get('userId') || searchParams.get('assigneeId');
-    // Session takes highest precedence to prevent spoofing
-    const targetUserId = sessionUserId || requestedUserId;
+    const requestedUserId    = searchParams.get('userId')    || undefined;
+    const requestedUserEmail = searchParams.get('userEmail') || undefined;
 
-    // Parse and validate query parameters (limits, cursor, filters)
+    const targetUserId    = sessionUserId    || requestedUserId;
+    const targetUserEmail = sessionUserEmail || requestedUserEmail;
+
+    // Resolve the canonical DB user ID from email when the ID is not available
+    // or when we want to catch tasks assigned via a fallback ID
+    let resolvedDbUserId: string | undefined = targetUserId;
+    if (targetUserEmail && !resolvedDbUserId) {
+      try {
+        const dbUser = await prisma.user.findUnique({
+          where: { email: targetUserEmail.toLowerCase().trim() },
+          select: { id: true },
+        });
+        resolvedDbUserId = dbUser?.id;
+      } catch { /* non-critical */ }
+    }
+
+    // Collect ALL user IDs that could own tasks for this person
+    // This handles the case where tasks were created with a fallback/wrong assigneeId
+    const userIdSet = new Set<string>();
+    if (resolvedDbUserId) userIdSet.add(resolvedDbUserId);
+    if (targetUserId && targetUserId !== resolvedDbUserId) userIdSet.add(targetUserId);
+
+    // If we have an email, also find assignee by email match for legacy data
+    if (targetUserEmail) {
+      try {
+        const dbUser = await prisma.user.findUnique({
+          where: { email: targetUserEmail.toLowerCase().trim() },
+          select: { id: true },
+        });
+        if (dbUser) userIdSet.add(dbUser.id);
+      } catch { /* non-critical */ }
+    }
+
+    if (userIdSet.size === 0) {
+      return NextResponse.json({
+        success: true,
+        data: [],
+        meta: { hasMore: false, nextCursor: null, limit: 50 },
+      }, { status: 200 });
+    }
+
+    // Parse and validate query parameters
     const rawParams = {
-      limit:      searchParams.get('limit')      ?? undefined,
-      cursor:     searchParams.get('cursor')     ?? undefined,
-      status:     searchParams.get('status')     ?? undefined,
-      priority:   searchParams.get('priority')   ?? undefined,
-      projectId:  searchParams.get('projectId')  ?? undefined,
-      search:     searchParams.get('search')     ?? undefined,
-      userId:     requestedUserId                ?? undefined,
-      assigneeId: searchParams.get('assigneeId') ?? undefined,
+      limit:     searchParams.get('limit')     ?? undefined,
+      cursor:    searchParams.get('cursor')    ?? undefined,
+      status:    searchParams.get('status')    ?? undefined,
+      priority:  searchParams.get('priority')  ?? undefined,
+      projectId: searchParams.get('projectId') ?? undefined,
+      search:    searchParams.get('search')    ?? undefined,
     };
 
     const parsedQuery = TaskQuerySchema.safeParse(rawParams);
     const query = parsedQuery.success ? parsedQuery.data : {
-      limit: 50,
-      cursor: undefined,
-      status: undefined,
-      priority: undefined,
-      projectId: undefined,
-      search: undefined,
+      limit: 50, cursor: undefined, status: undefined,
+      priority: undefined, projectId: undefined, search: undefined,
     };
 
-    const limit = query.limit ?? 50;
+    const limit  = query.limit ?? 50;
     const cursor = query.cursor;
 
-    // If no user is identified, return empty list (never expose tasks without user scope)
-    if (!targetUserId) {
-      return NextResponse.json({
-        success: true,
-        data: [],
-        meta: { hasMore: false, nextCursor: null, limit },
-      }, { status: 200 });
-    }
-
-    // Build a Prisma where clause strictly bounded to the target user
+    // Build Prisma where — match any of the user's known IDs or projects owned by user
+    const userIds = Array.from(userIdSet);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: Record<string, any> = {
-      assigneeId: targetUserId,
+      OR: [
+        { assigneeId: { in: userIds } },
+        { project: { ownerId: { in: userIds } } },
+      ],
     };
-    if (query.status)     where.status     = query.status;
-    if (query.priority)   where.priority   = query.priority;
-    if (query.projectId)  where.projectId  = query.projectId;
-    if (query.search)     where.title      = { contains: query.search, mode: 'insensitive' };
+    if (query.status)    where.status    = query.status;
+    if (query.priority)  where.priority  = query.priority;
+    if (query.projectId) where.projectId = query.projectId;
+    if (query.search)    where.title     = { contains: query.search, mode: 'insensitive' };
 
-    const cacheKey = `tasks:${targetUserId}:${JSON.stringify(query)}`;
+    const primaryId  = resolvedDbUserId || Array.from(userIdSet)[0];
+    const cacheKey   = `tasks:${primaryId}:${JSON.stringify(query)}`;
 
-    // Wrap query in tiered cache with 30s TTL
+    // Tiered cache — 30s TTL
     const result = await redisCache.wrap(cacheKey, 30, async () => {
-      // Fetch limit + 1 items to determine if subsequent pages exist without full count query
       const dbTasks = await prisma.task.findMany({
         where,
         take: limit + 1,
         ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
         include: {
           assignee: true,
-          project: true,
+          project:  true,
           subtasks: true,
         },
         orderBy: [
@@ -133,24 +167,17 @@ export async function GET(request: NextRequest) {
         ],
       });
 
-      const hasMore = dbTasks.length > limit;
-      const items = hasMore ? dbTasks.slice(0, limit) : dbTasks;
+      const hasMore    = dbTasks.length > limit;
+      const items      = hasMore ? dbTasks.slice(0, limit) : dbTasks;
       const nextCursor = hasMore && items.length > 0 ? items[items.length - 1].id : null;
 
-      return {
-        items,
-        meta: {
-          hasMore,
-          nextCursor,
-          limit,
-        },
-      };
+      return { items, meta: { hasMore, nextCursor, limit } };
     });
 
     return NextResponse.json({
       success: true,
-      data: result.items,
-      meta: result.meta,
+      data:    result.items,
+      meta:    result.meta,
     }, {
       status: 200,
       headers: { 'Cache-Control': 'private, max-age=15, stale-while-revalidate=60' },
@@ -186,74 +213,84 @@ export async function POST(request: NextRequest) {
 
     const { title, projectId, assigneeId, status, priority, dueDate, description, estimate, labels } = parsed.data;
 
-    // 1. Resolve creator / assignee ID from session, payload, or query string
-    let sessionUserId: string | undefined = undefined;
+    // 1. Resolve creator / assignee — prefer email (always canonical) over ID
+    let sessionUserId:    string | undefined;
+    let sessionUserEmail: string | undefined;
     try {
       const session = await auth();
-      sessionUserId = session?.user?.id;
+      sessionUserId    = session?.user?.id    as string | undefined;
+      sessionUserEmail = session?.user?.email as string | undefined;
     } catch {}
 
-    const queryUserId = request.nextUrl.searchParams.get('userId') || undefined;
-    const creatorUserId = sessionUserId || (typeof assigneeId === 'string' && assigneeId ? assigneeId : undefined) || queryUserId;
-    if (!creatorUserId) {
+    const queryUserId    = request.nextUrl.searchParams.get('userId')    || undefined;
+    const queryUserEmail = request.nextUrl.searchParams.get('userEmail') || undefined;
+
+    const resolvedEmail = (sessionUserEmail || queryUserEmail || '')?.toLowerCase().trim();
+    const resolvedId    = sessionUserId || queryUserId;
+
+    if (!resolvedEmail && !resolvedId) {
       return NextResponse.json(
         { message: 'Unauthorized. Please sign in to create tasks.' },
         { status: 401 }
       );
     }
 
-    // Verify or upsert creator / assignee in DB
-    let dbUser = await prisma.user.findUnique({ where: { id: creatorUserId } });
+    // Resolve DB user — email lookup is most reliable
+    let dbUser = null;
+    if (resolvedEmail) {
+      try {
+        dbUser = await prisma.user.findUnique({ where: { email: resolvedEmail } });
+      } catch { /* try ID next */ }
+    }
+    if (!dbUser && resolvedId) {
+      try {
+        dbUser = await prisma.user.findUnique({ where: { id: resolvedId } });
+      } catch { /* try local store next */ }
+    }
     if (!dbUser) {
-      // Check stored users
+      // Try local userStore
       const storedUsers = getAllStoredUsers();
-      const storedUser = storedUsers.find(u => u.id === creatorUserId || u.email.toLowerCase() === creatorUserId.toLowerCase());
+      const storedUser = storedUsers.find(u =>
+        (resolvedEmail && u.email.toLowerCase() === resolvedEmail) ||
+        (resolvedId    && u.id === resolvedId)
+      );
       if (storedUser) {
-        dbUser = await prisma.user.upsert({
-          where: { id: storedUser.id },
-          update: {},
-          create: {
-            id: storedUser.id,
-            name: storedUser.name,
-            email: storedUser.email,
-            avatar: storedUser.avatar,
-            role: storedUser.role,
-          },
-        });
+        try {
+          dbUser = await prisma.user.upsert({
+            where: { email: storedUser.email },
+            update: { name: storedUser.name, avatar: storedUser.avatar, role: storedUser.role },
+            create: {
+              id:     storedUser.id,
+              name:   storedUser.name,
+              email:  storedUser.email,
+              avatar: storedUser.avatar,
+              role:   storedUser.role,
+            },
+          });
+        } catch { dbUser = null; }
       }
     }
     if (!dbUser) {
-      // Check mock users
-      const mockUser = mockUsers.find(u => u.id === creatorUserId || u.email.toLowerCase() === creatorUserId.toLowerCase());
+      // Try mock users
+      const mockUser = mockUsers.find(u =>
+        (resolvedEmail && u.email.toLowerCase() === resolvedEmail) ||
+        (resolvedId    && u.id === resolvedId)
+      );
       if (mockUser) {
-        dbUser = await prisma.user.upsert({
-          where: { id: mockUser.id },
-          update: {},
-          create: {
-            id: mockUser.id,
-            name: mockUser.name,
-            email: mockUser.email,
-            avatar: mockUser.avatar,
-            role: mockUser.role,
-          },
-        });
+        try {
+          dbUser = await prisma.user.upsert({
+            where: { id: mockUser.id },
+            update: {},
+            create: { id: mockUser.id, name: mockUser.name, email: mockUser.email, avatar: mockUser.avatar, role: mockUser.role },
+          });
+        } catch { dbUser = null; }
       }
     }
     if (!dbUser) {
-      // Fall back to any registered user in the database
-      dbUser = await prisma.user.findFirst();
-    }
-    if (!dbUser) {
-      // If DB has zero users, create a default user record
-      dbUser = await prisma.user.create({
-        data: {
-          id: creatorUserId,
-          name: 'TaskFlow User',
-          email: 'user@taskflow.io',
-          avatar: 'TU',
-          role: 'Member',
-        },
-      });
+      return NextResponse.json(
+        { message: 'Unauthorized. Please sign in to create tasks.' },
+        { status: 401 }
+      );
     }
 
     const targetAssigneeId = dbUser.id;
