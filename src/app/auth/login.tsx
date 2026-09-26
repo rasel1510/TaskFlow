@@ -10,6 +10,7 @@ import {
   Lock,
   Mail,
   ArrowRight,
+  ArrowLeft,
   AlertCircle,
   Loader2,
   CheckCircle2,
@@ -68,8 +69,9 @@ function LoginForm() {
       }
 
       setSuccess('Authentication successful! Redirecting to workspace...');
+      const targetUrl = searchParams.get('callbackUrl') || '/app';
       setTimeout(() => {
-        router.push('/');
+        router.push(targetUrl);
         router.refresh();
       }, 700);
     } catch (err: unknown) {
@@ -81,7 +83,8 @@ function LoginForm() {
 
   const handleSocialSignIn = (provider: 'google' | 'github') => {
     setSocialLoading(provider);
-    signIn(provider, { callbackUrl: '/' });
+    const targetUrl = searchParams.get('callbackUrl') || '/app';
+    signIn(provider, { callbackUrl: targetUrl });
   };
 
 
@@ -318,6 +321,17 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center bg-white px-4 py-8 relative selection:bg-blue-50 selection:text-[#2563EB]">
+      {/* Back to Home Button */}
+      <div className="w-full max-w-[420px] mb-3 flex items-center justify-start">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors group"
+        >
+          <ArrowLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
+          <span>Back to Home</span>
+        </Link>
+      </div>
+
       <Suspense
         fallback={
           <div className="flex items-center justify-center p-12">

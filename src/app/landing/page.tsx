@@ -2,12 +2,12 @@ import type { Metadata } from 'next';
 import LandingPage from '@/views/LandingPage';
 
 export const metadata: Metadata = {
-  title: 'FlowSync — Next-Gen Project & Task Management',
+  title: 'TaskFlow — Simple & Professional Project Management',
   description:
-    'Sub-50ms task execution, fluid Kanban boards, native Gantt timelines, bidirectional calendar sync, and true offline PWA capability for high-velocity teams.',
+    'Plan project roadmaps, track tasks on fluid Kanban boards, organize sprints with calendar views, and manage deliverables with zero cognitive clutter.',
   openGraph: {
-    title: 'FlowSync — Modern Project & Task Management',
-    description: 'Sub-50ms task execution, fluid Kanban boards, native Gantt timelines, and offline PWA capability.',
+    title: 'TaskFlow — Simple & Professional Project Management',
+    description: 'Plan project roadmaps, track tasks on fluid Kanban boards, and organize sprints.',
   },
 };
 

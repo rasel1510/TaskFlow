@@ -29,20 +29,19 @@ html {
   text-size-adjust: 100%;
   /* Smooth scroll for anchor jumps */
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
-html, body {
+body {
   font-family: var(--font-sans);
   background: #ffffff;
   color: #111111;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Disable callout & text selection highlights on interactive elements */
   -webkit-tap-highlight-color: transparent;
-  /* Prevent elastic/bounce overscroll at page level */
-  overscroll-behavior-y: none;
-  /* Prevent horizontal overflow on small devices */
   overflow-x: hidden;
+  overflow-y: auto;
+  min-height: 100vh;
 }
 
 /* Interactive elements: use touch-manipulation for snappy 0ms tap delay */

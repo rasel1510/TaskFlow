@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import { currentUser, notifications } from '../data/mockData';
 
@@ -193,11 +194,22 @@ export default function Header({ currentView, onMenuToggle, onOpenCommandPalette
                     {userRole}
                   </span>
                 </div>
-                <div className="p-1">
+                <div className="p-1 space-y-0.5">
+                  <Link
+                    href="/"
+                    onClick={() => setShowUserMenu(false)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-slate-700 hover:bg-[#F3F4F6] transition-colors font-medium text-left cursor-pointer"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                      <polyline points="9 22 9 12 15 12 15 22" />
+                    </svg>
+                    Home Page
+                  </Link>
                   <button
                     onClick={() => {
                       setShowUserMenu(false);
-                      signOut({ callbackUrl: '/auth/login' });
+                      signOut({ callbackUrl: '/' });
                     }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-red-600 hover:bg-red-50 transition-colors font-medium text-left cursor-pointer"
                   >

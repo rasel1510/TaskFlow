@@ -19,7 +19,7 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#2563EB' },
-    { media: '(prefers-color-scheme: dark)',  color: '#1D4ED8' },
+    { media: '(prefers-color-scheme: dark)', color: '#1D4ED8' },
   ],
 };
 
@@ -74,7 +74,8 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
-      <body className="antialiased bg-white text-[#111111] selection:bg-blue-50 selection:text-[#2563EB] touch-manipulation">
+      <body className="antialiased bg-white text-[#111111] selection:bg-blue-50 selection:text-[#2563EB]">
+
         <AuthProvider>
           <ToastProvider>
             {children}
@@ -91,6 +92,15 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               if ('serviceWorker' in navigator) {
+                if ('caches' in window) {
+                  caches.keys().then(function(names) {
+                    for (var i = 0; i < names.length; i++) {
+                      if (names[i].indexOf('v1') !== -1) {
+                        caches.delete(names[i]);
+                      }
+                    }
+                  });
+                }
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
                     .then(function(reg) {

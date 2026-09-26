@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import { currentUser, projects } from '../data/mockData';
 import { useTaskContext } from '@/context/TaskContext';
@@ -142,17 +143,19 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
 
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 py-4 border-b border-[#E5E7EB]" style={{ height: 57 }}>
-        <div className="w-7 h-7 rounded-lg bg-[#2563EB] flex items-center justify-center shrink-0">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-            <path d="M9 11l3 3L22 4" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-          </svg>
-        </div>
-        <span className="font-bold text-[15px] text-[#111111] tracking-tight md:hidden">FlowSync</span>
-        {/* Show label on desktop only when not collapsed */}
-        <span className="font-bold text-[15px] text-[#111111] tracking-tight hidden md:block" style={{ display: collapsed ? 'none' : undefined }}>
-          {!collapsed && 'FlowSync'}
-        </span>
+        <Link href="/" className="flex items-center gap-2.5 group" title="Go to Home Page">
+          <div className="w-7 h-7 rounded-lg bg-[#2563EB] flex items-center justify-center shrink-0 group-hover:bg-[#1D4ED8] transition-colors">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+              <path d="M9 11l3 3L22 4" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+            </svg>
+          </div>
+          <span className="font-bold text-[15px] text-[#111111] tracking-tight md:hidden">TaskFlow</span>
+          {/* Show label on desktop only when not collapsed */}
+          <span className="font-bold text-[15px] text-[#111111] tracking-tight hidden md:block" style={{ display: collapsed ? 'none' : undefined }}>
+            {!collapsed && 'TaskFlow'}
+          </span>
+        </Link>
         {/* Desktop collapse toggle */}
         <button
           onClick={onToggle}
@@ -283,20 +286,18 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
         </button>
 
         {/* Link to public Product Landing Page */}
-        <a
-          href="/landing"
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Explore Product Landing Page"
+        {/* Link to Home page */}
+        <Link
+          href="/"
+          title="Go to Home / Landing Page"
           className="w-full flex items-center gap-3 px-3 py-2 md:py-1.5 rounded-lg text-[13px] font-medium text-[rgba(17,17,17,0.65)] hover:bg-[#F3F4F6] hover:text-[#111111] transition-colors mb-1"
         >
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="2" y1="12" x2="22" y2="12"/>
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
           </svg>
-          <span className={`md:${collapsed ? 'hidden' : 'block'}`}>Product Page</span>
-        </a>
+          <span className={`md:${collapsed ? 'hidden' : 'block'}`}>Home Page</span>
+        </Link>
 
         {/* User profile & Logout */}
         <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-[#F3F4F6] transition-colors group">
@@ -308,7 +309,7 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
             <div className="text-[11px] text-[rgba(17,17,17,0.45)] truncate">{userRole}</div>
           </div>
           <button
-            onClick={() => signOut({ callbackUrl: '/auth/login' })}
+            onClick={() => signOut({ callbackUrl: '/' })}
             title="Sign Out"
             className={`md:opacity-0 md:group-hover:opacity-100 p-1 rounded hover:bg-[#E5E7EB] text-gray-500 hover:text-red-600 transition-all cursor-pointer md:${collapsed ? 'hidden' : 'block'}`}
           >

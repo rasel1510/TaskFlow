@@ -13,6 +13,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   pages: {
     signIn: '/auth/login',
+    signOut: '/',
     newUser: '/auth/signup',
   },
   providers: [
@@ -113,6 +114,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as { avatar?: string }).avatar = token.avatar as string;
       }
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith('/')) return `${baseUrl}${url}`;
+      if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
     },
   },
 });

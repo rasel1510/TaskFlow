@@ -294,7 +294,7 @@ export default function SignupPage() {
       if (signInRes?.error) {
         router.push('/auth/login?verified=true');
       } else {
-        router.push('/');
+        router.push('/app');
         router.refresh();
       }
     } catch {
@@ -343,6 +343,17 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center bg-white px-4 py-8 relative selection:bg-blue-50 selection:text-[#2563EB]">
+      {/* Back to Home Button */}
+      <div className="w-full max-w-[440px] mb-3 flex items-center justify-start">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors group"
+        >
+          <ArrowLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
+          <span>Back to Home</span>
+        </Link>
+      </div>
+
       <div className="w-full max-w-[440px] bg-white border border-[#E5E7EB] rounded-2xl p-5 sm:p-8 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06)] space-y-6">
         
         {/* Brand Header */}

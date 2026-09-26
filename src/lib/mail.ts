@@ -1,17 +1,6 @@
 import nodemailer from 'nodemailer';
 
-/**
- * FlowSync Enterprise SMTP Mail Service
- * 
- * Provides production-ready, pooled SMTP transport for transactional emails
- * (e.g., OTP auth validation, workspace invites, security alerts).
- * 
- * Includes:
- * - High-deliverability responsive HTML email templates
- * - TLS/STARTTLS security configuration
- * - Automatic connection verification
- * - Safe development fallback (server console logging + preview code)
- */
+
 
 interface SendOtpParams {
   to: string;

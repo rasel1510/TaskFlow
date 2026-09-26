@@ -10,26 +10,25 @@
  * Offline: Serves cached pages gracefully, queues write requests for retry.
  */
 
-const CACHE_NAME = 'flowsync-v1';
-const STATIC_CACHE = 'flowsync-static-v1';
-const API_CACHE = 'flowsync-api-v1';
+const CACHE_NAME = 'flowsync-v2';
+const STATIC_CACHE = 'flowsync-static-v2';
+const API_CACHE = 'flowsync-api-v2';
 
 // Assets to precache on install (app shell)
 const PRECACHE_URLS = [
   '/',
-  '/auth/login',
   '/manifest.json',
 ];
 
 // ── Install: precache app shell ──────────────────────────────────────────
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(STATIC_CACHE).then((cache) => {
       return cache.addAll(PRECACHE_URLS).catch((err) => {
-        // Silently fail — don't block install if a precache URL is unavailable
         console.warn('[SW] Precache failed for some URLs:', err);
       });
-    }).then(() => self.skipWaiting())
+    })
   );
 });
 
@@ -62,6 +61,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // 0. Navigation requests (HTML pages) — ALWAYS Network-First, offline fallback only
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
   // 1. Immutable Next.js static assets (_next/static/) — Cache Forever
   if (url.pathname.startsWith('/_next/static/')) {
     event.respondWith(
@@ -91,14 +106,14 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Pages & other assets — Stale-While-Revalidate
+  // 3. Static assets & images — Stale-While-Revalidate
   event.respondWith(
     caches.open(CACHE_NAME).then(async (cache) => {
       const cached = await cache.match(request);
       const fetchPromise = fetch(request).then((response) => {
         if (response.ok) cache.put(request, response.clone());
         return response;
-      }).catch(() => cached); // offline fallback
+      }).catch(() => cached);
 
       return cached || fetchPromise;
     })

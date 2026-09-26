@@ -55,16 +55,14 @@ export function applyAuthMiddleware(request: NextRequest): NextResponse | null {
   // Public routes accessible without authentication
   const isPublicRoute = pathname === '/' || pathname.startsWith('/landing');
 
-  // Rule 1: unauthenticated access to a protected route
+  // Rule 1: unauthenticated user on a protected route → redirect to / (home page)
   if (!sessionToken && !onAuthRoute && !isPublicRoute) {
-    const loginUrl = new URL('/auth/login', request.url);
-    loginUrl.searchParams.set('callbackUrl', pathname);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
   // Rule 2: authenticated user hitting the auth pages
   if (sessionToken && onAuthRoute) {
-    return NextResponse.redirect(new URL('/', request.url));
+    return NextResponse.redirect(new URL('/app', request.url));
   }
 
   // Rule 3: no action needed
