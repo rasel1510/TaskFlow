@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTasks } from '@/context/TaskContext';
 import type { DBUser, DBProject } from '@/context/TaskContext';
+import DatePicker from '@/components/ui/DatePicker';
 
 interface CreateTaskModalProps {
   onClose: () => void;
@@ -79,7 +80,7 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
         setProjects(data);
         if (data.length > 0) setProjectId(data[0].id);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Default assignee to current session user
@@ -141,7 +142,7 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
               aria-label="Close"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>
           </div>
@@ -187,9 +188,8 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                     setStatusOpen(false);
                     setPriorityOpen(false);
                   }}
-                  className={`w-full max-w-full flex items-center justify-between text-[15px] sm:text-[13px] text-[#111111] border rounded-lg px-3 py-2.5 sm:py-2 bg-white transition-all min-h-[42px] sm:min-h-0 cursor-pointer ${
-                    projectOpen ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]' : 'border-[#E5E7EB] hover:border-[#CBD5E1]'
-                  }`}
+                  className={`w-full max-w-full flex items-center justify-between text-[15px] sm:text-[13px] text-[#111111] border rounded-lg px-3 py-2.5 sm:py-2 bg-white transition-all min-h-[42px] sm:min-h-0 cursor-pointer ${projectOpen ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]' : 'border-[#E5E7EB] hover:border-[#CBD5E1]'
+                    }`}
                 >
                   <span className="truncate">
                     {projects.find(p => p.id === projectId)?.name || (projects.length === 0 ? 'Loading...' : 'Select project')}
@@ -221,11 +221,10 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                             setProjectId(p.id);
                             setProjectOpen(false);
                           }}
-                          className={`w-full text-left px-3.5 py-2.5 sm:py-2 text-[15px] sm:text-[13px] transition-colors cursor-pointer flex items-center justify-between ${
-                            isSelected
-                              ? 'bg-[#2563EB] text-white font-medium'
-                              : 'text-[#111111] hover:bg-[#F3F4F6] active:bg-[#E5E7EB]'
-                          }`}
+                          className={`w-full text-left px-3.5 py-2.5 sm:py-2 text-[15px] sm:text-[13px] transition-colors cursor-pointer flex items-center justify-between ${isSelected
+                            ? 'bg-[#2563EB] text-white font-medium'
+                            : 'text-[#111111] hover:bg-[#F3F4F6] active:bg-[#E5E7EB]'
+                            }`}
                         >
                           <span className="truncate">{p.name}</span>
                           {isSelected && (
@@ -262,9 +261,8 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                     setProjectOpen(false);
                     setPriorityOpen(false);
                   }}
-                  className={`w-full max-w-full flex items-center justify-between text-[15px] sm:text-[13px] text-[#111111] border rounded-lg px-3 py-2.5 sm:py-2 bg-white transition-all min-h-[42px] sm:min-h-0 cursor-pointer ${
-                    statusOpen ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]' : 'border-[#E5E7EB] hover:border-[#CBD5E1]'
-                  }`}
+                  className={`w-full max-w-full flex items-center justify-between text-[15px] sm:text-[13px] text-[#111111] border rounded-lg px-3 py-2.5 sm:py-2 bg-white transition-all min-h-[42px] sm:min-h-0 cursor-pointer ${statusOpen ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]' : 'border-[#E5E7EB] hover:border-[#CBD5E1]'
+                    }`}
                 >
                   <span className="truncate">
                     {STATUS_OPTIONS.find(o => o.value === status)?.label || 'To Do'}
@@ -296,11 +294,10 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                             setStatus(opt.value);
                             setStatusOpen(false);
                           }}
-                          className={`w-full text-left px-3.5 py-2.5 sm:py-2 text-[15px] sm:text-[13px] transition-colors cursor-pointer flex items-center justify-between ${
-                            isSelected
-                              ? 'bg-[#2563EB] text-white font-medium'
-                              : 'text-[#111111] hover:bg-[#F3F4F6] active:bg-[#E5E7EB]'
-                          }`}
+                          className={`w-full text-left px-3.5 py-2.5 sm:py-2 text-[15px] sm:text-[13px] transition-colors cursor-pointer flex items-center justify-between ${isSelected
+                            ? 'bg-[#2563EB] text-white font-medium'
+                            : 'text-[#111111] hover:bg-[#F3F4F6] active:bg-[#E5E7EB]'
+                            }`}
                         >
                           <span>{opt.label}</span>
                           {isSelected && (
@@ -325,9 +322,8 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                     setProjectOpen(false);
                     setStatusOpen(false);
                   }}
-                  className={`w-full max-w-full flex items-center justify-between text-[15px] sm:text-[13px] text-[#111111] border rounded-lg px-3 py-2.5 sm:py-2 bg-white transition-all min-h-[42px] sm:min-h-0 cursor-pointer ${
-                    priorityOpen ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]' : 'border-[#E5E7EB] hover:border-[#CBD5E1]'
-                  }`}
+                  className={`w-full max-w-full flex items-center justify-between text-[15px] sm:text-[13px] text-[#111111] border rounded-lg px-3 py-2.5 sm:py-2 bg-white transition-all min-h-[42px] sm:min-h-0 cursor-pointer ${priorityOpen ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]' : 'border-[#E5E7EB] hover:border-[#CBD5E1]'
+                    }`}
                 >
                   <span className="truncate">
                     {PRIORITY_OPTIONS.find(o => o.value === priority)?.label || 'Medium'}
@@ -359,11 +355,10 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                             setPriority(opt.value);
                             setPriorityOpen(false);
                           }}
-                          className={`w-full text-left px-3.5 py-2.5 sm:py-2 text-[15px] sm:text-[13px] transition-colors cursor-pointer flex items-center justify-between ${
-                            isSelected
-                              ? 'bg-[#2563EB] text-white font-medium'
-                              : 'text-[#111111] hover:bg-[#F3F4F6] active:bg-[#E5E7EB]'
-                          }`}
+                          className={`w-full text-left px-3.5 py-2.5 sm:py-2 text-[15px] sm:text-[13px] transition-colors cursor-pointer flex items-center justify-between ${isSelected
+                            ? 'bg-[#2563EB] text-white font-medium'
+                            : 'text-[#111111] hover:bg-[#F3F4F6] active:bg-[#E5E7EB]'
+                            }`}
                         >
                           <span>{opt.label}</span>
                           {isSelected && (
@@ -381,15 +376,12 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Due Date */}
-              <div>
+              <div className="relative z-20">
                 <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.5)] mb-1.5">Due Date</label>
-                <input
-                  type="date"
+                <DatePicker
                   value={dueDate}
-                  min="2000-01-01"
-                  max="2100-12-31"
-                  onChange={e => setDueDate(e.target.value)}
-                  className="w-full max-w-full text-[16px] sm:text-[13px] text-[#111111] border border-[#E5E7EB] rounded-lg px-3 py-2.5 sm:py-2 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] bg-white transition-all min-h-[42px] sm:min-h-0"
+                  onChange={setDueDate}
+                  placeholder="Select due date"
                 />
               </div>
 
@@ -433,3 +425,10 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
     </>
   );
 }
+
+
+
+
+
+
+

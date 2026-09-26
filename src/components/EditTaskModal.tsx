@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTasks } from '@/context/TaskContext';
 import type { DBTask, DBProject } from '@/context/TaskContext';
+import DatePicker from '@/components/ui/DatePicker';
 
 interface EditTaskModalProps {
   task: DBTask;
@@ -476,17 +477,14 @@ export default function EditTaskModal({ task, onClose }: EditTaskModalProps) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Due Date */}
-            <div>
+            <div className="relative z-20">
               <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.5)] mb-1.5">
                 Due Date
               </label>
-              <input
-                type="date"
+              <DatePicker
                 value={dueDate}
-                min="2000-01-01"
-                max="2100-12-31"
-                onChange={e => setDueDate(e.target.value)}
-                className="w-full max-w-full text-[16px] sm:text-[13px] text-[#111111] border border-[#E5E7EB] rounded-lg px-3 py-2.5 sm:py-2 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] bg-white transition-all min-h-[42px] sm:min-h-0"
+                onChange={setDueDate}
+                placeholder="Select due date"
               />
             </div>
 

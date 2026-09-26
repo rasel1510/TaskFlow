@@ -8,6 +8,7 @@ import { ROLE_DESCRIPTIONS, type ProjectRole } from '@/lib/permissions';
 import type { MilestoneRecord } from '@/api/projects/[id]/milestones/route';
 import type { MemberRecord } from '@/api/projects/[id]/members/route';
 import type { BurndownResult } from '@/api/projects/[id]/burndown/route';
+import DatePicker from '@/components/ui/DatePicker';
 
 interface ProjectTask {
   id: string;
@@ -566,14 +567,19 @@ export default function ProjectDetail({
               <h3 className="text-[16px] font-semibold text-[#111111]">Sprint Milestones &amp; Roadmap</h3>
               <span className="text-[12px] text-[rgba(17,17,17,0.4)]">{milestones.filter(m => m.completed).length}/{milestones.length} completed</span>
             </div>
-            <form onSubmit={handleAddMilestone} className="flex items-center gap-2">
+            <form onSubmit={handleAddMilestone} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <input type="text" placeholder="New milestone title..." value={newMilestoneTitle}
                 onChange={e => setNewMilestoneTitle(e.target.value)}
                 className="flex-1 text-[13px] px-3 py-2 border border-[#E5E7EB] rounded-lg outline-none focus:border-[#2563EB]" />
-              <input type="date" value={newMilestoneDate} onChange={e => setNewMilestoneDate(e.target.value)}
-                className="text-[12px] px-2 py-2 border border-[#E5E7EB] rounded-lg outline-none" />
+              <div className="w-full sm:w-44 shrink-0">
+                <DatePicker
+                  value={newMilestoneDate}
+                  onChange={setNewMilestoneDate}
+                  placeholder="Target date"
+                />
+              </div>
               <button type="submit" disabled={addingMilestone || !newMilestoneTitle.trim()}
-                className="px-4 py-2 bg-[#2563EB] text-white text-[12.5px] font-medium rounded-lg disabled:opacity-50">
+                className="px-4 py-2 bg-[#2563EB] text-white text-[12.5px] font-medium rounded-lg disabled:opacity-50 shrink-0">
                 {addingMilestone ? 'Adding...' : '+ Add'}
               </button>
             </form>
@@ -889,13 +895,12 @@ export default function ProjectDetail({
                     <option value="completed">Completed</option>
                   </select>
                 </div>
-                <div>
+                <div className="relative z-20">
                   <label className="text-[12px] font-medium text-[#374151] block mb-1">Target Due Date</label>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={editDueDate}
-                    onChange={e => setEditDueDate(e.target.value)}
-                    className="w-full text-[13px] px-3 py-2 border border-[#E5E7EB] rounded-lg outline-none"
+                    onChange={setEditDueDate}
+                    placeholder="Select target due date"
                   />
                 </div>
               </div>
