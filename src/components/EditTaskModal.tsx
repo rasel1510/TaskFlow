@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTasks } from '@/context/TaskContext';
 import type { DBTask, DBProject } from '@/context/TaskContext';
 
@@ -8,6 +8,21 @@ interface EditTaskModalProps {
   task: DBTask;
   onClose: () => void;
 }
+
+const STATUS_OPTIONS = [
+  { value: 'backlog', label: 'Backlog' },
+  { value: 'todo', label: 'To Do' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'in_review', label: 'In Review' },
+  { value: 'done', label: 'Done' },
+];
+
+const PRIORITY_OPTIONS = [
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'High' },
+  { value: 'urgent', label: 'Urgent' },
+];
 
 function parseSafeDate(d: string | null | undefined): string {
   if (!d) return '';
@@ -34,6 +49,39 @@ export default function EditTaskModal({ task, onClose }: EditTaskModalProps) {
   const [projects, setProjects] = useState<DBProject[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [priorityOpen, setPriorityOpen] = useState(false);
+  const [projectOpen, setProjectOpen] = useState(false);
+  const [assigneeOpen, setAssigneeOpen] = useState(false);
+  const statusRef = useRef<HTMLDivElement>(null);
+  const priorityRef = useRef<HTMLDivElement>(null);
+  const projectRef = useRef<HTMLDivElement>(null);
+  const assigneeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      const target = event.target as Node;
+      if (statusRef.current && !statusRef.current.contains(target)) {
+        setStatusOpen(false);
+      }
+      if (priorityRef.current && !priorityRef.current.contains(target)) {
+        setPriorityOpen(false);
+      }
+      if (projectRef.current && !projectRef.current.contains(target)) {
+        setProjectOpen(false);
+      }
+      if (assigneeRef.current && !assigneeRef.current.contains(target)) {
+        setAssigneeOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, []);
 
   // Fetch available projects
   useEffect(() => {
@@ -74,19 +122,20 @@ export default function EditTaskModal({ task, onClose }: EditTaskModalProps) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-[1px]"
+      className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-[2px] overscroll-contain"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-t-2xl sm:rounded-2xl border border-[#E5E7EB] shadow-2xl w-full sm:max-w-lg max-h-[92dvh] overflow-y-auto pb-safe"
+        className="bg-white rounded-t-2xl sm:rounded-2xl border-t sm:border border-[#E5E7EB] shadow-2xl w-full sm:max-w-lg max-h-[92dvh] sm:max-h-[88vh] flex flex-col overscroll-contain pb-safe animate-in fade-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200"
         onClick={e => e.stopPropagation()}
       >
         {/* Mobile drag handle */}
-        <div className="flex justify-center pt-3 pb-1 sm:hidden">
-          <div className="w-9 h-1 rounded-full bg-[#E5E7EB]" />
+        <div className="flex justify-center pt-2.5 pb-1 sm:hidden shrink-0">
+          <div className="w-10 h-1 rounded-full bg-[#E5E7EB]" />
         </div>
+
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB]">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[#E5E7EB] shrink-0">
           <div className="flex items-center gap-2.5">
             <span className="text-[11.5px] font-semibold text-[rgba(17,17,17,0.45)] font-mono bg-[#F3F4F6] px-2 py-0.5 rounded">
               {task.taskNumber ?? task.id}
@@ -94,10 +143,12 @@ export default function EditTaskModal({ task, onClose }: EditTaskModalProps) {
             <h2 className="text-[16px] font-semibold text-[#111111]">Edit Task</h2>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#F3F4F6] text-[rgba(17,17,17,0.4)] hover:text-[#111111] transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F3F4F6] active:bg-[#E5E7EB] text-[rgba(17,17,17,0.5)] hover:text-[#111111] transition-colors"
+            aria-label="Close"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -105,15 +156,15 @@ export default function EditTaskModal({ task, onClose }: EditTaskModalProps) {
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+        <form onSubmit={handleSubmit} className="px-4 sm:px-6 py-4 sm:py-5 space-y-4 overflow-y-auto flex-1 overscroll-contain">
           {errorMsg && (
-            <div className="px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-[12.5px] text-red-600">
+            <div className="px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-[13px] text-red-600">
               {errorMsg}
             </div>
           )}
 
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)] mb-1">
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.5)] mb-1.5">
               Title
             </label>
             <input
@@ -121,12 +172,12 @@ export default function EditTaskModal({ task, onClose }: EditTaskModalProps) {
               onChange={e => setTitle(e.target.value)}
               placeholder="Task title"
               required
-              className="w-full text-[15px] font-medium text-[#111111] placeholder-[#9CA3AF] outline-none border border-[#E5E7EB] rounded-lg px-3 py-2 focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all"
+              className="w-full text-[16px] sm:text-[14px] font-medium text-[#111111] placeholder-[#9CA3AF] outline-none border border-[#E5E7EB] rounded-lg px-3 py-2.5 sm:py-2 focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] bg-white transition-all min-h-[42px] sm:min-h-0"
             />
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)] mb-1">
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.5)] mb-1.5">
               Description
             </label>
             <textarea
@@ -134,100 +185,299 @@ export default function EditTaskModal({ task, onClose }: EditTaskModalProps) {
               onChange={e => setDescription(e.target.value)}
               placeholder="Add description..."
               rows={3}
-              className="w-full text-[13.5px] text-[rgba(17,17,17,0.7)] placeholder-[#9CA3AF] outline-none resize-none border border-[#E5E7EB] rounded-lg px-3 py-2.5 focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all"
+              className="w-full text-[16px] sm:text-[13.5px] text-[rgba(17,17,17,0.75)] placeholder-[#9CA3AF] outline-none resize-none border border-[#E5E7EB] rounded-lg px-3 py-2.5 focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all"
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Project */}
-            <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)] mb-1.5">
+            <div className={`relative ${projectOpen ? 'z-30' : 'z-10'}`} ref={projectRef}>
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.5)] mb-1.5">
                 Project
               </label>
-              <select
-                value={projectId}
-                onChange={e => setProjectId(e.target.value)}
-                className="w-full text-[13px] text-[#111111] border border-[#E5E7EB] rounded-lg px-3 py-2 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] bg-white transition-all"
+              <button
+                type="button"
+                onClick={() => {
+                  setProjectOpen(!projectOpen);
+                  setStatusOpen(false);
+                  setPriorityOpen(false);
+                  setAssigneeOpen(false);
+                }}
+                className={`w-full max-w-full flex items-center justify-between text-[15px] sm:text-[13px] text-[#111111] border rounded-lg px-3 py-2.5 sm:py-2 bg-white transition-all min-h-[42px] sm:min-h-0 cursor-pointer ${
+                  projectOpen ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]' : 'border-[#E5E7EB] hover:border-[#CBD5E1]'
+                }`}
               >
-                {projects.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+                <span className="truncate">
+                  {projects.find(p => p.id === projectId)?.name || (projects.length === 0 ? 'Loading...' : 'Select project')}
+                </span>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={`text-gray-400 shrink-0 transition-transform duration-150 ${projectOpen ? 'rotate-180 text-[#2563EB]' : ''}`}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {projectOpen && projects.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-56 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
+                  {projects.map(p => {
+                    const isSelected = p.id === projectId;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          setProjectId(p.id);
+                          setProjectOpen(false);
+                        }}
+                        className={`w-full text-left px-3.5 py-2.5 sm:py-2 text-[15px] sm:text-[13px] transition-colors cursor-pointer flex items-center justify-between ${
+                          isSelected
+                            ? 'bg-[#2563EB] text-white font-medium'
+                            : 'text-[#111111] hover:bg-[#F3F4F6] active:bg-[#E5E7EB]'
+                        }`}
+                      >
+                        <span className="truncate">{p.name}</span>
+                        {isSelected && (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Assignee */}
-            <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)] mb-1.5">
+            <div className={`relative ${assigneeOpen ? 'z-30' : 'z-10'}`} ref={assigneeRef}>
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.5)] mb-1.5">
                 Assignee
               </label>
-              <select
-                value={assigneeId}
-                onChange={e => setAssigneeId(e.target.value)}
-                className="w-full text-[13px] text-[#111111] border border-[#E5E7EB] rounded-lg px-3 py-2 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] bg-white transition-all"
+              <button
+                type="button"
+                onClick={() => {
+                  setAssigneeOpen(!assigneeOpen);
+                  setProjectOpen(false);
+                  setStatusOpen(false);
+                  setPriorityOpen(false);
+                }}
+                className={`w-full max-w-full flex items-center justify-between text-[15px] sm:text-[13px] text-[#111111] border rounded-lg px-3 py-2.5 sm:py-2 bg-white transition-all min-h-[42px] sm:min-h-0 cursor-pointer ${
+                  assigneeOpen ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]' : 'border-[#E5E7EB] hover:border-[#CBD5E1]'
+                }`}
               >
-                <option value="">Unassigned</option>
-                {ctxUsers.map(u => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                  </option>
-                ))}
-              </select>
+                <span className="truncate">
+                  {ctxUsers.find(u => u.id === assigneeId)?.name || 'Unassigned'}
+                </span>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={`text-gray-400 shrink-0 transition-transform duration-150 ${assigneeOpen ? 'rotate-180 text-[#2563EB]' : ''}`}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {assigneeOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-56 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAssigneeId('');
+                      setAssigneeOpen(false);
+                    }}
+                    className={`w-full text-left px-3.5 py-2.5 sm:py-2 text-[15px] sm:text-[13px] transition-colors cursor-pointer flex items-center justify-between ${
+                      !assigneeId
+                        ? 'bg-[#2563EB] text-white font-medium'
+                        : 'text-[#111111] hover:bg-[#F3F4F6] active:bg-[#E5E7EB]'
+                    }`}
+                  >
+                    <span>Unassigned</span>
+                    {!assigneeId && (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </button>
+                  {ctxUsers.map(u => {
+                    const isSelected = u.id === assigneeId;
+                    return (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => {
+                          setAssigneeId(u.id);
+                          setAssigneeOpen(false);
+                        }}
+                        className={`w-full text-left px-3.5 py-2.5 sm:py-2 text-[15px] sm:text-[13px] transition-colors cursor-pointer flex items-center justify-between ${
+                          isSelected
+                            ? 'bg-[#2563EB] text-white font-medium'
+                            : 'text-[#111111] hover:bg-[#F3F4F6] active:bg-[#E5E7EB]'
+                        }`}
+                      >
+                        <span className="truncate">{u.name}</span>
+                        {isSelected && (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Status */}
-            <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)] mb-1.5">
+            <div className={`relative ${statusOpen ? 'z-30' : 'z-10'}`} ref={statusRef}>
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.5)] mb-1.5">
                 Status
               </label>
-              <select
-                value={status}
-                onChange={e => setStatus(e.target.value)}
-                className="w-full text-[13px] text-[#111111] border border-[#E5E7EB] rounded-lg px-3 py-2 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] bg-white transition-all"
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusOpen(!statusOpen);
+                  setProjectOpen(false);
+                  setPriorityOpen(false);
+                  setAssigneeOpen(false);
+                }}
+                className={`w-full max-w-full flex items-center justify-between text-[15px] sm:text-[13px] text-[#111111] border rounded-lg px-3 py-2.5 sm:py-2 bg-white transition-all min-h-[42px] sm:min-h-0 cursor-pointer ${
+                  statusOpen ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]' : 'border-[#E5E7EB] hover:border-[#CBD5E1]'
+                }`}
               >
-                {[
-                  ['backlog', 'Backlog'],
-                  ['todo', 'To Do'],
-                  ['in_progress', 'In Progress'],
-                  ['in_review', 'In Review'],
-                  ['done', 'Done'],
-                ].map(([v, l]) => (
-                  <option key={v} value={v}>
-                    {l}
-                  </option>
-                ))}
-              </select>
+                <span className="truncate">
+                  {STATUS_OPTIONS.find(o => o.value === status)?.label || 'To Do'}
+                </span>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={`text-gray-400 shrink-0 transition-transform duration-150 ${statusOpen ? 'rotate-180 text-[#2563EB]' : ''}`}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {statusOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-56 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
+                  {STATUS_OPTIONS.map(opt => {
+                    const isSelected = opt.value === status;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => {
+                          setStatus(opt.value);
+                          setStatusOpen(false);
+                        }}
+                        className={`w-full text-left px-3.5 py-2.5 sm:py-2 text-[15px] sm:text-[13px] transition-colors cursor-pointer flex items-center justify-between ${
+                          isSelected
+                            ? 'bg-[#2563EB] text-white font-medium'
+                            : 'text-[#111111] hover:bg-[#F3F4F6] active:bg-[#E5E7EB]'
+                        }`}
+                      >
+                        <span>{opt.label}</span>
+                        {isSelected && (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Priority */}
-            <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)] mb-1.5">
+            <div className={`relative ${priorityOpen ? 'z-30' : 'z-10'}`} ref={priorityRef}>
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.5)] mb-1.5">
                 Priority
               </label>
-              <select
-                value={priority}
-                onChange={e => setPriority(e.target.value)}
-                className="w-full text-[13px] text-[#111111] border border-[#E5E7EB] rounded-lg px-3 py-2 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] bg-white transition-all"
+              <button
+                type="button"
+                onClick={() => {
+                  setPriorityOpen(!priorityOpen);
+                  setProjectOpen(false);
+                  setStatusOpen(false);
+                  setAssigneeOpen(false);
+                }}
+                className={`w-full max-w-full flex items-center justify-between text-[15px] sm:text-[13px] text-[#111111] border rounded-lg px-3 py-2.5 sm:py-2 bg-white transition-all min-h-[42px] sm:min-h-0 cursor-pointer ${
+                  priorityOpen ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]' : 'border-[#E5E7EB] hover:border-[#CBD5E1]'
+                }`}
               >
-                {[
-                  ['low', 'Low'],
-                  ['medium', 'Medium'],
-                  ['high', 'High'],
-                  ['urgent', 'Urgent'],
-                ].map(([v, l]) => (
-                  <option key={v} value={v}>
-                    {l}
-                  </option>
-                ))}
-              </select>
+                <span className="truncate">
+                  {PRIORITY_OPTIONS.find(o => o.value === priority)?.label || 'Medium'}
+                </span>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={`text-gray-400 shrink-0 transition-transform duration-150 ${priorityOpen ? 'rotate-180 text-[#2563EB]' : ''}`}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {priorityOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-56 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
+                  {PRIORITY_OPTIONS.map(opt => {
+                    const isSelected = opt.value === priority;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => {
+                          setPriority(opt.value);
+                          setPriorityOpen(false);
+                        }}
+                        className={`w-full text-left px-3.5 py-2.5 sm:py-2 text-[15px] sm:text-[13px] transition-colors cursor-pointer flex items-center justify-between ${
+                          isSelected
+                            ? 'bg-[#2563EB] text-white font-medium'
+                            : 'text-[#111111] hover:bg-[#F3F4F6] active:bg-[#E5E7EB]'
+                        }`}
+                      >
+                        <span>{opt.label}</span>
+                        {isSelected && (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Due Date */}
             <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)] mb-1.5">
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.5)] mb-1.5">
                 Due Date
               </label>
               <input
@@ -236,13 +486,13 @@ export default function EditTaskModal({ task, onClose }: EditTaskModalProps) {
                 min="2000-01-01"
                 max="2100-12-31"
                 onChange={e => setDueDate(e.target.value)}
-                className="w-full text-[13px] text-[#111111] border border-[#E5E7EB] rounded-lg px-3 py-2 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all"
+                className="w-full max-w-full text-[16px] sm:text-[13px] text-[#111111] border border-[#E5E7EB] rounded-lg px-3 py-2.5 sm:py-2 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] bg-white transition-all min-h-[42px] sm:min-h-0"
               />
             </div>
 
             {/* Estimate */}
             <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)] mb-1.5">
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.5)] mb-1.5">
                 Estimate
               </label>
               <input
@@ -250,25 +500,25 @@ export default function EditTaskModal({ task, onClose }: EditTaskModalProps) {
                 value={estimate}
                 onChange={e => setEstimate(e.target.value)}
                 placeholder="e.g. 4h"
-                className="w-full text-[13px] text-[#111111] border border-[#E5E7EB] rounded-lg px-3 py-2 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] placeholder-[#9CA3AF] transition-all"
+                className="w-full max-w-full text-[16px] sm:text-[13px] text-[#111111] border border-[#E5E7EB] rounded-lg px-3 py-2.5 sm:py-2 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] bg-white placeholder-[#9CA3AF] transition-all min-h-[42px] sm:min-h-0"
               />
             </div>
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-2 pt-3 pb-2 border-t border-[#F3F4F6]">
+          <div className="flex items-center justify-end gap-2.5 pt-3 pb-3 sm:pb-1 border-t border-[#F3F4F6] shrink-0">
             <button
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 border border-[#E5E7EB] rounded-xl sm:rounded-lg text-[13px] font-medium text-[rgba(17,17,17,0.6)] hover:bg-[#F9FAFB] disabled:opacity-40 transition-colors"
+              className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 border border-[#E5E7EB] rounded-xl sm:rounded-lg text-[14px] sm:text-[13px] font-medium text-[rgba(17,17,17,0.7)] hover:bg-[#F9FAFB] active:bg-[#F3F4F6] disabled:opacity-40 transition-colors min-h-[42px] sm:min-h-0 flex items-center justify-center cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!title.trim() || submitting}
-              className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 bg-[#2563EB] text-white rounded-xl sm:rounded-lg text-[13px] font-semibold hover:bg-[#1D4ED8] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+              className="flex-1 sm:flex-none px-5 py-2.5 sm:py-2 bg-[#2563EB] text-white rounded-xl sm:rounded-lg text-[14px] sm:text-[13px] font-semibold hover:bg-[#1D4ED8] active:bg-[#1E40AF] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 min-h-[42px] sm:min-h-0 shadow-sm cursor-pointer"
             >
               {submitting && (
                 <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />

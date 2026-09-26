@@ -385,14 +385,9 @@ export default function SignupPage() {
           </Link>
 
           {step === 'form' ? (
-            <>
-              <h1 className="text-xl font-bold tracking-tight text-[#111111]">
-                Create your account
-              </h1>
-              <p className="text-xs text-gray-500 mt-1">
-                Start collaborating with high-velocity engineering teams
-              </p>
-            </>
+            <h1 className="text-xl font-bold tracking-tight text-[#111111]">
+              Create your account
+            </h1>
           ) : (
             <>
               <div className="w-12 h-12 rounded-full bg-blue-50 text-[#2563EB] flex items-center justify-center mb-2 mx-auto">

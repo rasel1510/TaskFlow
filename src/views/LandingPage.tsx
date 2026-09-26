@@ -123,7 +123,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
       <section className="pt-16 pb-16 md:pt-24 md:pb-20 border-b border-slate-100 bg-[#FBFBFC]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           {/* Headline */}
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.12] mb-6 max-w-4xl mx-auto">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.12] mb-8 max-w-4xl mx-auto">
             Project management built for{' '}
             <span className="text-[#2563EB]">clarity, speed, and focus.</span>
           </h1>
