@@ -49,17 +49,14 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
   const projectRef = useRef<HTMLDivElement>(null);
 
   const [statusDropUp, setStatusDropUp] = useState(false);
-  const [statusMaxHeight, setStatusMaxHeight] = useState<number | undefined>(undefined);
   const [priorityDropUp, setPriorityDropUp] = useState(false);
-  const [priorityMaxHeight, setPriorityMaxHeight] = useState<number | undefined>(undefined);
   const [projectDropUp, setProjectDropUp] = useState(false);
-  const [projectMaxHeight, setProjectMaxHeight] = useState<number | undefined>(undefined);
 
   const checkDropUp = (
     ref: React.RefObject<HTMLDivElement | null>,
-    menuHeight = 215
-  ): { dropUp: boolean; maxHeight?: number } => {
-    if (!ref.current) return { dropUp: false };
+    menuHeight = 190
+  ): boolean => {
+    if (!ref.current) return false;
     const rect = ref.current.getBoundingClientRect();
     const formEl = ref.current.closest('form') || ref.current.closest('.overflow-y-auto');
     const bottomBoundary = formEl ? formEl.getBoundingClientRect().bottom : window.innerHeight;
@@ -67,22 +64,19 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
     const topBoundary = formEl ? formEl.getBoundingClientRect().top : 0;
     const spaceAbove = Math.max(0, rect.top - topBoundary - 10);
 
-    // If space below is not enough for the full menu, prefer dropping up if space above is sufficient or larger
-    const dropUp = spaceBelow < menuHeight && (spaceAbove >= menuHeight || spaceAbove > spaceBelow);
-    const availableSpace = dropUp ? spaceAbove : spaceBelow;
-    const maxHeight = availableSpace < menuHeight ? Math.max(120, Math.floor(availableSpace)) : undefined;
-
-    return { dropUp, maxHeight };
+    // If space below is not enough for the menu and space above is greater, drop up
+    return spaceBelow < menuHeight && spaceAbove > spaceBelow;
   };
 
   useEffect(() => {
     if (!statusOpen) return;
     const update = () => {
-      const { dropUp, maxHeight } = checkDropUp(statusRef, 215);
-      setStatusDropUp(dropUp);
-      setStatusMaxHeight(maxHeight);
+      setStatusDropUp(checkDropUp(statusRef, 190));
     };
     update();
+    if (statusRef.current) {
+      statusRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
     window.addEventListener('resize', update);
     const formEl = statusRef.current?.closest('form');
     if (formEl) formEl.addEventListener('scroll', update);
@@ -95,11 +89,12 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
   useEffect(() => {
     if (!priorityOpen) return;
     const update = () => {
-      const { dropUp, maxHeight } = checkDropUp(priorityRef, 175);
-      setPriorityDropUp(dropUp);
-      setPriorityMaxHeight(maxHeight);
+      setPriorityDropUp(checkDropUp(priorityRef, 160));
     };
     update();
+    if (priorityRef.current) {
+      priorityRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
     window.addEventListener('resize', update);
     const formEl = priorityRef.current?.closest('form');
     if (formEl) formEl.addEventListener('scroll', update);
@@ -112,11 +107,12 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
   useEffect(() => {
     if (!projectOpen) return;
     const update = () => {
-      const { dropUp, maxHeight } = checkDropUp(projectRef, 215);
-      setProjectDropUp(dropUp);
-      setProjectMaxHeight(maxHeight);
+      setProjectDropUp(checkDropUp(projectRef, 190));
     };
     update();
+    if (projectRef.current) {
+      projectRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
     window.addEventListener('resize', update);
     const formEl = projectRef.current?.closest('form');
     if (formEl) formEl.addEventListener('scroll', update);
@@ -264,9 +260,7 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                     onClick={() => {
                       const willOpen = !projectOpen;
                       if (willOpen) {
-                        const { dropUp, maxHeight } = checkDropUp(projectRef, 215);
-                        setProjectDropUp(dropUp);
-                        setProjectMaxHeight(maxHeight);
+                        setProjectDropUp(checkDropUp(projectRef, 190));
                       }
                       setProjectOpen(willOpen);
                       setStatusOpen(false);
@@ -295,8 +289,7 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
 
                   {projectOpen && projects.length > 0 && (
                     <div
-                      style={projectMaxHeight ? { maxHeight: `${projectMaxHeight}px` } : undefined}
-                      className={`absolute ${projectDropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} left-0 right-0 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-52 overflow-y-auto animate-in fade-in zoom-in-95 duration-100`}
+                      className={`absolute ${projectDropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} left-0 right-0 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-56 overflow-y-auto animate-in fade-in zoom-in-95 duration-100`}
                     >
                       {projects.map(p => {
                         const isSelected = p.id === projectId;
@@ -348,9 +341,7 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                     onClick={() => {
                       const willOpen = !statusOpen;
                       if (willOpen) {
-                        const { dropUp, maxHeight } = checkDropUp(statusRef, 215);
-                        setStatusDropUp(dropUp);
-                        setStatusMaxHeight(maxHeight);
+                        setStatusDropUp(checkDropUp(statusRef, 190));
                       }
                       setStatusOpen(willOpen);
                       setProjectOpen(false);
@@ -379,8 +370,7 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
 
                   {statusOpen && (
                     <div
-                      style={statusMaxHeight ? { maxHeight: `${statusMaxHeight}px` } : undefined}
-                      className={`absolute ${statusDropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} left-0 right-0 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-52 overflow-y-auto animate-in fade-in zoom-in-95 duration-100`}
+                      className={`absolute ${statusDropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} left-0 right-0 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-56 overflow-y-auto animate-in fade-in zoom-in-95 duration-100`}
                     >
                       {STATUS_OPTIONS.map(opt => {
                         const isSelected = opt.value === status;
@@ -420,9 +410,7 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                     onClick={() => {
                       const willOpen = !priorityOpen;
                       if (willOpen) {
-                        const { dropUp, maxHeight } = checkDropUp(priorityRef, 175);
-                        setPriorityDropUp(dropUp);
-                        setPriorityMaxHeight(maxHeight);
+                        setPriorityDropUp(checkDropUp(priorityRef, 160));
                       }
                       setPriorityOpen(willOpen);
                       setProjectOpen(false);
@@ -451,8 +439,7 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
 
                   {priorityOpen && (
                     <div
-                      style={priorityMaxHeight ? { maxHeight: `${priorityMaxHeight}px` } : undefined}
-                      className={`absolute ${priorityDropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} left-0 right-0 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-52 overflow-y-auto animate-in fade-in zoom-in-95 duration-100`}
+                      className={`absolute ${priorityDropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} left-0 right-0 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-56 overflow-y-auto animate-in fade-in zoom-in-95 duration-100`}
                     >
                       {PRIORITY_OPTIONS.map(opt => {
                         const isSelected = opt.value === priority;
@@ -510,7 +497,7 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
             </div>
 
             {/* Bottom spacer so dropdowns never get cut off */}
-            <div className="h-6 shrink-0" />
+            <div className="h-32 shrink-0 pointer-events-none" />
           </form>
 
           {/* Footer - Pinned to bottom */}
