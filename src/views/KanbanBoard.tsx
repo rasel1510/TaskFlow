@@ -384,8 +384,8 @@ export default function KanbanBoard({ onTaskClick, onCreateTask }: KanbanBoardPr
 
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           {/* Search box */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 border border-[#E5E7EB] rounded-lg bg-[#F9FAFB] focus-within:border-[#2563EB] focus-within:bg-white transition-all">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round">
+          <div className="flex items-center gap-2 px-3 py-1.5 border border-[#E5E7EB] hover:border-[#CBD5E1] rounded-lg bg-[#F9FAFB] focus-within:bg-white focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-[#DBEAFE] transition-all shadow-2xs">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" className="shrink-0">
               <circle cx="11" cy="11" r="8"/>
               <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
@@ -393,15 +393,19 @@ export default function KanbanBoard({ onTaskClick, onCreateTask }: KanbanBoardPr
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search board..."
-              className="bg-transparent text-[13px] text-[#111111] placeholder-[#9CA3AF] outline-none w-28 sm:w-36 md:w-44"
+              className="bg-transparent text-[13px] text-[#111111] placeholder-[#9CA3AF] outline-none border-none focus:outline-none focus:ring-0 w-28 sm:w-36 md:w-48"
             />
             {search && (
               <button
                 onClick={() => setSearch('')}
-                className="text-[#9CA3AF] hover:text-[#111111] text-[11px] px-0.5"
+                className="w-4 h-4 rounded-full flex items-center justify-center text-[#9CA3AF] hover:text-[#111111] hover:bg-[#E5E7EB] transition-colors shrink-0"
                 title="Clear search"
+                aria-label="Clear search"
               >
-                ✕
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
               </button>
             )}
           </div>

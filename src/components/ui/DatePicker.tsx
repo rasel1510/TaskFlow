@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 interface DatePickerProps {
   value: string; // 'YYYY-MM-DD' or ''
@@ -50,51 +50,8 @@ export default function DatePicker({
 }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [dropUp, setDropUp] = useState(false);
-  const [effectiveAlign, setEffectiveAlign] = useState<'left' | 'right'>(align || 'left');
+  const [effectiveAlign, setEffectiveAlign] = useState<'left' | 'right'>(align);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  const checkPlacement = () => {
-    if (!containerRef.current) return { isDropUp: false, hAlign: (align || 'left') as 'left' | 'right' };
-    const rect = containerRef.current.getBoundingClientRect();
-    const formEl = containerRef.current.closest('form') || containerRef.current.closest('.overflow-y-auto') || containerRef.current.closest('.overflow-hidden');
-    const bottomBoundary = formEl ? formEl.getBoundingClientRect().bottom : window.innerHeight;
-    const spaceBelow = bottomBoundary - rect.bottom;
-    const topBoundary = formEl ? formEl.getBoundingClientRect().top : 0;
-    const spaceAbove = rect.top - topBoundary;
-    const isDropUp = spaceBelow < 310 && spaceAbove > spaceBelow;
-
-    const leftBoundary = formEl ? formEl.getBoundingClientRect().left : 0;
-    const rightBoundary = formEl ? formEl.getBoundingClientRect().right : window.innerWidth;
-    const spaceToRight = rightBoundary - rect.left;
-    const spaceToLeft = rect.right - leftBoundary;
-
-    let hAlign: 'left' | 'right' = (align || 'left') as 'left' | 'right';
-    if (hAlign === 'right' && spaceToLeft < 285 && spaceToRight >= 285) {
-      hAlign = 'left';
-    } else if (hAlign === 'left' && spaceToRight < 285 && spaceToLeft >= 285) {
-      hAlign = 'right';
-    }
-
-    return { isDropUp, hAlign };
-  };
-
-  useEffect(() => {
-    if (isOpen) {
-      const { isDropUp, hAlign } = checkPlacement();
-      setDropUp(isDropUp);
-      setEffectiveAlign(hAlign);
-    }
-  }, [isOpen, align]);
-
-  // Auto scroll into view when opened on mobile screens
-  useEffect(() => {
-    if (isOpen && containerRef.current) {
-      const timer = setTimeout(() => {
-        containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }, 80);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
 
   // Initialize view year & month from value or today
   const initialDate = value ? new Date(value) : new Date();
@@ -118,17 +75,100 @@ export default function DatePicker({
     }
   }, [value]);
 
+  const checkPlacement = useCallback(() => {
+    if (!containerRef.current) return { isDropUp: false, hAlign: align };
+    const rect = containerRef.current.getBoundingClientRect();
+    const scrollContainer =
+      containerRef.current.closest('form') ||
+      containerRef.current.closest('.overflow-y-auto') ||
+      containerRef.current.closest('[role="dialog"]');
+
+    const bottomBoundary = scrollContainer
+      ? scrollContainer.getBoundingClientRect().bottom
+      : window.innerHeight;
+    const spaceBelow = Math.max(0, bottomBoundary - rect.bottom - 8);
+
+    const topBoundary = scrollContainer
+      ? scrollContainer.getBoundingClientRect().top
+      : 0;
+    const spaceAbove = Math.max(0, rect.top - topBoundary - 8);
+
+    // Standard compact calendar height is ~275px
+    const calendarHeight = 275;
+    const isDropUp = spaceBelow < calendarHeight && (spaceAbove >= 180 || spaceAbove > spaceBelow);
+
+    // Horizontal placement check
+    let hAlign: 'left' | 'right' = align;
+    const rightBoundary = scrollContainer
+      ? scrollContainer.getBoundingClientRect().right
+      : window.innerWidth;
+    const leftBoundary = scrollContainer
+      ? scrollContainer.getBoundingClientRect().left
+      : 0;
+
+    const spaceToRight = rightBoundary - rect.left;
+    const spaceToLeft = rect.right - leftBoundary;
+
+    if (hAlign === 'left' && spaceToRight < 280 && spaceToLeft >= 280) {
+      hAlign = 'right';
+    } else if (hAlign === 'right' && spaceToLeft < 280 && spaceToRight >= 280) {
+      hAlign = 'left';
+    }
+
+    return { isDropUp, hAlign };
+  }, [align]);
+
+  // Recalculate placement on open, scroll, or resize
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const updatePlacement = () => {
+      const { isDropUp, hAlign } = checkPlacement();
+      setDropUp(isDropUp);
+      setEffectiveAlign(hAlign);
+    };
+
+    updatePlacement();
+
+    window.addEventListener('resize', updatePlacement);
+    const scrollContainer =
+      containerRef.current?.closest('form') ||
+      containerRef.current?.closest('.overflow-y-auto');
+    if (scrollContainer) {
+      scrollContainer.addEventListener('scroll', updatePlacement);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updatePlacement);
+      if (scrollContainer) {
+        scrollContainer.removeEventListener('scroll', updatePlacement);
+      }
+    };
+  }, [isOpen, checkPlacement]);
+
+  // Smooth scroll into view when opened if needed
+  useEffect(() => {
+    if (isOpen && containerRef.current) {
+      const timer = setTimeout(() => {
+        containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
   // Click outside listener
   useEffect(() => {
+    if (!isOpen) return;
+
     function handleClickOutside(e: MouseEvent | TouchEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (containerRef.current && !containerRef.current.contains(target)) {
         setIsOpen(false);
       }
     }
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('touchstart', handleClickOutside);
-    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
@@ -218,7 +258,10 @@ export default function DatePicker({
   }
 
   return (
-    <div className={`relative w-full ${isOpen ? 'z-40' : 'z-10'}`} ref={containerRef}>
+    <div
+      ref={containerRef}
+      className={`relative w-full ${isOpen ? 'z-50' : 'z-10'}`}
+    >
       {/* Trigger Button */}
       <button
         type="button"
@@ -238,7 +281,7 @@ export default function DatePicker({
         aria-haspopup="dialog"
         aria-expanded={isOpen}
       >
-        <span className={value ? 'text-[#111111] font-medium' : 'text-[#9CA3AF]'}>
+        <span className={value ? 'text-[#111111] font-medium truncate' : 'text-[#9CA3AF] truncate'}>
           {value ? formatDisplayDate(value) : placeholder}
         </span>
         <svg
@@ -250,7 +293,7 @@ export default function DatePicker({
           strokeWidth="1.8"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className={`shrink-0 transition-colors ${isOpen ? 'text-[#2563EB]' : 'text-gray-400'}`}
+          className={`shrink-0 ml-2 transition-colors ${isOpen ? 'text-[#2563EB]' : 'text-gray-400'}`}
         >
           <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
           <line x1="16" y1="2" x2="16" y2="6" />
@@ -262,15 +305,15 @@ export default function DatePicker({
       {/* Calendar Dropdown */}
       {isOpen && (
         <div
-          className={`absolute ${dropUp ? 'bottom-full mb-1' : 'top-full mt-1'} z-50 bg-white border border-[#E5E7EB] rounded-xl shadow-xl p-3 select-none animate-in fade-in zoom-in-95 duration-100 left-0 right-0 w-full ${
-            effectiveAlign === 'left' ? 'sm:w-[280px] sm:left-0 sm:right-auto' : 'sm:w-[280px] sm:left-auto sm:right-0'
+          className={`absolute ${dropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} z-50 bg-white border border-[#E5E7EB] rounded-xl shadow-2xl p-2.5 sm:p-3 select-none animate-in fade-in zoom-in-95 duration-100 left-0 right-0 w-full sm:w-[280px] ${
+            effectiveAlign === 'left' ? 'sm:left-0 sm:right-auto' : 'sm:left-auto sm:right-0'
           }`}
           role="dialog"
           aria-label="Calendar date picker"
         >
           {/* Header */}
-          <div className="flex items-center justify-between mb-3 px-1">
-            <span className="text-[14px] sm:text-[13.5px] font-semibold text-[#111111]">
+          <div className="flex items-center justify-between mb-2.5 px-1">
+            <span className="text-[13.5px] font-semibold text-[#111111]">
               {MONTH_NAMES[viewMonth]} {viewYear}
             </span>
             <div className="flex items-center gap-1">
@@ -330,7 +373,7 @@ export default function DatePicker({
             {prevMonthDays.map((d, i) => (
               <div
                 key={`prev-${i}`}
-                className="h-8 flex items-center justify-center text-[12px] text-slate-300 pointer-events-none"
+                className="h-7.5 sm:h-7 flex items-center justify-center text-[12px] text-slate-300 pointer-events-none"
               >
                 {d}
               </div>
@@ -348,7 +391,7 @@ export default function DatePicker({
                   key={`cur-${d}`}
                   type="button"
                   onClick={() => handleSelectDay(d)}
-                  className={`h-8 rounded-lg flex items-center justify-center text-[13px] transition-all cursor-pointer ${
+                  className={`h-7.5 sm:h-7 rounded-lg flex items-center justify-center text-[12.5px] transition-all cursor-pointer ${
                     isSelected
                       ? 'bg-[#2563EB] text-white font-semibold shadow-xs'
                       : isToday
@@ -365,7 +408,7 @@ export default function DatePicker({
             {nextMonthDays.map((d, i) => (
               <div
                 key={`next-${i}`}
-                className="h-8 flex items-center justify-center text-[12px] text-slate-300 pointer-events-none"
+                className="h-7.5 sm:h-7 flex items-center justify-center text-[12px] text-slate-300 pointer-events-none"
               >
                 {d}
               </div>
@@ -373,7 +416,7 @@ export default function DatePicker({
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-slate-100 text-[12.5px]">
+          <div className="flex items-center justify-between pt-2 mt-2 border-t border-slate-100 text-[12px]">
             <button
               type="button"
               onClick={handleClear}

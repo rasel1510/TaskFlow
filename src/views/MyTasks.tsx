@@ -156,16 +156,29 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
 
         {/* Search + Filters */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-4 md:mb-5">
-          <div className="flex items-center gap-1.5 px-3 py-2 border border-[#E5E7EB] rounded-lg bg-[#F9FAFB] flex-1">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round">
+          <div className="flex items-center gap-2 px-3 py-1.5 sm:py-2 border border-[#E5E7EB] hover:border-[#CBD5E1] rounded-lg bg-[#F9FAFB] focus-within:bg-white focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-[#DBEAFE] transition-all flex-1 shadow-2xs">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" className="shrink-0">
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search tasks..."
-              className="bg-transparent text-[13px] text-[#111111] placeholder-[#9CA3AF] outline-none w-full"
+              className="bg-transparent text-[13px] text-[#111111] placeholder-[#9CA3AF] outline-none border-none focus:outline-none focus:ring-0 w-full"
             />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="w-4 h-4 rounded-full flex items-center justify-center text-[#9CA3AF] hover:text-[#111111] hover:bg-[#E5E7EB] transition-colors shrink-0"
+                title="Clear search"
+                aria-label="Clear search"
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            )}
           </div>
 
           {/* Status tabs — horizontal scroll on mobile */}
@@ -186,10 +199,6 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
           </div>
 
           <div className="hidden sm:flex items-center gap-2 text-[12.5px] text-[rgba(17,17,17,0.5)]">
-            <button className="flex items-center gap-1.5 px-2.5 py-1.5 border border-[#E5E7EB] rounded-lg hover:bg-[#F9FAFB] transition-colors">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-              Filter
-            </button>
             <button className="flex items-center gap-1.5 px-2.5 py-1.5 border border-[#E5E7EB] rounded-lg hover:bg-[#F9FAFB] transition-colors">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
               Sort

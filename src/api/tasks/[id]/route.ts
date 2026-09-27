@@ -51,7 +51,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     const task = await prisma.task.findUnique({
       where: { id },
       include: {
-        assignee: true,
+        assignee: {
+          select: { id: true, name: true, email: true, avatar: true, role: true },
+        },
         project: true,
         subtasks: true,
         comments: {
@@ -214,7 +216,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       data: updateData,
       // Only include assignee/project if they changed — avoids expensive joins
       include: {
-        assignee: 'assigneeId' in updateData,
+        assignee: 'assigneeId' in updateData ? {
+          select: { id: true, name: true, email: true, avatar: true, role: true },
+        } : false,
         project:  'projectId'  in updateData,
         subtasks: false,
       },

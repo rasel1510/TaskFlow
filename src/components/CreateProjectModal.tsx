@@ -116,7 +116,6 @@ export default function CreateProjectModal({ onClose, onSuccess }: CreateProject
         <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[#E5E7EB] bg-white shrink-0">
           <div>
             <h2 className="text-[16px] sm:text-[17px] font-bold text-[#111111]">Create New Project</h2>
-            <p className="text-[11.5px] sm:text-[12px] text-[rgba(17,17,17,0.45)] mt-0.5">Define your project scope, timeline, and color theme.</p>
           </div>
           <button
             type="button"
@@ -194,7 +193,7 @@ export default function CreateProjectModal({ onClose, onSuccess }: CreateProject
           </div>
 
           {/* Due date */}
-          <div className="relative z-20">
+          <div className="relative z-30">
             <label className="block text-[12.5px] font-semibold text-[#111111] mb-1.5">Target Due Date</label>
             <DatePicker
               value={dueDate}

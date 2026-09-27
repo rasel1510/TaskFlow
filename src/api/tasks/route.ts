@@ -157,7 +157,9 @@ export async function GET(request: NextRequest) {
         take: limit + 1,
         ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
         include: {
-          assignee: true,
+          assignee: {
+            select: { id: true, name: true, email: true, avatar: true, role: true },
+          },
           project:  true,
           subtasks: true,
         },
@@ -363,7 +365,9 @@ export async function POST(request: NextRequest) {
         dueDate:     parseSafeDate(dueDate),
       },
       include: {
-        assignee: true,
+        assignee: {
+          select: { id: true, name: true, email: true, avatar: true, role: true },
+        },
         project: true,
         subtasks: true,
       },

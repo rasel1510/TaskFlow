@@ -463,7 +463,7 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search timeline..."
-                className="pl-8 pr-3 py-1 text-[11.5px] bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg focus:bg-white focus:border-[#2563EB] focus:outline-none w-44 md:w-56 transition-colors"
+                className="pl-8 pr-7 py-1 text-[11.5px] bg-[#F9FAFB] border border-[#E5E7EB] hover:border-[#CBD5E1] rounded-lg focus:bg-white focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] focus:outline-none w-44 md:w-56 transition-all shadow-2xs"
               />
               {search && (
                 <button

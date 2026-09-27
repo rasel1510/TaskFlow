@@ -5,7 +5,6 @@ import { useSession } from 'next-auth/react';
 import { useTasks } from '@/context/TaskContext';
 import type { DBUser, DBProject } from '@/context/TaskContext';
 import DatePicker from '@/components/ui/DatePicker';
-
 interface CreateTaskModalProps {
   onClose: () => void;
   prefillDate?: string;
@@ -50,30 +49,81 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
   const projectRef = useRef<HTMLDivElement>(null);
 
   const [statusDropUp, setStatusDropUp] = useState(false);
+  const [statusMaxHeight, setStatusMaxHeight] = useState<number | undefined>(undefined);
   const [priorityDropUp, setPriorityDropUp] = useState(false);
+  const [priorityMaxHeight, setPriorityMaxHeight] = useState<number | undefined>(undefined);
   const [projectDropUp, setProjectDropUp] = useState(false);
+  const [projectMaxHeight, setProjectMaxHeight] = useState<number | undefined>(undefined);
 
-  const checkDropUp = (ref: React.RefObject<HTMLDivElement | null>, menuHeight = 210) => {
-    if (!ref.current) return false;
+  const checkDropUp = (
+    ref: React.RefObject<HTMLDivElement | null>,
+    menuHeight = 215
+  ): { dropUp: boolean; maxHeight?: number } => {
+    if (!ref.current) return { dropUp: false };
     const rect = ref.current.getBoundingClientRect();
     const formEl = ref.current.closest('form') || ref.current.closest('.overflow-y-auto');
     const bottomBoundary = formEl ? formEl.getBoundingClientRect().bottom : window.innerHeight;
-    const spaceBelow = bottomBoundary - rect.bottom;
+    const spaceBelow = Math.max(0, bottomBoundary - rect.bottom - 10);
     const topBoundary = formEl ? formEl.getBoundingClientRect().top : 0;
-    const spaceAbove = rect.top - topBoundary;
-    return spaceBelow < menuHeight && spaceAbove > spaceBelow;
+    const spaceAbove = Math.max(0, rect.top - topBoundary - 10);
+
+    // If space below is not enough for the full menu, prefer dropping up if space above is sufficient or larger
+    const dropUp = spaceBelow < menuHeight && (spaceAbove >= menuHeight || spaceAbove > spaceBelow);
+    const availableSpace = dropUp ? spaceAbove : spaceBelow;
+    const maxHeight = availableSpace < menuHeight ? Math.max(120, Math.floor(availableSpace)) : undefined;
+
+    return { dropUp, maxHeight };
   };
 
   useEffect(() => {
-    if (statusOpen) setStatusDropUp(checkDropUp(statusRef, 210));
+    if (!statusOpen) return;
+    const update = () => {
+      const { dropUp, maxHeight } = checkDropUp(statusRef, 215);
+      setStatusDropUp(dropUp);
+      setStatusMaxHeight(maxHeight);
+    };
+    update();
+    window.addEventListener('resize', update);
+    const formEl = statusRef.current?.closest('form');
+    if (formEl) formEl.addEventListener('scroll', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      if (formEl) formEl.removeEventListener('scroll', update);
+    };
   }, [statusOpen]);
 
   useEffect(() => {
-    if (priorityOpen) setPriorityDropUp(checkDropUp(priorityRef, 170));
+    if (!priorityOpen) return;
+    const update = () => {
+      const { dropUp, maxHeight } = checkDropUp(priorityRef, 175);
+      setPriorityDropUp(dropUp);
+      setPriorityMaxHeight(maxHeight);
+    };
+    update();
+    window.addEventListener('resize', update);
+    const formEl = priorityRef.current?.closest('form');
+    if (formEl) formEl.addEventListener('scroll', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      if (formEl) formEl.removeEventListener('scroll', update);
+    };
   }, [priorityOpen]);
 
   useEffect(() => {
-    if (projectOpen) setProjectDropUp(checkDropUp(projectRef, 220));
+    if (!projectOpen) return;
+    const update = () => {
+      const { dropUp, maxHeight } = checkDropUp(projectRef, 215);
+      setProjectDropUp(dropUp);
+      setProjectMaxHeight(maxHeight);
+    };
+    update();
+    window.addEventListener('resize', update);
+    const formEl = projectRef.current?.closest('form');
+    if (formEl) formEl.addEventListener('scroll', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      if (formEl) formEl.removeEventListener('scroll', update);
+    };
   }, [projectOpen]);
 
   // Close dropdowns on click outside
@@ -175,7 +225,7 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
           </div>
 
           {/* Body */}
-          <form onSubmit={handleSubmit} className="px-4 sm:px-6 py-4 sm:py-5 space-y-4 overflow-y-auto flex-1 overscroll-contain">
+          <form id="create-task-form" onSubmit={handleSubmit} className="px-4 sm:px-6 py-4 sm:py-5 space-y-4 overflow-y-auto flex-1 overscroll-contain">
             {/* Error */}
             {errorMsg && (
               <div className="px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-[13px] text-red-600">
@@ -206,65 +256,75 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Project */}
-              <div className={`relative ${projectOpen ? 'z-30' : 'z-10'}`} ref={projectRef}>
+              <div className={`relative ${projectOpen ? 'z-40' : 'z-10'}`}>
                 <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.5)] mb-1.5">Project</label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!projectOpen) setProjectDropUp(checkDropUp(projectRef, 220));
-                    setProjectOpen(!projectOpen);
-                    setStatusOpen(false);
-                    setPriorityOpen(false);
-                  }}
-                  className={`w-full max-w-full flex items-center justify-between text-[15px] sm:text-[13px] text-[#111111] border rounded-lg px-3 py-2.5 sm:py-2 bg-white transition-all min-h-[42px] sm:min-h-0 cursor-pointer ${projectOpen ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]' : 'border-[#E5E7EB] hover:border-[#CBD5E1]'
-                    }`}
-                >
-                  <span className="truncate">
-                    {projects.find(p => p.id === projectId)?.name || (projects.length === 0 ? 'Loading...' : 'Select project')}
-                  </span>
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className={`text-gray-400 shrink-0 transition-transform duration-150 ${projectOpen ? 'rotate-180 text-[#2563EB]' : ''}`}
+                <div className="relative" ref={projectRef}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const willOpen = !projectOpen;
+                      if (willOpen) {
+                        const { dropUp, maxHeight } = checkDropUp(projectRef, 215);
+                        setProjectDropUp(dropUp);
+                        setProjectMaxHeight(maxHeight);
+                      }
+                      setProjectOpen(willOpen);
+                      setStatusOpen(false);
+                      setPriorityOpen(false);
+                    }}
+                    className={`w-full max-w-full flex items-center justify-between text-[15px] sm:text-[13px] text-[#111111] border rounded-lg px-3 py-2.5 sm:py-2 bg-white transition-all min-h-[42px] sm:min-h-0 cursor-pointer ${projectOpen ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]' : 'border-[#E5E7EB] hover:border-[#CBD5E1]'
+                      }`}
                   >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
+                    <span className="truncate">
+                      {projects.find(p => p.id === projectId)?.name || (projects.length === 0 ? 'Loading...' : 'Select project')}
+                    </span>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className={`text-gray-400 shrink-0 transition-transform duration-150 ${projectOpen ? 'rotate-180 text-[#2563EB]' : ''}`}
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
 
-                {projectOpen && projects.length > 0 && (
-                  <div className={`absolute ${projectDropUp ? 'bottom-full mb-1' : 'top-full mt-1'} left-0 right-0 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-56 overflow-y-auto animate-in fade-in zoom-in-95 duration-100`}>
-                    {projects.map(p => {
-                      const isSelected = p.id === projectId;
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => {
-                            setProjectId(p.id);
-                            setProjectOpen(false);
-                          }}
-                          className={`w-full text-left px-3.5 py-2.5 sm:py-2 text-[15px] sm:text-[13px] transition-colors cursor-pointer flex items-center justify-between ${isSelected
-                            ? 'bg-[#2563EB] text-white font-medium'
-                            : 'text-[#111111] hover:bg-[#F3F4F6] active:bg-[#E5E7EB]'
-                            }`}
-                        >
-                          <span className="truncate">{p.name}</span>
-                          {isSelected && (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+                  {projectOpen && projects.length > 0 && (
+                    <div
+                      style={projectMaxHeight ? { maxHeight: `${projectMaxHeight}px` } : undefined}
+                      className={`absolute ${projectDropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} left-0 right-0 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-52 overflow-y-auto animate-in fade-in zoom-in-95 duration-100`}
+                    >
+                      {projects.map(p => {
+                        const isSelected = p.id === projectId;
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              setProjectId(p.id);
+                              setProjectOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 text-[13.5px] transition-colors cursor-pointer flex items-center justify-between ${isSelected
+                              ? 'bg-[#2563EB] text-white font-medium'
+                              : 'text-[#111111] hover:bg-[#F3F4F6] active:bg-[#E5E7EB]'
+                              }`}
+                          >
+                            <span className="truncate">{p.name}</span>
+                            {isSelected && (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Assignee */}
@@ -280,133 +340,153 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
               </div>
 
               {/* Status */}
-              <div className={`relative ${statusOpen ? 'z-30' : 'z-10'}`} ref={statusRef}>
+              <div className={`relative ${statusOpen ? 'z-40' : 'z-10'}`}>
                 <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.5)] mb-1.5">Status</label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!statusOpen) setStatusDropUp(checkDropUp(statusRef, 210));
-                    setStatusOpen(!statusOpen);
-                    setProjectOpen(false);
-                    setPriorityOpen(false);
-                  }}
-                  className={`w-full max-w-full flex items-center justify-between text-[15px] sm:text-[13px] text-[#111111] border rounded-lg px-3 py-2.5 sm:py-2 bg-white transition-all min-h-[42px] sm:min-h-0 cursor-pointer ${statusOpen ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]' : 'border-[#E5E7EB] hover:border-[#CBD5E1]'
-                    }`}
-                >
-                  <span className="truncate">
-                    {STATUS_OPTIONS.find(o => o.value === status)?.label || 'To Do'}
-                  </span>
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className={`text-gray-400 shrink-0 transition-transform duration-150 ${statusOpen ? 'rotate-180 text-[#2563EB]' : ''}`}
+                <div className="relative" ref={statusRef}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const willOpen = !statusOpen;
+                      if (willOpen) {
+                        const { dropUp, maxHeight } = checkDropUp(statusRef, 215);
+                        setStatusDropUp(dropUp);
+                        setStatusMaxHeight(maxHeight);
+                      }
+                      setStatusOpen(willOpen);
+                      setProjectOpen(false);
+                      setPriorityOpen(false);
+                    }}
+                    className={`w-full max-w-full flex items-center justify-between text-[15px] sm:text-[13px] text-[#111111] border rounded-lg px-3 py-2.5 sm:py-2 bg-white transition-all min-h-[42px] sm:min-h-0 cursor-pointer ${statusOpen ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]' : 'border-[#E5E7EB] hover:border-[#CBD5E1]'
+                      }`}
                   >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
+                    <span className="truncate">
+                      {STATUS_OPTIONS.find(o => o.value === status)?.label || 'To Do'}
+                    </span>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className={`text-gray-400 shrink-0 transition-transform duration-150 ${statusOpen ? 'rotate-180 text-[#2563EB]' : ''}`}
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
 
-                {statusOpen && (
-                  <div className={`absolute ${statusDropUp ? 'bottom-full mb-1' : 'top-full mt-1'} left-0 right-0 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-56 overflow-y-auto animate-in fade-in zoom-in-95 duration-100`}>
-                    {STATUS_OPTIONS.map(opt => {
-                      const isSelected = opt.value === status;
-                      return (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => {
-                            setStatus(opt.value);
-                            setStatusOpen(false);
-                          }}
-                          className={`w-full text-left px-3.5 py-2.5 sm:py-2 text-[15px] sm:text-[13px] transition-colors cursor-pointer flex items-center justify-between ${isSelected
-                            ? 'bg-[#2563EB] text-white font-medium'
-                            : 'text-[#111111] hover:bg-[#F3F4F6] active:bg-[#E5E7EB]'
-                            }`}
-                        >
-                          <span>{opt.label}</span>
-                          {isSelected && (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+                  {statusOpen && (
+                    <div
+                      style={statusMaxHeight ? { maxHeight: `${statusMaxHeight}px` } : undefined}
+                      className={`absolute ${statusDropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} left-0 right-0 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-52 overflow-y-auto animate-in fade-in zoom-in-95 duration-100`}
+                    >
+                      {STATUS_OPTIONS.map(opt => {
+                        const isSelected = opt.value === status;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setStatus(opt.value);
+                              setStatusOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 text-[13.5px] transition-colors cursor-pointer flex items-center justify-between ${isSelected
+                              ? 'bg-[#2563EB] text-white font-medium'
+                              : 'text-[#111111] hover:bg-[#F3F4F6] active:bg-[#E5E7EB]'
+                              }`}
+                          >
+                            <span>{opt.label}</span>
+                            {isSelected && (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Priority */}
-              <div className={`relative ${priorityOpen ? 'z-30' : 'z-10'}`} ref={priorityRef}>
+              <div className={`relative ${priorityOpen ? 'z-40' : 'z-10'}`}>
                 <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.5)] mb-1.5">Priority</label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!priorityOpen) setPriorityDropUp(checkDropUp(priorityRef, 170));
-                    setPriorityOpen(!priorityOpen);
-                    setProjectOpen(false);
-                    setStatusOpen(false);
-                  }}
-                  className={`w-full max-w-full flex items-center justify-between text-[15px] sm:text-[13px] text-[#111111] border rounded-lg px-3 py-2.5 sm:py-2 bg-white transition-all min-h-[42px] sm:min-h-0 cursor-pointer ${priorityOpen ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]' : 'border-[#E5E7EB] hover:border-[#CBD5E1]'
-                    }`}
-                >
-                  <span className="truncate">
-                    {PRIORITY_OPTIONS.find(o => o.value === priority)?.label || 'Medium'}
-                  </span>
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className={`text-gray-400 shrink-0 transition-transform duration-150 ${priorityOpen ? 'rotate-180 text-[#2563EB]' : ''}`}
+                <div className="relative" ref={priorityRef}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const willOpen = !priorityOpen;
+                      if (willOpen) {
+                        const { dropUp, maxHeight } = checkDropUp(priorityRef, 175);
+                        setPriorityDropUp(dropUp);
+                        setPriorityMaxHeight(maxHeight);
+                      }
+                      setPriorityOpen(willOpen);
+                      setProjectOpen(false);
+                      setStatusOpen(false);
+                    }}
+                    className={`w-full max-w-full flex items-center justify-between text-[15px] sm:text-[13px] text-[#111111] border rounded-lg px-3 py-2.5 sm:py-2 bg-white transition-all min-h-[42px] sm:min-h-0 cursor-pointer ${priorityOpen ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]' : 'border-[#E5E7EB] hover:border-[#CBD5E1]'
+                      }`}
                   >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
+                    <span className="truncate">
+                      {PRIORITY_OPTIONS.find(o => o.value === priority)?.label || 'Medium'}
+                    </span>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className={`text-gray-400 shrink-0 transition-transform duration-150 ${priorityOpen ? 'rotate-180 text-[#2563EB]' : ''}`}
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
 
-                {priorityOpen && (
-                  <div className={`absolute ${priorityDropUp ? 'bottom-full mb-1' : 'top-full mt-1'} left-0 right-0 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-56 overflow-y-auto animate-in fade-in zoom-in-95 duration-100`}>
-                    {PRIORITY_OPTIONS.map(opt => {
-                      const isSelected = opt.value === priority;
-                      return (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => {
-                            setPriority(opt.value);
-                            setPriorityOpen(false);
-                          }}
-                          className={`w-full text-left px-3.5 py-2.5 sm:py-2 text-[15px] sm:text-[13px] transition-colors cursor-pointer flex items-center justify-between ${isSelected
-                            ? 'bg-[#2563EB] text-white font-medium'
-                            : 'text-[#111111] hover:bg-[#F3F4F6] active:bg-[#E5E7EB]'
-                            }`}
-                        >
-                          <span>{opt.label}</span>
-                          {isSelected && (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+                  {priorityOpen && (
+                    <div
+                      style={priorityMaxHeight ? { maxHeight: `${priorityMaxHeight}px` } : undefined}
+                      className={`absolute ${priorityDropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} left-0 right-0 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-52 overflow-y-auto animate-in fade-in zoom-in-95 duration-100`}
+                    >
+                      {PRIORITY_OPTIONS.map(opt => {
+                        const isSelected = opt.value === priority;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setPriority(opt.value);
+                              setPriorityOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 text-[13.5px] transition-colors cursor-pointer flex items-center justify-between ${isSelected
+                              ? 'bg-[#2563EB] text-white font-medium'
+                              : 'text-[#111111] hover:bg-[#F3F4F6] active:bg-[#E5E7EB]'
+                              }`}
+                          >
+                            <span>{opt.label}</span>
+                            {isSelected && (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Due Date */}
-              <div className="relative z-20">
+              <div className="relative z-30">
                 <label className="block text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.5)] mb-1.5">Due Date</label>
                 <DatePicker
                   value={dueDate}
@@ -429,28 +509,32 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="flex items-center justify-end gap-2.5 pt-3 pb-3 sm:pb-1 border-t border-[#F3F4F6] shrink-0">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={submitting}
-                className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 border border-[#E5E7EB] rounded-xl sm:rounded-lg text-[14px] sm:text-[13px] font-medium text-[rgba(17,17,17,0.7)] hover:bg-[#F9FAFB] active:bg-[#F3F4F6] disabled:opacity-40 transition-colors min-h-[42px] sm:min-h-0 flex items-center justify-center cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={!title.trim() || submitting}
-                className="flex-1 sm:flex-none px-5 py-2.5 sm:py-2 bg-[#2563EB] text-white rounded-xl sm:rounded-lg text-[14px] sm:text-[13px] font-semibold hover:bg-[#1D4ED8] active:bg-[#1E40AF] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 min-h-[42px] sm:min-h-0 shadow-sm cursor-pointer"
-              >
-                {submitting && (
-                  <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                )}
-                {submitting ? 'Saving...' : 'Save Task'}
-              </button>
-            </div>
+            {/* Bottom spacer so dropdowns never get cut off */}
+            <div className="h-6 shrink-0" />
           </form>
+
+          {/* Footer - Pinned to bottom */}
+          <div className="flex items-center justify-end gap-2.5 px-4 sm:px-6 py-3.5 border-t border-[#E5E7EB] bg-white shrink-0 rounded-b-2xl">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={submitting}
+              className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 border border-[#E5E7EB] rounded-xl sm:rounded-lg text-[14px] sm:text-[13px] font-medium text-[rgba(17,17,17,0.7)] hover:bg-[#F9FAFB] active:bg-[#F3F4F6] disabled:opacity-40 transition-colors min-h-[42px] sm:min-h-0 flex items-center justify-center cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="create-task-form"
+              disabled={!title.trim() || submitting}
+              className="flex-1 sm:flex-none px-5 py-2.5 sm:py-2 bg-[#2563EB] text-white rounded-xl sm:rounded-lg text-[14px] sm:text-[13px] font-semibold hover:bg-[#1D4ED8] active:bg-[#1E40AF] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 min-h-[42px] sm:min-h-0 shadow-sm cursor-pointer"
+            >
+              {submitting && (
+                <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              )}
+              {submitting ? 'Saving...' : 'Save Task'}
+            </button>
+          </div>
         </div>
       </div>
     </>

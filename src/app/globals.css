@@ -55,14 +55,37 @@ textarea {
   touch-action: manipulation;
 }
 
-/* Remove browser default focus ring — rely on custom :focus-visible rings */
+/* Remove browser default focus ring — rely on custom focus styles */
 :focus {
   outline: none;
 }
-:focus-visible {
+
+/* Keyboard focus rings for interactive buttons, links, and actionable elements */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[role="link"]:focus-visible,
+[tabindex="0"]:focus-visible {
   outline: 2px solid #2563EB;
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 6px;
+}
+
+/* Form inputs manage their own focus styling via border/ring utilities (prevents awkward inner outlines) */
+input,
+textarea,
+select {
+  outline: none !important;
+}
+
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible,
+select:focus,
+select:focus-visible {
+  outline: none !important;
+  box-shadow: none;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────

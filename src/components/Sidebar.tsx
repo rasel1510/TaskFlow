@@ -170,17 +170,10 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
       {/* Apply collapsed width on md+ */}
       <style>{`@media (min-width: 768px) { aside { width: ${collapsed ? 60 : 240}px !important; } }`}</style>
 
-      {/* Logo */}
+      {/* Brand Header */}
       <div className="flex items-center gap-3 px-4 py-4 border-b border-[#E5E7EB]" style={{ height: 57 }}>
-        <button
-          onClick={() => {
-            onNavigate('dashboard');
-            onMobileClose();
-          }}
-          className="flex items-center gap-2.5 group cursor-pointer text-left"
-          title="TaskFlow Dashboard"
-        >
-          <div className="w-7 h-7 rounded-lg bg-[#2563EB] flex items-center justify-center shrink-0 group-hover:bg-[#1D4ED8] transition-colors">
+        <div className="flex items-center gap-2.5 select-none text-left min-w-0">
+          <div className="w-7 h-7 rounded-lg bg-[#2563EB] flex items-center justify-center shrink-0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
               <path d="M9 11l3 3L22 4" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
               <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
@@ -191,7 +184,7 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
           <span className="font-bold text-[15px] text-[#111111] tracking-tight hidden md:block" style={{ display: collapsed ? 'none' : undefined }}>
             {!collapsed && 'TaskFlow'}
           </span>
-        </button>
+        </div>
         {/* Desktop collapse toggle */}
         <button
           onClick={onToggle}
@@ -331,7 +324,7 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
           )}
         </button>
 
-        {/* User profile & Logout */}
+        {/* Bottom user profile & session actions */}
         <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-[#F3F4F6] transition-colors group">
           <div className="relative shrink-0">
             <div className="w-7 h-7 rounded-full bg-[#2563EB] flex items-center justify-center">
