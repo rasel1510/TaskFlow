@@ -49,6 +49,33 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
   const priorityRef = useRef<HTMLDivElement>(null);
   const projectRef = useRef<HTMLDivElement>(null);
 
+  const [statusDropUp, setStatusDropUp] = useState(false);
+  const [priorityDropUp, setPriorityDropUp] = useState(false);
+  const [projectDropUp, setProjectDropUp] = useState(false);
+
+  const checkDropUp = (ref: React.RefObject<HTMLDivElement | null>, menuHeight = 210) => {
+    if (!ref.current) return false;
+    const rect = ref.current.getBoundingClientRect();
+    const formEl = ref.current.closest('form') || ref.current.closest('.overflow-y-auto');
+    const bottomBoundary = formEl ? formEl.getBoundingClientRect().bottom : window.innerHeight;
+    const spaceBelow = bottomBoundary - rect.bottom;
+    const topBoundary = formEl ? formEl.getBoundingClientRect().top : 0;
+    const spaceAbove = rect.top - topBoundary;
+    return spaceBelow < menuHeight && spaceAbove > spaceBelow;
+  };
+
+  useEffect(() => {
+    if (statusOpen) setStatusDropUp(checkDropUp(statusRef, 210));
+  }, [statusOpen]);
+
+  useEffect(() => {
+    if (priorityOpen) setPriorityDropUp(checkDropUp(priorityRef, 170));
+  }, [priorityOpen]);
+
+  useEffect(() => {
+    if (projectOpen) setProjectDropUp(checkDropUp(projectRef, 220));
+  }, [projectOpen]);
+
   // Close dropdowns on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent | TouchEvent) {
@@ -184,6 +211,7 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                 <button
                   type="button"
                   onClick={() => {
+                    if (!projectOpen) setProjectDropUp(checkDropUp(projectRef, 220));
                     setProjectOpen(!projectOpen);
                     setStatusOpen(false);
                     setPriorityOpen(false);
@@ -210,7 +238,7 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                 </button>
 
                 {projectOpen && projects.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-56 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
+                  <div className={`absolute ${projectDropUp ? 'bottom-full mb-1' : 'top-full mt-1'} left-0 right-0 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-56 overflow-y-auto animate-in fade-in zoom-in-95 duration-100`}>
                     {projects.map(p => {
                       const isSelected = p.id === projectId;
                       return (
@@ -257,6 +285,7 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                 <button
                   type="button"
                   onClick={() => {
+                    if (!statusOpen) setStatusDropUp(checkDropUp(statusRef, 210));
                     setStatusOpen(!statusOpen);
                     setProjectOpen(false);
                     setPriorityOpen(false);
@@ -283,7 +312,7 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                 </button>
 
                 {statusOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-56 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
+                  <div className={`absolute ${statusDropUp ? 'bottom-full mb-1' : 'top-full mt-1'} left-0 right-0 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-56 overflow-y-auto animate-in fade-in zoom-in-95 duration-100`}>
                     {STATUS_OPTIONS.map(opt => {
                       const isSelected = opt.value === status;
                       return (
@@ -318,6 +347,7 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                 <button
                   type="button"
                   onClick={() => {
+                    if (!priorityOpen) setPriorityDropUp(checkDropUp(priorityRef, 170));
                     setPriorityOpen(!priorityOpen);
                     setProjectOpen(false);
                     setStatusOpen(false);
@@ -344,7 +374,7 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                 </button>
 
                 {priorityOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-56 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
+                  <div className={`absolute ${priorityDropUp ? 'bottom-full mb-1' : 'top-full mt-1'} left-0 right-0 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-56 overflow-y-auto animate-in fade-in zoom-in-95 duration-100`}>
                     {PRIORITY_OPTIONS.map(opt => {
                       const isSelected = opt.value === priority;
                       return (
@@ -382,6 +412,7 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                   value={dueDate}
                   onChange={setDueDate}
                   placeholder="Select due date"
+                  align="left"
                 />
               </div>
 

@@ -223,6 +223,7 @@ export default function AppPage() {
             onCreateTask={() => setShowCreateTask(true)}
             onMenuToggle={() => setMobileSidebarOpen(o => !o)}
             onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+            onNavigate={navigateTo}
           />
           {/* Main content area — on mobile, reserve space for the bottom nav (56px) */}
           <main className="flex flex-1 overflow-hidden min-h-0">

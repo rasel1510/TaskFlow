@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import {
   Check,
@@ -30,11 +31,19 @@ interface LandingPageProps {
 }
 
 export default function LandingPage({ onLaunchApp }: LandingPageProps) {
+  const router = useRouter();
   const { data: session, status } = useSession();
   const isAuthenticated = status === 'authenticated';
   const userName = session?.user?.name || session?.user?.email?.split('@')[0] || 'User';
 
   const [activeTab, setActiveTab] = useState<'kanban' | 'list' | 'projects'>('kanban');
+
+  // If already authenticated and visiting the root URL '/', seamlessly redirect to workspace
+  useEffect(() => {
+    if (status === 'authenticated' && typeof window !== 'undefined' && window.location.pathname === '/') {
+      router.replace('/app');
+    }
+  }, [status, router]);
 
   return (
     <div className="min-h-screen bg-white text-[#0F172A] selection:bg-blue-100 selection:text-blue-800 font-sans">

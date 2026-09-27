@@ -69,7 +69,8 @@ function LoginForm() {
       }
 
       setSuccess('Authentication successful! Redirecting to workspace...');
-      const targetUrl = searchParams.get('callbackUrl') || '/app';
+      const callback = searchParams.get('callbackUrl');
+      const targetUrl = callback && callback !== '/' && !callback.startsWith('/auth') ? callback : '/app';
       setTimeout(() => {
         router.push(targetUrl);
         router.refresh();
@@ -83,7 +84,8 @@ function LoginForm() {
 
   const handleSocialSignIn = (provider: 'google' | 'github') => {
     setSocialLoading(provider);
-    const targetUrl = searchParams.get('callbackUrl') || '/app';
+    const callback = searchParams.get('callbackUrl');
+    const targetUrl = callback && callback !== '/' && !callback.startsWith('/auth') ? callback : '/app';
     signIn(provider, { callbackUrl: targetUrl });
   };
 

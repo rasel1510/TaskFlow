@@ -170,18 +170,24 @@ export type UpdateSubtaskInput = z.infer<typeof UpdateSubtaskSchema>;
 export const UpdateProfileSchema = z.object({
   name: z
     .string()
-    .min(2, 'Name must be at least 2 characters')
+    .min(1, 'Name cannot be empty')
     .max(100, 'Name must be 100 characters or fewer')
-    .trim(),
-  role: z
-    .string()
-    .max(50, 'Role must be 50 characters or fewer')
     .trim()
     .optional(),
+  role: z
+    .string()
+    .max(100, 'Role must be 100 characters or fewer')
+    .trim()
+    .optional()
+    .nullable(),
   avatar: z
     .string()
-    .max(10, 'Avatar initials must be 10 characters or fewer')
+    .max(255, 'Avatar must be 255 characters or fewer')
     .trim()
+    .optional()
+    .nullable(),
+  expertise: z
+    .array(z.string().trim().min(1))
     .optional(),
 });
 

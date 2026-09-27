@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     try {
       const session = await auth();
       sessionUserId = session?.user?.id;
-    } catch {}
+    } catch { }
 
     const requestedUserId = searchParams.get('userId');
     const targetUserId = sessionUserId || requestedUserId || currentUser.id;
@@ -179,7 +179,7 @@ export async function PATCH(request: NextRequest) {
     try {
       const session = await auth();
       sessionUserId = session?.user?.id;
-    } catch {}
+    } catch { }
 
     const targetUserId = sessionUserId || currentUser.id;
 
@@ -202,7 +202,7 @@ export async function PATCH(request: NextRequest) {
             where: { userId: targetUserId, read: false },
             data: { read: true },
           });
-        } catch {}
+        } catch { }
       }
       demoNotifications.forEach(n => {
         n.read = true;
@@ -219,7 +219,7 @@ export async function PATCH(request: NextRequest) {
             where: { id: body.id },
             data: { read: readVal },
           });
-        } catch {}
+        } catch { }
       }
       const match = demoNotifications.find(n => n.id === body.id);
       if (match) match.read = readVal;
@@ -240,3 +240,8 @@ export async function PATCH(request: NextRequest) {
     );
   }
 }
+
+
+
+
+

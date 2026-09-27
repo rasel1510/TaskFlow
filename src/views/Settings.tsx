@@ -24,12 +24,22 @@ import { useToast } from '@/components/ui/Toast';
 
 type Section = 'profile' | 'workspace' | 'members' | 'notifications' | 'security' | 'billing' | 'integrations';
 
+export const DEFAULT_EXPERTISE_OPTIONS = [
+  { id: 'UI Design', label: 'UI Design', desc: 'Design Systems, Figma, Wireframing, UX' },
+  { id: 'Frontend', label: 'Frontend', desc: 'React, Next.js, TypeScript, State Management' },
+  { id: 'Backend', label: 'Backend', desc: 'Node.js, PostgreSQL, REST/GraphQL APIs, Prisma' },
+  { id: 'ML', label: 'ML', desc: 'Machine Learning, Model Training, PyTorch, Data Pipelines' },
+  { id: 'AI', label: 'AI', desc: 'LLMs, Generative AI, RAG, Prompt Engineering, Agents' },
+  { id: 'Distributed Learning', label: 'Distributed Learning', desc: 'Distributed Systems, Federated ML, Cluster Computing' },
+];
+
 interface UserProfile {
   id: string;
   name: string;
   email: string;
   role: string;
   avatar: string;
+  expertise?: string[];
   createdAt: string;
 }
 
@@ -158,9 +168,11 @@ export default function Settings() {
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileFetching, setProfileFetching] = useState(false);
 
-  const [pName, setPName]   = useState('');
-  const [pRole, setPRole]   = useState('');
-  const [pAvatar, setPAvatar] = useState('');
+  const [pName, setPName]           = useState('');
+  const [pRole, setPRole]           = useState('');
+  const [pAvatar, setPAvatar]       = useState('');
+  const [pExpertise, setPExpertise] = useState<string[]>([]);
+  const [customSkill, setCustomSkill] = useState('');
 
   // Fetch profile when section opens or userId changes
   const fetchProfileRef = useRef(false);
@@ -177,6 +189,7 @@ export default function Settings() {
         setPName(u.name);
         setPRole(u.role);
         setPAvatar(u.avatar);
+        setPExpertise(Array.isArray(u.expertise) ? u.expertise : []);
       }
     } catch {
       // Aborted or network error — silently degrade
@@ -192,21 +205,64 @@ export default function Settings() {
     return () => ctrl.abort();
   }, [section, userId, fetchProfile]);
 
+  const toggleExpertise = (id: string) => {
+    setPExpertise(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const addCustomExpertise = () => {
+    const trimmed = customSkill.trim();
+    if (!trimmed) return;
+    if (!pExpertise.includes(trimmed)) {
+      setPExpertise(prev => [...prev, trimmed]);
+    }
+    setCustomSkill('');
+  };
+
   const handleSaveProfile = async () => {
     if (!userId) return;
+    if (pExpertise.length === 0) {
+      toast.error('Please configure at least one domain in your Expertise Matrix');
+      return;
+    }
     setProfileLoading(true);
     try {
+      const payload: {
+        name?: string;
+        role?: string;
+        avatar?: string;
+        expertise: string[];
+      } = {
+        expertise: pExpertise,
+      };
+
+      const trimmedName = pName.trim() || session?.user?.name || profile?.name;
+      if (trimmedName) payload.name = trimmedName;
+
+      const trimmedRole = pRole.trim() || (session?.user as { role?: string })?.role || profile?.role;
+      if (trimmedRole) payload.role = trimmedRole;
+
+      const trimmedAvatar = pAvatar.trim() || (session?.user as { avatar?: string })?.avatar || profile?.avatar;
+      if (trimmedAvatar) payload.avatar = trimmedAvatar;
+
       const res = await fetch(`/api/users/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: pName, role: pRole, avatar: pAvatar }),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
       if (res.ok && json.success) {
         setProfile(json.data);
-        toast.success('Profile updated successfully');
+        window.dispatchEvent(new CustomEvent('user-profile-updated', { detail: json.data }));
+        toast.success('Profile and Expertise Matrix updated successfully');
       } else {
-        toast.error(json.error?.message ?? 'Failed to save profile');
+        const detailMsg = json.error?.details
+          ? Object.entries(json.error.details)
+              .map(([f, msg]) => `${f}: ${msg}`)
+              .join('; ')
+          : json.error?.message ?? 'Failed to save profile';
+        toast.error(detailMsg);
       }
     } catch {
       toast.error('Network error — please try again');
@@ -304,6 +360,8 @@ export default function Settings() {
     toast.success('Notification preferences saved');
   };
 
+  const isExpertiseUnset = !profileFetching && (!profile?.expertise || profile.expertise.length === 0);
+
   /* ─────────────────────────────────────────
      RENDER
   ───────────────────────────────────────── */
@@ -316,13 +374,16 @@ export default function Settings() {
           <button
             key={item.id}
             onClick={() => setSection(item.id)}
-            className={`px-3 py-1.5 rounded-lg text-[12.5px] font-medium whitespace-nowrap transition-colors shrink-0 ${
+            className={`px-3 py-1.5 rounded-lg text-[12.5px] font-medium whitespace-nowrap transition-colors shrink-0 flex items-center gap-1.5 ${
               section === item.id
                 ? 'bg-white text-[#2563EB] shadow-2xs font-semibold'
                 : 'text-[rgba(17,17,17,0.55)] hover:text-[#111111]'
             }`}
           >
-            {item.label}
+            <span>{item.label}</span>
+            {item.id === 'profile' && isExpertiseUnset && (
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" title="Expertise matrix required" />
+            )}
           </button>
         ))}
       </div>
@@ -340,13 +401,22 @@ export default function Settings() {
                 <button
                   key={item.id}
                   onClick={() => setSection(item.id)}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-[13px] font-medium mb-0.5 transition-colors ${
+                  className={`w-full flex items-center justify-between text-left px-3 py-2 rounded-lg text-[13px] font-medium mb-0.5 transition-colors ${
                     section === item.id
                       ? 'bg-[#EFF6FF] text-[#2563EB]'
                       : 'text-[rgba(17,17,17,0.65)] hover:bg-[#F3F4F6] hover:text-[#111111]'
                   }`}
                 >
-                  {item.label}
+                  <span>{item.label}</span>
+                  {item.id === 'profile' && isExpertiseUnset && (
+                    <span
+                      title="Expertise matrix required"
+                      className="flex items-center gap-1 text-[10.5px] font-semibold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                      Required
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -362,10 +432,7 @@ export default function Settings() {
         ━━━━━━━━━━━━━━━━━━━━━━━━ */}
         {section === 'profile' && (
           <div className="max-w-xl">
-            <h2 className="text-[20px] font-bold text-[#111111] mb-1">Profile</h2>
-            <p className="text-[13px] text-[rgba(17,17,17,0.45)] mb-6">
-              Update your personal information — changes save directly to the database.
-            </p>
+            <h2 className="text-[20px] font-bold text-[#111111] mb-6">Profile</h2>
 
             {profileFetching ? (
               <div className="flex items-center gap-2 text-[13px] text-[rgba(17,17,17,0.4)] py-6">
@@ -418,6 +485,128 @@ export default function Settings() {
                   <div>
                     <FieldLabel>Job Title</FieldLabel>
                     <TextInput value={pRole} onChange={setPRole} placeholder="e.g. Software Engineer" />
+                  </div>
+
+                  {/* Expertise Matrix */}
+                  <div className="pt-4 border-t border-[#F3F4F6]">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <FieldLabel>Expertise Matrix</FieldLabel>
+                        {pExpertise.length === 0 ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-50 text-red-600 border border-red-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                            Required
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            {pExpertise.length} Selected
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <p className="text-[12px] text-[rgba(17,17,17,0.5)] mb-3">
+                      Select all domains that match your skill set. All team members must configure their expertise matrix.
+                    </p>
+
+                    {/* Prominent warning callout if unset */}
+                    {pExpertise.length === 0 && (
+                      <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-[12.5px] mb-3.5">
+                        <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 animate-ping" />
+                        <span>
+                          <strong className="font-semibold text-red-900">Expertise matrix is required:</strong> Please select at least one domain below.
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Presets Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-3.5">
+                      {DEFAULT_EXPERTISE_OPTIONS.map(opt => {
+                        const isSelected = pExpertise.includes(opt.id);
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => toggleExpertise(opt.id)}
+                            className={`flex items-start gap-2.5 p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                              isSelected
+                                ? 'border-[#2563EB] bg-[#EFF6FF] ring-1 ring-[#2563EB] shadow-xs'
+                                : 'border-[#E5E7EB] hover:border-[#CBD5E1] bg-white hover:bg-[#F9FAFB]'
+                            }`}
+                          >
+                            <div className={`w-4 h-4 rounded mt-0.5 flex items-center justify-center shrink-0 border transition-colors ${
+                              isSelected
+                                ? 'bg-[#2563EB] border-[#2563EB] text-white'
+                                : 'border-[#CBD5E1] bg-white'
+                            }`}>
+                              {isSelected && (
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className={`text-[13px] font-semibold ${isSelected ? 'text-[#2563EB]' : 'text-[#111111]'}`}>
+                                {opt.label}
+                              </div>
+                              <div className="text-[11px] text-[rgba(17,17,17,0.45)] mt-0.5 leading-snug">
+                                {opt.desc}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Custom Domain Input */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={customSkill}
+                        onChange={e => setCustomSkill(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addCustomExpertise();
+                          }
+                        }}
+                        placeholder="Add other specialization (e.g. DevOps, Mobile, QA)..."
+                        className="flex-1 text-[13px] px-3 py-2 border border-[#E5E7EB] rounded-lg outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] bg-white placeholder-[#9CA3AF] transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={addCustomExpertise}
+                        disabled={!customSkill.trim()}
+                        className="px-3 py-2 bg-[#F3F4F6] hover:bg-[#E5E7EB] text-[#111111] text-[12.5px] font-medium rounded-lg disabled:opacity-40 transition-colors cursor-pointer shrink-0"
+                      >
+                        + Add
+                      </button>
+                    </div>
+
+                    {/* Custom Selected Tags */}
+                    {pExpertise.filter(item => !DEFAULT_EXPERTISE_OPTIONS.some(o => o.id === item)).length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2.5">
+                        {pExpertise
+                          .filter(item => !DEFAULT_EXPERTISE_OPTIONS.some(o => o.id === item))
+                          .map(tag => (
+                            <span
+                              key={tag}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] font-medium bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]"
+                            >
+                              <span>{tag}</span>
+                              <button
+                                type="button"
+                                onClick={() => toggleExpertise(tag)}
+                                className="w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-blue-200 text-[#2563EB] cursor-pointer"
+                                aria-label={`Remove ${tag}`}
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 

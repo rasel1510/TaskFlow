@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
+import { auth } from '@/auth';
 import LandingPage from '@/views/LandingPage';
 
 export const metadata: Metadata = {
@@ -11,6 +13,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await auth();
+
+  // If already authenticated, redirect straight to the workspace
+  if (session?.user) {
+    redirect('/app');
+  }
+
   return <LandingPage />;
 }

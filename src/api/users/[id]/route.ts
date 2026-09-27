@@ -49,6 +49,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         email: true,
         role: true,
         avatar: true,
+        expertise: true,
         createdAt: true,
       },
     });
@@ -71,7 +72,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 }
 
 // ---------------------------------------------------------------------------
-// PATCH /api/users/:id  — Update profile (name, role, avatar)
+// PATCH /api/users/:id  — Update profile (name, role, avatar, expertise)
 // ---------------------------------------------------------------------------
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
@@ -106,11 +107,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const parsed = UpdateProfileSchema.safeParse(body);
     if (!parsed.success) return validationError(parsed.error);
 
-    const updateData: { name: string; role?: string; avatar?: string } = {
-      name: parsed.data.name,
-    };
-    if (parsed.data.role !== undefined) updateData.role = parsed.data.role;
-    if (parsed.data.avatar !== undefined) updateData.avatar = parsed.data.avatar;
+    const updateData: { name?: string; role?: string; avatar?: string; expertise?: string[] } = {};
+    if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
+    if (parsed.data.role !== undefined && parsed.data.role !== null) updateData.role = parsed.data.role;
+    if (parsed.data.avatar !== undefined && parsed.data.avatar !== null) updateData.avatar = parsed.data.avatar;
+    if (parsed.data.expertise !== undefined) updateData.expertise = parsed.data.expertise;
 
     const updated = await prisma.user.update({
       where: { id },
@@ -121,6 +122,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         email: true,
         role: true,
         avatar: true,
+        expertise: true,
         createdAt: true,
       },
     });

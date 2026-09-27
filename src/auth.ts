@@ -6,10 +6,33 @@ import { users as mockUsers } from '@/data/mockData';
 import { findStoredUserByEmail } from '@/data/userStore';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'flowsync-secure-nextauth-secret-key-32chars',
   session: {
     strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 days persistent session
+    updateAge: 24 * 60 * 60, // 24 hours rolling renewal
+  },
+  jwt: {
     maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  cookies: {
+    sessionToken: {
+      name:
+        process.env.NODE_ENV === 'production' &&
+        !process.env.NEXTAUTH_URL?.startsWith('http://localhost')
+          ? '__Secure-authjs.session-token'
+          : 'authjs.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure:
+          process.env.NODE_ENV === 'production' &&
+          !process.env.NEXTAUTH_URL?.startsWith('http://localhost'),
+        maxAge: 30 * 24 * 60 * 60, // 30 days persistent cookie (survives system turn off/restart)
+      },
+    },
   },
   pages: {
     signIn: '/auth/login',

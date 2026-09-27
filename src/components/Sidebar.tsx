@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import { currentUser, projects } from '../data/mockData';
 import { useTaskContext } from '@/context/TaskContext';
@@ -92,11 +91,41 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
   const activeTaskCount = tasks.filter(t => t.status !== 'done').length || undefined;
 
   const { data: session } = useSession();
+  const userId = (session?.user as { id?: string })?.id;
   const userName = session?.user?.name || currentUser.name;
   const userRole = (session?.user as { role?: string })?.role || currentUser.role;
   const userAvatar =
     (session?.user as { avatar?: string })?.avatar ||
     (session?.user?.name ? session.user.name.slice(0, 2).toUpperCase() : currentUser.avatar);
+
+  const [expertiseRequired, setExpertiseRequired] = useState(false);
+
+  // Check expertise matrix status
+  useEffect(() => {
+    if (!userId) return;
+    let isMounted = true;
+    fetch(`/api/users/${userId}`)
+      .then(res => res.json())
+      .then(json => {
+        if (isMounted && json.success && json.data) {
+          const exp = json.data.expertise;
+          setExpertiseRequired(!Array.isArray(exp) || exp.length === 0);
+        }
+      })
+      .catch(() => {});
+
+    const onProfileUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail && Array.isArray(customEvent.detail.expertise)) {
+        setExpertiseRequired(customEvent.detail.expertise.length === 0);
+      }
+    };
+    window.addEventListener('user-profile-updated', onProfileUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('user-profile-updated', onProfileUpdate);
+    };
+  }, [userId]);
 
   // Poll unread notifications count
   useEffect(() => {
@@ -143,7 +172,14 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
 
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 py-4 border-b border-[#E5E7EB]" style={{ height: 57 }}>
-        <Link href="/" className="flex items-center gap-2.5 group" title="Go to Home Page">
+        <button
+          onClick={() => {
+            onNavigate('dashboard');
+            onMobileClose();
+          }}
+          className="flex items-center gap-2.5 group cursor-pointer text-left"
+          title="TaskFlow Dashboard"
+        >
           <div className="w-7 h-7 rounded-lg bg-[#2563EB] flex items-center justify-center shrink-0 group-hover:bg-[#1D4ED8] transition-colors">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
               <path d="M9 11l3 3L22 4" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
@@ -155,7 +191,7 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
           <span className="font-bold text-[15px] text-[#111111] tracking-tight hidden md:block" style={{ display: collapsed ? 'none' : undefined }}>
             {!collapsed && 'TaskFlow'}
           </span>
-        </Link>
+        </button>
         {/* Desktop collapse toggle */}
         <button
           onClick={onToggle}
@@ -278,34 +314,43 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
               : 'text-[rgba(17,17,17,0.65)] hover:bg-[#F3F4F6] hover:text-[#111111]'
           }`}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
-          <span className={`md:${collapsed ? 'hidden' : 'block'}`}>Settings</span>
+          <div className="relative">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+            {expertiseRequired && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 ring-2 ring-white animate-pulse" />
+            )}
+          </div>
+          <span className={`flex-1 text-left md:${collapsed ? 'hidden' : 'block'}`}>Settings</span>
+          {expertiseRequired && (
+            <span className={`text-[9.5px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded bg-red-100 text-red-600 md:${collapsed ? 'hidden' : 'inline-block'}`}>
+              Required
+            </span>
+          )}
         </button>
-
-        {/* Link to public Product Landing Page */}
-        {/* Link to Home page */}
-        <Link
-          href="/"
-          title="Go to Home / Landing Page"
-          className="w-full flex items-center gap-3 px-3 py-2 md:py-1.5 rounded-lg text-[13px] font-medium text-[rgba(17,17,17,0.65)] hover:bg-[#F3F4F6] hover:text-[#111111] transition-colors mb-1"
-        >
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            <polyline points="9 22 9 12 15 12 15 22" />
-          </svg>
-          <span className={`md:${collapsed ? 'hidden' : 'block'}`}>Home Page</span>
-        </Link>
 
         {/* User profile & Logout */}
         <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-[#F3F4F6] transition-colors group">
-          <div className="w-7 h-7 rounded-full bg-[#2563EB] flex items-center justify-center shrink-0">
-            <span className="text-[11px] font-bold text-white">{userAvatar}</span>
+          <div className="relative shrink-0">
+            <div className="w-7 h-7 rounded-full bg-[#2563EB] flex items-center justify-center">
+              <span className="text-[11px] font-bold text-white">{userAvatar}</span>
+            </div>
+            {expertiseRequired && (
+              <span
+                title="Action Required: Set Expertise Matrix"
+                className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 border-2 border-white animate-pulse"
+              />
+            )}
           </div>
           <div className={`flex-1 min-w-0 md:${collapsed ? 'hidden' : 'block'}`}>
-            <div className="text-[12.5px] font-semibold text-[#111111] truncate">{userName}</div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[12.5px] font-semibold text-[#111111] truncate">{userName}</span>
+              {expertiseRequired && (
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" title="Expertise not filled" />
+              )}
+            </div>
             <div className="text-[11px] text-[rgba(17,17,17,0.45)] truncate">{userRole}</div>
           </div>
           <button

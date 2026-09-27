@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { currentUser, notifications } from '../data/mockData';
 
@@ -34,21 +33,50 @@ interface HeaderProps {
   onCreateTask?: () => void;
   onMenuToggle: () => void;
   onOpenCommandPalette?: () => void;
+  onNavigate?: (view: View) => void;
 }
 
-export default function Header({ currentView, onMenuToggle, onOpenCommandPalette }: HeaderProps) {
+export default function Header({ currentView, onMenuToggle, onOpenCommandPalette, onNavigate }: HeaderProps) {
   const [showNotifs, setShowNotifs] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [expertiseRequired, setExpertiseRequired] = useState(false);
   const unread = notifications.filter(n => !n.read).length;
   const crumbs = breadcrumbs[currentView];
 
   const { data: session } = useSession();
+  const userId = (session?.user as { id?: string })?.id;
   const userName = session?.user?.name || currentUser.name;
   const userEmail = session?.user?.email || currentUser.email;
   const userRole = (session?.user as { role?: string })?.role || currentUser.role;
   const userAvatar =
     (session?.user as { avatar?: string })?.avatar ||
     (session?.user?.name ? session.user.name.slice(0, 2).toUpperCase() : currentUser.avatar);
+
+  useEffect(() => {
+    if (!userId) return;
+    let isMounted = true;
+    fetch(`/api/users/${userId}`)
+      .then(res => res.json())
+      .then(json => {
+        if (isMounted && json.success && json.data) {
+          const exp = json.data.expertise;
+          setExpertiseRequired(!Array.isArray(exp) || exp.length === 0);
+        }
+      })
+      .catch(() => {});
+
+    const onProfileUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail && Array.isArray(customEvent.detail.expertise)) {
+        setExpertiseRequired(customEvent.detail.expertise.length === 0);
+      }
+    };
+    window.addEventListener('user-profile-updated', onProfileUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('user-profile-updated', onProfileUpdate);
+    };
+  }, [userId]);
 
   return (
     <header className="flex items-center gap-2 md:gap-4 px-3.5 sm:px-4 md:px-6 bg-white border-b border-[#E5E7EB] shrink-0 z-30 pt-safe h-[56px] md:h-[57px]">
@@ -172,11 +200,19 @@ export default function Header({ currentView, onMenuToggle, onOpenCommandPalette
         <div className="relative">
           <button
             onClick={() => { setShowUserMenu(!showUserMenu); setShowNotifs(false); }}
-            className="flex items-center gap-1.5 px-1 py-0.5 rounded-lg hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-1 py-0.5 rounded-lg hover:bg-[#F3F4F6] transition-colors cursor-pointer relative"
             aria-label="User menu"
           >
-            <div className="w-7 h-7 rounded-full bg-[#2563EB] flex items-center justify-center">
-              <span className="text-[11px] font-bold text-white">{userAvatar}</span>
+            <div className="relative">
+              <div className="w-7 h-7 rounded-full bg-[#2563EB] flex items-center justify-center">
+                <span className="text-[11px] font-bold text-white">{userAvatar}</span>
+              </div>
+              {expertiseRequired && (
+                <span
+                  title="Profile Action Required: Set Expertise Matrix"
+                  className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-white ring-1 ring-red-400 animate-pulse"
+                />
+              )}
             </div>
             <svg className="hidden md:block" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2">
               <path d="M6 9l6 6 6-6"/>
@@ -194,18 +230,50 @@ export default function Header({ currentView, onMenuToggle, onOpenCommandPalette
                     {userRole}
                   </span>
                 </div>
+
+                {expertiseRequired && (
+                  <div className="p-2 border-b border-red-100 bg-red-50/70">
+                    <button
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        onNavigate?.('settings');
+                      }}
+                      className="w-full text-left p-2 rounded-lg bg-white border border-red-200 hover:border-red-300 shadow-xs hover:shadow-sm transition-all group cursor-pointer"
+                    >
+                      <div className="flex items-center gap-1.5 text-red-600 font-semibold text-[11px]">
+                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+                        <span>Action Required</span>
+                      </div>
+                      <p className="text-[11.5px] text-[#111111] font-medium mt-1 leading-tight group-hover:text-red-700 transition-colors">
+                        Set your Expertise Matrix
+                      </p>
+                      <p className="text-[10px] text-[rgba(17,17,17,0.5)] mt-0.5">
+                        Required for skill allocation →
+                      </p>
+                    </button>
+                  </div>
+                )}
+
                 <div className="p-1 space-y-0.5">
-                  <Link
-                    href="/"
-                    onClick={() => setShowUserMenu(false)}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-slate-700 hover:bg-[#F3F4F6] transition-colors font-medium text-left cursor-pointer"
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      onNavigate?.('settings');
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[13px] text-[rgba(17,17,17,0.8)] hover:bg-[#F3F4F6] transition-colors text-left cursor-pointer"
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                      <polyline points="9 22 9 12 15 12 15 22" />
-                    </svg>
-                    Home Page
-                  </Link>
+                    <div className="flex items-center gap-2.5">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                      </svg>
+                      <span>Settings & Profile</span>
+                    </div>
+                    {expertiseRequired && (
+                      <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                    )}
+                  </button>
+
                   <button
                     onClick={() => {
                       setShowUserMenu(false);

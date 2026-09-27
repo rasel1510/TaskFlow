@@ -46,10 +46,45 @@ export default function DatePicker({
   onChange,
   placeholder = 'Select date',
   className = '',
-  align = 'right',
+  align = 'left',
 }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [dropUp, setDropUp] = useState(false);
+  const [effectiveAlign, setEffectiveAlign] = useState<'left' | 'right'>(align || 'left');
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const checkPlacement = () => {
+    if (!containerRef.current) return { isDropUp: false, hAlign: (align || 'left') as 'left' | 'right' };
+    const rect = containerRef.current.getBoundingClientRect();
+    const formEl = containerRef.current.closest('form') || containerRef.current.closest('.overflow-y-auto') || containerRef.current.closest('.overflow-hidden');
+    const bottomBoundary = formEl ? formEl.getBoundingClientRect().bottom : window.innerHeight;
+    const spaceBelow = bottomBoundary - rect.bottom;
+    const topBoundary = formEl ? formEl.getBoundingClientRect().top : 0;
+    const spaceAbove = rect.top - topBoundary;
+    const isDropUp = spaceBelow < 310 && spaceAbove > spaceBelow;
+
+    const leftBoundary = formEl ? formEl.getBoundingClientRect().left : 0;
+    const rightBoundary = formEl ? formEl.getBoundingClientRect().right : window.innerWidth;
+    const spaceToRight = rightBoundary - rect.left;
+    const spaceToLeft = rect.right - leftBoundary;
+
+    let hAlign: 'left' | 'right' = (align || 'left') as 'left' | 'right';
+    if (hAlign === 'right' && spaceToLeft < 285 && spaceToRight >= 285) {
+      hAlign = 'left';
+    } else if (hAlign === 'left' && spaceToRight < 285 && spaceToLeft >= 285) {
+      hAlign = 'right';
+    }
+
+    return { isDropUp, hAlign };
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      const { isDropUp, hAlign } = checkPlacement();
+      setDropUp(isDropUp);
+      setEffectiveAlign(hAlign);
+    }
+  }, [isOpen, align]);
 
   // Auto scroll into view when opened on mobile screens
   useEffect(() => {
@@ -183,11 +218,18 @@ export default function DatePicker({
   }
 
   return (
-    <div className="relative w-full" ref={containerRef}>
+    <div className={`relative w-full ${isOpen ? 'z-40' : 'z-10'}`} ref={containerRef}>
       {/* Trigger Button */}
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          if (!isOpen) {
+            const { isDropUp, hAlign } = checkPlacement();
+            setDropUp(isDropUp);
+            setEffectiveAlign(hAlign);
+          }
+          setIsOpen(!isOpen);
+        }}
         className={`w-full max-w-full flex items-center justify-between text-[15px] sm:text-[13px] border rounded-lg px-3 py-2.5 sm:py-2 bg-white transition-all min-h-[42px] sm:min-h-0 cursor-pointer ${
           isOpen
             ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]'
@@ -220,8 +262,8 @@ export default function DatePicker({
       {/* Calendar Dropdown */}
       {isOpen && (
         <div
-          className={`absolute top-full mt-1 z-50 bg-white border border-[#E5E7EB] rounded-xl shadow-xl p-3 select-none animate-in fade-in zoom-in-95 duration-100 left-0 right-0 w-full ${
-            align === 'left' ? 'sm:w-[280px] sm:left-0 sm:right-auto' : 'sm:w-[280px] sm:left-auto sm:right-0'
+          className={`absolute ${dropUp ? 'bottom-full mb-1' : 'top-full mt-1'} z-50 bg-white border border-[#E5E7EB] rounded-xl shadow-xl p-3 select-none animate-in fade-in zoom-in-95 duration-100 left-0 right-0 w-full ${
+            effectiveAlign === 'left' ? 'sm:w-[280px] sm:left-0 sm:right-auto' : 'sm:w-[280px] sm:left-auto sm:right-0'
           }`}
           role="dialog"
           aria-label="Calendar date picker"
