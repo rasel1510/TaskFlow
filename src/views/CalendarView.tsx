@@ -1446,19 +1446,6 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
         )}
       </div>
 
-      {/* ========================================================= */}
-      {/* MOBILE FLOATING ACTION BUTTON (+ New Task)                */}
-      {/* ========================================================= */}
-      <button
-        onClick={() => onCreateTask?.(selectedDateKey)}
-        className="sm:hidden fixed bottom-5 right-5 z-20 w-13 h-13 rounded-full bg-[#2563EB] text-white shadow-xl hover:bg-[#1D4ED8] active:scale-95 flex items-center justify-center transition-all"
-        aria-label="Create new task"
-      >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-      </button>
 
       {/* ========================================================= */}
       {/* DAY TASKS POPOVER MODAL (When clicking "+N more")         */}
