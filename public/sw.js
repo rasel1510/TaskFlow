@@ -46,8 +46,23 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Auto-unregister and bypass on localhost or development environments
+const isLocal = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
+
+if (isLocal) {
+  self.addEventListener('install', () => self.skipWaiting());
+  self.addEventListener('activate', (event) => {
+    event.waitUntil(
+      caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+        .then(() => self.registration.unregister())
+        .then(() => self.clients.claim())
+    );
+  });
+}
+
 // ── Fetch: routing strategy ───────────────────────────────────────────────
 self.addEventListener('fetch', (event) => {
+  if (isLocal) return; // Never intercept requests on localhost / development
   const { request } = event;
   const url = new URL(request.url);
 

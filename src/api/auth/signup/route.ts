@@ -39,6 +39,12 @@ export async function POST(req: Request) {
     if (!parsed.success) return validationError(parsed.error);
 
     const { name, email: normalizedEmail, password, role: userRole } = parsed.data;
+    const normalizedRole =
+      userRole?.trim().toLowerCase() === 'project manager'
+        ? 'Project Manager'
+        : userRole?.trim().toLowerCase() === 'admin'
+        ? 'Admin'
+        : 'User';
 
     const avatar = getInitials(name);
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -76,7 +82,7 @@ export async function POST(req: Request) {
           name: (name as string).trim(),
           email: normalizedEmail,
           password: hashedPassword,
-          role: userRole,
+          role: normalizedRole,
           avatar,
           emailVerified: null,
         },
@@ -101,7 +107,7 @@ export async function POST(req: Request) {
         name: (name as string).trim(),
         email: normalizedEmail,
         password: hashedPassword,
-        role: userRole,
+        role: normalizedRole,
         avatar,
       });
 

@@ -55,7 +55,7 @@ export default function Header({ currentView, onMenuToggle, onOpenCommandPalette
   useEffect(() => {
     if (!userId) return;
     let isMounted = true;
-    fetch(`/api/users/${userId}`)
+    fetch(`/api/users/${userId}`, { cache: 'no-store' })
       .then(res => res.json())
       .then(json => {
         if (isMounted && json.success && json.data) {

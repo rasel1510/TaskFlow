@@ -16,7 +16,7 @@
  *   - Zero unmounted setState warnings (AbortController cleanup)
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useToast } from '@/components/ui/Toast';
 
@@ -25,12 +25,75 @@ import { useToast } from '@/components/ui/Toast';
 type Section = 'profile' | 'workspace' | 'members' | 'notifications' | 'security' | 'billing' | 'integrations';
 
 export const DEFAULT_EXPERTISE_OPTIONS = [
-  { id: 'UI Design', label: 'UI Design', desc: 'Design Systems, Figma, Wireframing, UX' },
-  { id: 'Frontend', label: 'Frontend', desc: 'React, Next.js, TypeScript, State Management' },
-  { id: 'Backend', label: 'Backend', desc: 'Node.js, PostgreSQL, REST/GraphQL APIs, Prisma' },
-  { id: 'ML', label: 'ML', desc: 'Machine Learning, Model Training, PyTorch, Data Pipelines' },
-  { id: 'AI', label: 'AI', desc: 'LLMs, Generative AI, RAG, Prompt Engineering, Agents' },
-  { id: 'Distributed Learning', label: 'Distributed Learning', desc: 'Distributed Systems, Federated ML, Cluster Computing' },
+  { id: 'UI Design', label: 'UI Design' },
+  { id: 'Frontend', label: 'Frontend' },
+  { id: 'Backend', label: 'Backend' },
+  { id: 'ML', label: 'ML' },
+  { id: 'AI', label: 'AI' },
+  { id: 'Distributed Learning', label: 'Distributed Learning' },
+];
+
+export const NON_MENTIONED_EXPERTISE_SUGGESTIONS = [
+  'DevOps',
+  'Cloud Architecture',
+  'AWS',
+  'Google Cloud (GCP)',
+  'Microsoft Azure',
+  'Docker',
+  'Kubernetes',
+  'CI/CD Pipelines',
+  'Terraform',
+  'Linux Systems',
+  'QA Engineering',
+  'Automated Testing',
+  'Jest & Playwright',
+  'Cypress',
+  'Performance Testing',
+  'Cybersecurity',
+  'Penetration Testing',
+  'Mobile Development',
+  'iOS (Swift)',
+  'Android (Kotlin)',
+  'React Native',
+  'Flutter',
+  'Full Stack Engineering',
+  'TypeScript',
+  'JavaScript',
+  'Python',
+  'Go (Golang)',
+  'Rust',
+  'Java',
+  'C++',
+  'C# / .NET',
+  'Node.js',
+  'Express.js',
+  'NestJS',
+  'GraphQL',
+  'REST APIs',
+  'WebSockets & Realtime',
+  'PostgreSQL',
+  'MongoDB',
+  'Redis',
+  'MySQL',
+  'Database Architecture',
+  'Data Engineering',
+  'ETL & Data Pipelines',
+  'Apache Kafka',
+  'Big Data Analytics',
+  'UX Research',
+  'Product Design',
+  'Figma & Design Systems',
+  'Interaction Design',
+  'Project Management',
+  'Agile / Scrum Master',
+  'System Architecture',
+  'Microservices',
+  'Natural Language Processing (NLP)',
+  'Computer Vision',
+  'Deep Learning',
+  'Blockchain & Web3',
+  'Site Reliability (SRE)',
+  'Technical Writing',
 ];
 
 interface UserProfile {
@@ -173,6 +236,32 @@ export default function Settings() {
   const [pAvatar, setPAvatar]       = useState('');
   const [pExpertise, setPExpertise] = useState<string[]>([]);
   const [customSkill, setCustomSkill] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  // Close auto-suggest dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Filter non-mentioned expertise suggestions as the user types
+  const matchingSuggestions = useMemo(() => {
+    const q = customSkill.trim().toLowerCase();
+    if (!q) return [];
+    return NON_MENTIONED_EXPERTISE_SUGGESTIONS.filter(
+      item =>
+        item.toLowerCase().includes(q) &&
+        !pExpertise.some(selected => selected.toLowerCase() === item.toLowerCase()) &&
+        !DEFAULT_EXPERTISE_OPTIONS.some(o => o.id.toLowerCase() === item.toLowerCase())
+    ).slice(0, 8);
+  }, [customSkill, pExpertise]);
 
   // Fetch profile when section opens or userId changes
   const fetchProfileRef = useRef(false);
@@ -211,13 +300,15 @@ export default function Settings() {
     );
   };
 
-  const addCustomExpertise = () => {
-    const trimmed = customSkill.trim();
+  const addCustomExpertise = (skillToAdd?: string) => {
+    const trimmed = (typeof skillToAdd === 'string' ? skillToAdd : customSkill).trim();
     if (!trimmed) return;
-    if (!pExpertise.includes(trimmed)) {
+    if (!pExpertise.some(item => item.toLowerCase() === trimmed.toLowerCase())) {
       setPExpertise(prev => [...prev, trimmed]);
     }
     setCustomSkill('');
+    setShowSuggestions(false);
+    setActiveSuggestionIndex(-1);
   };
 
   const handleSaveProfile = async () => {
@@ -520,8 +611,8 @@ export default function Settings() {
                       </div>
                     )}
 
-                    {/* Presets Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-3.5">
+                    {/* Presets Grid - Name only without descriptions */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3.5">
                       {DEFAULT_EXPERTISE_OPTIONS.map(opt => {
                         const isSelected = pExpertise.includes(opt.id);
                         return (
@@ -529,13 +620,13 @@ export default function Settings() {
                             key={opt.id}
                             type="button"
                             onClick={() => toggleExpertise(opt.id)}
-                            className={`flex items-start gap-2.5 p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                            className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                               isSelected
-                                ? 'border-[#2563EB] bg-[#EFF6FF] ring-1 ring-[#2563EB] shadow-xs'
-                                : 'border-[#E5E7EB] hover:border-[#CBD5E1] bg-white hover:bg-[#F9FAFB]'
+                                ? 'border-[#2563EB] bg-[#EFF6FF] text-[#2563EB] ring-1 ring-[#2563EB] shadow-xs'
+                                : 'border-[#E5E7EB] hover:border-[#CBD5E1] bg-white text-[#111111] hover:bg-[#F9FAFB]'
                             }`}
                           >
-                            <div className={`w-4 h-4 rounded mt-0.5 flex items-center justify-center shrink-0 border transition-colors ${
+                            <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${
                               isSelected
                                 ? 'bg-[#2563EB] border-[#2563EB] text-white'
                                 : 'border-[#CBD5E1] bg-white'
@@ -546,42 +637,106 @@ export default function Settings() {
                                 </svg>
                               )}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className={`text-[13px] font-semibold ${isSelected ? 'text-[#2563EB]' : 'text-[#111111]'}`}>
-                                {opt.label}
-                              </div>
-                              <div className="text-[11px] text-[rgba(17,17,17,0.45)] mt-0.5 leading-snug">
-                                {opt.desc}
-                              </div>
-                            </div>
+                            <span className="text-[13px] font-semibold truncate">
+                              {opt.label}
+                            </span>
                           </button>
                         );
                       })}
                     </div>
 
-                    {/* Custom Domain Input */}
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={customSkill}
-                        onChange={e => setCustomSkill(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            addCustomExpertise();
-                          }
-                        }}
-                        placeholder="Add other specialization (e.g. DevOps, Mobile, QA)..."
-                        className="flex-1 text-[13px] px-3 py-2 border border-[#E5E7EB] rounded-lg outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] bg-white placeholder-[#9CA3AF] transition-all"
-                      />
-                      <button
-                        type="button"
-                        onClick={addCustomExpertise}
-                        disabled={!customSkill.trim()}
-                        className="px-3 py-2 bg-[#F3F4F6] hover:bg-[#E5E7EB] text-[#111111] text-[12.5px] font-medium rounded-lg disabled:opacity-40 transition-colors cursor-pointer shrink-0"
-                      >
-                        + Add
-                      </button>
+                    {/* Custom Domain Input with Auto-Suggest for Non-Mentioned Expertise */}
+                    <div className="relative" ref={suggestionsRef}>
+                      <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <input
+                            type="text"
+                            value={customSkill}
+                            onChange={e => {
+                              setCustomSkill(e.target.value);
+                              setShowSuggestions(true);
+                              setActiveSuggestionIndex(-1);
+                            }}
+                            onFocus={() => {
+                              if (customSkill.trim()) setShowSuggestions(true);
+                            }}
+                            onKeyDown={e => {
+                              if (e.key === 'ArrowDown' && showSuggestions && matchingSuggestions.length > 0) {
+                                e.preventDefault();
+                                setActiveSuggestionIndex(prev => (prev + 1) % matchingSuggestions.length);
+                              } else if (e.key === 'ArrowUp' && showSuggestions && matchingSuggestions.length > 0) {
+                                e.preventDefault();
+                                setActiveSuggestionIndex(prev => (prev <= 0 ? matchingSuggestions.length - 1 : prev - 1));
+                              } else if (e.key === 'Enter') {
+                                e.preventDefault();
+                                if (showSuggestions && activeSuggestionIndex >= 0 && matchingSuggestions[activeSuggestionIndex]) {
+                                  addCustomExpertise(matchingSuggestions[activeSuggestionIndex]);
+                                } else {
+                                  addCustomExpertise();
+                                }
+                              } else if (e.key === 'Escape') {
+                                setShowSuggestions(false);
+                              }
+                            }}
+                            placeholder="Add other (type any word to see suggestions, e.g. DevOps, Mobile, QA)..."
+                            className="w-full text-[13px] px-3 py-2 border border-[#E5E7EB] rounded-lg outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] bg-white placeholder-[#9CA3AF] transition-all"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (showSuggestions && activeSuggestionIndex >= 0 && matchingSuggestions[activeSuggestionIndex]) {
+                              addCustomExpertise(matchingSuggestions[activeSuggestionIndex]);
+                            } else {
+                              addCustomExpertise();
+                            }
+                          }}
+                          disabled={!customSkill.trim()}
+                          className="px-3.5 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[12.5px] font-medium rounded-lg disabled:opacity-40 transition-colors cursor-pointer shrink-0 shadow-xs"
+                        >
+                          + Add
+                        </button>
+                      </div>
+
+                      {/* Auto-suggest dropdown popup for non-mentioned expertise */}
+                      {showSuggestions && customSkill.trim().length > 0 && matchingSuggestions.length > 0 && (
+                        <div className="absolute left-0 right-0 top-full mt-1.5 z-30 bg-white border border-[#E5E7EB] rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                          <div className="px-3 py-1.5 bg-[#F8FAFC] border-b border-[#F1F5F9] flex items-center justify-between text-[11px] text-gray-500 font-medium">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB]" />
+                              Suggested Expertise
+                            </span>
+                            <span className="text-[10px] text-gray-400">Click or press Enter to add</span>
+                          </div>
+                          <div className="p-1 max-h-56 overflow-y-auto">
+                            {matchingSuggestions.map((suggestion, idx) => {
+                              const isActive = idx === activeSuggestionIndex;
+                              return (
+                                <button
+                                  key={suggestion}
+                                  type="button"
+                                  onClick={() => addCustomExpertise(suggestion)}
+                                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left text-xs transition-colors cursor-pointer ${
+                                    isActive
+                                      ? 'bg-[#EFF6FF] text-[#2563EB] font-semibold'
+                                      : 'text-gray-700 hover:bg-[#F1F5F9] hover:text-[#111111]'
+                                  }`}
+                                >
+                                  <span className="flex items-center gap-2">
+                                    <svg className="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <polyline points="9 18 15 12 9 6" />
+                                    </svg>
+                                    <span>{suggestion}</span>
+                                  </span>
+                                  <span className="text-[11px] text-[#2563EB] font-medium">
+                                    + Add
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Custom Selected Tags */}

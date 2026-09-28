@@ -48,7 +48,7 @@ export interface DBTask {
   commentsCount: number;
   attachmentsCount: number;
   createdAt: string;
-  projectId: string;
+  projectId: string | null;
   assigneeId: string | null;
   assignee: DBUser | null;
   project: DBProject | null;

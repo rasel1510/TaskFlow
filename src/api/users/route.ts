@@ -13,6 +13,7 @@ export async function GET() {
         email: string;
         role: string;
         avatar: string;
+        expertise?: string[];
       }> = [];
 
       try {
@@ -34,7 +35,7 @@ export async function GET() {
       const storedUsers = getAllStoredUsers();
 
       // Merge users uniquely by email or id
-      const userMap = new Map<string, { id: string; name: string; email: string; role: string; avatar: string }>();
+      const userMap = new Map<string, { id: string; name: string; email: string; role: string; avatar: string; expertise?: string[] }>();
 
       // 1. Add mock users as base
       for (const u of mockUsers) {
@@ -44,28 +45,39 @@ export async function GET() {
           email: u.email,
           role: u.role,
           avatar: u.avatar,
+          expertise: (u as { expertise?: string[] }).expertise || [],
         });
       }
 
       // 2. Add local stored users
       for (const u of storedUsers) {
+        const existing = userMap.get(u.email.toLowerCase());
+        const userExpertise = ((u as { expertise?: string[] }).expertise?.length)
+          ? (u as { expertise?: string[] }).expertise
+          : existing?.expertise || [];
         userMap.set(u.email.toLowerCase(), {
           id: u.id,
           name: u.name,
           email: u.email,
           role: u.role,
           avatar: u.avatar,
+          expertise: userExpertise,
         });
       }
 
       // 3. Add DB users (highest priority)
       for (const u of dbUsers) {
+        const existing = userMap.get(u.email.toLowerCase());
+        const userExpertise = (u.expertise && u.expertise.length > 0)
+          ? u.expertise
+          : existing?.expertise || [];
         userMap.set(u.email.toLowerCase(), {
           id: u.id,
           name: u.name,
           email: u.email,
           role: u.role,
           avatar: u.avatar,
+          expertise: userExpertise,
         });
       }
 

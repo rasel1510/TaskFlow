@@ -104,7 +104,7 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
   useEffect(() => {
     if (!userId) return;
     let isMounted = true;
-    fetch(`/api/users/${userId}`)
+    fetch(`/api/users/${userId}`, { cache: 'no-store' })
       .then(res => res.json())
       .then(json => {
         if (isMounted && json.success && json.data) {
@@ -132,7 +132,7 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
     let isMounted = true;
     async function fetchUnreadCount() {
       try {
-        const res = await fetch('/api/notifications?unreadOnly=true&countOnly=true');
+        const res = await fetch('/api/notifications?unreadOnly=true&countOnly=true', { cache: 'no-store' });
         const json = await res.json();
         if (isMounted && json.success && json.data) {
           setUnreadInboxCount(json.data.count ?? 0);

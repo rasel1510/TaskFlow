@@ -41,18 +41,49 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        avatar: true,
-        expertise: true,
-        createdAt: true,
-      },
-    });
+    let user = null;
+    try {
+      user = await prisma.user.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          avatar: true,
+          expertise: true,
+          createdAt: true,
+        },
+      });
+    } catch (dbErr) {
+      console.warn('[GET /api/users/:id] DB query warning, falling back to local store/session:', dbErr);
+    }
+
+    if (!user) {
+      const { findStoredUserById } = await import('@/data/userStore');
+      const stored = findStoredUserById(id);
+      if (stored) {
+        user = {
+          id: stored.id,
+          name: stored.name,
+          email: stored.email,
+          role: stored.role,
+          avatar: stored.avatar,
+          expertise: [],
+          createdAt: new Date(stored.createdAt),
+        };
+      } else if (session?.user?.id === id) {
+        user = {
+          id: session.user.id,
+          name: session.user.name || 'User',
+          email: session.user.email || '',
+          role: (session.user as { role?: string }).role || 'User',
+          avatar: (session.user as { avatar?: string }).avatar || 'U',
+          expertise: [],
+          createdAt: new Date(),
+        };
+      }
+    }
 
     if (!user) {
       return NextResponse.json(

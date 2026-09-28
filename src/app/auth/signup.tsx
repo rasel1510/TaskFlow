@@ -10,7 +10,6 @@ import {
   Lock,
   Eye,
   EyeOff,
-  Briefcase,
   ArrowRight,
   ArrowLeft,
   Loader2,
@@ -19,12 +18,11 @@ import {
   KeyRound,
   ShieldCheck,
   RotateCw,
+  Check,
+  ChevronDown,
 } from 'lucide-react';
 
-const roles = [
-  'User',
-  'Admin',
-];
+const ROLES = ['User', 'Project manager', 'Admin'];
 
 export default function SignupPage() {
   const router = useRouter();
@@ -36,7 +34,7 @@ export default function SignupPage() {
     name: '',
     email: '',
     password: '',
-    role: roles[0],
+    role: ROLES[0],
     agreeToTerms: false,
   });
 
@@ -53,6 +51,27 @@ export default function SignupPage() {
   const [socialLoading, setSocialLoading] = useState<'google' | 'github' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Custom role dropdown state
+  const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
+  const roleDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (roleDropdownRef.current && !roleDropdownRef.current.contains(event.target as Node)) {
+        setRoleDropdownOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setRoleDropdownOpen(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   // Resend countdown timer
   useEffect(() => {
@@ -510,30 +529,57 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              {/* Role in Team */}
-              <div>
+              {/* Role Selection */}
+              <div className="relative" ref={roleDropdownRef}>
                 <label className="block text-xs font-semibold text-[#111111] mb-1.5">
                   Your Role
                 </label>
-                <div className="relative">
-                  <Briefcase className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                  <select
-                    value={formData.role}
-                    onChange={e => setFormData({ ...formData, role: e.target.value })}
-                    className="w-full pl-10 pr-8 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all shadow-xs appearance-none cursor-pointer"
-                  >
-                    {roles.map(r => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
+                {/* Dropdown trigger button */}
+                <button
+                  type="button"
+                  onClick={() => setRoleDropdownOpen(prev => !prev)}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-white border rounded-xl text-xs text-[#111111] transition-all shadow-xs cursor-pointer ${
+                    roleDropdownOpen
+                      ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]'
+                      : 'border-[#E5E7EB] hover:border-gray-300'
+                  }`}
+                >
+                  <span className="font-medium text-[#111111]">{formData.role}</span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-gray-400 transition-transform duration-150 shrink-0 ${
+                      roleDropdownOpen ? 'rotate-180 text-[#2563EB]' : ''
+                    }`}
+                  />
+                </button>
+
+                {/* Dropdown box - rounded matching the input box */}
+                {roleDropdownOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#E5E7EB] rounded-xl shadow-lg p-1.5 space-y-0.5 animate-in fade-in zoom-in-95 duration-100">
+                    {ROLES.map(role => {
+                      const isSelected = formData.role === role;
+                      return (
+                        <button
+                          key={role}
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({ ...prev, role }));
+                            setRoleDropdownOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-left transition-colors cursor-pointer ${
+                            isSelected
+                              ? 'bg-blue-50 text-[#2563EB] font-semibold'
+                              : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                          }`}
+                        >
+                          <span>{role}</span>
+                          {isSelected && (
+                            <Check className="w-3.5 h-3.5 text-[#2563EB] stroke-[2.5]" />
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Password */}

@@ -8,6 +8,7 @@ export interface User {
   avatar: string;
   role: string;
   email: string;
+  expertise?: string[];
 }
 
 export interface Task {
@@ -51,12 +52,12 @@ export interface Project {
 }
 
 export const users: User[] = [
-  { id: 'u1', name: 'Rasel Ahmed', avatar: 'RA', role: 'Product Manager', email: 'rasel@flowsync.io' },
-  { id: 'u2', name: 'Sarah Chen', avatar: 'SC', role: 'Frontend Engineer', email: 'sarah@flowsync.io' },
-  { id: 'u3', name: 'Ahmed Malik', avatar: 'AM', role: 'Backend Engineer', email: 'ahmed@flowsync.io' },
-  { id: 'u4', name: 'John Torres', avatar: 'JT', role: 'QA Engineer', email: 'john@flowsync.io' },
-  { id: 'u5', name: 'Maria Lopez', avatar: 'ML', role: 'UI Designer', email: 'maria@flowsync.io' },
-  { id: 'u6', name: 'David Kim', avatar: 'DK', role: 'DevOps Engineer', email: 'david@flowsync.io' },
+  { id: 'u1', name: 'Rasel Ahmed', avatar: 'RA', role: 'Project Manager', email: 'rasel@flowsync.io', expertise: ['Project Management', 'Agile/Scrum', 'System Architecture'] },
+  { id: 'u2', name: 'Sarah Chen', avatar: 'SC', role: 'Frontend Engineer', email: 'sarah@flowsync.io', expertise: ['React', 'Next.js', 'TypeScript', 'Tailwind CSS'] },
+  { id: 'u3', name: 'Ahmed Malik', avatar: 'AM', role: 'Backend Engineer', email: 'ahmed@flowsync.io', expertise: ['Node.js', 'PostgreSQL', 'Prisma', 'Redis'] },
+  { id: 'u4', name: 'John Torres', avatar: 'JT', role: 'QA Engineer', email: 'john@flowsync.io', expertise: ['Automated Testing', 'Jest', 'Playwright', 'Security'] },
+  { id: 'u5', name: 'Maria Lopez', avatar: 'ML', role: 'UI Designer', email: 'maria@flowsync.io', expertise: ['UI/UX', 'Figma', 'Design Systems', 'Prototyping'] },
+  { id: 'u6', name: 'David Kim', avatar: 'DK', role: 'DevOps Engineer', email: 'david@flowsync.io', expertise: ['Docker', 'Kubernetes', 'CI/CD', 'AWS Cloud'] },
 ];
 
 export const currentUser = users[0];
@@ -190,6 +191,7 @@ export const healthColors: Record<ProjectHealth, { bg: string; text: string; lab
   completed: { bg: '#EFF6FF', text: '#2563EB', label: 'Completed' },
 };
 
-export function getProjectName(projectId: string): string {
-  return projects.find(p => p.id === projectId)?.name ?? 'Unknown';
+export function getProjectName(projectId?: string | null): string {
+  if (!projectId) return 'Independent Task';
+  return projects.find(p => p.id === projectId)?.name ?? 'Project';
 }

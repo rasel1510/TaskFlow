@@ -31,6 +31,7 @@ export interface MemberRecord {
   email: string;
   avatar: string;
   userRole: string;
+  expertise?: string[];
 }
 
 // In-memory member store for demo resilience (keyed by projectId)
@@ -47,6 +48,7 @@ const mockMembersStore: Map<string, MemberRecord[]> = new Map([
         email: 'alex@taskflow.dev',
         avatar: 'AJ',
         userRole: 'Engineering Lead',
+        expertise: ['Frontend', 'UI Design'],
       },
       {
         userId: 'user-2',
@@ -57,6 +59,7 @@ const mockMembersStore: Map<string, MemberRecord[]> = new Map([
         email: 'sarah@taskflow.dev',
         avatar: 'SC',
         userRole: 'Senior Developer',
+        expertise: ['React', 'TypeScript'],
       },
       {
         userId: 'user-3',
@@ -67,6 +70,7 @@ const mockMembersStore: Map<string, MemberRecord[]> = new Map([
         email: 'marcus@taskflow.dev',
         avatar: 'MB',
         userRole: 'Designer',
+        expertise: ['UI/UX', 'Figma'],
       },
     ],
   ],
@@ -84,6 +88,7 @@ function seedProjectMembers(projectId: string): void {
       email: u.email,
       avatar: u.avatar || u.name.slice(0, 2).toUpperCase(),
       userRole: u.role || 'Member',
+      expertise: (u as { expertise?: string[] }).expertise || [],
     }));
     mockMembersStore.set(projectId, seed);
   }
@@ -98,31 +103,27 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     seedProjectMembers(projectId);
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const memberModel = (prisma as any).projectMember;
-      if (memberModel) {
-        const dbMembers = await memberModel.findMany({
-          where: { projectId },
-          include: {
-            user: { select: { id: true, name: true, email: true, avatar: true, role: true } },
-          },
-          orderBy: { joinedAt: 'asc' },
-        });
+      const dbMembers = await prisma.projectMember.findMany({
+        where: { projectId },
+        include: {
+          user: { select: { id: true, name: true, email: true, avatar: true, role: true, expertise: true } },
+        },
+        orderBy: { joinedAt: 'asc' },
+      });
 
-        if (dbMembers && dbMembers.length > 0) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const formatted: MemberRecord[] = dbMembers.map((m: any) => ({
-            userId: m.userId,
-            projectId: m.projectId,
-            role: m.role,
-            joinedAt: m.joinedAt.toISOString(),
-            name: m.user?.name || 'Unknown',
-            email: m.user?.email || '',
-            avatar: m.user?.avatar || (m.user?.name?.slice(0, 2).toUpperCase() || '?'),
-            userRole: m.user?.role || 'Member',
-          }));
-          return NextResponse.json({ success: true, data: formatted }, { status: 200 });
-        }
+      if (dbMembers && dbMembers.length > 0) {
+        const formatted: MemberRecord[] = dbMembers.map((m) => ({
+          userId: m.userId,
+          projectId: m.projectId,
+          role: m.role as ProjectRole,
+          joinedAt: m.joinedAt.toISOString(),
+          name: m.user?.name || 'Unknown',
+          email: m.user?.email || '',
+          avatar: m.user?.avatar || (m.user?.name?.slice(0, 2).toUpperCase() || '?'),
+          userRole: m.user?.role || 'Member',
+          expertise: m.user?.expertise || [],
+        }));
+        return NextResponse.json({ success: true, data: formatted }, { status: 200 });
       }
     } catch (dbErr) {
       console.warn('[GET /api/projects/:id/members] DB warning, using mock store:', dbErr);
@@ -204,7 +205,33 @@ export async function POST(request: NextRequest, context: RouteContext) {
     } else {
       members.push(newMember);
     }
-    mockMembersStore.set(projectId, members);
+    try {
+      await prisma.projectMember.upsert({
+        where: { projectId_userId: { projectId, userId: resolvedUserId } },
+        create: {
+          projectId,
+          userId: resolvedUserId,
+          role,
+        },
+        update: {
+          role,
+        },
+      });
+
+      const project = await prisma.project.findUnique({ where: { id: projectId }, select: { name: true } });
+      await prisma.notification.create({
+        data: {
+          userId: resolvedUserId,
+          type: 'member_added',
+          title: 'Added to Project',
+          body: `You have been added to "${project?.name || 'a project'}" as a ${role}.`,
+        },
+      });
+      const redis = (await import('@/lib/redis')).default;
+      await redis.delPattern('projects:*');
+    } catch (dbErr) {
+      console.warn('[POST /api/projects/:id/members] DB warning, saving to memory:', dbErr);
+    }
 
     return NextResponse.json({ success: true, data: { ...newMember, roleConfig: ROLE_DESCRIPTIONS[role] } }, { status: 201 });
   } catch (error) {
@@ -293,6 +320,16 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
     const filtered = members.filter(m => m.userId !== targetUserId);
     mockMembersStore.set(projectId, filtered);
+
+    try {
+      await prisma.projectMember.deleteMany({
+        where: { projectId, userId: targetUserId },
+      });
+      const redis = (await import('@/lib/redis')).default;
+      await redis.delPattern('projects:*');
+    } catch (dbErr) {
+      console.warn('[DELETE /api/projects/:id/members] DB warning:', dbErr);
+    }
 
     return NextResponse.json(
       { success: true, data: { message: 'Member removed from project' } },

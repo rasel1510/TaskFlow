@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     const distinctProjectIds = Array.from(
-      new Set(affectedTasks.map((t) => t.projectId).filter(Boolean))
+      new Set(affectedTasks.map((t) => t.projectId).filter((id): id is string => Boolean(id)))
     );
 
     if (action === 'delete') {

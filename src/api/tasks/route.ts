@@ -133,13 +133,14 @@ export async function GET(request: NextRequest) {
     const limit  = query.limit ?? 50;
     const cursor = query.cursor;
 
-    // Build Prisma where — match any of the user's known IDs or projects owned by user
+    // Build Prisma where — match any of the user's known IDs, projects owned by user, or projects where user is member
     const userIds = Array.from(userIdSet);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: Record<string, any> = {
       OR: [
         { assigneeId: { in: userIds } },
         { project: { ownerId: { in: userIds } } },
+        { project: { members: { some: { userId: { in: userIds } } } } },
       ],
     };
     if (query.status)    where.status    = query.status;
@@ -297,55 +298,44 @@ export async function POST(request: NextRequest) {
 
     const targetAssigneeId = dbUser.id;
 
-    // 2. Ensure valid projectId or fallback to default project (strictly guaranteed to exist in DB)
-    let requestedProjectId = typeof projectId === 'string' && projectId.trim() ? projectId.trim() : undefined;
-    let targetProject = null;
+    // 2. Project Assignment & Permission Check:
+    // If projectId is provided, user must be the Project Owner, an Admin, or an approved Project Member.
+    // If projectId is empty / omitted, this is an independent personal task for the user alone.
+    let targetProjectId: string | null = null;
+    const requestedProjectId = typeof projectId === 'string' && projectId.trim() ? projectId.trim() : undefined;
 
     if (requestedProjectId) {
-      targetProject = await prisma.project.findUnique({ where: { id: requestedProjectId } });
-      if (!targetProject) {
-        // If not yet in DB, check if it matches a preset mock project (e.g. 'p1', 'p2', 'p3', 'p4')
-        const mockProj = mockProjects.find(p => p.id === requestedProjectId);
-        if (mockProj) {
-          targetProject = await prisma.project.upsert({
-            where: { id: mockProj.id },
-            update: {},
-            create: {
-              id: mockProj.id,
-              name: mockProj.name,
-              description: mockProj.description,
-              color: mockProj.color || '#2563EB',
-              health: (mockProj.health as any) || 'on_track',
-              progress: typeof mockProj.progress === 'number' ? mockProj.progress : 0,
-              ownerId: dbUser.id,
-            },
-          });
-        }
-      }
-    }
-
-    // If still no project found, look for any existing project in DB
-    if (!targetProject) {
-      targetProject = await prisma.project.findFirst();
-    }
-
-    // If database has 0 projects, create the initial project
-    if (!targetProject) {
-      const defaultMock = mockProjects[0];
-      targetProject = await prisma.project.create({
-        data: {
-          id: defaultMock?.id || 'p1',
-          name: defaultMock?.name || 'General Project',
-          description: defaultMock?.description || 'Default project workspace',
-          color: defaultMock?.color || '#2563EB',
-          health: (defaultMock?.health as any) || 'on_track',
-          progress: defaultMock?.progress || 0,
-          ownerId: dbUser.id,
-        },
+      const targetProject = await prisma.project.findUnique({
+        where: { id: requestedProjectId },
+        include: { members: true },
       });
-    }
 
-    const targetProjectId = targetProject.id;
+      if (!targetProject) {
+        return NextResponse.json(
+          { success: false, error: { code: 'NOT_FOUND', message: 'Project not found' } },
+          { status: 404 }
+        );
+      }
+
+      const isOwner = targetProject.ownerId === dbUser.id;
+      const isAdminOrPM = dbUser.role === 'Admin' || (dbUser.role === 'Project Manager' && isOwner);
+      const isMember = targetProject.members.some(m => m.userId === dbUser.id);
+
+      if (!isOwner && !isAdminOrPM && !isMember) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: 'FORBIDDEN',
+              message: 'You are not a member of this project. You must be added by the Project Manager or have an approved join request to create tasks in this project.',
+            },
+          },
+          { status: 403 }
+        );
+      }
+
+      targetProjectId = targetProject.id;
+    }
 
     // 3. Auto-generate taskNumber TF-XXX
     const taskCount = await prisma.task.count();
@@ -355,7 +345,7 @@ export async function POST(request: NextRequest) {
       data: {
         taskNumber,
         title:       (title as string).trim(),
-        projectId:   targetProjectId as string,
+        projectId:   targetProjectId,
         assigneeId:  targetAssigneeId,
         status:      ((status   as string | undefined) ?? 'todo')     as PrismaStatus,
         priority:    ((priority as string | undefined) ?? 'medium')   as PrismaPriority,

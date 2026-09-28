@@ -27,4 +27,4 @@ src/data/otps.json
 
 # Scratch and diagnostic scripts
 /*.cjs
-
+src/scripts/

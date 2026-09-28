@@ -60,6 +60,11 @@ export function findStoredUserByEmail(email: string): StoredUser | null {
   return allUsers.find(u => u.email.toLowerCase().trim() === normalized) || null;
 }
 
+export function findStoredUserById(id: string): StoredUser | null {
+  const allUsers = loadUsers();
+  return allUsers.find(u => u.id === id) || null;
+}
+
 export function saveStoredUser(data: {
   id?: string;
   name: string;

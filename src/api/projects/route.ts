@@ -14,6 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { auth } from '@/auth';
 import { projects as mockProjects } from '@/data/mockData';
 import { CreateProjectSchema, validationError } from '@/lib/validators';
 import redisCache from '@/lib/redis';
@@ -36,79 +37,104 @@ function parseSafeDate(raw: unknown): Date | undefined {
 // ---------------------------------------------------------------------------
 export async function GET() {
   try {
-    const projects = await redisCache.wrap('projects:list', 60, async () => {
-      const dbProjects = await prisma.project.findMany({
-        include: {
-          // Fetch only the columns we need from the owner — no passwords, no relations
-          owner: {
-            select: { id: true, name: true, email: true, avatar: true, role: true },
-          },
-          // Count tasks instead of fetching all rows — O(1) vs O(N)
-          _count: {
-            select: { tasks: true },
-          },
+    let currentUserId: string | undefined;
+    let currentUserRole: string | undefined;
+    try {
+      const session = await auth();
+      currentUserId = session?.user?.id;
+      currentUserRole = (session?.user as { role?: string })?.role;
+    } catch {}
+
+    const dbProjects = await prisma.project.findMany({
+      include: {
+        owner: {
+          select: { id: true, name: true, email: true, avatar: true, role: true, expertise: true },
         },
-        orderBy: { createdAt: 'desc' },
-      });
+        members: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true, avatar: true, role: true, expertise: true },
+            },
+          },
+          orderBy: { joinedAt: 'asc' },
+        },
+        joinRequests: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true, avatar: true, role: true, expertise: true },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        _count: {
+          select: { tasks: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
 
-      let projectList = dbProjects;
-
-      // Fall back to mock data only when DB has zero projects (first-run / offline dev)
-      if (projectList.length === 0) {
-        const existingUser = await prisma.user.findFirst();
-        if (existingUser) {
-          try {
-            await Promise.all(
-              mockProjects.map(mp =>
-                prisma.project.upsert({
-                  where: { id: mp.id },
-                  update: {},
-                  create: {
-                    id: mp.id,
-                    name: mp.name,
-                    description: mp.description,
-                    color: mp.color || '#2563EB',
-                    health: (mp.health as any) || 'on_track',
-                    progress: typeof mp.progress === 'number' ? mp.progress : 0,
-                    ownerId: existingUser.id,
-                  },
-                })
-              )
-            );
-            projectList = await prisma.project.findMany({
-              include: {
-                owner: {
-                  select: { id: true, name: true, email: true, avatar: true, role: true },
-                },
-                _count: {
-                  select: { tasks: true },
-                },
-              },
-              orderBy: { createdAt: 'desc' },
-            });
-          } catch (seedErr) {
-            console.warn('[GET /api/projects] Auto-seed projects fallback warning:', seedErr);
-          }
-        }
-      }
-
-      const rawList = projectList.length > 0 ? projectList : mockProjects;
-      return rawList.map(p => ({
-        ...p,
-        taskCount: ('_count' in p && p._count && typeof p._count === 'object' && 'tasks' in p._count)
-          ? (p._count as { tasks: number }).tasks
-          : ('taskCount' in p && typeof (p as unknown as Record<string, unknown>).taskCount === 'number')
-          ? (p as unknown as { taskCount: number }).taskCount
-          : 0,
+    const formatted = dbProjects.map(p => {
+      const isOwner = currentUserId ? p.ownerId === currentUserId : false;
+      const memberList = (p.members || []).map(m => ({
+        id: m.id,
+        userId: m.userId,
+        role: m.role,
+        joinedAt: m.joinedAt.toISOString(),
+        user: m.user,
       }));
+
+      const isMember = currentUserId
+        ? (isOwner || memberList.some(m => m.userId === currentUserId))
+        : false;
+
+      const userJoinRequest = currentUserId
+        ? p.joinRequests?.find(r => r.userId === currentUserId && r.status === 'pending')
+        : undefined;
+
+      const hasPendingRequest = !!userJoinRequest;
+
+      // Only project owner / PM or Admin can see all pending requests
+      const canManage = isOwner || currentUserRole === 'Project Manager' || currentUserRole === 'Admin';
+      const pendingRequests = canManage
+        ? (p.joinRequests?.filter(r => r.status === 'pending') || []).map(r => ({
+            id: r.id,
+            userId: r.userId,
+            status: r.status,
+            message: r.message,
+            createdAt: r.createdAt.toISOString(),
+            user: r.user,
+          }))
+        : [];
+
+      return {
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        color: p.color,
+        health: p.health,
+        progress: p.progress,
+        startDate: p.startDate ? p.startDate.toISOString() : null,
+        dueDate: p.dueDate ? p.dueDate.toISOString() : null,
+        createdAt: p.createdAt.toISOString(),
+        ownerId: p.ownerId,
+        owner: p.owner,
+        taskCount: p._count.tasks,
+        members: memberList,
+        isMember,
+        hasPendingRequest,
+        isOwner,
+        canManage,
+        pendingRequests,
+        pendingRequestsCount: pendingRequests.length,
+      };
     });
 
-    return NextResponse.json({ success: true, data: projects }, {
+    return NextResponse.json({ success: true, data: formatted }, {
       status: 200,
-      headers: { 'Cache-Control': 'private, max-age=30, stale-while-revalidate=120' },
+      headers: { 'Cache-Control': 'no-store' },
     });
-  } catch {
-    // Graceful fallback when the database is unavailable (offline dev mode)
+  } catch (error) {
+    console.error('[GET /api/projects] DB warning, falling back to mock:', error);
     return NextResponse.json({ success: true, data: mockProjects }, { status: 200 });
   }
 }
@@ -118,6 +144,25 @@ export async function GET() {
 // ---------------------------------------------------------------------------
 export async function POST(request: NextRequest) {
   try {
+    const session = await auth();
+    const sessionUserId = session?.user?.id;
+    const sessionUserRole = (session?.user as { role?: string })?.role;
+
+    if (!sessionUserId) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'You must be logged in to create a project' } },
+        { status: 401 }
+      );
+    }
+
+    // Role check: Only Project Manager or Admin can create projects
+    if (sessionUserRole !== 'Project Manager' && sessionUserRole !== 'Admin') {
+      return NextResponse.json(
+        { success: false, error: { code: 'FORBIDDEN', message: 'Only Project Managers and Admins can create projects' } },
+        { status: 403 }
+      );
+    }
+
     let body: Record<string, unknown>;
     try {
       body = await request.json();
@@ -132,24 +177,16 @@ export async function POST(request: NextRequest) {
     const parsed = CreateProjectSchema.safeParse(body);
     if (!parsed.success) return validationError(parsed.error);
 
-    const { name, description, ownerId, color, startDate, dueDate } = parsed.data;
+    const { name, description, color, startDate, dueDate } = parsed.data;
 
-    // Verify owner exists in DB to prevent foreign key violation on Project_ownerId_fkey
-    let validOwnerId = ownerId;
-    const ownerExists = await prisma.user.findUnique({ where: { id: validOwnerId } });
-    if (!ownerExists) {
-      const firstUser = await prisma.user.findFirst();
-      if (firstUser) {
-        validOwnerId = firstUser.id;
-      }
-    }
+    const validOwnerId = sessionUserId;
 
     const newProject = await prisma.project.create({
       data: {
         name,
         description,
         ownerId: validOwnerId,
-        color,
+        color: color || '#2563EB',
         startDate: parseSafeDate(startDate),
         dueDate:   parseSafeDate(dueDate),
       },
@@ -161,13 +198,37 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Automatically add the Project Manager as a ProjectMember with role 'OWNER'
+    try {
+      await prisma.projectMember.create({
+        data: {
+          projectId: newProject.id,
+          userId: validOwnerId,
+          role: 'OWNER',
+        },
+      });
+    } catch (memErr) {
+      console.warn('[POST /api/projects] Member creation warning:', memErr);
+    }
+
     // Invalidate project and report caches
     await Promise.all([
       redisCache.delPattern('projects:*'),
       redisCache.delPattern('reports:*'),
     ]);
 
-    return NextResponse.json({ success: true, data: newProject }, { status: 201 });
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...newProject,
+        isMember: true,
+        isOwner: true,
+        canManage: true,
+        members: [],
+        pendingRequests: [],
+        pendingRequestsCount: 0,
+      },
+    }, { status: 201 });
   } catch (error) {
     console.error('[POST /api/projects] Error:', error);
     return NextResponse.json(

@@ -144,17 +144,25 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
     };
   }, []);
 
+  const userRole = (session?.user as { role?: string })?.role;
+  const isElevated = userRole === 'Project Manager' || userRole === 'Admin';
+
   // Fetch projects from API
   useEffect(() => {
     fetch('/api/projects')
       .then(r => r.json())
       .then(envelope => {
-        const data: DBProject[] = Array.isArray(envelope) ? envelope : (envelope?.data ?? []);
+        const data: (DBProject & { isMember?: boolean; isOwner?: boolean })[] = Array.isArray(envelope) ? envelope : (envelope?.data ?? []);
         setProjects(data);
-        if (data.length > 0) setProjectId(data[0].id);
+        const allowed = isElevated ? data : data.filter(p => p.isMember || p.isOwner);
+        if (allowed.length > 0) {
+          setProjectId(allowed[0].id);
+        } else {
+          setProjectId(''); // Default to independent task if not in any project
+        }
       })
       .catch(() => { });
-  }, []);
+  }, [isElevated]);
 
   // Default assignee to current session user
   useEffect(() => {
@@ -270,7 +278,9 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                       }`}
                   >
                     <span className="truncate">
-                      {projects.find(p => p.id === projectId)?.name || (projects.length === 0 ? 'Loading...' : 'Select project')}
+                      {projectId
+                        ? (projects.find(p => p.id === projectId)?.name || 'Select project')
+                        : '✨ Independent / Personal Task (No Project)'}
                     </span>
                     <svg
                       width="14"
@@ -287,34 +297,75 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                     </svg>
                   </button>
 
-                  {projectOpen && projects.length > 0 && (
+                  {projectOpen && (
                     <div
-                      className={`absolute ${projectDropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} left-0 right-0 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-56 overflow-y-auto animate-in fade-in zoom-in-95 duration-100`}
+                      className={`absolute ${projectDropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} left-0 right-0 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-100 divide-y divide-[#F3F4F6]`}
                     >
-                      {projects.map(p => {
-                        const isSelected = p.id === projectId;
-                        return (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onClick={() => {
-                              setProjectId(p.id);
-                              setProjectOpen(false);
-                            }}
-                            className={`w-full text-left px-3 py-2 text-[13.5px] transition-colors cursor-pointer flex items-center justify-between ${isSelected
-                              ? 'bg-[#2563EB] text-white font-medium'
-                              : 'text-[#111111] hover:bg-[#F3F4F6] active:bg-[#E5E7EB]'
-                              }`}
-                          >
-                            <span className="truncate">{p.name}</span>
-                            {isSelected && (
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
-                            )}
-                          </button>
-                        );
-                      })}
+                      {/* Independent / Personal task option */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProjectId('');
+                          setProjectOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-[13px] transition-colors cursor-pointer flex items-center justify-between ${
+                          projectId === ''
+                            ? 'bg-[#2563EB] text-white font-medium'
+                            : 'text-[#111111] hover:bg-[#F3F4F6] active:bg-[#E5E7EB]'
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <div className="font-semibold flex items-center gap-1.5">
+                            <span>✨ Independent Task</span>
+                            <span className={`text-[10px] px-1.5 py-0.2 rounded font-normal ${projectId === '' ? 'bg-white/20 text-white' : 'bg-[#EFF6FF] text-[#2563EB]'}`}>Personal</span>
+                          </div>
+                          <div className={`text-[11px] truncate ${projectId === '' ? 'text-white/80' : 'text-[rgba(17,17,17,0.45)]'}`}>
+                            Created solely for you (no project required)
+                          </div>
+                        </div>
+                        {projectId === '' && (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 ml-2">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                      </button>
+
+                      {/* Project Options */}
+                      <div className="py-1">
+                        <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-[rgba(17,17,17,0.4)]">
+                          {isElevated ? 'All Projects' : 'Your Assigned Projects'}
+                        </div>
+                        {(isElevated ? projects : projects.filter((p: any) => p.isMember || p.isOwner)).length === 0 ? (
+                          <div className="px-3 py-2 text-[12px] text-[rgba(17,17,17,0.45)] italic">
+                            No project memberships yet. You can create independent tasks or request to join a project.
+                          </div>
+                        ) : (
+                          (isElevated ? projects : projects.filter((p: any) => p.isMember || p.isOwner)).map(p => {
+                            const isSelected = p.id === projectId;
+                            return (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => {
+                                  setProjectId(p.id);
+                                  setProjectOpen(false);
+                                }}
+                                className={`w-full text-left px-3 py-2 text-[13.5px] transition-colors cursor-pointer flex items-center justify-between ${isSelected
+                                  ? 'bg-[#2563EB] text-white font-medium'
+                                  : 'text-[#111111] hover:bg-[#F3F4F6] active:bg-[#E5E7EB]'
+                                  }`}
+                              >
+                                <span className="truncate">{p.name}</span>
+                                {isSelected && (
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                )}
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>

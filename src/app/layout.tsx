@@ -91,16 +91,23 @@ export default function RootLayout({
           strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
-              if ('serviceWorker' in navigator) {
-                if ('caches' in window) {
-                  caches.keys().then(function(names) {
-                    for (var i = 0; i < names.length; i++) {
-                      if (names[i].indexOf('v1') !== -1) {
-                        caches.delete(names[i]);
-                      }
+              var isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.port !== '';
+              if (isDev) {
+                if ('serviceWorker' in navigator) {
+                  navigator.serviceWorker.getRegistrations().then(function(regs) {
+                    for (var i = 0; i < regs.length; i++) {
+                      regs[i].unregister();
                     }
                   });
                 }
+                if ('caches' in window) {
+                  caches.keys().then(function(names) {
+                    for (var i = 0; i < names.length; i++) {
+                      caches.delete(names[i]);
+                    }
+                  });
+                }
+              } else if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
                     .then(function(reg) {

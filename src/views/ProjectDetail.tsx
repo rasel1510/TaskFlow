@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import { healthColors, statusColors, priorityColors, type ProjectHealth, type Status, type Priority } from '@/data/mockData';
 import { useToast } from '@/components/ui/Toast';
 import { LIFECYCLE_STATE_CONFIG, validateLifecycleTransition, type ProjectLifecycleState } from '@/lib/projectLifecycle';
@@ -84,6 +85,25 @@ export default function ProjectDetail({
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
 
+  // Session & Project Manager authorization
+  const { data: session } = useSession();
+  const currentUserId = (session?.user as { id?: string })?.id;
+  const currentUserRole = (session?.user as { role?: string })?.role;
+  const isPMOrOwner = project?.owner?.id === currentUserId || currentUserRole === 'Project Manager' || currentUserRole === 'Admin';
+
+  // Join Requests state
+  const [joinRequests, setJoinRequests] = useState<any[]>([]);
+  const [joinRequestsLoading, setJoinRequestsLoading] = useState(false);
+  const [requestApprovalRoles, setRequestApprovalRoles] = useState<Record<string, ProjectRole>>({});
+
+  // Add Member Modal state
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [availableUsers, setAvailableUsers] = useState<any[]>([]);
+  const [availableUsersLoading, setAvailableUsersLoading] = useState(false);
+  const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [selectedUserRoles, setSelectedUserRoles] = useState<Record<string, ProjectRole>>({});
+  const [addingUserId, setAddingUserId] = useState<string | null>(null);
+
   // Burndown state
   const [burndown, setBurndown] = useState<BurndownResult | null>(null);
   const [burndownLoading, setBurndownLoading] = useState(false);
@@ -151,6 +171,107 @@ export default function ProjectDetail({
     finally { setMembersLoading(false); }
   }, [projectId]);
 
+  const fetchJoinRequests = useCallback(async () => {
+    setJoinRequestsLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/requests`);
+      const json = await res.json();
+      if (json.success) setJoinRequests(json.data || []);
+    } catch (e) { console.warn('[ProjectDetail] Requests fetch error:', e); }
+    finally { setJoinRequestsLoading(false); }
+  }, [projectId]);
+
+  const fetchAvailableUsers = async () => {
+    setAvailableUsersLoading(true);
+    try {
+      const res = await fetch('/api/users');
+      const json = await res.json();
+      const usersList = Array.isArray(json) ? json : (json?.data || []);
+      setAvailableUsers(usersList);
+    } catch (e) { console.warn('Failed to load users', e); }
+    finally { setAvailableUsersLoading(false); }
+  };
+
+  const handleReviewRequest = async (requestId: string, action: 'approve' | 'reject', role?: string) => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/requests`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId,
+          action,
+          role: role || requestApprovalRoles[requestId] || 'CONTRIBUTOR',
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.success === false) {
+        throw new Error(json.error?.message || json.message || 'Failed to review request');
+      }
+      toast.success(action === 'approve' ? 'Request approved and member added to project!' : 'Request rejected');
+      fetchMembers();
+      fetchJoinRequests();
+    } catch (err: any) {
+      toast.error(err.message || 'Action failed');
+    }
+  };
+
+  const handleAddMember = async (userId: string, role: ProjectRole) => {
+    setAddingUserId(userId);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, role }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.success === false) {
+        throw new Error(json.error?.message || json.message || 'Failed to add member');
+      }
+      toast.success('Member added to project successfully!');
+      fetchMembers();
+      fetchJoinRequests();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to add member');
+    } finally {
+      setAddingUserId(null);
+    }
+  };
+
+  const handleRemoveMember = async (userId: string, userName: string) => {
+    if (!window.confirm(`Are you sure you want to remove ${userName} from this project?`)) return;
+    try {
+      const res = await fetch(`/api/projects/${projectId}/members?uid=${userId}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json();
+      if (!res.ok || json.success === false) {
+        throw new Error(json.error?.message || 'Failed to remove member');
+      }
+      toast.success(`${userName} removed from project`);
+      fetchMembers();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to remove member');
+    }
+  };
+
+  const handleUpdateMemberRole = async (userId: string, role: ProjectRole) => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/members`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, role }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.success === false) {
+        throw new Error(json.error?.message || 'Failed to update member role');
+      }
+      toast.success('Member role updated');
+      fetchMembers();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update member role');
+    }
+  };
+
   const fetchBurndown = useCallback(async () => {
     setBurndownLoading(true);
     try {
@@ -169,9 +290,12 @@ export default function ProjectDetail({
 
   useEffect(() => {
     if (activeTab === 'milestones') fetchMilestones();
-    if (activeTab === 'members') fetchMembers();
+    if (activeTab === 'members') {
+      fetchMembers();
+      fetchJoinRequests();
+    }
     if (activeTab === 'burndown') fetchBurndown();
-  }, [activeTab, fetchMilestones, fetchMembers, fetchBurndown]);
+  }, [activeTab, fetchMilestones, fetchMembers, fetchJoinRequests, fetchBurndown]);
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -625,40 +749,232 @@ export default function ProjectDetail({
           </div>
         )}
 
-        {/* Tab 4: Team & RBAC (Step 4.10) */}
+        {/* Tab 4: Team & RBAC with Expertise Matrix & Join Requests */}
         {activeTab === 'members' && (
-          <div className="space-y-4">
-            <h3 className="text-[16px] font-semibold text-[#111111]">Team &amp; Access Control (RBAC)</h3>
-            {membersLoading ? (
-              <div className="py-10 text-center text-[13px] text-[rgba(17,17,17,0.4)]">Loading team members...</div>
-            ) : members.length === 0 ? (
-              <div className="py-10 text-center text-[13px] text-[rgba(17,17,17,0.4)]">No members assigned to this project.</div>
-            ) : (
-              <div className="space-y-2">
-                {members.map(m => {
-                  const roleConfig = ROLE_DESCRIPTIONS[(m.role as ProjectRole)] || ROLE_DESCRIPTIONS['VIEWER'];
-                  return (
-                    <div key={m.userId} className="flex items-center gap-4 p-4 rounded-xl border border-[#E5E7EB] bg-white">
-                      <div className="w-10 h-10 rounded-full bg-[#EFF6FF] flex items-center justify-center font-bold text-[13px] text-[#2563EB] shrink-0">
-                        {m.name?.slice(0, 2).toUpperCase() || '?'}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[13.5px] font-semibold text-[#111111]">{m.name}</div>
-                        <div className="text-[12px] text-[rgba(17,17,17,0.45)]">{m.email}</div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold border ${roleConfig.badgeColor}`}>
-                          {roleConfig.label}
-                        </span>
-                        <div className="text-[10.5px] text-[rgba(17,17,17,0.35)] mt-0.5">
-                          Joined {new Date(m.joinedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          <div className="space-y-6">
+            {/* Header with Title and Add Member action */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#F3F4F6]">
+              <div>
+                <h3 className="text-[17px] font-bold text-[#111111]">Team &amp; Expertise Matrix</h3>
+                <p className="text-[12.5px] text-[rgba(17,17,17,0.5)] mt-0.5">
+                  Assign project members aligned with technical domain requirements and review join requests.
+                </p>
+              </div>
+              {isPMOrOwner && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    fetchAvailableUsers();
+                    setShowAddMemberModal(true);
+                  }}
+                  className="flex items-center gap-2 px-3.5 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg text-[13px] font-semibold transition-colors shadow-2xs cursor-pointer shrink-0"
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  Add Member via Expertise Matrix
+                </button>
+              )}
+            </div>
+
+            {/* Pending Join Requests (Visible to Project Manager / Owner / Admin) */}
+            {isPMOrOwner && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-[14px] font-bold text-[#111111]">Pending Project Requests</h4>
+                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                    joinRequests.filter(r => r.status === 'pending').length > 0
+                      ? 'bg-[#FEF3C7] text-[#D97706] border border-[#FDE68A]'
+                      : 'bg-[#F3F4F6] text-[#6B7280]'
+                  }`}>
+                    {joinRequests.filter(r => r.status === 'pending').length}
+                  </span>
+                </div>
+
+                {joinRequestsLoading ? (
+                  <div className="p-4 text-center text-[12px] text-gray-400">Checking pending requests...</div>
+                ) : joinRequests.filter(r => r.status === 'pending').length === 0 ? (
+                  <div className="p-4 rounded-xl border border-dashed border-[#E5E7EB] bg-[#FAFAFB] text-center text-[12.5px] text-[rgba(17,17,17,0.45)]">
+                    No pending join requests for this project.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {joinRequests.filter(r => r.status === 'pending').map(req => {
+                      const applicant = req.user || {};
+                      const expertiseList: string[] = applicant.expertise || [];
+                      const selectedRole = requestApprovalRoles[req.id] || 'CONTRIBUTOR';
+
+                      return (
+                        <div key={req.id} className="p-4 rounded-xl border border-[#FDE68A] bg-[#FFFDF5] shadow-2xs space-y-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-9 h-9 rounded-full bg-[#2563EB] text-white font-bold text-[12px] flex items-center justify-center shrink-0">
+                                {applicant.avatar || applicant.name?.slice(0, 2).toUpperCase() || '?'}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-[13.5px] font-semibold text-[#111111] truncate">{applicant.name}</div>
+                                <div className="text-[11.5px] text-[rgba(17,17,17,0.5)] truncate">{applicant.email}</div>
+                              </div>
+                            </div>
+                            <span className="px-2 py-0.5 rounded text-[10.5px] font-medium bg-[#FEF3C7] text-[#B45309] shrink-0">
+                              {applicant.role || 'Member'}
+                            </span>
+                          </div>
+
+                          {/* Expertise Matrix */}
+                          <div>
+                            <div className="text-[10px] font-semibold uppercase tracking-wider text-[rgba(17,17,17,0.45)] mb-1">
+                              Expertise Matrix:
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {expertiseList.length > 0 ? (
+                                expertiseList.map((skill, si) => (
+                                  <span key={si} className="px-2 py-0.5 rounded text-[10.5px] font-medium bg-[#EEF2FF] text-[#4F46E5] border border-[#C7D2FE]">
+                                    {skill}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-[11px] text-[rgba(17,17,17,0.4)] italic">No specific skills specified</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Note */}
+                          {req.message && (
+                            <div className="p-2 rounded-lg bg-white border border-[#E5E7EB] text-[12px] text-[rgba(17,17,17,0.7)] italic">
+                              &ldquo;{req.message}&rdquo;
+                            </div>
+                          )}
+
+                          {/* Role Selector & Action Buttons */}
+                          <div className="flex items-center justify-between gap-2 pt-1 border-t border-[#FEEFC3]">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] font-medium text-gray-500">Role:</span>
+                              <select
+                                value={selectedRole}
+                                onChange={e => setRequestApprovalRoles(prev => ({ ...prev, [req.id]: e.target.value as ProjectRole }))}
+                                className="text-[11.5px] border border-[#E5E7EB] rounded-md px-2 py-1 bg-white outline-none font-medium text-gray-700"
+                              >
+                                <option value="CONTRIBUTOR">Contributor</option>
+                                <option value="LEAD">Project Lead</option>
+                                <option value="VIEWER">Viewer</option>
+                              </select>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleReviewRequest(req.id, 'reject')}
+                                className="px-2.5 py-1 text-[11.5px] font-medium text-[#DC2626] hover:bg-[#FEF2F2] rounded-md border border-[#FECACA] transition-colors cursor-pointer"
+                              >
+                                Reject
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleReviewRequest(req.id, 'approve', selectedRole)}
+                                className="px-3 py-1 text-[11.5px] font-semibold text-white bg-[#16A34A] hover:bg-[#15803D] rounded-md shadow-2xs transition-colors cursor-pointer"
+                              >
+                                Approve &amp; Add
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
+
+            {/* Current Project Members List */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-[14px] font-bold text-[#111111]">
+                  Active Team Members ({members.length})
+                </h4>
+                <span className="text-[11.5px] text-[rgba(17,17,17,0.45)]">
+                  Only assigned members can create tasks in this project
+                </span>
+              </div>
+
+              {membersLoading ? (
+                <div className="py-10 text-center text-[13px] text-[rgba(17,17,17,0.4)]">Loading team members...</div>
+              ) : members.length === 0 ? (
+                <div className="py-10 text-center text-[13px] text-[rgba(17,17,17,0.4)]">No members assigned to this project.</div>
+              ) : (
+                <div className="space-y-2">
+                  {members.map(m => {
+                    const roleConfig = ROLE_DESCRIPTIONS[(m.role as ProjectRole)] || ROLE_DESCRIPTIONS['VIEWER'];
+                    const memberExpertise: string[] = (m as any).expertise || [];
+
+                    return (
+                      <div key={m.userId} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-[#E5E7EB] bg-white hover:border-[#CBD5E1] transition-all">
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-full bg-[#EFF6FF] flex items-center justify-center font-bold text-[13px] text-[#2563EB] shrink-0 border border-[#DBEAFE]">
+                            {m.avatar || m.name?.slice(0, 2).toUpperCase() || '?'}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[13.5px] font-semibold text-[#111111]">{m.name}</span>
+                              <span className="text-[11px] text-[rgba(17,17,17,0.4)] font-medium">({m.userRole || 'Member'})</span>
+                            </div>
+                            <div className="text-[12px] text-[rgba(17,17,17,0.45)]">{m.email}</div>
+
+                            {/* Expertise tags */}
+                            {memberExpertise.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1.5">
+                                {memberExpertise.map((skill, si) => (
+                                  <span key={si} className="px-2 py-0.5 rounded text-[10px] font-medium bg-[#F3F4F6] text-[#374151]">
+                                    {skill}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Role & Permissions controls */}
+                        <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                          {isPMOrOwner && m.role !== 'OWNER' ? (
+                            <div className="flex items-center gap-2">
+                              <select
+                                value={m.role}
+                                onChange={e => handleUpdateMemberRole(m.userId, e.target.value as ProjectRole)}
+                                className="text-[12px] border border-[#E5E7EB] rounded-lg px-2.5 py-1.5 bg-white font-medium text-gray-700 outline-none"
+                              >
+                                <option value="CONTRIBUTOR">Contributor</option>
+                                <option value="LEAD">Project Lead</option>
+                                <option value="VIEWER">Viewer</option>
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveMember(m.userId, m.name)}
+                                title="Remove from project"
+                                className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                              >
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="text-right">
+                              <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold border ${roleConfig.badgeColor}`}>
+                                {roleConfig.label}
+                              </span>
+                              <div className="text-[10.5px] text-[rgba(17,17,17,0.35)] mt-0.5">
+                                Joined {new Date(m.joinedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -968,6 +1284,184 @@ export default function ProjectDetail({
           </div>
         )}
       </div>
+
+      {/* Add Member via Expertise Matrix Modal */}
+      {showAddMemberModal && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => setShowAddMemberModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-150 overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#F3F4F6] shrink-0">
+              <div>
+                <h3 className="text-[17px] font-bold text-[#111111] flex items-center gap-2">
+                  <span>Add Member via Expertise Matrix</span>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] font-medium">
+                    Project Manager
+                  </span>
+                </h3>
+                <p className="text-[12px] text-[rgba(17,17,17,0.5)] mt-0.5">
+                  Select candidates whose technical skills match this project requirements.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddMemberModal(false)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[#F3F4F6] text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            {/* Search toolbar */}
+            <div className="p-4 border-b border-[#F3F4F6] bg-[#FAFAFB] shrink-0 space-y-2.5">
+              <div className="relative">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#9CA3AF"
+                  strokeWidth="2"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                >
+                  <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input
+                  type="text"
+                  value={userSearchTerm}
+                  onChange={e => setUserSearchTerm(e.target.value)}
+                  placeholder="Filter by skill (e.g. React, Python, UI Design, Backend) or user name..."
+                  className="w-full pl-9 pr-4 py-2 text-[13px] border border-[#E5E7EB] rounded-lg bg-white outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all"
+                />
+              </div>
+
+              {/* Quick skill tags bar */}
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 text-[11px]">
+                <span className="text-gray-400 font-medium mr-1 shrink-0">Popular:</span>
+                {['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'UI/UX', 'Python', 'DevOps'].map(tag => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setUserSearchTerm(userSearchTerm === tag ? '' : tag)}
+                    className={`px-2 py-0.5 rounded-full border transition-colors shrink-0 cursor-pointer ${
+                      userSearchTerm.toLowerCase() === tag.toLowerCase()
+                        ? 'bg-[#2563EB] text-white border-[#2563EB]'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Candidates List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {availableUsersLoading ? (
+                <div className="py-12 text-center text-[13px] text-gray-400">Loading organization users...</div>
+              ) : (
+                (() => {
+                  const currentMemberIds = new Set(members.map(m => m.userId));
+                  const candidates = availableUsers
+                    .filter(u => !currentMemberIds.has(u.id))
+                    .filter(u => {
+                      if (!userSearchTerm.trim()) return true;
+                      const term = userSearchTerm.toLowerCase();
+                      const matchName = u.name?.toLowerCase().includes(term);
+                      const matchEmail = u.email?.toLowerCase().includes(term);
+                      const matchRole = u.role?.toLowerCase().includes(term);
+                      const matchExpertise = Array.isArray(u.expertise) && u.expertise.some((s: string) => s.toLowerCase().includes(term));
+                      return matchName || matchEmail || matchRole || matchExpertise;
+                    });
+
+                  if (candidates.length === 0) {
+                    return (
+                      <div className="py-12 text-center text-[13px] text-gray-400">
+                        {userSearchTerm
+                          ? `No available candidates matching "${userSearchTerm}".`
+                          : 'All registered organization users are already members of this project.'}
+                      </div>
+                    );
+                  }
+
+                  return candidates.map(user => {
+                    const candidateRole = selectedUserRoles[user.id] || 'CONTRIBUTOR';
+                    const isAdding = addingUserId === user.id;
+                    const expertiseList: string[] = user.expertise || [];
+
+                    return (
+                      <div
+                        key={user.id}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-[#E5E7EB] hover:border-[#BFDBFE] hover:bg-[#FAFBFF] transition-all bg-white"
+                      >
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-full bg-[#EFF6FF] text-[#2563EB] font-bold text-[13px] flex items-center justify-center shrink-0 border border-[#DBEAFE]">
+                            {user.avatar || user.name?.slice(0, 2).toUpperCase() || '?'}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[13.5px] font-semibold text-[#111111]">{user.name}</span>
+                              <span className="text-[11px] text-gray-500 font-medium">({user.role || 'Member'})</span>
+                            </div>
+                            <div className="text-[12px] text-gray-400">{user.email}</div>
+
+                            {/* Expertise tags */}
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {expertiseList.length > 0 ? (
+                                expertiseList.map((skill, si) => (
+                                  <span
+                                    key={si}
+                                    className="px-2 py-0.5 rounded text-[10.5px] font-medium bg-[#EEF2FF] text-[#4F46E5] border border-[#C7D2FE]"
+                                  >
+                                    {skill}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-[11px] text-gray-400 italic">No specific tags</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Add controls */}
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                          <select
+                            value={candidateRole}
+                            onChange={e =>
+                              setSelectedUserRoles(prev => ({
+                                ...prev,
+                                [user.id]: e.target.value as ProjectRole,
+                              }))
+                            }
+                            className="text-[12px] border border-[#E5E7EB] rounded-lg px-2.5 py-1.5 bg-white font-medium text-gray-700 outline-none"
+                          >
+                            <option value="CONTRIBUTOR">Contributor</option>
+                            <option value="LEAD">Project Lead</option>
+                            <option value="VIEWER">Viewer</option>
+                          </select>
+                          <button
+                            type="button"
+                            disabled={isAdding}
+                            onClick={() => handleAddMember(user.id, candidateRole)}
+                            className="px-3 py-1.5 text-[12.5px] font-semibold bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg shadow-2xs transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                          >
+                            {isAdding ? 'Adding...' : 'Add to Project'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
