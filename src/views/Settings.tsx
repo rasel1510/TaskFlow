@@ -33,63 +33,6 @@ export const DEFAULT_EXPERTISE_OPTIONS = [
   { id: 'Distributed Learning', label: 'Distributed Learning' },
 ];
 
-export const PRESET_ICONS: Record<string, React.ReactNode> = {
-  'UI Design': (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
-      <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
-      <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
-      <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
-      <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.563-2.512 5.563-5.563C21.438 6.5 17.5 2 12 2z" />
-    </svg>
-  ),
-  'Frontend': (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="16 18 22 12 16 6" />
-      <polyline points="8 6 2 12 8 18" />
-    </svg>
-  ),
-  'Backend': (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <ellipse cx="12" cy="5" rx="9" ry="3" />
-      <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-      <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-    </svg>
-  ),
-  'ML': (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="4" y="4" width="16" height="16" rx="2" />
-      <rect x="9" y="9" width="6" height="6" />
-      <line x1="9" y1="1" x2="9" y2="4" />
-      <line x1="15" y1="1" x2="15" y2="4" />
-      <line x1="9" y1="20" x2="9" y2="23" />
-      <line x1="15" y1="20" x2="15" y2="23" />
-      <line x1="20" y1="9" x2="23" y2="9" />
-      <line x1="20" y1="14" x2="23" y2="14" />
-      <line x1="1" y1="9" x2="4" y2="9" />
-      <line x1="1" y1="14" x2="4" y2="14" />
-    </svg>
-  ),
-  'AI': (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
-      <path d="M5 3v4" />
-      <path d="M19 17v4" />
-      <path d="M3 5h4" />
-      <path d="M17 19h4" />
-    </svg>
-  ),
-  'Distributed Learning': (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="18" cy="5" r="3" />
-      <circle cx="6" cy="12" r="3" />
-      <circle cx="18" cy="19" r="3" />
-      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-    </svg>
-  ),
-};
-
 export const NON_MENTIONED_EXPERTISE_SUGGESTIONS = [
   'DevOps',
   'Cloud Architecture',
@@ -635,29 +578,24 @@ export default function Settings() {
                   </div>
 
                   {/* Expertise Matrix */}
-                  <div className="pt-5 border-t border-[#F3F4F6] space-y-4">
-                    {/* Header with Icon, Title, and Live Counter Badge */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[13px] font-bold uppercase tracking-wider text-[#111111]">
-                            Expertise Matrix
+                  <div className="pt-5 border-t border-[#F3F4F6] space-y-3.5">
+                    {/* Header with Title and Live Counter Badge */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-[12px] font-bold uppercase tracking-wider text-gray-500">
+                          Expertise Matrix
+                        </span>
+                        {pExpertise.length === 0 ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-red-50 text-red-600 border border-red-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                            Required
                           </span>
-                          {pExpertise.length === 0 ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-red-50 text-red-600 border border-red-200">
-                              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                              Required
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                              {pExpertise.length} Selected
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[12px] text-[rgba(17,17,17,0.5)] mt-0.5">
-                          Select all domains that match your skill set. All team members must configure their expertise matrix.
-                        </p>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
+                            {pExpertise.length} Selected
+                          </span>
+                        )}
                       </div>
 
                       {pExpertise.length > 0 && (
@@ -671,51 +609,51 @@ export default function Settings() {
                       )}
                     </div>
 
+                    <p className="text-[13px] text-gray-500 -mt-1">
+                      Select all domains that match your skill set. All team members must configure their expertise matrix.
+                    </p>
+
                     {/* Prominent warning callout if unset */}
                     {pExpertise.length === 0 && (
-                      <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-[12.5px]">
-                        <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 animate-ping" />
+                      <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-[12.5px]">
+                        <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
                         <span>
                           <strong className="font-semibold text-red-900">Expertise matrix is required:</strong> Please select at least one domain below.
                         </span>
                       </div>
                     )}
 
-                    {/* Presets Grid - Modern Interactive Domain Cards */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    {/* Presets Grid - Simple & Professional Selectable Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                       {DEFAULT_EXPERTISE_OPTIONS.map(opt => {
                         const isSelected = pExpertise.includes(opt.id);
-                        const icon = PRESET_ICONS[opt.id];
                         return (
                           <button
                             key={opt.id}
                             type="button"
                             onClick={() => toggleExpertise(opt.id)}
-                            className={`group flex items-center gap-3 p-3 rounded-xl border text-left transition-all duration-150 cursor-pointer select-none active:scale-[0.98] ${
+                            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl border text-left transition-all duration-150 cursor-pointer select-none ${
                               isSelected
-                                ? 'border-[#2563EB] bg-[#EFF6FF] text-[#1E40AF] ring-1 ring-[#2563EB]/40 shadow-xs'
-                                : 'border-[#E5E7EB] bg-white text-[#111111] hover:border-[#93C5FD] hover:bg-[#F8FAFC]'
+                                ? 'border-[#2563EB] bg-white ring-1 ring-[#2563EB] shadow-2xs'
+                                : 'border-[#E5E7EB] bg-white hover:border-gray-300 hover:bg-[#F9FAFB]'
                             }`}
                           >
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                              isSelected
-                                ? 'bg-[#2563EB] text-white shadow-2xs'
-                                : 'bg-[#F1F5F9] text-[#64748B] group-hover:text-[#2563EB] group-hover:bg-[#EFF6FF]'
-                            }`}>
-                              {icon}
+                            <div
+                              className={`w-4.5 h-4.5 rounded-[4px] border flex items-center justify-center shrink-0 transition-colors ${
+                                isSelected
+                                  ? 'bg-[#2563EB] border-[#2563EB] text-white'
+                                  : 'border-gray-300 bg-white'
+                              }`}
+                            >
+                              {isSelected && (
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                              )}
                             </div>
-                            <span className="text-[13px] font-semibold truncate flex-1 min-w-0">
+                            <span className="text-[13.5px] font-semibold text-gray-900 truncate">
                               {opt.label}
                             </span>
-                            <div className={`w-4.5 h-4.5 rounded-full flex items-center justify-center shrink-0 border transition-all ${
-                              isSelected
-                                ? 'bg-[#2563EB] border-[#2563EB] text-white scale-100'
-                                : 'border-[#D1D5DB] bg-white text-transparent group-hover:border-[#93C5FD]'
-                            }`}>
-                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
-                            </div>
                           </button>
                         );
                       })}
@@ -724,46 +662,38 @@ export default function Settings() {
                     {/* Custom Domain Input with Auto-Suggest for Non-Mentioned Expertise */}
                     <div className="relative" ref={suggestionsRef}>
                       <div className="flex items-center gap-2">
-                        <div className="relative flex-1">
-                          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <circle cx="11" cy="11" r="8" />
-                              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                            </svg>
-                          </div>
-                          <input
-                            type="text"
-                            value={customSkill}
-                            onChange={e => {
-                              setCustomSkill(e.target.value);
-                              setShowSuggestions(true);
-                              setActiveSuggestionIndex(-1);
-                            }}
-                            onFocus={() => {
-                              if (customSkill.trim()) setShowSuggestions(true);
-                            }}
-                            onKeyDown={e => {
-                              if (e.key === 'ArrowDown' && showSuggestions && matchingSuggestions.length > 0) {
-                                e.preventDefault();
-                                setActiveSuggestionIndex(prev => (prev + 1) % matchingSuggestions.length);
-                              } else if (e.key === 'ArrowUp' && showSuggestions && matchingSuggestions.length > 0) {
-                                e.preventDefault();
-                                setActiveSuggestionIndex(prev => (prev <= 0 ? matchingSuggestions.length - 1 : prev - 1));
-                              } else if (e.key === 'Enter') {
-                                e.preventDefault();
-                                if (showSuggestions && activeSuggestionIndex >= 0 && matchingSuggestions[activeSuggestionIndex]) {
-                                  addCustomExpertise(matchingSuggestions[activeSuggestionIndex]);
-                                } else {
-                                  addCustomExpertise();
-                                }
-                              } else if (e.key === 'Escape') {
-                                setShowSuggestions(false);
+                        <input
+                          type="text"
+                          value={customSkill}
+                          onChange={e => {
+                            setCustomSkill(e.target.value);
+                            setShowSuggestions(true);
+                            setActiveSuggestionIndex(-1);
+                          }}
+                          onFocus={() => {
+                            if (customSkill.trim()) setShowSuggestions(true);
+                          }}
+                          onKeyDown={e => {
+                            if (e.key === 'ArrowDown' && showSuggestions && matchingSuggestions.length > 0) {
+                              e.preventDefault();
+                              setActiveSuggestionIndex(prev => (prev + 1) % matchingSuggestions.length);
+                            } else if (e.key === 'ArrowUp' && showSuggestions && matchingSuggestions.length > 0) {
+                              e.preventDefault();
+                              setActiveSuggestionIndex(prev => (prev <= 0 ? matchingSuggestions.length - 1 : prev - 1));
+                            } else if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (showSuggestions && activeSuggestionIndex >= 0 && matchingSuggestions[activeSuggestionIndex]) {
+                                addCustomExpertise(matchingSuggestions[activeSuggestionIndex]);
+                              } else {
+                                addCustomExpertise();
                               }
-                            }}
-                            placeholder="Add other (type any word to see suggestions, e.g. DevOps, Mobile, QA)..."
-                            className="w-full text-[13px] pl-9.5 pr-3 py-2.5 border border-[#E5E7EB] rounded-xl outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] bg-white placeholder-[#9CA3AF] transition-all shadow-2xs"
-                          />
-                        </div>
+                            } else if (e.key === 'Escape') {
+                              setShowSuggestions(false);
+                            }
+                          }}
+                          placeholder="Add other (type any word to see suggestions, e.g. DevOps, Mobile, QA)..."
+                          className="flex-1 text-[13px] px-3.5 py-2 border border-[#E5E7EB] rounded-lg outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] bg-white placeholder-gray-400 text-gray-800 transition-all"
+                        />
                         <button
                           type="button"
                           onClick={() => {
@@ -774,27 +704,16 @@ export default function Settings() {
                             }
                           }}
                           disabled={!customSkill.trim()}
-                          className="px-4 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[13px] font-semibold rounded-xl disabled:opacity-40 transition-all cursor-pointer shrink-0 shadow-xs flex items-center gap-1.5"
+                          className="px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[13px] font-semibold rounded-lg disabled:opacity-40 transition-colors cursor-pointer shrink-0"
                         >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                            <line x1="12" y1="5" x2="12" y2="19" />
-                            <line x1="5" y1="12" x2="19" y2="12" />
-                          </svg>
-                          Add
+                          + Add
                         </button>
                       </div>
 
                       {/* Auto-suggest dropdown popup for non-mentioned expertise */}
                       {showSuggestions && customSkill.trim().length > 0 && matchingSuggestions.length > 0 && (
-                        <div className="absolute left-0 right-0 top-full mt-1.5 z-30 bg-white border border-[#E5E7EB] rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                          <div className="px-3.5 py-2 bg-[#F8FAFC] border-b border-[#F1F5F9] flex items-center justify-between text-[11px] text-gray-500 font-semibold tracking-wide uppercase">
-                            <span className="flex items-center gap-1.5">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB]" />
-                              Suggested Competencies
-                            </span>
-                            <span className="text-[10px] text-gray-400 font-normal lowercase">Click or press Enter</span>
-                          </div>
-                          <div className="p-1 max-h-56 overflow-y-auto">
+                        <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-white border border-[#E5E7EB] rounded-lg shadow-lg overflow-hidden">
+                          <div className="p-1 max-h-48 overflow-y-auto">
                             {matchingSuggestions.map((suggestion, idx) => {
                               const isActive = idx === activeSuggestionIndex;
                               return (
@@ -802,21 +721,14 @@ export default function Settings() {
                                   key={suggestion}
                                   type="button"
                                   onClick={() => addCustomExpertise(suggestion)}
-                                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left text-xs transition-colors cursor-pointer ${
+                                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-md text-left text-[12.5px] transition-colors cursor-pointer ${
                                     isActive
                                       ? 'bg-[#EFF6FF] text-[#2563EB] font-semibold'
-                                      : 'text-gray-700 hover:bg-[#F1F5F9] hover:text-[#111111]'
+                                      : 'text-gray-700 hover:bg-[#F3F4F6] hover:text-gray-900'
                                   }`}
                                 >
-                                  <span className="flex items-center gap-2">
-                                    <svg className="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <polyline points="9 18 15 12 9 6" />
-                                    </svg>
-                                    <span>{suggestion}</span>
-                                  </span>
-                                  <span className="text-[11px] text-[#2563EB] font-medium">
-                                    + Add
-                                  </span>
+                                  <span>{suggestion}</span>
+                                  <span className="text-[11px] text-[#2563EB] font-medium">+ Add</span>
                                 </button>
                               );
                             })}
@@ -825,56 +737,27 @@ export default function Settings() {
                       )}
                     </div>
 
-                    {/* Quick Popular Suggestions chips when input is empty */}
-                    {!customSkill.trim() && (
-                      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 text-[11px]">
-                        <span className="text-gray-400 font-medium shrink-0">Popular:</span>
-                        {['DevOps', 'QA Engineering', 'Cloud Architecture', 'Full Stack Engineering', 'Cybersecurity', 'Mobile Development']
-                          .filter(tag => !pExpertise.some(e => e.toLowerCase() === tag.toLowerCase()))
-                          .slice(0, 4)
-                          .map(tag => (
-                            <button
-                              key={tag}
-                              type="button"
-                              onClick={() => addCustomExpertise(tag)}
-                              className="px-2.5 py-0.5 rounded-full border border-gray-200 bg-white hover:border-[#2563EB] hover:text-[#2563EB] text-gray-600 transition-colors shrink-0 cursor-pointer flex items-center gap-1"
-                            >
-                              <span>+</span>
-                              <span>{tag}</span>
-                            </button>
-                          ))}
-                      </div>
-                    )}
-
-                    {/* Custom Selected Specializations */}
+                    {/* Selected Custom Tags */}
                     {pExpertise.filter(item => !DEFAULT_EXPERTISE_OPTIONS.some(o => o.id === item)).length > 0 && (
-                      <div className="pt-2">
-                        <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-2">
-                          Additional Specializations ({pExpertise.filter(item => !DEFAULT_EXPERTISE_OPTIONS.some(o => o.id === item)).length})
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {pExpertise
-                            .filter(item => !DEFAULT_EXPERTISE_OPTIONS.some(o => o.id === item))
-                            .map(tag => (
-                              <span
-                                key={tag}
-                                className="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-xl text-[12px] font-semibold bg-[#EFF6FF] text-[#1D4ED8] border border-[#BFDBFE] shadow-2xs transition-all"
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {pExpertise
+                          .filter(item => !DEFAULT_EXPERTISE_OPTIONS.some(o => o.id === item))
+                          .map(tag => (
+                            <span
+                              key={tag}
+                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[12px] font-medium bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE] transition-colors"
+                            >
+                              <span>{tag}</span>
+                              <button
+                                type="button"
+                                onClick={() => toggleExpertise(tag)}
+                                className="w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-blue-200 text-[#2563EB] cursor-pointer text-[13px] leading-none"
+                                aria-label={`Remove ${tag}`}
                               >
-                                <span>{tag}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => toggleExpertise(tag)}
-                                  className="w-4 h-4 flex items-center justify-center rounded-full hover:bg-red-100 hover:text-red-600 text-blue-400 cursor-pointer transition-colors"
-                                  aria-label={`Remove ${tag}`}
-                                >
-                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                                    <line x1="18" y1="6" x2="6" y2="18" />
-                                    <line x1="6" y1="6" x2="18" y2="18" />
-                                  </svg>
-                                </button>
-                              </span>
-                            ))}
-                        </div>
+                                ×
+                              </button>
+                            </span>
+                          ))}
                       </div>
                     )}
                   </div>
