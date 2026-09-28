@@ -89,20 +89,26 @@ export default function ProjectDetail({
   const { data: session } = useSession();
   const currentUserId = (session?.user as { id?: string })?.id;
   const currentUserRole = (session?.user as { role?: string })?.role;
-  const isPMOrOwner = project?.owner?.id === currentUserId || currentUserRole === 'Project Manager' || currentUserRole === 'Admin';
+  const isPM = currentUserRole === 'Project Manager' || currentUserRole?.toLowerCase() === 'project manager';
+  const isPMOrOwner = project?.owner?.id === currentUserId || isPM || currentUserRole === 'Admin';
 
   // Join Requests state
   const [joinRequests, setJoinRequests] = useState<any[]>([]);
   const [joinRequestsLoading, setJoinRequestsLoading] = useState(false);
   const [requestApprovalRoles, setRequestApprovalRoles] = useState<Record<string, ProjectRole>>({});
 
-  // Add Member Modal state
+  // Add Member Modal state with Expertise Matrix needed
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   const [availableUsersLoading, setAvailableUsersLoading] = useState(false);
   const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [requiredSkills, setRequiredSkills] = useState<string[]>([]);
   const [selectedUserRoles, setSelectedUserRoles] = useState<Record<string, ProjectRole>>({});
   const [addingUserId, setAddingUserId] = useState<string | null>(null);
+
+  // Delete Project modal state (PM only)
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
 
   // Burndown state
   const [burndown, setBurndown] = useState<BurndownResult | null>(null);
@@ -340,20 +346,24 @@ export default function ProjectDetail({
     }
   };
 
-  const handleDeleteProject = async () => {
+  const handleConfirmDeleteProject = async () => {
     if (!project) return;
-    if (!window.confirm(`Are you sure you want to archive project "${project.name}"? It will be soft-archived and can be restored.`)) return;
+    setIsDeletingProject(true);
     try {
       const res = await fetch(`/api/projects/${project.id}`, { method: 'DELETE' });
       const json = await res.json();
-      if (json.success) {
-        toast.success('Project archived successfully');
+      if (res.ok && json.success) {
+        toast.success(`Project "${project.name}" deleted successfully`);
+        setShowDeleteModal(false);
         onBack();
       } else {
-        toast.error('Failed to archive project');
+        throw new Error(json.error?.message || json.message || 'Failed to delete project');
       }
-    } catch {
-      toast.error('Failed to archive project');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete project';
+      toast.error(msg);
+    } finally {
+      setIsDeletingProject(false);
     }
   };
 
@@ -512,6 +522,21 @@ export default function ProjectDetail({
               </svg>
               Settings
             </button>
+            {isPM && (
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#FECACA] hover:bg-[#FEF2F2] text-[13px] font-medium text-[#DC2626] transition-colors cursor-pointer"
+                title="Delete Project"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 6h18"/>
+                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                </svg>
+                Delete
+              </button>
+            )}
           </div>
         </div>
 
@@ -1271,15 +1296,21 @@ export default function ProjectDetail({
             <div className="p-6 rounded-2xl border border-[#FECACA] bg-[#FEF2F2]/40 space-y-3">
               <h3 className="text-[15px] font-semibold text-[#DC2626]">Danger Zone</h3>
               <p className="text-[12.5px] text-[#7F1D1D]/80">
-                Archiving moves this project to ARCHIVED state. All tasks remain intact and the project can be restored.
+                Permanently delete this project. All associated tasks, milestones, team assignments, and data will be permanently removed.
               </p>
-              <button
-                type="button"
-                onClick={handleDeleteProject}
-                className="px-3.5 py-1.5 rounded-lg bg-[#DC2626] hover:bg-[#B91C1C] text-white text-[12.5px] font-semibold transition-colors"
-              >
-                Archive this project
-              </button>
+              {isPM ? (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(true)}
+                  className="px-3.5 py-1.5 rounded-lg bg-[#DC2626] hover:bg-[#B91C1C] text-white text-[12.5px] font-semibold transition-colors cursor-pointer"
+                >
+                  Delete this project
+                </button>
+              ) : (
+                <p className="text-[12px] text-gray-500 italic">
+                  Only Project Managers can permanently delete projects.
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -1292,7 +1323,7 @@ export default function ProjectDetail({
           onClick={() => setShowAddMemberModal(false)}
         >
           <div
-            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-150 overflow-hidden"
+            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-150 overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -1300,12 +1331,12 @@ export default function ProjectDetail({
               <div>
                 <h3 className="text-[17px] font-bold text-[#111111] flex items-center gap-2">
                   <span>Add Member via Expertise Matrix</span>
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] font-medium">
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] font-medium border border-[#BFDBFE]">
                     Project Manager
                   </span>
                 </h3>
                 <p className="text-[12px] text-[rgba(17,17,17,0.5)] mt-0.5">
-                  Select candidates whose technical skills match this project requirements.
+                  Select the required expertise skills you need for this project to match and add qualified users.
                 </p>
               </div>
               <button
@@ -1317,8 +1348,69 @@ export default function ProjectDetail({
               </button>
             </div>
 
-            {/* Search toolbar */}
-            <div className="p-4 border-b border-[#F3F4F6] bg-[#FAFAFB] shrink-0 space-y-2.5">
+            {/* Expertise Matrix Filter & Requirements Toolbar */}
+            <div className="p-4 border-b border-[#F3F4F6] bg-[#FAFAFB] shrink-0 space-y-3">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[rgba(17,17,17,0.6)]">
+                    Project Manager: Select Expertise Matrix Needed
+                  </span>
+                  {requiredSkills.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setRequiredSkills([])}
+                      className="text-[11px] font-medium text-[#2563EB] hover:underline cursor-pointer"
+                    >
+                      Clear skills ({requiredSkills.length})
+                    </button>
+                  )}
+                </div>
+
+                {/* Expertise Matrix Selector Chips */}
+                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+                  {[
+                    'UI Design',
+                    'Frontend',
+                    'Backend',
+                    'ML',
+                    'AI',
+                    'Distributed Learning',
+                    'DevOps',
+                    'QA Engineering',
+                    'Cloud Architecture',
+                    'Full Stack Engineering',
+                    'Cybersecurity',
+                    'Mobile Development',
+                  ].map(skill => {
+                    const isSelected = requiredSkills.includes(skill);
+                    return (
+                      <button
+                        key={skill}
+                        type="button"
+                        onClick={() => {
+                          setRequiredSkills(prev =>
+                            prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill]
+                          );
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-[11.5px] font-medium transition-all cursor-pointer flex items-center gap-1 ${
+                          isSelected
+                            ? 'bg-[#2563EB] text-white border border-[#2563EB] shadow-xs'
+                            : 'bg-white text-gray-700 border border-[#E5E7EB] hover:border-[#2563EB] hover:text-[#2563EB]'
+                        }`}
+                      >
+                        {isSelected && (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                        {skill}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Text Search input */}
               <div className="relative">
                 <svg
                   width="14"
@@ -1335,32 +1427,20 @@ export default function ProjectDetail({
                   type="text"
                   value={userSearchTerm}
                   onChange={e => setUserSearchTerm(e.target.value)}
-                  placeholder="Filter by skill (e.g. React, Python, UI Design, Backend) or user name..."
-                  className="w-full pl-9 pr-4 py-2 text-[13px] border border-[#E5E7EB] rounded-lg bg-white outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all"
+                  placeholder="Search candidates by name, email, or other custom skills..."
+                  className="w-full pl-9 pr-4 py-2 text-[12.5px] border border-[#E5E7EB] rounded-lg bg-white outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all"
                 />
               </div>
 
-              {/* Quick skill tags bar */}
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 text-[11px]">
-                <span className="text-gray-400 font-medium mr-1 shrink-0">Popular:</span>
-                {['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'UI/UX', 'Python', 'DevOps'].map(tag => (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => setUserSearchTerm(userSearchTerm === tag ? '' : tag)}
-                    className={`px-2 py-0.5 rounded-full border transition-colors shrink-0 cursor-pointer ${
-                      userSearchTerm.toLowerCase() === tag.toLowerCase()
-                        ? 'bg-[#2563EB] text-white border-[#2563EB]'
-                        : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
+              {requiredSkills.length > 0 && (
+                <div className="flex items-center gap-1.5 text-[11.5px] text-[#2563EB] bg-[#EFF6FF] px-2.5 py-1 rounded-md border border-[#BFDBFE]">
+                  <span className="font-semibold">Matching needed skills:</span>
+                  <span>{requiredSkills.join(', ')}</span>
+                </div>
+              )}
             </div>
 
-            {/* Candidates List */}
+            {/* Candidates List with Real-time Expertise Match */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {availableUsersLoading ? (
                 <div className="py-12 text-center text-[13px] text-gray-400">Loading organization users...</div>
@@ -1369,35 +1449,59 @@ export default function ProjectDetail({
                   const currentMemberIds = new Set(members.map(m => m.userId));
                   const candidates = availableUsers
                     .filter(u => !currentMemberIds.has(u.id))
-                    .filter(u => {
+                    .map(user => {
+                      const userSkills: string[] = Array.isArray(user.expertise) ? user.expertise : [];
+                      const matchedSkills = userSkills.filter(skill =>
+                        requiredSkills.some(
+                          req =>
+                            req.toLowerCase() === skill.toLowerCase() ||
+                            skill.toLowerCase().includes(req.toLowerCase()) ||
+                            req.toLowerCase().includes(skill.toLowerCase())
+                        )
+                      );
+                      const matchCount = matchedSkills.length;
+                      const matchPct = requiredSkills.length > 0 ? Math.round((matchCount / requiredSkills.length) * 100) : 0;
+                      return { user, userSkills, matchedSkills, matchCount, matchPct };
+                    })
+                    .filter(({ user, userSkills }) => {
                       if (!userSearchTerm.trim()) return true;
                       const term = userSearchTerm.toLowerCase();
-                      const matchName = u.name?.toLowerCase().includes(term);
-                      const matchEmail = u.email?.toLowerCase().includes(term);
-                      const matchRole = u.role?.toLowerCase().includes(term);
-                      const matchExpertise = Array.isArray(u.expertise) && u.expertise.some((s: string) => s.toLowerCase().includes(term));
+                      const matchName = user.name?.toLowerCase().includes(term);
+                      const matchEmail = user.email?.toLowerCase().includes(term);
+                      const matchRole = user.role?.toLowerCase().includes(term);
+                      const matchExpertise = userSkills.some((s: string) => s.toLowerCase().includes(term));
                       return matchName || matchEmail || matchRole || matchExpertise;
+                    })
+                    .sort((a, b) => {
+                      // Rank candidates with more matched required skills first
+                      if (requiredSkills.length > 0) {
+                        if (b.matchCount !== a.matchCount) return b.matchCount - a.matchCount;
+                      }
+                      return (a.user.name || '').localeCompare(b.user.name || '');
                     });
 
                   if (candidates.length === 0) {
                     return (
                       <div className="py-12 text-center text-[13px] text-gray-400">
-                        {userSearchTerm
-                          ? `No available candidates matching "${userSearchTerm}".`
+                        {userSearchTerm || requiredSkills.length > 0
+                          ? 'No available candidates matching the selected skills or search query.'
                           : 'All registered organization users are already members of this project.'}
                       </div>
                     );
                   }
 
-                  return candidates.map(user => {
+                  return candidates.map(({ user, userSkills, matchedSkills, matchCount, matchPct }) => {
                     const candidateRole = selectedUserRoles[user.id] || 'CONTRIBUTOR';
                     const isAdding = addingUserId === user.id;
-                    const expertiseList: string[] = user.expertise || [];
 
                     return (
                       <div
                         key={user.id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-[#E5E7EB] hover:border-[#BFDBFE] hover:bg-[#FAFBFF] transition-all bg-white"
+                        className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border transition-all ${
+                          matchCount > 0 && requiredSkills.length > 0
+                            ? 'border-[#BFDBFE] bg-[#F8FAFF]'
+                            : 'border-[#E5E7EB] bg-white hover:border-[#CBD5E1]'
+                        }`}
                       >
                         <div className="flex items-start gap-3 min-w-0">
                           <div className="w-10 h-10 rounded-full bg-[#EFF6FF] text-[#2563EB] font-bold text-[13px] flex items-center justify-center shrink-0 border border-[#DBEAFE]">
@@ -1407,22 +1511,47 @@ export default function ProjectDetail({
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-[13.5px] font-semibold text-[#111111]">{user.name}</span>
                               <span className="text-[11px] text-gray-500 font-medium">({user.role || 'Member'})</span>
+
+                              {/* Match indicator badge */}
+                              {requiredSkills.length > 0 && (
+                                matchCount === requiredSkills.length ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-[#ECFDF5] text-[#16A34A] border border-[#BBF7D0]">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                                    100% Match ({matchCount}/{requiredSkills.length} skills)
+                                  </span>
+                                ) : matchCount > 0 ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]">
+                                    ✓ {matchPct}% Match ({matchCount}/{requiredSkills.length} skills)
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-[#F3F4F6] text-[#6B7280]">
+                                    0/{requiredSkills.length} skills matched
+                                  </span>
+                                )
+                              )}
                             </div>
                             <div className="text-[12px] text-gray-400">{user.email}</div>
 
                             {/* Expertise tags */}
                             <div className="flex flex-wrap gap-1 mt-1.5">
-                              {expertiseList.length > 0 ? (
-                                expertiseList.map((skill, si) => (
-                                  <span
-                                    key={si}
-                                    className="px-2 py-0.5 rounded text-[10.5px] font-medium bg-[#EEF2FF] text-[#4F46E5] border border-[#C7D2FE]"
-                                  >
-                                    {skill}
-                                  </span>
-                                ))
+                              {userSkills.length > 0 ? (
+                                userSkills.map((skill, si) => {
+                                  const isMatched = matchedSkills.includes(skill);
+                                  return (
+                                    <span
+                                      key={si}
+                                      className={`px-2 py-0.5 rounded text-[10.5px] font-medium transition-colors ${
+                                        isMatched
+                                          ? 'bg-[#2563EB] text-white font-semibold shadow-2xs'
+                                          : 'bg-[#F3F4F6] text-[#374151] border border-[#E5E7EB]'
+                                      }`}
+                                    >
+                                      {isMatched && '✓ '}{skill}
+                                    </span>
+                                  );
+                                })
                               ) : (
-                                <span className="text-[11px] text-gray-400 italic">No specific tags</span>
+                                <span className="text-[11px] text-gray-400 italic">No expertise tags</span>
                               )}
                             </div>
                           </div>
@@ -1448,7 +1577,7 @@ export default function ProjectDetail({
                             type="button"
                             disabled={isAdding}
                             onClick={() => handleAddMember(user.id, candidateRole)}
-                            className="px-3 py-1.5 text-[12.5px] font-semibold bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg shadow-2xs transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                            className="px-3.5 py-1.5 text-[12.5px] font-semibold bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg shadow-2xs transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
                           >
                             {isAdding ? 'Adding...' : 'Add to Project'}
                           </button>
@@ -1458,6 +1587,60 @@ export default function ProjectDetail({
                   });
                 })()
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Project Confirmation Modal (Project Managers only) */}
+      {showDeleteModal && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => !isDeletingProject && setShowDeleteModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-150"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3.5 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-[#FEE2E2] text-[#DC2626] flex items-center justify-center shrink-0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 6h18"/>
+                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                  <line x1="10" y1="11" x2="10" y2="17"/>
+                  <line x1="14" y1="11" x2="14" y2="17"/>
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-[16px] font-bold text-[#111111]">Delete Project</h3>
+                <p className="text-[12.5px] text-[rgba(17,17,17,0.6)] mt-1">
+                  Are you sure you want to permanently delete <strong className="text-[#111111]">{project?.name}</strong>?
+                </p>
+              </div>
+            </div>
+
+            <p className="text-[12px] text-[#DC2626] bg-[#FEF2F2] p-3 rounded-lg border border-[#FEE2E2] mb-5">
+              Warning: This action will permanently remove this project and all associated tasks, team memberships, and milestones. This cannot be undone.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isDeletingProject}
+                onClick={() => setShowDeleteModal(false)}
+                className="px-3.5 py-2 text-[13px] font-medium text-[rgba(17,17,17,0.7)] hover:bg-[#F3F4F6] rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingProject}
+                onClick={handleConfirmDeleteProject}
+                className="px-4 py-2 text-[13px] font-semibold bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-lg shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+              >
+                {isDeletingProject ? 'Deleting...' : 'Delete Project'}
+              </button>
             </div>
           </div>
         </div>

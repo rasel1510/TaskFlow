@@ -155,10 +155,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Role check: Only Project Manager or Admin can create projects
-    if (sessionUserRole !== 'Project Manager' && sessionUserRole !== 'Admin') {
+    // Role check: Only Project Manager can create projects
+    const isPM = sessionUserRole === 'Project Manager' || sessionUserRole?.toLowerCase() === 'project manager';
+    if (!isPM) {
       return NextResponse.json(
-        { success: false, error: { code: 'FORBIDDEN', message: 'Only Project Managers and Admins can create projects' } },
+        { success: false, error: { code: 'FORBIDDEN', message: 'Only Project Managers can create projects' } },
         { status: 403 }
       );
     }

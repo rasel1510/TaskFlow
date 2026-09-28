@@ -343,10 +343,6 @@ export default function LoginPage() {
       >
         <LoginForm />
       </Suspense>
-
-      <footer className="mt-8 text-center text-[11px] text-gray-400">
-        © {new Date().getFullYear()} FlowSync Inc. All rights reserved.
-      </footer>
     </div>
   );
 }

@@ -64,7 +64,7 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
   const { data: session } = useSession();
   const toast = useToast();
   const userRole = (session?.user as { role?: string })?.role;
-  const canCreateProject = userRole === 'Project Manager' || userRole === 'Admin';
+  const canCreateProject = userRole === 'Project Manager' || userRole?.toLowerCase() === 'project manager';
 
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [search, setSearch] = useState('');
@@ -76,6 +76,10 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
   const [requestModalProject, setRequestModalProject] = useState<UIProject | null>(null);
   const [requestMessage, setRequestMessage] = useState('');
   const [submittingRequest, setSubmittingRequest] = useState(false);
+
+  // Project deletion state (Project Managers only)
+  const [projectToDelete, setProjectToDelete] = useState<UIProject | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchProjects = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -144,6 +148,28 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
       toast.error(msg);
     } finally {
       setSubmittingRequest(false);
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!projectToDelete) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/projects/${projectToDelete.id}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json();
+      if (!res.ok || json.success === false) {
+        throw new Error(json.error?.message || json.message || 'Failed to delete project');
+      }
+      toast.success(`Project "${projectToDelete.name}" deleted successfully`);
+      setProjects(prev => prev.filter(p => p.id !== projectToDelete.id));
+      setProjectToDelete(null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete project';
+      toast.error(msg);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -295,8 +321,24 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
                       </div>
                     </div>
 
-                    {/* Project Membership / Join Status */}
-                    <div className="shrink-0" onClick={e => e.stopPropagation()}>
+                    {/* Project Membership / Join Status / PM Actions */}
+                    <div className="shrink-0 flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                      {canCreateProject && (
+                        <button
+                          type="button"
+                          title="Delete Project"
+                          onClick={() => setProjectToDelete(p)}
+                          className="p-1.5 text-gray-400 hover:text-[#DC2626] hover:bg-[#FEF2F2] rounded-md transition-colors cursor-pointer"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 6h18"/>
+                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                            <line x1="10" y1="11" x2="10" y2="17"/>
+                            <line x1="14" y1="11" x2="14" y2="17"/>
+                          </svg>
+                        </button>
+                      )}
                       {p.isOwner ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]">
                           Owner
@@ -468,7 +510,7 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
                     ))}
                   </div>
                   <span className="w-24 text-[12.5px] text-[rgba(17,17,17,0.6)]">{p.dueDate}</span>
-                  <div className="w-28 text-right" onClick={e => e.stopPropagation()}>
+                  <div className="w-28 text-right flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
                     {p.isOwner ? (
                       <span className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]">
                         Owner
@@ -491,6 +533,20 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
                         className="px-2 py-1 rounded text-[11px] font-semibold bg-[#2563EB] hover:bg-[#1D4ED8] text-white transition-colors cursor-pointer"
                       >
                         Request
+                      </button>
+                    )}
+                    {canCreateProject && (
+                      <button
+                        type="button"
+                        title="Delete Project"
+                        onClick={() => setProjectToDelete(p)}
+                        className="p-1 text-gray-400 hover:text-[#DC2626] hover:bg-[#FEF2F2] rounded transition-colors cursor-pointer"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 6h18"/>
+                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                        </svg>
                       </button>
                     )}
                   </div>
@@ -561,6 +617,60 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Project Confirmation Modal (Project Managers only) */}
+      {projectToDelete && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => !isDeleting && setProjectToDelete(null)}
+        >
+          <div
+            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-150"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3.5 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-[#FEE2E2] text-[#DC2626] flex items-center justify-center shrink-0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 6h18"/>
+                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                  <line x1="10" y1="11" x2="10" y2="17"/>
+                  <line x1="14" y1="11" x2="14" y2="17"/>
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-[16px] font-bold text-[#111111]">Delete Project</h3>
+                <p className="text-[12.5px] text-[rgba(17,17,17,0.6)] mt-1">
+                  Are you sure you want to permanently delete <strong className="text-[#111111]">{projectToDelete.name}</strong>?
+                </p>
+              </div>
+            </div>
+
+            <p className="text-[12px] text-[#DC2626] bg-[#FEF2F2] p-3 rounded-lg border border-[#FEE2E2] mb-5">
+              Warning: This action will permanently remove this project, all associated tasks, team memberships, and milestones. This cannot be undone.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setProjectToDelete(null)}
+                className="px-3.5 py-2 text-[13px] font-medium text-[rgba(17,17,17,0.7)] hover:bg-[#F3F4F6] rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleDeleteProject}
+                className="px-4 py-2 text-[13px] font-semibold bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-lg shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Project'}
+              </button>
+            </div>
           </div>
         </div>
       )}

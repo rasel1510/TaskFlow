@@ -11,6 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
 import { projects as mockProjects, tasks as mockTasks } from '@/data/mockData';
 import { UpdateProjectSchema, validationError } from '@/lib/validators';
@@ -309,37 +310,29 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 // ---------------------------------------------------------------------------
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
-    const { id: projectId } = await context.params;
-    const { searchParams } = new URL(request.url);
-    const hardDelete = searchParams.get('hard') === 'true';
+    const session = await auth();
+    const sessionUserRole = (session?.user as { role?: string })?.role;
+    const isPM = sessionUserRole === 'Project Manager' || sessionUserRole?.toLowerCase() === 'project manager';
 
-    // Step 4.11: Default to audited soft-deletion / archival unless hard=true is specified
-    if (!hardDelete) {
-      try {
-        const archived = await prisma.project.update({
-          where: { id: projectId },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          data: { lifecycleState: 'ARCHIVED', archivedAt: new Date() } as any,
-        });
-        return NextResponse.json(
-          { success: true, data: { message: `Project "${projectId}" archived successfully`, archived } },
-          { status: 200 }
-        );
-      } catch (dbErr) {
-        console.warn('[DELETE /api/projects/:id] Soft-archival DB warning:', dbErr);
-      }
-    } else {
-      try {
-        await prisma.project.delete({
-          where: { id: projectId },
-        });
-        return NextResponse.json(
-          { success: true, data: { message: `Project "${projectId}" permanently deleted` } },
-          { status: 200 }
-        );
-      } catch (dbErr) {
-        console.warn('[DELETE /api/projects/:id] DB error:', dbErr);
-      }
+    if (!isPM) {
+      return NextResponse.json(
+        { success: false, error: { code: 'FORBIDDEN', message: 'Only Project Managers can delete projects' } },
+        { status: 403 }
+      );
+    }
+
+    const { id: projectId } = await context.params;
+
+    try {
+      await prisma.project.delete({
+        where: { id: projectId },
+      });
+      return NextResponse.json(
+        { success: true, data: { message: `Project "${projectId}" permanently deleted` } },
+        { status: 200 }
+      );
+    } catch (dbErr) {
+      console.warn('[DELETE /api/projects/:id] DB error:', dbErr);
     }
 
     const idx = mockProjects.findIndex((p) => p.id === projectId);

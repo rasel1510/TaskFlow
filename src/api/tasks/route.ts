@@ -298,9 +298,10 @@ export async function POST(request: NextRequest) {
 
     const targetAssigneeId = dbUser.id;
 
-    // 2. Project Assignment & Permission Check:
-    // If projectId is provided, user must be the Project Owner, an Admin, or an approved Project Member.
-    // If projectId is empty / omitted, this is an independent personal task for the user alone.
+    // 2. Project Assignment:
+    // Users can create a task under any project or independently.
+    // If projectId is provided, the task is attached to that project.
+    // If omitted or empty, this creates an independent personal task for the user alone.
     let targetProjectId: string | null = null;
     const requestedProjectId = typeof projectId === 'string' && projectId.trim() ? projectId.trim() : undefined;
 
@@ -317,24 +318,24 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const isOwner = targetProject.ownerId === dbUser.id;
-      const isAdminOrPM = dbUser.role === 'Admin' || (dbUser.role === 'Project Manager' && isOwner);
-      const isMember = targetProject.members.some(m => m.userId === dbUser.id);
-
-      if (!isOwner && !isAdminOrPM && !isMember) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: {
-              code: 'FORBIDDEN',
-              message: 'You are not a member of this project. You must be added by the Project Manager or have an approved join request to create tasks in this project.',
-            },
-          },
-          { status: 403 }
-        );
-      }
-
       targetProjectId = targetProject.id;
+
+      // Automatically register user as a CONTRIBUTOR on the project if not already a member
+      const isOwner = targetProject.ownerId === dbUser.id;
+      const isMember = targetProject.members.some(m => m.userId === dbUser.id);
+      if (!isOwner && !isMember) {
+        try {
+          await prisma.projectMember.create({
+            data: {
+              projectId: targetProject.id,
+              userId: dbUser.id,
+              role: 'CONTRIBUTOR',
+            },
+          });
+        } catch {
+          // Ignore unique constraint race condition
+        }
+      }
     }
 
     // 3. Auto-generate taskNumber TF-XXX

@@ -172,7 +172,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     try {
       dbUser = await prisma.user.findUnique({
         where: { id: userId },
-        select: { id: true, name: true, email: true, avatar: true, role: true },
+        select: { id: true, name: true, email: true, avatar: true, role: true, expertise: true },
       });
     } catch {}
 
@@ -198,6 +198,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       email: userInfo.email || '',
       avatar: userInfo.avatar || userInfo.name.slice(0, 2).toUpperCase(),
       userRole: userInfo.role || 'Member',
+      expertise: (userInfo as any)?.expertise || (targetUser as any)?.expertise || [],
     };
 
     if (existingIdx >= 0) {

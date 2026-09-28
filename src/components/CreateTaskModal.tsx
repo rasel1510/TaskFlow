@@ -152,17 +152,16 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
     fetch('/api/projects')
       .then(r => r.json())
       .then(envelope => {
-        const data: (DBProject & { isMember?: boolean; isOwner?: boolean })[] = Array.isArray(envelope) ? envelope : (envelope?.data ?? []);
+        const data: DBProject[] = Array.isArray(envelope) ? envelope : (envelope?.data ?? []);
         setProjects(data);
-        const allowed = isElevated ? data : data.filter(p => p.isMember || p.isOwner);
-        if (allowed.length > 0) {
-          setProjectId(allowed[0].id);
+        if (data.length > 0) {
+          setProjectId(data[0].id);
         } else {
-          setProjectId(''); // Default to independent task if not in any project
+          setProjectId(''); // Default to independent task if no projects exist
         }
       })
       .catch(() => { });
-  }, [isElevated]);
+  }, []);
 
   // Default assignee to current session user
   useEffect(() => {
@@ -333,14 +332,14 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                       {/* Project Options */}
                       <div className="py-1">
                         <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-[rgba(17,17,17,0.4)]">
-                          {isElevated ? 'All Projects' : 'Your Assigned Projects'}
+                          Projects
                         </div>
-                        {(isElevated ? projects : projects.filter((p: any) => p.isMember || p.isOwner)).length === 0 ? (
+                        {projects.length === 0 ? (
                           <div className="px-3 py-2 text-[12px] text-[rgba(17,17,17,0.45)] italic">
-                            No project memberships yet. You can create independent tasks or request to join a project.
+                            No projects available yet. You can create an independent task.
                           </div>
                         ) : (
-                          (isElevated ? projects : projects.filter((p: any) => p.isMember || p.isOwner)).map(p => {
+                          projects.map(p => {
                             const isSelected = p.id === projectId;
                             return (
                               <button
