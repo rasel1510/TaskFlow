@@ -421,12 +421,14 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
                 </div>
                 {/* Bottom row: status + priority + due date */}
                 <div className="flex items-center gap-2 mt-2.5 ml-7 flex-wrap">
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: sc(task.status).bg, color: sc(task.status).text }}>
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap shrink-0" style={{ backgroundColor: sc(task.status).bg, color: sc(task.status).text }}>
                     {sc(task.status).label}
                   </span>
-                  <span className="text-[11px] text-[rgba(17,17,17,0.55)]">{pc(task.priority).label}</span>
+                  <span className="text-[11px] font-medium whitespace-nowrap shrink-0" style={{ color: pc(task.priority).color }}>
+                    {pc(task.priority).label}
+                  </span>
                   {task.dueDate && (
-                    <span className="text-[11px] text-[rgba(17,17,17,0.45)] ml-auto">{formatDate(task.dueDate)}</span>
+                    <span className="text-[11px] text-[rgba(17,17,17,0.45)] ml-auto whitespace-nowrap shrink-0">{formatDate(task.dueDate)}</span>
                   )}
                 </div>
               </div>

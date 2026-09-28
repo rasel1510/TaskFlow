@@ -259,27 +259,37 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
                     <div
                       key={task.id}
                       onClick={() => onTaskClick(task.id)}
-                      className={`flex items-center gap-3 px-5 py-3.5 hover:bg-[#F9FAFB] cursor-pointer transition-colors ${
+                      className={`flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-5 py-3 sm:py-3.5 hover:bg-[#F9FAFB] cursor-pointer transition-colors ${
                         i < myTasks.length - 1 ? 'border-b border-[#F3F4F6]' : ''
                       }`}
                     >
                       <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: sc.text }} />
                       <div className="flex-1 min-w-0">
-                        <div className="text-[13.5px] font-medium text-[#111111] truncate">{task.title}</div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[11px] text-[rgba(17,17,17,0.4)]">{task.project?.name ?? 'General'}</span>
-                          <span className="text-[10px] text-[rgba(17,17,17,0.25)]">·</span>
-                          <span className="text-[11px]" style={{ color: pc.color }}>{pc.label}</span>
+                        <div className="text-[13px] sm:text-[13.5px] font-medium text-[#111111] truncate">{task.title}</div>
+                        <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 min-w-0 flex-wrap sm:flex-nowrap">
+                          <span className="text-[11px] text-[rgba(17,17,17,0.45)] truncate shrink min-w-0 max-w-[120px] sm:max-w-none">
+                            {task.project?.name ?? 'General'}
+                          </span>
+                          <span className="text-[10px] text-[rgba(17,17,17,0.25)] shrink-0">·</span>
+                          <span className="text-[11px] font-medium whitespace-nowrap shrink-0" style={{ color: pc.color }}>
+                            {pc.label}
+                          </span>
+                          <span className="text-[10px] text-[rgba(17,17,17,0.25)] shrink-0 sm:hidden">·</span>
+                          <span className="text-[11px] text-[rgba(17,17,17,0.4)] whitespace-nowrap shrink-0 sm:hidden">
+                            {formatDate(task.dueDate)}
+                          </span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span
-                          className="text-[11px] font-medium px-2 py-0.5 rounded-full"
+                          className="text-[10.5px] sm:text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap shrink-0"
                           style={{ backgroundColor: sc.bg, color: sc.text }}
                         >
                           {sc.label}
                         </span>
-                        <span className="text-[11.5px] text-[rgba(17,17,17,0.4)]">{formatDate(task.dueDate)}</span>
+                        <span className="text-[11.5px] text-[rgba(17,17,17,0.4)] whitespace-nowrap shrink-0 hidden sm:inline">
+                          {formatDate(task.dueDate)}
+                        </span>
                       </div>
                     </div>
                   );

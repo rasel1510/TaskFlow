@@ -1162,14 +1162,14 @@ export default function ProjectDetail({
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-3 shrink-0">
+                      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                         <span
-                          className="px-2 py-0.5 rounded text-[11px] font-medium"
+                          className="px-2 py-0.5 rounded text-[11px] font-medium whitespace-nowrap shrink-0"
                           style={{ backgroundColor: statusCfg.bg, color: statusCfg.text }}
                         >
                           {statusCfg.label}
                         </span>
-                        <span className="text-[11px] font-medium" style={{ color: priorityCfg.color }}>
+                        <span className="text-[11px] font-medium whitespace-nowrap shrink-0" style={{ color: priorityCfg.color }}>
                           {priorityCfg.label}
                         </span>
                         {task.assignee && (
