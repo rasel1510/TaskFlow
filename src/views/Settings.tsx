@@ -22,7 +22,7 @@ import { useToast } from '@/components/ui/Toast';
 
 /* ─────────────── types ─────────────── */
 
-type Section = 'profile' | 'workspace' | 'members' | 'notifications' | 'security' | 'billing' | 'integrations';
+type Section = 'profile' | 'workspace' | 'members' | 'notifications' | 'security' | 'integrations';
 
 export const DEFAULT_EXPERTISE_OPTIONS = [
   { id: 'UI Design', label: 'UI Design' },
@@ -143,9 +143,8 @@ const navItems: { id: Section; label: string; group: string }[] = [
   { id: 'members',       label: 'Members',      group: 'Workspace' },
   { id: 'notifications', label: 'Notifications',group: 'Workspace' },
   { id: 'integrations',  label: 'Integrations', group: 'Integrations' },
-  { id: 'billing',       label: 'Billing & Plan',group: 'Billing' },
 ];
-const groups = ['Account', 'Workspace', 'Integrations', 'Billing'];
+const groups = ['Account', 'Workspace', 'Integrations'];
 
 const integrations = [
   { name: 'Slack',        desc: 'Get task notifications in Slack channels', connected: true,  icon: '#4A154B', letter: 'S' },
@@ -1106,62 +1105,6 @@ export default function Settings() {
           </div>
         )}
 
-        {/* ━━━━━━━━━━━━━━━━━━━━━━━━
-            BILLING
-        ━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        {section === 'billing' && (
-          <div className="max-w-xl">
-            <h2 className="text-[20px] font-bold text-[#111111] mb-1">Billing &amp; Plan</h2>
-            <p className="text-[13px] text-[rgba(17,17,17,0.45)] mb-6">Manage your subscription.</p>
-            <div className="border border-[#2563EB] rounded-xl p-5 mb-6 bg-[#FAFBFF]">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <span className="text-[14px] font-bold text-[#111111]">Pro Plan</span>
-                  <span className="ml-2 text-[11px] bg-[#DBEAFE] text-[#2563EB] px-2 py-0.5 rounded font-semibold">Current</span>
-                </div>
-                <span className="text-[20px] font-bold text-[#111111]">
-                  $15<span className="text-[13px] font-normal text-[rgba(17,17,17,0.5)]">/mo per user</span>
-                </span>
-              </div>
-              <ul className="space-y-1.5 mb-4">
-                {['Unlimited tasks & projects', 'Advanced reporting', 'Priority support', 'Custom fields', 'Team workload view'].map(f => (
-                  <li key={f} className="flex items-center gap-2 text-[12.5px] text-[rgba(17,17,17,0.7)]">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" strokeLinecap="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <div className="flex gap-2">
-                <button className="px-4 py-2 bg-[#2563EB] text-white rounded-lg text-[13px] font-semibold hover:bg-[#1D4ED8] transition-colors">
-                  Upgrade to Business
-                </button>
-                <button className="px-4 py-2 border border-[#E5E7EB] rounded-lg text-[13px] font-medium text-[rgba(17,17,17,0.6)] hover:bg-[#F9FAFB] transition-colors">
-                  Manage Billing
-                </button>
-              </div>
-            </div>
-            <div className="border border-[#E5E7EB] rounded-xl p-5">
-              <h3 className="text-[14px] font-semibold text-[#111111] mb-3">Usage this month</h3>
-              {[
-                { label: 'Team Members', used: 6,   limit: 10 },
-                { label: 'Projects',     used: 5,   limit: 20 },
-                { label: 'Storage',      used: 2.4, limit: 10, unit: 'GB' },
-              ].map(({ label, used, limit, unit }) => (
-                <div key={label} className="mb-3 last:mb-0">
-                  <div className="flex justify-between text-[12px] mb-1.5">
-                    <span className="text-[rgba(17,17,17,0.65)]">{label}</span>
-                    <span className="font-medium text-[#111111]">{used}{unit ?? ''} / {limit}{unit ?? ''}</span>
-                  </div>
-                  <div className="h-1.5 bg-[#F3F4F6] rounded-full overflow-hidden">
-                    <div className="h-full bg-[#2563EB] rounded-full" style={{ width: `${(used / limit) * 100}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
       </div>
     </div>
