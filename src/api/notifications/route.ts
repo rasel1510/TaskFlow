@@ -69,7 +69,15 @@ export async function GET(request: NextRequest) {
     } catch { }
 
     const requestedUserId = searchParams.get('userId');
-    const targetUserId = sessionUserId || requestedUserId || currentUser.id;
+    const targetUserId = sessionUserId || requestedUserId;
+
+    // When signed out, return immediately without touching the database
+    if (!targetUserId) {
+      if (countOnly) {
+        return NextResponse.json({ success: true, data: { count: 0 } });
+      }
+      return NextResponse.json({ success: true, data: { items: [], unreadCount: 0, totalCount: 0 } });
+    }
 
     const cacheKey = `notifs:${targetUserId}:${unreadOnly}:${countOnly}:${limit}`;
 

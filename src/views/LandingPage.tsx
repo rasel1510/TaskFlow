@@ -23,8 +23,10 @@ import {
   Shield,
   Zap,
   SlidersHorizontal,
-  Plus
+  Plus,
+  Download
 } from 'lucide-react';
+import PWAModal from '@/components/PWAModal';
 
 interface LandingPageProps {
   onLaunchApp?: () => void;
@@ -37,6 +39,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
   const userName = session?.user?.name || session?.user?.email?.split('@')[0] || 'User';
 
   const [activeTab, setActiveTab] = useState<'kanban' | 'list' | 'projects'>('kanban');
+  const [isPWAModalOpen, setIsPWAModalOpen] = useState(false);
 
   // If already authenticated and visiting the root URL '/', seamlessly redirect to workspace
   useEffect(() => {
@@ -151,14 +154,14 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
               <>
                 <Link
                   href="/auth/signup"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-[#2563EB] text-white text-[15px] font-semibold hover:bg-[#1D4ED8] transition-colors shadow-sm"
+                  className="w-full sm:w-40 inline-flex items-center justify-center gap-2 py-3 rounded-lg bg-[#2563EB] text-white text-[15px] font-semibold hover:bg-[#1D4ED8] transition-colors shadow-sm"
                 >
                   <span>Start Free</span>
                   <ArrowRight size={16} />
                 </Link>
                 <Link
                   href="/auth/login"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border border-slate-300 bg-white text-slate-700 text-[15px] font-semibold hover:bg-slate-50 transition-colors shadow-xs"
+                  className="w-full sm:w-40 inline-flex items-center justify-center py-3 rounded-lg border border-slate-300 bg-white text-slate-700 text-[15px] font-semibold hover:bg-slate-50 transition-colors shadow-xs"
                 >
                   <span>Sign In</span>
                 </Link>
@@ -711,14 +714,14 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
               <>
                 <Link
                   href="/auth/signup"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-[#2563EB] text-white text-[14px] font-semibold hover:bg-[#1D4ED8] transition-colors shadow-sm"
+                  className="w-full sm:w-48 inline-flex items-center justify-center gap-2 py-3 rounded-lg bg-[#2563EB] text-white text-[14px] font-semibold hover:bg-[#1D4ED8] transition-colors shadow-sm"
                 >
                   <span>Get Started Free</span>
                   <ArrowRight size={15} />
                 </Link>
                 <Link
                   href="/auth/login"
-                  className="w-full sm:w-auto inline-flex items-center justify-center px-5 py-3 rounded-lg border border-slate-300 bg-white text-slate-700 text-[14px] font-semibold hover:bg-slate-50 transition-colors shadow-xs"
+                  className="w-full sm:w-48 inline-flex items-center justify-center py-3 rounded-lg border border-slate-300 bg-white text-slate-700 text-[14px] font-semibold hover:bg-slate-50 transition-colors shadow-xs"
                 >
                   <span>Sign In</span>
                 </Link>
@@ -745,6 +748,12 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
           <div className="flex items-center gap-5 text-slate-600">
             <Link href="#features" className="hover:text-slate-900 transition-colors">Features</Link>
             <Link href="#views" className="hover:text-slate-900 transition-colors">Views</Link>
+            <button
+              onClick={() => setIsPWAModalOpen(true)}
+              className="hover:text-slate-900 transition-colors cursor-pointer text-left"
+            >
+              Install App (PWA)
+            </button>
             {isAuthenticated ? (
               <Link href="/app" className="font-medium text-[#2563EB] hover:underline">Workspace</Link>
             ) : (
@@ -756,6 +765,28 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
           </div>
         </div>
       </footer>
+
+      {/* Floating PWA Trigger Pill */}
+      <div className="fixed bottom-6 right-6 z-40">
+        <button
+          onClick={() => setIsPWAModalOpen(true)}
+          className="inline-flex items-center gap-2.5 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-full shadow-lg shadow-black/15 border border-slate-700/60 text-[13px] font-semibold transition-all hover:scale-105 active:scale-95 cursor-pointer group"
+          title="Install TaskFlow as Desktop or Mobile App"
+        >
+          <span className="flex h-2 w-2 relative">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+          </span>
+          <Download size={14} className="text-blue-400 group-hover:translate-y-0.5 transition-transform" />
+          <span>Install App</span>
+        </button>
+      </div>
+
+      {/* PWA Installation Modal */}
+      <PWAModal
+        isOpen={isPWAModalOpen}
+        onClose={() => setIsPWAModalOpen(false)}
+      />
     </div>
   );
 }

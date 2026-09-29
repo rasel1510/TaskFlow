@@ -38,7 +38,29 @@ export async function GET(request: NextRequest) {
 
     const requestedUserId = request.nextUrl.searchParams.get('userId');
     const targetUserId = sessionUserId || requestedUserId;
-    const cacheKey = `reports:summary:${targetUserId || 'all'}`;
+
+    // Fast-fail unauthenticated requests (e.g. immediately after sign-out)
+    if (!targetUserId) {
+      return NextResponse.json({
+        totalTasks: 0,
+        completedTasks: 0,
+        inProgressCount: 0,
+        overdueCount: 0,
+        completionRate: 0,
+        statusDistribution: { backlog: 0, todo: 0, in_progress: 0, in_review: 0, done: 0 },
+        priorityDistribution: { low: 0, medium: 0, high: 0, urgent: 0 },
+        projectDistribution: {},
+        userPerformance: [],
+        burndown: [],
+        leadTimeDays: 0,
+        cycleTimeDays: 0,
+        throughputPerWeek: 0,
+        workInProgressLimit: 10,
+        cumulativeFlow: [],
+      });
+    }
+
+    const cacheKey = `reports:summary:${targetUserId}`;
 
     // Serve from Redis / L1 Memory cache if warm
     const reportData = await redisCache.wrap(cacheKey, 60, async () => {
