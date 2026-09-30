@@ -1,3 +1,9 @@
+// Disable native binary addons for ws to prevent "bufferUtil.mask is not a function" in Next.js / Webpack
+if (typeof process !== 'undefined' && process?.env) {
+  process.env['WS_NO_BUFFER_UTIL'] = '1';
+  process.env['WS_NO_UTF_8_VALIDATE'] = '1';
+}
+
 import { PrismaClient } from '@prisma/client';
 import { PrismaNeon } from '@prisma/adapter-neon';
 import { neonConfig } from '@neondatabase/serverless';
@@ -11,7 +17,7 @@ const globalForPrisma = globalThis as unknown as {
   __adapterId?: string;
 };
 
-const CURRENT_ADAPTER_ID = 'neon-wss-v2';
+const CURRENT_ADAPTER_ID = 'neon-wss-v3';
 
 function createPrismaClient(): PrismaClient {
   const connectionString = process.env.DATABASE_URL;

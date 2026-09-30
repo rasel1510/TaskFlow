@@ -21,6 +21,7 @@ import Settings from '@/views/Settings';
 import { TaskProvider } from '@/context/TaskContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
+import PWAModal from '@/components/PWAModal';
 
 type View =
   | 'dashboard'
@@ -46,6 +47,7 @@ export default function AppPage() {
   const [showCreateTask, setShowCreateTask] = useState(false);
   const [createTaskDate, setCreateTaskDate] = useState<string | undefined>(undefined);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [isPWAModalOpen, setIsPWAModalOpen] = useState(false);
 
   // Redirect to home page if unauthenticated
   useEffect(() => {
@@ -224,6 +226,7 @@ export default function AppPage() {
             onMenuToggle={() => setMobileSidebarOpen(o => !o)}
             onOpenCommandPalette={() => setCommandPaletteOpen(true)}
             onNavigate={navigateTo}
+            onOpenPWA={() => setIsPWAModalOpen(true)}
           />
           {/* Main content area — on mobile, reserve space for the bottom nav (56px) */}
           <main className="flex flex-1 overflow-hidden min-h-0">
@@ -366,6 +369,12 @@ export default function AppPage() {
 
         {/* PWA Install Prompt — appears on eligible devices */}
         <PWAInstallPrompt />
+
+        {/* PWA Install Modal — triggered manually from Header / menus */}
+        <PWAModal
+          isOpen={isPWAModalOpen}
+          onClose={() => setIsPWAModalOpen(false)}
+        />
       </div>
     </TaskProvider>
   );

@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
     '@prisma/adapter-neon',
     '@neondatabase/serverless',
     'ws',
+    'bufferutil',
+    'utf-8-validate',
   ],
 };
 

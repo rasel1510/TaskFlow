@@ -17,15 +17,15 @@ const pageTitles: Record<View, string> = {
 };
 
 const breadcrumbs: Record<View, string[]> = {
-  dashboard: ['FlowSync Inc.', 'Dashboard'],
-  tasks: ['FlowSync Inc.', 'My Tasks'],
-  kanban: ['FlowSync Inc.', 'Board'],
-  projects: ['FlowSync Inc.', 'Projects'],
-  calendar: ['FlowSync Inc.', 'Calendar'],
-  timeline: ['FlowSync Inc.', 'Timeline'],
-  reports: ['FlowSync Inc.', 'Reports'],
-  settings: ['FlowSync Inc.', 'Settings'],
-  inbox: ['FlowSync Inc.', 'Inbox'],
+  dashboard: ['TaskFlow', 'Dashboard'],
+  tasks: ['TaskFlow', 'My Tasks'],
+  kanban: ['TaskFlow', 'Board'],
+  projects: ['TaskFlow', 'Projects'],
+  calendar: ['TaskFlow', 'Calendar'],
+  timeline: ['TaskFlow', 'Timeline'],
+  reports: ['TaskFlow', 'Reports'],
+  settings: ['TaskFlow', 'Settings'],
+  inbox: ['TaskFlow', 'Inbox'],
 };
 
 interface HeaderProps {
@@ -34,9 +34,10 @@ interface HeaderProps {
   onMenuToggle: () => void;
   onOpenCommandPalette?: () => void;
   onNavigate?: (view: View) => void;
+  onOpenPWA?: () => void;
 }
 
-export default function Header({ currentView, onMenuToggle, onOpenCommandPalette, onNavigate }: HeaderProps) {
+export default function Header({ currentView, onMenuToggle, onOpenCommandPalette, onNavigate, onOpenPWA }: HeaderProps) {
   const [showNotifs, setShowNotifs] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [expertiseRequired, setExpertiseRequired] = useState(false);
@@ -273,6 +274,23 @@ export default function Header({ currentView, onMenuToggle, onOpenCommandPalette
                       <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                     )}
                   </button>
+
+                  {onOpenPWA && (
+                    <button
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        onOpenPWA();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-[#2563EB] hover:bg-blue-50 transition-colors font-medium text-left cursor-pointer"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                      <span>Install App (PWA)</span>
+                    </button>
+                  )}
 
                   <button
                     onClick={() => {

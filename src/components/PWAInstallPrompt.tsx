@@ -93,7 +93,7 @@ export default function PWAInstallPrompt() {
     <div
       className="pwa-install-banner fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-[9990] w-[calc(100vw-2rem)] max-w-sm"
       role="dialog"
-      aria-label="Install FlowSync app"
+      aria-label="Install TaskFlow app"
     >
       <div className="bg-white border border-[#E5E7EB] rounded-2xl shadow-2xl shadow-black/10 overflow-hidden">
         {/* Header */}
@@ -101,10 +101,10 @@ export default function PWAInstallPrompt() {
           {/* App Icon */}
           <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 shadow-sm border border-[#E5E7EB]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icons/icon-192.png" alt="FlowSync" className="w-full h-full object-cover" />
+            <img src="/icons/icon-192.png" alt="TaskFlow" className="w-full h-full object-cover" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[14px] font-bold text-[#111111]">Install FlowSync</p>
+            <p className="text-[14px] font-bold text-[#111111]">Install TaskFlow</p>
             <p className="text-[11.5px] text-[#6B7280] leading-snug">
               Add to your home screen for the best experience — works offline too.
             </p>

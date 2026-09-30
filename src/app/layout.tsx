@@ -24,20 +24,20 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'FlowSync — Modern Project & Task Management',
+  title: 'TaskFlow — Modern Project & Task Management',
   description:
     'Organize tasks, track projects, and ship faster — your all-in-one SaaS workspace for individuals and teams.',
   keywords: ['task management', 'project management', 'productivity', 'kanban', 'timeline'],
-  applicationName: 'FlowSync',
+  applicationName: 'TaskFlow',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'FlowSync',
+    title: 'TaskFlow',
   },
   formatDetection: { telephone: false },
   openGraph: {
-    title: 'FlowSync — Modern Project & Task Management',
+    title: 'TaskFlow — Modern Project & Task Management',
     description: 'Organize tasks, track projects, and ship faster.',
     type: 'website',
   },
@@ -81,6 +81,27 @@ export default function RootLayout({
             {children}
           </ToastProvider>
         </AuthProvider>
+
+        {/*
+          Global Error Event Guard — catches unhandled promise rejections that reject with DOM Event objects
+          (e.g., from browser extensions or resource loading) and prevents Next.js runtime [object Event] crash.
+        */}
+        <Script
+          id="error-guard"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              if (typeof window !== 'undefined') {
+                window.addEventListener('unhandledrejection', function(event) {
+                  if (event && (event.reason instanceof Event || (typeof event.reason === 'object' && event.reason !== null && !(event.reason instanceof Error)))) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                  }
+                });
+              }
+            `,
+          }}
+        />
 
         {/*
           Service Worker registration — runs after the page is interactive.
