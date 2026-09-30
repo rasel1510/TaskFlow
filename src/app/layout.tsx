@@ -84,7 +84,7 @@ export default function RootLayout({
 
         {/*
           Global Error Event Guard — catches unhandled promise rejections that reject with DOM Event objects
-          (e.g., from browser extensions or resource loading) and prevents Next.js runtime [object Event] crash.
+          or stale chunk loading failures (e.g., across deployments or cache mismatches) and recovers smoothly.
         */}
         <Script
           id="error-guard"
@@ -96,6 +96,17 @@ export default function RootLayout({
                   if (event && (event.reason instanceof Event || (typeof event.reason === 'object' && event.reason !== null && !(event.reason instanceof Error)))) {
                     event.preventDefault();
                     event.stopImmediatePropagation();
+                  }
+                });
+                window.addEventListener('error', function(event) {
+                  var msg = (event && event.message) ? event.message : '';
+                  if (msg.indexOf('Loading chunk') !== -1 || msg.indexOf('ChunkLoadError') !== -1 || msg.indexOf('Cannot find module') !== -1) {
+                    var lastReload = sessionStorage.getItem('tf_chunk_reload');
+                    var now = Date.now();
+                    if (!lastReload || now - Number(lastReload) > 10000) {
+                      sessionStorage.setItem('tf_chunk_reload', String(now));
+                      window.location.reload();
+                    }
                   }
                 });
               }
