@@ -56,14 +56,14 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
       <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           {/* Brand */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-lg bg-[#2563EB] flex items-center justify-center text-white shadow-xs group-hover:bg-[#1D4ED8] transition-colors">
+          <Link href="/" className="flex items-center gap-2.5 group shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-[#2563EB] flex items-center justify-center text-white shadow-xs group-hover:bg-[#1D4ED8] transition-colors shrink-0">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 11l3 3L22 4" />
                 <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
               </svg>
             </div>
-            <span className="font-bold text-[17px] tracking-tight text-slate-900">
+            <span className="font-bold text-[17px] tracking-tight text-slate-900 whitespace-nowrap">
               Task<span className="text-[#2563EB]">Flow</span>
             </span>
           </Link>
@@ -76,14 +76,15 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
           </nav>
 
           {/* Right Action Area */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Desktop-only Install App button in header (removed on mobile) */}
             <button
               onClick={() => setIsPWAModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer"
+              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer"
               title="Install TaskFlow App"
             >
               <Download size={14} />
-              <span className="hidden xs:inline">Install App</span>
+              <span>Install App</span>
             </button>
 
             {isAuthenticated ? (
