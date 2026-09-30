@@ -10,9 +10,9 @@
  * Offline: Serves cached pages gracefully, queues write requests for retry.
  */
 
-const CACHE_NAME = 'flowsync-v8';
-const STATIC_CACHE = 'flowsync-static-v8';
-const API_CACHE = 'flowsync-api-v8';
+const CACHE_NAME = 'flowsync-v9';
+const STATIC_CACHE = 'flowsync-static-v9';
+const API_CACHE = 'flowsync-api-v9';
 
 // Assets to precache on install (app shell)
 const PRECACHE_URLS = [
