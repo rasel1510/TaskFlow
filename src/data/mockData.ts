@@ -192,6 +192,6 @@ export const healthColors: Record<ProjectHealth, { bg: string; text: string; lab
 };
 
 export function getProjectName(projectId?: string | null): string {
-  if (!projectId) return 'Independent Task';
+  if (!projectId) return 'Personal Task';
   return projects.find(p => p.id === projectId)?.name ?? 'Project';
 }

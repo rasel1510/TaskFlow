@@ -279,7 +279,7 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                     <span className="truncate">
                       {projectId
                         ? (projects.find(p => p.id === projectId)?.name || 'Select project')
-                        : '✨ Independent / Personal Task (No Project)'}
+                        : 'Personal Task'}
                     </span>
                     <svg
                       width="14"
@@ -300,7 +300,7 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                     <div
                       className={`absolute ${projectDropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} left-0 right-0 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 overflow-hidden py-1 max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-100 divide-y divide-[#F3F4F6]`}
                     >
-                      {/* Independent / Personal task option */}
+                      {/* Personal Task option */}
                       <button
                         type="button"
                         onClick={() => {
@@ -315,8 +315,7 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                       >
                         <div className="min-w-0">
                           <div className="font-semibold flex items-center gap-1.5">
-                            <span>✨ Independent Task</span>
-                            <span className={`text-[10px] px-1.5 py-0.2 rounded font-normal ${projectId === '' ? 'bg-white/20 text-white' : 'bg-[#EFF6FF] text-[#2563EB]'}`}>Personal</span>
+                            <span>Personal Task</span>
                           </div>
                           <div className={`text-[11px] truncate ${projectId === '' ? 'text-white/80' : 'text-[rgba(17,17,17,0.45)]'}`}>
                             Created solely for you (no project required)
@@ -336,7 +335,7 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                         </div>
                         {projects.length === 0 ? (
                           <div className="px-3 py-2 text-[12px] text-[rgba(17,17,17,0.45)] italic">
-                            No projects available yet. You can create an independent task.
+                            No projects available yet. You can create a personal task.
                           </div>
                         ) : (
                           projects.map(p => {
