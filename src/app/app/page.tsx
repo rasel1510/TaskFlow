@@ -217,6 +217,7 @@ export default function AppPage() {
           onToggle={() => setSidebarCollapsed(c => !c)}
           mobileOpen={mobileSidebarOpen}
           onMobileClose={() => setMobileSidebarOpen(false)}
+          onOpenPWA={() => setIsPWAModalOpen(true)}
         />
 
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">

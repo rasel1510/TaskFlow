@@ -12,6 +12,7 @@ interface SidebarProps {
   onToggle: () => void;
   mobileOpen: boolean;
   onMobileClose: () => void;
+  onOpenPWA?: () => void;
 }
 
 interface NavItem {
@@ -82,9 +83,19 @@ const navItems: NavItem[] = [
   },
 ];
 
-export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
+export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, mobileOpen, onMobileClose, onOpenPWA }: SidebarProps) {
   const [projectsOpen, setProjectsOpen] = useState(true);
   const [unreadInboxCount, setUnreadInboxCount] = useState<number>(0);
+  const [isStandalone, setIsStandalone] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const standalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+      setIsStandalone(standalone);
+    }
+  }, []);
 
   // Live task count from context — shows only non-done tasks
   const { tasks } = useTaskContext();
@@ -302,6 +313,23 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
 
       {/* Bottom section */}
       <div className="border-t border-[#E5E7EB] px-2 py-3">
+        {onOpenPWA && !isStandalone && (
+          <button
+            onClick={onOpenPWA}
+            className="w-full flex items-center gap-3 px-3 py-2.5 md:py-2 rounded-lg text-[13.5px] font-medium mb-1 text-[#2563EB] hover:bg-[#EFF6FF] active:bg-blue-100 transition-colors cursor-pointer group"
+            title="Install TaskFlow App"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[#2563EB]">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span className={`flex-1 text-left md:${collapsed ? 'hidden' : 'block'}`}>Install App</span>
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-[#2563EB] md:${collapsed ? 'hidden' : 'inline-block'}`}>
+              PWA
+            </span>
+          </button>
+        )}
         <button
           onClick={() => handleNavigate('settings')}
           className={`w-full flex items-center gap-3 px-3 py-2.5 md:py-2 rounded-lg text-[13.5px] font-medium mb-1 transition-colors ${

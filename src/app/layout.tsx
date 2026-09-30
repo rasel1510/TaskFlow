@@ -104,6 +104,31 @@ export default function RootLayout({
         />
 
         {/*
+          PWA Prompt Capture — captures beforeinstallprompt globally as early as possible so no component
+          misses it, and notifies all PWA components across the application.
+        */}
+        <Script
+          id="pwa-prompt-capture"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              if (typeof window !== 'undefined') {
+                window.deferredPWAInstallPrompt = null;
+                window.addEventListener('beforeinstallprompt', function(e) {
+                  e.preventDefault();
+                  window.deferredPWAInstallPrompt = e;
+                  window.dispatchEvent(new CustomEvent('pwa-prompt-available', { detail: e }));
+                });
+                window.addEventListener('appinstalled', function() {
+                  window.deferredPWAInstallPrompt = null;
+                  window.dispatchEvent(new CustomEvent('pwa-installed'));
+                });
+              }
+            `,
+          }}
+        />
+
+        {/*
           Service Worker registration — runs after the page is interactive.
           strategy="afterInteractive" ensures this never blocks page load or LCP.
         */}
@@ -112,27 +137,11 @@ export default function RootLayout({
           strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
-              var isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.port !== '';
-              if (isDev) {
-                if ('serviceWorker' in navigator) {
-                  navigator.serviceWorker.getRegistrations().then(function(regs) {
-                    for (var i = 0; i < regs.length; i++) {
-                      regs[i].unregister();
-                    }
-                  });
-                }
-                if ('caches' in window) {
-                  caches.keys().then(function(names) {
-                    for (var i = 0; i < names.length; i++) {
-                      caches.delete(names[i]);
-                    }
-                  });
-                }
-              } else if ('serviceWorker' in navigator) {
+              if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
                     .then(function(reg) {
-                      reg.update();
+                      reg.update().catch(function() {});
                       reg.addEventListener('updatefound', function() {
                         var newWorker = reg.installing;
                         if (!newWorker) return;

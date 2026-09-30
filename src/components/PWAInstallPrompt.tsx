@@ -50,13 +50,45 @@ export default function PWAInstallPrompt() {
       return () => clearTimeout(t);
     }
 
-    // Chrome/Edge/Android — listen for native install event
+    // Check if globally captured already
+    if (typeof window !== 'undefined' && window.deferredPWAInstallPrompt) {
+      setDeferredPrompt(window.deferredPWAInstallPrompt);
+    }
+
+    // Chrome/Edge/Android — listen for native install events
     const handler = (e: Event) => {
       e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      const pEvent = e as BeforeInstallPromptEvent;
+      window.deferredPWAInstallPrompt = pEvent;
+      setDeferredPrompt(pEvent);
     };
+
+    const handlePromptAvailable = (e: Event) => {
+      const custom = e as CustomEvent<BeforeInstallPromptEvent>;
+      if (custom.detail) {
+        setDeferredPrompt(custom.detail);
+      } else if (window.deferredPWAInstallPrompt) {
+        setDeferredPrompt(window.deferredPWAInstallPrompt);
+      }
+    };
+
+    const handleAppInstalled = () => {
+      setDeferredPrompt(null);
+      setVisible(false);
+      localStorage.setItem(DISMISSED_KEY, '1');
+    };
+
     window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+    window.addEventListener('pwa-prompt-available', handlePromptAvailable);
+    window.addEventListener('appinstalled', handleAppInstalled);
+    window.addEventListener('pwa-installed', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('pwa-prompt-available', handlePromptAvailable);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+      window.removeEventListener('pwa-installed', handleAppInstalled);
+    };
   }, []);
 
   // Animate in when prompt state becomes available

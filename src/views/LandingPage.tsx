@@ -76,7 +76,16 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
           </nav>
 
           {/* Right Action Area */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={() => setIsPWAModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer"
+              title="Install TaskFlow App"
+            >
+              <Download size={14} />
+              <span className="hidden xs:inline">Install App</span>
+            </button>
+
             {isAuthenticated ? (
               <div className="flex items-center gap-2.5">
                 <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-100 text-[12px] font-medium text-slate-700">
