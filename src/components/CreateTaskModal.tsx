@@ -307,19 +307,16 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
                           setProjectId('');
                           setProjectOpen(false);
                         }}
-                        className={`w-full text-left px-3 py-2 text-[13px] transition-colors cursor-pointer flex items-center justify-between ${
-                          projectId === ''
+                        className={`w-full text-left px-3 py-2 text-[13px] transition-colors cursor-pointer flex items-center justify-between ${projectId === ''
                             ? 'bg-[#2563EB] text-white font-medium'
                             : 'text-[#111111] hover:bg-[#F3F4F6] active:bg-[#E5E7EB]'
-                        }`}
+                          }`}
                       >
                         <div className="min-w-0">
                           <div className="font-semibold flex items-center gap-1.5">
                             <span>Personal Task</span>
                           </div>
-                          <div className={`text-[11px] truncate ${projectId === '' ? 'text-white/80' : 'text-[rgba(17,17,17,0.45)]'}`}>
-                            Created solely for you (no project required)
-                          </div>
+
                         </div>
                         {projectId === '' && (
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 ml-2">
