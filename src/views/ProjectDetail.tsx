@@ -110,6 +110,16 @@ export default function ProjectDetail({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeletingProject, setIsDeletingProject] = useState(false);
 
+  // Remove Contributor modal state
+  const [memberToRemove, setMemberToRemove] = useState<{
+    id: string;
+    name: string;
+    email?: string;
+    role?: string;
+    avatar?: string;
+  } | null>(null);
+  const [isRemovingMember, setIsRemovingMember] = useState(false);
+
   // Burndown state
   const [burndown, setBurndown] = useState<BurndownResult | null>(null);
   const [burndownLoading, setBurndownLoading] = useState(false);
@@ -127,6 +137,23 @@ export default function ProjectDetail({
   const [isSaving, setIsSaving] = useState(false);
 
   const toast = useToast();
+
+  // Dismiss modals on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (memberToRemove && !isRemovingMember) {
+          setMemberToRemove(null);
+        } else if (showDeleteModal && !isDeletingProject) {
+          setShowDeleteModal(false);
+        } else if (showAddMemberModal) {
+          setShowAddMemberModal(false);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [memberToRemove, isRemovingMember, showDeleteModal, isDeletingProject, showAddMemberModal]);
 
   const fetchProject = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -243,20 +270,34 @@ export default function ProjectDetail({
     }
   };
 
-  const handleRemoveMember = async (userId: string, userName: string) => {
-    if (!window.confirm(`Are you sure you want to remove ${userName} from this project?`)) return;
+  const handleRemoveMember = (m: MemberRecord) => {
+    setMemberToRemove({
+      id: m.userId,
+      name: m.name,
+      email: m.email,
+      role: m.role,
+      avatar: m.avatar,
+    });
+  };
+
+  const handleConfirmRemoveMember = async () => {
+    if (!memberToRemove) return;
+    setIsRemovingMember(true);
     try {
-      const res = await fetch(`/api/projects/${projectId}/members?uid=${userId}`, {
+      const res = await fetch(`/api/projects/${projectId}/members?uid=${memberToRemove.id}`, {
         method: 'DELETE',
       });
       const json = await res.json();
       if (!res.ok || json.success === false) {
         throw new Error(json.error?.message || 'Failed to remove member');
       }
-      toast.success(`${userName} removed from project`);
+      toast.success(`${memberToRemove.name} removed from project`);
+      setMemberToRemove(null);
       fetchMembers();
     } catch (err: any) {
       toast.error(err.message || 'Failed to remove member');
+    } finally {
+      setIsRemovingMember(false);
     }
   };
 
@@ -512,7 +553,11 @@ export default function ProjectDetail({
             )}
             <button
               onClick={() => setActiveTab('settings')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E5E7EB] hover:bg-[#F9FAFB] text-[13px] font-medium text-[rgba(17,17,17,0.7)] transition-colors"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[13px] font-medium transition-colors ${
+                activeTab === 'settings'
+                  ? 'border-[#2563EB] bg-[#EFF6FF] text-[#2563EB]'
+                  : 'border-[#E5E7EB] hover:bg-[#F9FAFB] text-[rgba(17,17,17,0.7)]'
+              }`}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="3" />
@@ -546,7 +591,6 @@ export default function ProjectDetail({
             { key: 'milestones', label: 'Roadmap' },
             { key: 'members', label: 'Team & RBAC' },
             { key: 'burndown', label: 'Burndown' },
-            { key: 'settings', label: 'Settings' },
           ] as { key: typeof activeTab; label: string }[]).map(({ key, label }) => (
             <button
               key={key}
@@ -972,7 +1016,7 @@ export default function ProjectDetail({
                               </select>
                               <button
                                 type="button"
-                                onClick={() => handleRemoveMember(m.userId, m.name)}
+                                onClick={() => handleRemoveMember(m)}
                                 title="Remove from project"
                                 className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                               >
@@ -1639,6 +1683,97 @@ export default function ProjectDetail({
                 className="px-4 py-2 text-[13px] font-semibold bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-lg shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
               >
                 {isDeletingProject ? 'Deleting...' : 'Delete Project'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Member / Contributor Confirmation Modal */}
+      {memberToRemove && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => !isRemovingMember && setMemberToRemove(null)}
+        >
+          <div
+            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-150 relative"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              type="button"
+              disabled={isRemovingMember}
+              onClick={() => setMemberToRemove(null)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 rounded-lg p-1.5 hover:bg-[#F3F4F6] transition-colors cursor-pointer disabled:opacity-50"
+              aria-label="Close"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+
+            <div className="flex items-start gap-3.5 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-[#FEE2E2] text-[#DC2626] flex items-center justify-center shrink-0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <line x1="18" y1="8" x2="23" y2="13" />
+                  <line x1="23" y1="8" x2="18" y2="13" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0 pr-6">
+                <h3 className="text-[16px] font-bold text-[#111111]">Remove Contributor</h3>
+                <p className="text-[12.5px] text-[rgba(17,17,17,0.6)] mt-1 leading-relaxed">
+                  Are you sure you want to remove <strong className="text-[#111111] font-semibold">{memberToRemove.name}</strong> from this project?
+                </p>
+              </div>
+            </div>
+
+            {/* Member Card */}
+            <div className="p-3 bg-[#F9FAFB] rounded-xl border border-[#E5E7EB] mb-6 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-[#EFF6FF] text-[#2563EB] font-bold text-[13px] flex items-center justify-center border border-[#DBEAFE] shrink-0">
+                {memberToRemove.avatar || memberToRemove.name?.slice(0, 2).toUpperCase() || '?'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[13.5px] font-semibold text-[#111111] truncate">{memberToRemove.name}</div>
+                {memberToRemove.email && (
+                  <div className="text-[12px] text-[rgba(17,17,17,0.5)] truncate">{memberToRemove.email}</div>
+                )}
+              </div>
+              {memberToRemove.role && (
+                <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-white border border-[#E5E7EB] text-gray-700 shrink-0">
+                  {ROLE_DESCRIPTIONS[memberToRemove.role as ProjectRole]?.label || memberToRemove.role}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isRemovingMember}
+                onClick={() => setMemberToRemove(null)}
+                className="px-3.5 py-2 text-[13px] font-medium text-[rgba(17,17,17,0.7)] hover:bg-[#F3F4F6] rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isRemovingMember}
+                onClick={handleConfirmRemoveMember}
+                className="px-4 py-2 text-[13px] font-semibold bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-lg shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+              >
+                {isRemovingMember ? (
+                  <>
+                    <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    <span>Removing...</span>
+                  </>
+                ) : (
+                  'Remove Contributor'
+                )}
               </button>
             </div>
           </div>
