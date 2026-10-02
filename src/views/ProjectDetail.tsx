@@ -384,7 +384,8 @@ export default function ProjectDetail({
       const json = await res.json();
       if (json.success) {
         setLifecycleState(targetState);
-        toast.success(`Project moved to ${LIFECYCLE_STATE_CONFIG[targetState].label}`);
+        setProject(prev => (prev ? { ...prev, lifecycleState: targetState } : null));
+        toast.success(`Project moved to ${LIFECYCLE_STATE_CONFIG[targetState]?.label || targetState}`);
       } else {
         toast.error(json.error?.message || 'Lifecycle transition failed');
       }
@@ -493,9 +494,6 @@ export default function ProjectDetail({
                   {healthConfig.label}
                 </span>
               </div>
-              <p className="text-[12.5px] sm:text-[13px] text-[rgba(17,17,17,0.5)] mt-0.5 line-clamp-1">
-                {project.description || 'No description provided'}
-              </p>
             </div>
           </div>
 
@@ -1276,13 +1274,14 @@ export default function ProjectDetail({
                   const isCurrent = state === lifecycleState;
                   return (
                     <button
+                      type="button"
                       key={state}
                       disabled={isCurrent || isTransitioning}
                       onClick={() => handleLifecycleTransition(state)}
                       className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-colors ${
                         isCurrent
                           ? 'bg-[#EFF6FF] border-[#93C5FD] text-[#2563EB] cursor-default'
-                          : 'border-[#E5E7EB] text-[rgba(17,17,17,0.6)] hover:bg-white hover:border-[#2563EB] hover:text-[#2563EB]'
+                          : 'border-[#E5E7EB] text-[rgba(17,17,17,0.6)] hover:bg-white hover:border-[#2563EB] hover:text-[#2563EB] cursor-pointer'
                       }`}
                     >
                       {isCurrent && '✓ '}{cfg?.label || state}

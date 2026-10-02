@@ -90,7 +90,7 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
       const normalized: UIProject[] = rawList.map((p: any) => ({
         id: p.id,
         name: p.name,
-        description: p.description || 'No description provided.',
+        description: p.description || '',
         color: p.color || '#2563EB',
         progress: typeof p.progress === 'number' ? p.progress : 0,
         taskCount: p.taskCount ?? p._count?.tasks ?? 0,
@@ -367,8 +367,6 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
                     </div>
                   </div>
 
-                  <p className="text-[12.5px] text-[rgba(17,17,17,0.5)] mb-4 leading-relaxed line-clamp-2">{p.description}</p>
-
                   {/* Progress */}
                   <div className="flex items-center gap-3 mb-4">
                     <ProgressRing progress={p.progress} color={p.color} />
@@ -482,7 +480,6 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
                     </div>
                     <div className="min-w-0">
                       <div className="text-[13.5px] font-medium text-[#111111] truncate">{p.name}</div>
-                      <div className="text-[11.5px] text-[rgba(17,17,17,0.4)] truncate mt-0.5">{p.description}</div>
                     </div>
                   </div>
                   <div className="w-28">

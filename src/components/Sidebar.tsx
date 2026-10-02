@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
-import { currentUser, projects } from '../data/mockData';
+import { currentUser } from '../data/mockData';
 import { useTaskContext } from '@/context/TaskContext';
 
 type View = 'dashboard' | 'tasks' | 'kanban' | 'projects' | 'calendar' | 'timeline' | 'reports' | 'settings' | 'inbox';
@@ -84,7 +84,6 @@ const navItems: NavItem[] = [
 ];
 
 export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, mobileOpen, onMobileClose, onOpenPWA }: SidebarProps) {
-  const [projectsOpen, setProjectsOpen] = useState(true);
   const [unreadInboxCount, setUnreadInboxCount] = useState<number>(0);
   const [isStandalone, setIsStandalone] = useState(false);
 
@@ -105,7 +104,6 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
   const userId = (session?.user as { id?: string })?.id;
   const userName = session?.user?.name || currentUser.name;
   const userRole = (session?.user as { role?: string })?.role || currentUser.role;
-  const canCreateProject = userRole === 'Project Manager' || userRole?.toLowerCase() === 'project manager';
   const userAvatar =
     (session?.user as { avatar?: string })?.avatar ||
     (session?.user?.name ? session.user.name.slice(0, 2).toUpperCase() : currentUser.avatar);
@@ -272,43 +270,7 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
           );
         })}
 
-        {/* Projects section — always visible on mobile, gated by collapsed on desktop */}
-        <div className={`mt-4 ${collapsed ? 'md:hidden' : ''}`}>
-          <button
-            onClick={() => setProjectsOpen(o => !o)}
-            className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-[rgba(17,17,17,0.4)] hover:text-[#111111] transition-colors"
-          >
-            <span className={`transition-transform ${projectsOpen ? 'rotate-90' : ''}`}>
-              <ChevronRight size={12} />
-            </span>
-            Projects
-          </button>
-          {projectsOpen && (
-            <div className="ml-2">
-              {projects.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => handleNavigate('projects')}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 md:py-1.5 rounded-lg text-[13px] text-[rgba(17,17,17,0.65)] hover:bg-[#F3F4F6] hover:text-[#111111] transition-colors mb-0.5"
-                >
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
-                  <span className="truncate">{p.name}</span>
-                </button>
-              ))}
-              {canCreateProject && (
-                <button
-                  onClick={() => handleNavigate('projects')}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 md:py-1.5 rounded-lg text-[13px] text-[#2563EB] hover:bg-[#EFF6FF] transition-colors"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                  </svg>
-                  New Project
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+
       </nav>
 
       {/* Bottom section */}

@@ -58,16 +58,20 @@ model Project {
   color       String        @default("#2563EB")
   health      ProjectHealth @default(on_track)
   progress    Int           @default(0)
-  startDate   DateTime?
-  dueDate     DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  startDate      DateTime?
+  dueDate        DateTime?
+  lifecycleState String        @default("ACTIVE")
+  archivedAt     DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   ownerId      String
   owner        User                 @relation("ProjectOwner", fields: [ownerId], references: [id])
   tasks        Task[]
   members      ProjectMember[]
   joinRequests ProjectJoinRequest[]
+
+  @@index([lifecycleState])
 }
 
 model ProjectMember {

@@ -92,6 +92,28 @@ export type UpdateTaskInput = z.infer<typeof UpdateTaskSchema>;
 export type TaskQueryInput  = z.infer<typeof TaskQuerySchema>;
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Project Lifecycle States
+// ---------------------------------------------------------------------------
+
+export const PROJECT_LIFECYCLE_STATES = [
+  'PLANNING',
+  'ACTIVE',
+  'ON_HOLD',
+  'PAUSED',
+  'COMPLETED',
+  'ARCHIVED',
+] as const;
+
+export const ProjectLifecycleTransitionSchema = z.object({
+  targetState: z.enum(PROJECT_LIFECYCLE_STATES),
+});
+
+export type ProjectLifecycleTransitionInput = z.infer<
+  typeof ProjectLifecycleTransitionSchema
+>;
+
+// ---------------------------------------------------------------------------
 // Project schemas
 // ---------------------------------------------------------------------------
 
@@ -121,7 +143,11 @@ export const CreateProjectSchema = z.object({
 });
 
 export type CreateProjectInput = z.infer<typeof CreateProjectSchema>;
-export const UpdateProjectSchema = CreateProjectSchema.partial();
+export const UpdateProjectSchema = CreateProjectSchema.partial().extend({
+  health: z.string().optional(),
+  lifecycleState: z.enum(PROJECT_LIFECYCLE_STATES).optional(),
+  archived: z.boolean().optional(),
+});
 export type UpdateProjectInput = z.infer<typeof UpdateProjectSchema>;
 
 // ---------------------------------------------------------------------------
@@ -296,25 +322,7 @@ export const ProjectMemberUpdateSchema = z.object({
 export type ProjectMemberInviteInput = z.infer<typeof ProjectMemberInviteSchema>;
 export type ProjectMemberUpdateInput = z.infer<typeof ProjectMemberUpdateSchema>;
 
-// ---------------------------------------------------------------------------
-// Project Lifecycle Transition Schema (Step 4.11)
-// ---------------------------------------------------------------------------
 
-export const PROJECT_LIFECYCLE_STATES = [
-  'PLANNING',
-  'ACTIVE',
-  'PAUSED',
-  'COMPLETED',
-  'ARCHIVED',
-] as const;
-
-export const ProjectLifecycleTransitionSchema = z.object({
-  targetState: z.enum(PROJECT_LIFECYCLE_STATES),
-});
-
-export type ProjectLifecycleTransitionInput = z.infer<
-  typeof ProjectLifecycleTransitionSchema
->;
 
 // ---------------------------------------------------------------------------
 // Shared error response helper

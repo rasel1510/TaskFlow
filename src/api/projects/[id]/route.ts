@@ -17,6 +17,7 @@ import { projects as mockProjects, tasks as mockTasks } from '@/data/mockData';
 import { UpdateProjectSchema, validationError } from '@/lib/validators';
 import { computeProjectHealth } from '@/lib/projectHealthEngine';
 import { validateLifecycleTransition, type ProjectLifecycleState } from '@/lib/projectLifecycle';
+import redisCache from '@/lib/redis';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -185,8 +186,8 @@ export async function GET(_request: NextRequest, context: RouteContext) {
           overdueTasks,
           completionRate,
           slaAnalysis,
-          lifecycleState: 'ACTIVE',
-          archivedAt: null,
+          lifecycleState: (fallbackProject as any).lifecycleState || 'ACTIVE',
+          archivedAt: (fallbackProject as any).archivedAt || null,
         },
       },
       { status: 200 }
@@ -234,10 +235,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     // Step 4.11 Lifecycle State Transition Validation
     if (body.lifecycleState && typeof body.lifecycleState === 'string') {
       const targetState = body.lifecycleState as ProjectLifecycleState;
-      // Fetch current state
+      // Fetch current state (DB or mock fallback)
       const current = await prisma.project.findUnique({ where: { id: projectId } }).catch(() => null);
+      const fallbackCurrent = current ? null : mockProjects.find((p) => p.id === projectId);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const currentState: ProjectLifecycleState = (current as any)?.lifecycleState || 'ACTIVE';
+      const currentState: ProjectLifecycleState =
+        ((current as any)?.lifecycleState as ProjectLifecycleState) ||
+        ((fallbackCurrent as any)?.lifecycleState as ProjectLifecycleState) ||
+        'ACTIVE';
 
       const validation = validateLifecycleTransition(currentState, targetState);
       if (!validation.valid) {
@@ -248,9 +253,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       }
 
       updateData.lifecycleState = targetState;
-      if (validation.isArchival) {
+      if (validation.isArchival || targetState === 'ARCHIVED') {
         updateData.archivedAt = new Date();
-      } else if (validation.isUnarchival) {
+      } else {
         updateData.archivedAt = null;
       }
     }
@@ -277,6 +282,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         },
       });
 
+      await Promise.all([
+        redisCache.delPattern('projects:*'),
+        redisCache.delPattern('reports:*'),
+      ]).catch(() => {});
+
       return NextResponse.json({ success: true, data: updated }, { status: 200 });
     } catch (dbErr) {
       console.warn('[PATCH /api/projects/:id] DB error, updating mock fallback:', dbErr);
@@ -289,6 +299,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       if (description) proj.description = description;
       if (color) proj.color = color;
       if (body.health) proj.health = body.health as any;
+      if (updateData.lifecycleState) (proj as any).lifecycleState = updateData.lifecycleState;
+      if (updateData.archivedAt !== undefined) (proj as any).archivedAt = updateData.archivedAt;
+
+      await Promise.all([
+        redisCache.delPattern('projects:*'),
+        redisCache.delPattern('reports:*'),
+      ]).catch(() => {});
+
       return NextResponse.json({ success: true, data: proj }, { status: 200 });
     }
 

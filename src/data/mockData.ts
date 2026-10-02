@@ -49,6 +49,8 @@ export interface Project {
   dueDate: string;
   health: ProjectHealth;
   color: string;
+  lifecycleState?: string;
+  archivedAt?: string | null;
 }
 
 export const users: User[] = [
@@ -66,7 +68,7 @@ export const projects: Project[] = [
   {
     id: 'p1',
     name: 'Website Redesign',
-    description: 'Complete overhaul of the marketing website with new brand identity and improved UX',
+    description: '',
     owner: users[1],
     members: [users[0], users[1], users[4]],
     progress: 68,

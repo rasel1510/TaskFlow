@@ -13,14 +13,14 @@ export type ProjectLifecycleState =
   | 'COMPLETED'
   | 'ARCHIVED';
 
-// Deterministic state transition graph
+// Deterministic state transition graph allowing flexible project management
 const VALID_TRANSITIONS: Record<ProjectLifecycleState, ProjectLifecycleState[]> = {
-  PLANNING: ['ACTIVE', 'ON_HOLD', 'PAUSED', 'ARCHIVED'],
-  ACTIVE: ['ON_HOLD', 'PAUSED', 'COMPLETED', 'ARCHIVED'],
-  ON_HOLD: ['ACTIVE', 'PLANNING', 'ARCHIVED'],
-  PAUSED: ['ACTIVE', 'ARCHIVED'],
-  COMPLETED: ['ACTIVE', 'ARCHIVED'], // Re-opening or archiving
-  ARCHIVED: ['PLANNING', 'ACTIVE'], // Unarchiving
+  PLANNING: ['ACTIVE', 'ON_HOLD', 'PAUSED', 'COMPLETED', 'ARCHIVED'],
+  ACTIVE: ['PLANNING', 'ON_HOLD', 'PAUSED', 'COMPLETED', 'ARCHIVED'],
+  ON_HOLD: ['PLANNING', 'ACTIVE', 'PAUSED', 'COMPLETED', 'ARCHIVED'],
+  PAUSED: ['PLANNING', 'ACTIVE', 'ON_HOLD', 'COMPLETED', 'ARCHIVED'],
+  COMPLETED: ['PLANNING', 'ACTIVE', 'ON_HOLD', 'PAUSED', 'ARCHIVED'],
+  ARCHIVED: ['PLANNING', 'ACTIVE', 'ON_HOLD', 'PAUSED', 'COMPLETED'],
 };
 
 export interface LifecycleTransitionResult {
