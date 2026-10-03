@@ -1,6 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { currentUser, notifications } from '../data/mockData';
+
+interface HeaderNotificationItem {
+  id: string;
+  category?: 'user' | 'project' | 'admin';
+  type?: string;
+  title?: string;
+  body?: string;
+  time?: string;
+  timeAgo?: string;
+  read: boolean;
+  actor?: { name: string; avatar: string };
+  user?: { name: string; avatar: string };
+  action?: string;
+  target?: string;
+  taskId?: string | null;
+  meta?: string;
+}
 
 type View = 'dashboard' | 'tasks' | 'kanban' | 'projects' | 'calendar' | 'timeline' | 'reports' | 'settings' | 'inbox';
 
@@ -41,7 +58,90 @@ export default function Header({ currentView, onMenuToggle, onOpenCommandPalette
   const [showNotifs, setShowNotifs] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [expertiseRequired, setExpertiseRequired] = useState(false);
-  const unread = notifications.filter(n => !n.read).length;
+  const [notificationsList, setNotificationsList] = useState<HeaderNotificationItem[]>(() =>
+    notifications.map(n => ({
+      id: n.id,
+      category: n.category,
+      type: n.type,
+      title: n.title,
+      body: n.body,
+      timeAgo: n.timeAgo || n.time,
+      read: n.read,
+      actor: n.user ? { name: n.user.name, avatar: n.user.avatar } : undefined,
+      taskId: n.taskId,
+      meta: n.meta,
+    }))
+  );
+  const [notifCategory, setNotifCategory] = useState<'all' | 'user' | 'project' | 'admin'>('all');
+  const [filterUnreadOnly, setFilterUnreadOnly] = useState(false);
+
+  const loadNotifications = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const res = await fetch('/api/notifications', { signal });
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        setNotificationsList(json.data);
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      console.error('[Header] Failed to fetch notifications:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadNotifications(controller.signal);
+    return () => controller.abort();
+  }, [loadNotifications]);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      loadNotifications();
+    };
+    window.addEventListener('notifications-updated', handleUpdate);
+    return () => window.removeEventListener('notifications-updated', handleUpdate);
+  }, [loadNotifications]);
+
+  const markAsRead = async (id: string, read = true) => {
+    setNotificationsList(prev => prev.map(n => (n.id === id ? { ...n, read } : n)));
+    try {
+      await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, read }),
+      });
+      window.dispatchEvent(new CustomEvent('notifications-updated'));
+    } catch (err) {
+      console.error('[Header] Failed to update notification:', err);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    setNotificationsList(prev => prev.map(n => ({ ...n, read: true })));
+    try {
+      await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ all: true }),
+      });
+      window.dispatchEvent(new CustomEvent('notifications-updated'));
+    } catch (err) {
+      console.error('[Header] Failed to mark all as read:', err);
+    }
+  };
+
+  const unreadTotal = notificationsList.filter(n => !n.read).length;
+  const unreadUser = notificationsList.filter(n => (n.category === 'user' || !n.category) && !n.read).length;
+  const unreadProject = notificationsList.filter(n => n.category === 'project' && !n.read).length;
+  const unreadAdmin = notificationsList.filter(n => n.category === 'admin' && !n.read).length;
+
+  const filteredNotifications = notificationsList.filter(n => {
+    if (filterUnreadOnly && n.read) return false;
+    if (notifCategory === 'all') return true;
+    if (notifCategory === 'user') return n.category === 'user' || !n.category;
+    return n.category === notifCategory;
+  });
+
   const crumbs = breadcrumbs[currentView];
 
   const { data: session } = useSession();
@@ -151,46 +251,192 @@ export default function Header({ currentView, onMenuToggle, onOpenCommandPalette
         <div className="relative">
           <button
             onClick={() => { setShowNotifs(!showNotifs); setShowUserMenu(false); }}
-            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[#F3F4F6] text-[rgba(17,17,17,0.45)] hover:text-[#111111] transition-colors relative"
+            className={`w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[#F3F4F6] text-[rgba(17,17,17,0.55)] hover:text-[#111111] transition-colors relative cursor-pointer ${
+              showNotifs ? 'bg-[#F3F4F6] text-[#111111]' : ''
+            }`}
             aria-label="Notifications"
+            title="Notifications"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/>
             </svg>
-            {unread > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#DC2626]" />
+            {unreadTotal > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#DC2626] ring-2 ring-white" />
             )}
           </button>
 
           {showNotifs && (
             <>
-              <div className="fixed inset-0 z-10" onClick={() => setShowNotifs(false)} />
-              <div className="absolute right-0 top-11 w-[calc(100vw-2rem)] max-w-sm bg-white border border-[#E5E7EB] rounded-xl shadow-lg z-20 overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-[#E5E7EB]">
-                  <span className="font-semibold text-[14px]">Notifications</span>
-                  <button className="text-[12px] text-[#2563EB] hover:underline">Mark all read</button>
-                </div>
-                <div className="max-h-72 overflow-y-auto">
-                  {notifications.map(n => (
-                    <div
-                      key={n.id}
-                      className={`flex items-start gap-3 px-4 py-3 border-b border-[#F3F4F6] hover:bg-[#F9FAFB] transition-colors ${!n.read ? 'bg-[#FAFBFF]' : ''}`}
+              <div className="fixed inset-0 z-40" onClick={() => setShowNotifs(false)} />
+              <div className="absolute right-0 top-11 w-[calc(100vw-2rem)] sm:w-[420px] max-w-md bg-white border border-[#E5E7EB] rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
+                {/* Header */}
+                <div className="px-4 py-3 border-b border-[#F1F3F5] flex items-center justify-between bg-white">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-[14px] text-[#111111]">Notifications</span>
+                    {unreadTotal > 0 && (
+                      <span className="px-1.5 py-0.5 text-[10.5px] font-semibold bg-[#2563EB] text-white rounded-full tabular-nums">
+                        {unreadTotal} new
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {unreadTotal > 0 && (
+                      <button
+                        onClick={markAllAsRead}
+                        className="text-[12px] font-medium text-[#2563EB] hover:text-[#1D4ED8] transition-colors cursor-pointer"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setFilterUnreadOnly(!filterUnreadOnly)}
+                      className={`px-2 py-0.5 text-[11px] font-medium rounded-md transition-colors cursor-pointer border ${
+                        filterUnreadOnly
+                          ? 'bg-[#EFF6FF] text-[#2563EB] border-[#BFDBFE]'
+                          : 'text-[rgba(17,17,17,0.55)] border-[#E5E7EB] hover:bg-[#F9FAFB]'
+                      }`}
                     >
-                      <div className="w-7 h-7 rounded-full bg-[#E5E7EB] flex items-center justify-center shrink-0 text-[10px] font-bold text-[#111111]">
-                        {n.user.avatar}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[12.5px] text-[#111111] leading-snug">
-                          <span className="font-semibold">{n.user.name}</span> {n.action} <span className="font-medium">{n.target}</span>
-                        </p>
-                        <p className="text-[11px] text-[rgba(17,17,17,0.4)] mt-0.5">{n.time}</p>
-                      </div>
-                      {!n.read && <span className="w-2 h-2 rounded-full bg-[#2563EB] mt-1 shrink-0" />}
-                    </div>
+                      Unread
+                    </button>
+                  </div>
+                </div>
+
+                {/* Role Filter Tabs */}
+                <div className="flex border-b border-[#F1F3F5] px-2 bg-[#FAFBFC]">
+                  {[
+                    { key: 'all', label: 'All', unread: unreadTotal, count: notificationsList.length },
+                    { key: 'user', label: 'User', unread: unreadUser, count: notificationsList.filter(n => n.category === 'user' || !n.category).length },
+                    { key: 'project', label: 'Product Mgr', unread: unreadProject, count: notificationsList.filter(n => n.category === 'project').length },
+                    { key: 'admin', label: 'Admin', unread: unreadAdmin, count: notificationsList.filter(n => n.category === 'admin').length },
+                  ].map(tab => (
+                    <button
+                      key={tab.key}
+                      onClick={() => setNotifCategory(tab.key as any)}
+                      className={`flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium border-b-2 transition-all cursor-pointer relative ${
+                        notifCategory === tab.key
+                          ? 'border-[#2563EB] text-[#2563EB]'
+                          : 'border-transparent text-[rgba(17,17,17,0.55)] hover:text-[#111111]'
+                      }`}
+                    >
+                      <span>{tab.label}</span>
+                      {tab.unread > 0 ? (
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB]" />
+                      ) : (
+                        <span className="text-[10px] text-[rgba(17,17,17,0.35)] tabular-nums">({tab.count})</span>
+                      )}
+                    </button>
                   ))}
                 </div>
-                <div className="px-4 py-2.5 text-center">
-                  <button className="text-[12.5px] text-[#2563EB] hover:underline font-medium">View all notifications</button>
+
+                {/* Notification Items List */}
+                <div className="max-h-[380px] overflow-y-auto divide-y divide-[#F1F3F5]">
+                  {filteredNotifications.length === 0 ? (
+                    <div className="text-center py-10 px-4">
+                      <p className="text-[13px] font-medium text-[rgba(17,17,17,0.6)]">No notifications</p>
+                      <p className="text-[11.5px] text-[rgba(17,17,17,0.4)] mt-0.5">
+                        {filterUnreadOnly ? 'No unread notifications in this category' : 'You are all caught up!'}
+                      </p>
+                    </div>
+                  ) : (
+                    filteredNotifications.map(n => {
+                      const isUser = n.category === 'user' || !n.category;
+                      const isPM = n.category === 'project';
+                      const isAdmin = n.category === 'admin';
+                      const title = n.title || (n.action && n.user ? `${n.user.name} ${n.action} ${n.target}` : 'Notification');
+                      const body = n.body || n.target || '';
+                      const timeStr = n.timeAgo || n.time || 'recently';
+
+                      return (
+                        <div
+                          key={n.id}
+                          onClick={() => {
+                            if (!n.read) markAsRead(n.id, true);
+                          }}
+                          className={`group flex items-start gap-3 px-4 py-3 transition-colors cursor-pointer ${
+                            !n.read ? 'bg-[#FAFCFF] hover:bg-[#F0F6FF]' : 'hover:bg-[#F9FAFB]'
+                          }`}
+                        >
+                          {/* Visual Indicator */}
+                          <div className="shrink-0 mt-0.5">
+                            {n.actor?.avatar ? (
+                              <div className="w-7 h-7 rounded-full bg-[#E5E7EB] flex items-center justify-center text-[10px] font-bold text-[#111111]">
+                                {n.actor.avatar}
+                              </div>
+                            ) : n.user?.avatar ? (
+                              <div className="w-7 h-7 rounded-full bg-[#E5E7EB] flex items-center justify-center text-[10px] font-bold text-[#111111]">
+                                {n.user.avatar}
+                              </div>
+                            ) : (
+                              <div
+                                className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                                  isAdmin
+                                    ? 'bg-[#F3E8FF] text-[#7C3AED]'
+                                    : isPM
+                                    ? 'bg-[#FEF3C7] text-[#D97706]'
+                                    : 'bg-[#EFF6FF] text-[#2563EB]'
+                                }`}
+                              >
+                                {isAdmin ? 'AD' : isPM ? 'PM' : 'UR'}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Text Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1 mb-0.5">
+                              <span className="text-[12.5px] font-semibold text-[#111111] truncate">{title}</span>
+                              <span
+                                className={`text-[9.5px] font-medium px-1.5 py-0.2 rounded uppercase tracking-wider ${
+                                  isAdmin
+                                    ? 'bg-[#F3E8FF] text-[#7C3AED]'
+                                    : isPM
+                                    ? 'bg-[#FEF3C7] text-[#B45309]'
+                                    : 'bg-[#EFF6FF] text-[#2563EB]'
+                                }`}
+                              >
+                                {isAdmin ? 'Admin' : isPM ? 'Product' : 'User'}
+                              </span>
+                            </div>
+                            <p className="text-[12px] text-[rgba(17,17,17,0.7)] leading-relaxed break-words">{body}</p>
+                            <div className="flex items-center justify-between mt-1">
+                              <span className="text-[10.5px] text-[rgba(17,17,17,0.4)] tabular-nums">{timeStr}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  markAsRead(n.id, !n.read);
+                                }}
+                                className="opacity-0 group-hover:opacity-100 text-[11px] text-[#2563EB] hover:underline transition-opacity cursor-pointer"
+                              >
+                                {n.read ? 'Mark unread' : 'Mark read'}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Unread blue dot */}
+                          {!n.read && (
+                            <span className="w-2 h-2 rounded-full bg-[#2563EB] mt-1.5 shrink-0" />
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="px-4 py-2.5 bg-[#FAFBFC] border-t border-[#F1F3F5] flex items-center justify-between">
+                  <span className="text-[11px] text-[rgba(17,17,17,0.4)]">
+                    {unreadTotal} unread of {notificationsList.length} total
+                  </span>
+                  <button
+                    onClick={() => {
+                      setShowNotifs(false);
+                      onNavigate?.('inbox');
+                    }}
+                    className="text-[12px] text-[#2563EB] hover:text-[#1D4ED8] font-medium transition-colors cursor-pointer"
+                  >
+                    View all in Inbox →
+                  </button>
                 </div>
               </div>
             </>

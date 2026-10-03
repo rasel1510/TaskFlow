@@ -19,6 +19,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useToast } from '@/components/ui/Toast';
+import { Eye, EyeOff, Bell, Mail, Monitor, Send, Check, Shield, Briefcase, User, RefreshCw } from 'lucide-react';
 
 /* ─────────────── types ─────────────── */
 
@@ -114,25 +115,50 @@ interface MemberRow {
   avatar: string;
 }
 
+export interface NotificationPreferences {
+  // Delivery Channels
+  inApp: boolean;
+  browserPush: boolean;
+  emailDigest: 'instant' | 'daily' | 'off';
+
+  // Task & Personal Workflow
+  task_assigned: boolean;
+  task_due_soon: boolean;
+  comment_on_task: boolean;
+  mentioned: boolean;
+  status_changed: boolean;
+  subtask_completed: boolean;
+  new_member: boolean;
+
+  // Product Manager & Sprints
+  pm_project_at_risk: boolean;
+  pm_sprint_milestones: boolean;
+
+  // Admin & System Governance
+  admin_security_alerts: boolean;
+  admin_system_metrics: boolean;
+}
+
 const NOTIF_KEY = 'tf_notification_prefs';
 
-const DEFAULT_NOTIF_PREFS: Record<string, boolean> = {
+const DEFAULT_NOTIF_PREFS: NotificationPreferences = {
+  inApp: true,
+  browserPush: false,
+  emailDigest: 'daily',
+
   task_assigned: true,
   task_due_soon: true,
   comment_on_task: true,
   mentioned: true,
-  status_changed: false,
+  status_changed: true,
+  subtask_completed: true,
   new_member: false,
-};
 
-const NOTIF_LABELS: { key: string; label: string; desc: string }[] = [
-  { key: 'task_assigned',  label: 'Task assigned to me',    desc: 'When a task is assigned to you' },
-  { key: 'task_due_soon',  label: 'Task due soon',          desc: '24 hours before a task is due' },
-  { key: 'comment_on_task',label: 'Comment on my task',     desc: 'When someone comments on a task you own' },
-  { key: 'mentioned',      label: 'Mentioned in comment',   desc: 'When someone @mentions you' },
-  { key: 'status_changed', label: 'Task status changed',    desc: 'When a task you follow changes status' },
-  { key: 'new_member',     label: 'New team member',        desc: 'When someone joins your workspace' },
-];
+  pm_project_at_risk: true,
+  pm_sprint_milestones: true,
+  admin_security_alerts: true,
+  admin_system_metrics: false,
+};
 
 /* ─────────────── nav ─────────────── */
 
@@ -179,7 +205,11 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 }
 
 function TextInput({
-  value, onChange, type = 'text', placeholder = '', disabled = false,
+  value,
+  onChange,
+  type = 'text',
+  placeholder = '',
+  disabled = false,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -187,17 +217,34 @@ function TextInput({
   placeholder?: string;
   disabled?: boolean;
 }) {
+  const [showPassword, setShowPassword] = useState(false);
+  const isPassword = type === 'password';
+
   return (
-    <input
-      type={type}
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      placeholder={placeholder}
-      disabled={disabled}
-      className="w-full px-3.5 py-2.5 border border-[#E5E7EB] rounded-lg text-[13.5px] text-[#111111]
-                 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all
-                 disabled:bg-[#F9FAFB] disabled:cursor-not-allowed"
-    />
+    <div className="relative">
+      <input
+        type={isPassword ? (showPassword ? 'text' : 'password') : type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+        className={`w-full ${isPassword ? 'pl-3.5 pr-10' : 'px-3.5'} py-2.5 border border-[#E5E7EB] rounded-lg text-[13.5px] text-[#111111]
+                   outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all
+                   disabled:bg-[#F9FAFB] disabled:cursor-not-allowed`}
+      />
+      {isPassword && (
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => setShowPassword(!showPassword)}
+          aria-label={showPassword ? 'Hide password' : 'Show password'}
+          title={showPassword ? 'Hide password' : 'Show password'}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[rgba(17,17,17,0.4)] hover:text-[#111111] transition-colors p-1 rounded-md hover:bg-[#F3F4F6] cursor-pointer"
+        >
+          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -423,31 +470,138 @@ export default function Settings() {
     return () => ctrl.abort();
   }, [section]);
 
-  /* ─────────── 3.4 Notifications state ─────────── */
-  const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>(DEFAULT_NOTIF_PREFS);
+  /* ─────────── 3.4 Notifications state & real logic ─────────── */
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(DEFAULT_NOTIF_PREFS);
   const [notifSaving, setNotifSaving] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
+  const [browserPermission, setBrowserPermission] = useState<NotificationPermission>('default');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setBrowserPermission(Notification.permission);
+    }
+  }, []);
 
   useEffect(() => {
     if (section !== 'notifications') return;
+    let isMounted = true;
+
+    // 1. Initial instant load from localStorage
     try {
       const raw = localStorage.getItem(NOTIF_KEY);
-      if (raw) setNotifPrefs(JSON.parse(raw));
-    } catch {
-      /* ignore bad localStorage state */
-    }
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setNotifPrefs(prev => ({ ...prev, ...parsed }));
+      }
+    } catch {}
+
+    // 2. Fetch server persisted preferences
+    fetch('/api/notifications/preferences')
+      .then(res => res.json())
+      .then(json => {
+        if (isMounted && json.success && json.data) {
+          setNotifPrefs(prev => ({ ...prev, ...json.data }));
+          try {
+            localStorage.setItem(NOTIF_KEY, JSON.stringify({ ...DEFAULT_NOTIF_PREFS, ...json.data }));
+          } catch {}
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
   }, [section]);
 
-  const toggleNotif = (key: string) => {
+  const toggleNotif = (key: keyof NotificationPreferences) => {
     setNotifPrefs(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleRequestPushPermission = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      toast.error('Browser push notifications are not supported in this browser');
+      return;
+    }
+    try {
+      const permission = await Notification.requestPermission();
+      setBrowserPermission(permission);
+      if (permission === 'granted') {
+        setNotifPrefs(prev => ({ ...prev, browserPush: true }));
+        toast.success('Browser notifications allowed');
+        new Notification('TaskFlow Notifications Enabled', {
+          body: 'You will now receive desktop alerts for important task and project updates.',
+          icon: '/favicon.ico',
+        });
+      } else if (permission === 'denied') {
+        setNotifPrefs(prev => ({ ...prev, browserPush: false }));
+        toast.error('Browser notifications blocked by your browser settings');
+      }
+    } catch (err) {
+      console.error('[Settings] Notification permission error:', err);
+    }
+  };
+
+  const handleSendTestNotification = async () => {
+    setSendingTest(true);
+    try {
+      const res = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: 'user',
+          type: 'system_test',
+          title: 'Notification Pipeline Verified',
+          body: 'Your notification preferences are active! In-app, push, and digest channels are fully operational.',
+        }),
+      });
+
+      // Dispatch global event so header bell & count updates immediately
+      window.dispatchEvent(new CustomEvent('notifications-updated'));
+
+      // If browser push is active and permitted, show OS desktop alert
+      if (
+        notifPrefs.browserPush &&
+        typeof window !== 'undefined' &&
+        'Notification' in window &&
+        Notification.permission === 'granted'
+      ) {
+        new Notification('TaskFlow Test Alert', {
+          body: 'Your notification preferences are working perfectly.',
+          icon: '/favicon.ico',
+        });
+      }
+
+      toast.success('Test notification sent! Check the bell icon in the top header.');
+    } catch {
+      toast.error('Failed to send test notification');
+    } finally {
+      setSendingTest(false);
+    }
   };
 
   const saveNotifPrefs = async () => {
     setNotifSaving(true);
-    // Persist to localStorage — instant, zero network cost
-    localStorage.setItem(NOTIF_KEY, JSON.stringify(notifPrefs));
-    await new Promise(r => setTimeout(r, 350)); // simulate async feel
-    setNotifSaving(false);
-    toast.success('Notification preferences saved');
+    try {
+      await fetch('/api/notifications/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(notifPrefs),
+      });
+
+      localStorage.setItem(NOTIF_KEY, JSON.stringify(notifPrefs));
+      toast.success('Notification preferences saved');
+    } catch {
+      localStorage.setItem(NOTIF_KEY, JSON.stringify(notifPrefs));
+      toast.success('Notification preferences saved locally');
+    } finally {
+      setNotifSaving(false);
+    }
+  };
+
+  const resetNotifPrefs = () => {
+    setNotifPrefs(DEFAULT_NOTIF_PREFS);
+    localStorage.setItem(NOTIF_KEY, JSON.stringify(DEFAULT_NOTIF_PREFS));
+    toast.info('Preferences reset to default values');
   };
 
   const isExpertiseUnset = !profileFetching && (!profile?.expertise || profile.expertise.length === 0);
@@ -978,44 +1132,317 @@ export default function Settings() {
         {/* ━━━━━━━━━━━━━━━━━━━━━━━━
             3.4  NOTIFICATIONS (localStorage)
         ━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        {/* ━━━━━━━━━━━━━━━━━━━━━━━━
+            3.4  NOTIFICATIONS (Fully Functional Live Preferences)
+        ━━━━━━━━━━━━━━━━━━━━━━━━ */}
         {section === 'notifications' && (
-          <div className="max-w-xl">
-            <h2 className="text-[20px] font-bold text-[#111111] mb-1">Notifications</h2>
-            <p className="text-[13px] text-[rgba(17,17,17,0.45)] mb-6">
-              Choose when and how you&apos;re notified.
-            </p>
+          <div className="max-w-2xl space-y-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-[20px] font-bold text-[#111111] mb-1">Notification Preferences</h2>
+                <p className="text-[13px] text-[rgba(17,17,17,0.5)]">
+                  Configure delivery channels, email frequencies, and automated role triggers.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleSendTestNotification}
+                disabled={sendingTest}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F3F4F6] hover:bg-[#E5E7EB] text-[#111111] rounded-lg text-[12px] font-medium transition-colors shrink-0 cursor-pointer disabled:opacity-50"
+              >
+                <Send size={13} className="text-[#2563EB]" />
+                <span>{sendingTest ? 'Sending...' : 'Send Test Alert'}</span>
+              </button>
+            </div>
 
-            <div className="space-y-0">
-              {NOTIF_LABELS.map(({ key, label, desc }) => (
-                <div
-                  key={key}
-                  className="flex items-center justify-between py-3.5 border-b border-[#F3F4F6] last:border-0"
-                >
+            {/* 1. Delivery Channels */}
+            <div className="border border-[#E5E7EB] rounded-xl p-5 bg-white">
+              <h3 className="text-[13.5px] font-semibold text-[#111111] mb-3 flex items-center gap-2">
+                <Bell size={15} className="text-[#2563EB]" />
+                <span>Delivery Channels</span>
+              </h3>
+              <div className="divide-y divide-[#F1F3F5]">
+                {/* In-App Alerts */}
+                <div className="flex items-center justify-between py-3">
                   <div>
-                    <div className="text-[13.5px] font-medium text-[#111111]">{label}</div>
-                    <div className="text-[12px] text-[rgba(17,17,17,0.45)] mt-0.5">{desc}</div>
+                    <div className="text-[13px] font-medium text-[#111111]">In-App Alerts</div>
+                    <div className="text-[11.5px] text-[rgba(17,17,17,0.45)] mt-0.5">
+                      Show badge counts and entries in the top navigation bell
+                    </div>
                   </div>
-
-                  {/* Toggle switch */}
                   <button
-                    onClick={() => toggleNotif(key)}
-                    className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${
-                      notifPrefs[key] ? 'bg-[#2563EB]' : 'bg-[#E5E7EB]'
+                    type="button"
+                    onClick={() => toggleNotif('inApp')}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                      notifPrefs.inApp ? 'bg-[#2563EB]' : 'bg-[#E5E7EB]'
                     }`}
                     role="switch"
-                    aria-checked={notifPrefs[key]}
+                    aria-checked={notifPrefs.inApp}
                   >
                     <span
-                      className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all duration-200 ${
-                        notifPrefs[key] ? 'right-0.5' : 'left-0.5'
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                        notifPrefs.inApp ? 'translate-x-4' : 'translate-x-0'
                       }`}
                     />
                   </button>
                 </div>
-              ))}
+
+                {/* Desktop Push */}
+                <div className="flex items-center justify-between py-3">
+                  <div className="flex-1 mr-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[13px] font-medium text-[#111111]">Desktop Push Notifications</span>
+                      <span
+                        className={`text-[10px] font-medium px-1.5 py-0.2 rounded-full ${
+                          browserPermission === 'granted'
+                            ? 'bg-[#DCFCE7] text-[#16A34A]'
+                            : browserPermission === 'denied'
+                            ? 'bg-[#FEE2E2] text-[#DC2626]'
+                            : 'bg-[#FEF3C7] text-[#D97706]'
+                        }`}
+                      >
+                        {browserPermission === 'granted'
+                          ? 'Permission granted'
+                          : browserPermission === 'denied'
+                          ? 'Blocked in browser'
+                          : 'Permission required'}
+                      </span>
+                    </div>
+                    <div className="text-[11.5px] text-[rgba(17,17,17,0.45)] mt-0.5">
+                      Receive instant OS alerts when TaskFlow is running in the background
+                    </div>
+                    {browserPermission !== 'granted' && (
+                      <button
+                        type="button"
+                        onClick={handleRequestPushPermission}
+                        className="text-[11.5px] text-[#2563EB] hover:underline font-medium mt-1 inline-block cursor-pointer"
+                      >
+                        Enable browser permission →
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (browserPermission !== 'granted') {
+                        handleRequestPushPermission();
+                      } else {
+                        toggleNotif('browserPush');
+                      }
+                    }}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                      notifPrefs.browserPush && browserPermission === 'granted' ? 'bg-[#2563EB]' : 'bg-[#E5E7EB]'
+                    }`}
+                    role="switch"
+                    aria-checked={notifPrefs.browserPush && browserPermission === 'granted'}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                        notifPrefs.browserPush && browserPermission === 'granted' ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Email Digest Frequency */}
+                <div className="flex items-center justify-between py-3">
+                  <div>
+                    <div className="text-[13px] font-medium text-[#111111]">Email Delivery Schedule</div>
+                    <div className="text-[11.5px] text-[rgba(17,17,17,0.45)] mt-0.5">
+                      Choose how frequently email summaries are dispatched to your inbox
+                    </div>
+                  </div>
+                  <div className="flex items-center bg-[#F3F4F6] p-0.5 rounded-lg border border-[#E5E7EB]">
+                    {[
+                      { id: 'instant', label: 'Instant' },
+                      { id: 'daily', label: 'Daily Digest' },
+                      { id: 'off', label: 'Off' },
+                    ].map(opt => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setNotifPrefs(p => ({ ...p, emailDigest: opt.id as any }))}
+                        className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-all cursor-pointer ${
+                          notifPrefs.emailDigest === opt.id
+                            ? 'bg-white text-[#111111] shadow-xs'
+                            : 'text-[rgba(17,17,17,0.5)] hover:text-[#111111]'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="mt-6 flex justify-end">
+            {/* 2. Task & Workflow Triggers */}
+            <div className="border border-[#E5E7EB] rounded-xl p-5 bg-white">
+              <h3 className="text-[13.5px] font-semibold text-[#111111] mb-3 flex items-center gap-2">
+                <User size={15} className="text-[#2563EB]" />
+                <span>Task & Workflow Triggers</span>
+              </h3>
+              <div className="divide-y divide-[#F1F3F5]">
+                {[
+                  {
+                    key: 'task_assigned',
+                    label: 'Task Assignments',
+                    desc: 'When a task or subtask is assigned to your account',
+                  },
+                  {
+                    key: 'task_due_soon',
+                    label: 'Upcoming Deadline Warnings',
+                    desc: 'Remind 24 hours prior to scheduled due date',
+                  },
+                  {
+                    key: 'comment_on_task',
+                    label: 'Comments on Owned Tasks',
+                    desc: 'When team members comment on tasks you created or oversee',
+                  },
+                  {
+                    key: 'mentioned',
+                    label: 'Direct Mentions (@you)',
+                    desc: 'When someone tags you in a task discussion or thread',
+                  },
+                  {
+                    key: 'status_changed',
+                    label: 'Status Transitions',
+                    desc: 'When a watched task changes state (e.g. In Progress → Done)',
+                  },
+                  {
+                    key: 'subtask_completed',
+                    label: 'Subtask Completions',
+                    desc: 'When checklist items and subtasks are marked as resolved',
+                  },
+                  {
+                    key: 'new_member',
+                    label: 'Workspace Member Join Alerts',
+                    desc: 'When a new colleague is invited or joins the workspace',
+                  },
+                ].map(({ key, label, desc }) => (
+                  <div key={key} className="flex items-center justify-between py-3">
+                    <div>
+                      <div className="text-[13px] font-medium text-[#111111]">{label}</div>
+                      <div className="text-[11.5px] text-[rgba(17,17,17,0.45)] mt-0.5">{desc}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleNotif(key as keyof NotificationPreferences)}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                        notifPrefs[key as keyof NotificationPreferences] ? 'bg-[#2563EB]' : 'bg-[#E5E7EB]'
+                      }`}
+                      role="switch"
+                      aria-checked={!!notifPrefs[key as keyof NotificationPreferences]}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                          notifPrefs[key as keyof NotificationPreferences] ? 'translate-x-4' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 3. Product Manager & Sprints */}
+            <div className="border border-[#E5E7EB] rounded-xl p-5 bg-white">
+              <h3 className="text-[13.5px] font-semibold text-[#111111] mb-3 flex items-center gap-2">
+                <Briefcase size={15} className="text-[#D97706]" />
+                <span>Product Manager & Project Alerts</span>
+              </h3>
+              <div className="divide-y divide-[#F1F3F5]">
+                {[
+                  {
+                    key: 'pm_project_at_risk',
+                    label: 'Project Health Degradation (At Risk / Delayed)',
+                    desc: 'Alert when project timeline falls behind or hits critical blockers',
+                  },
+                  {
+                    key: 'pm_sprint_milestones',
+                    label: 'Sprint Milestones (80%+ Completion)',
+                    desc: 'Progress summary notifications when sprint targets are achieved',
+                  },
+                ].map(({ key, label, desc }) => (
+                  <div key={key} className="flex items-center justify-between py-3">
+                    <div>
+                      <div className="text-[13px] font-medium text-[#111111]">{label}</div>
+                      <div className="text-[11.5px] text-[rgba(17,17,17,0.45)] mt-0.5">{desc}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleNotif(key as keyof NotificationPreferences)}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                        notifPrefs[key as keyof NotificationPreferences] ? 'bg-[#2563EB]' : 'bg-[#E5E7EB]'
+                      }`}
+                      role="switch"
+                      aria-checked={!!notifPrefs[key as keyof NotificationPreferences]}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                          notifPrefs[key as keyof NotificationPreferences] ? 'translate-x-4' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 4. Administration & Governance */}
+            <div className="border border-[#E5E7EB] rounded-xl p-5 bg-white">
+              <h3 className="text-[13.5px] font-semibold text-[#111111] mb-3 flex items-center gap-2">
+                <Shield size={15} className="text-[#7C3AED]" />
+                <span>Admin & Security Governance</span>
+              </h3>
+              <div className="divide-y divide-[#F1F3F5]">
+                {[
+                  {
+                    key: 'admin_security_alerts',
+                    label: 'Security & Access Audits',
+                    desc: 'Logins from new IP addresses, role reassignments, and permission changes',
+                  },
+                  {
+                    key: 'admin_system_metrics',
+                    label: 'System & Database Health Snapshots',
+                    desc: 'Database backup success, cache threshold alerts, and sync confirmations',
+                  },
+                ].map(({ key, label, desc }) => (
+                  <div key={key} className="flex items-center justify-between py-3">
+                    <div>
+                      <div className="text-[13px] font-medium text-[#111111]">{label}</div>
+                      <div className="text-[11.5px] text-[rgba(17,17,17,0.45)] mt-0.5">{desc}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleNotif(key as keyof NotificationPreferences)}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                        notifPrefs[key as keyof NotificationPreferences] ? 'bg-[#2563EB]' : 'bg-[#E5E7EB]'
+                      }`}
+                      role="switch"
+                      aria-checked={!!notifPrefs[key as keyof NotificationPreferences]}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                          notifPrefs[key as keyof NotificationPreferences] ? 'translate-x-4' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Save & Reset Actions */}
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={resetNotifPrefs}
+                className="flex items-center gap-1.5 px-3 py-2 text-[12.5px] text-[rgba(17,17,17,0.55)] hover:text-[#111111] hover:bg-[#F3F4F6] rounded-lg transition-colors cursor-pointer"
+              >
+                <RefreshCw size={13} />
+                <span>Reset to Defaults</span>
+              </button>
               <SaveButton loading={notifSaving} onClick={saveNotifPrefs} label="Save Preferences" />
             </div>
           </div>

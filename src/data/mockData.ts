@@ -145,12 +145,190 @@ export const projects: Project[] = [
 export const tasks: Task[] = [];
 
 
-export const notifications = [
-  { id: 'n1', user: users[1], action: 'completed', target: 'UI Component Library setup', time: '2m ago', read: false },
-  { id: 'n2', user: users[2], action: 'commented on', target: 'TF-003: Fix authentication session timeout bug', time: '15m ago', read: false },
-  { id: 'n3', user: users[3], action: 'created', target: 'TF-009: Implement push notification service', time: '1h ago', read: false },
-  { id: 'n4', user: users[4], action: 'changed priority of', target: 'TF-004 to High', time: '2h ago', read: true },
-  { id: 'n5', user: users[5], action: 'assigned you to', target: 'TF-011: Setup CI/CD pipeline', time: '3h ago', read: true },
+export interface MockNotification {
+  id: string;
+  category: 'user' | 'project' | 'admin';
+  type: string;
+  title: string;
+  body: string;
+  time: string;
+  timeAgo: string;
+  read: boolean;
+  user: User;
+  action: string;
+  target: string;
+  taskId?: string;
+  meta?: string;
+}
+
+export const notifications: MockNotification[] = [
+  // User notifications
+  {
+    id: 'n1',
+    category: 'user',
+    type: 'task_assigned',
+    title: 'Task assigned to you',
+    body: 'Sarah Chen assigned you to TF-012: Accessibility audit & keyboard navigation',
+    time: '15m ago',
+    timeAgo: '15m ago',
+    read: false,
+    user: users[1],
+    action: 'assigned you to',
+    target: 'TF-012: Accessibility audit & keyboard navigation',
+    taskId: 't2',
+  },
+  {
+    id: 'n2',
+    category: 'user',
+    type: 'comment_mention',
+    title: 'Mentioned in comment',
+    body: 'Ahmed Malik mentioned you on TF-003: "The database indexes are ready for review."',
+    time: '45m ago',
+    timeAgo: '45m ago',
+    read: false,
+    user: users[2],
+    action: 'commented on',
+    target: 'TF-003: Fix authentication session timeout bug',
+    taskId: 't3',
+  },
+  {
+    id: 'n3',
+    category: 'user',
+    type: 'task_overdue',
+    title: 'Task deadline approaching',
+    body: 'TF-002: Authentication flows is due within 24 hours.',
+    time: '3h ago',
+    timeAgo: '3h ago',
+    read: true,
+    user: users[0],
+    action: 'flagged due date for',
+    target: 'TF-002: Authentication flows',
+    taskId: 't1',
+  },
+  {
+    id: 'n4',
+    category: 'user',
+    type: 'subtask_completed',
+    title: 'Subtask completed',
+    body: 'John Torres completed "Unit tests for token refresh" on TF-008.',
+    time: '6h ago',
+    timeAgo: '6h ago',
+    read: true,
+    user: users[3],
+    action: 'completed subtask on',
+    target: 'TF-008: Auth token refresh engine',
+    taskId: 't4',
+  },
+
+  // Product Manager notifications
+  {
+    id: 'n5',
+    category: 'project',
+    type: 'project_at_risk',
+    title: 'Project health: At Risk',
+    body: 'Mobile App Redesign health dropped to At Risk due to 2 overdue milestones.',
+    time: '30m ago',
+    timeAgo: '30m ago',
+    read: false,
+    user: users[0],
+    action: 'updated health of',
+    target: 'Mobile App Redesign to At Risk',
+    meta: 'Mobile App Redesign',
+  },
+  {
+    id: 'n6',
+    category: 'project',
+    type: 'project_milestone',
+    title: 'Sprint milestone reached',
+    body: 'Sprint 14 reached 80% story points completion ahead of target cycle.',
+    time: '2h ago',
+    timeAgo: '2h ago',
+    read: false,
+    user: users[1],
+    action: 'reached milestone on',
+    target: 'Sprint 14 (80% completion)',
+    meta: 'Sprint 14',
+  },
+  {
+    id: 'n7',
+    category: 'project',
+    type: 'blocker_reported',
+    title: 'Critical blocker reported',
+    body: 'TF-045 flagged as blocker: "Cloudflare SSL certificate expired on staging environment."',
+    time: '5h ago',
+    timeAgo: '5h ago',
+    read: true,
+    user: users[2],
+    action: 'flagged critical blocker on',
+    target: 'TF-045: Staging Cloudflare SSL',
+  },
+  {
+    id: 'n8',
+    category: 'project',
+    type: 'workload_alert',
+    title: 'Team workload threshold',
+    body: 'Frontend Engineering capacity exceeded 115% for upcoming release.',
+    time: '1d ago',
+    timeAgo: '1d ago',
+    read: true,
+    user: users[0],
+    action: 'issued capacity warning for',
+    target: 'Frontend Engineering Sprint Workload',
+  },
+
+  // Admin notifications
+  {
+    id: 'n9',
+    category: 'admin',
+    type: 'security_alert',
+    title: 'Security audit alert',
+    body: 'New administrative session initiated from Chrome on macOS (IP: 192.168.1.104).',
+    time: '20m ago',
+    timeAgo: '20m ago',
+    read: false,
+    user: users[2],
+    action: 'logged security event for',
+    target: 'New Admin Session from IP 192.168.1.104',
+  },
+  {
+    id: 'n10',
+    category: 'admin',
+    type: 'user_registered',
+    title: 'New user registered',
+    body: 'David Miller (david@flowsync.io) successfully verified account as DevOps Engineer.',
+    time: '1h ago',
+    timeAgo: '1h ago',
+    read: false,
+    user: users[3],
+    action: 'registered as',
+    target: 'DevOps Engineer (david@flowsync.io)',
+  },
+  {
+    id: 'n11',
+    category: 'admin',
+    type: 'backup_completed',
+    title: 'Automated database snapshot',
+    body: 'Daily PostgreSQL backup completed: 4.8MB compressed snapshot saved to cold storage.',
+    time: '8h ago',
+    timeAgo: '8h ago',
+    read: true,
+    user: users[0],
+    action: 'completed system backup',
+    target: 'PostgreSQL Snapshot #4912',
+  },
+  {
+    id: 'n12',
+    category: 'admin',
+    type: 'system_metric',
+    title: 'Distributed cache peak',
+    body: 'Redis cache hit-rate reached 99.1% across 14,200 operations.',
+    time: '1d ago',
+    timeAgo: '1d ago',
+    read: true,
+    user: users[2],
+    action: 'recorded metric peak on',
+    target: 'Redis Distributed Cache Cluster',
+  },
 ];
 
 export const weeklyData = [

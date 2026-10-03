@@ -4,6 +4,32 @@ import { useTasks, type DBTask } from '@/context/TaskContext';
 import { useToast } from '@/components/ui/Toast';
 import EditTaskModal from './EditTaskModal';
 import { tasks, statusColors, priorityColors, getProjectName, type Status, type Priority } from '../data/mockData';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import {
+  Copy,
+  CopyCheck,
+  FileText,
+  Share2,
+  Trash2,
+  Bell,
+  BellRing,
+  BellOff,
+  AtSign,
+  Check,
+} from 'lucide-react';
 
 interface TaskDetailProps {
   taskId: string | null;
@@ -42,14 +68,189 @@ function getAvatarColor(name: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
+function formatActivityText(text: string) {
+  if (text.includes('"')) {
+    const parts = text.split(/(".*?")/g);
+    return (
+      <span>
+        {parts.map((part, idx) =>
+          part.startsWith('"') && part.endsWith('"') ? (
+            <span key={idx} className="font-medium text-[#111111]">
+              {part}
+            </span>
+          ) : (
+            <span key={idx}>{part}</span>
+          )
+        )}
+      </span>
+    );
+  }
+
+  const statusMatch = text.match(/^Status changed from (.+?) to (.+)$/);
+  if (statusMatch) {
+    return (
+      <span>
+        Status changed from <span className="font-medium text-[#111111]">{statusMatch[1]}</span> to{' '}
+        <span className="font-medium text-[#111111]">{statusMatch[2]}</span>
+      </span>
+    );
+  }
+
+  const priorityMatch = text.match(/^Priority changed to (.+)$/);
+  if (priorityMatch) {
+    return (
+      <span>
+        Priority changed to{' '}
+        <span className="font-medium text-[#111111] capitalize">{priorityMatch[1]}</span>
+      </span>
+    );
+  }
+
+  const assignMatch = text.match(/^Assigned to (.+)$/);
+  if (assignMatch) {
+    return (
+      <span>
+        Assigned to <span className="font-medium text-[#111111]">{assignMatch[1]}</span>
+      </span>
+    );
+  }
+
+  const dueMatch = text.match(/^Due date set to (.+)$/);
+  if (dueMatch) {
+    return (
+      <span>
+        Due date set to <span className="font-medium text-[#111111]">{dueMatch[1]}</span>
+      </span>
+    );
+  }
+
+  return <span>{text}</span>;
+}
+
+
 export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
   const { data: session } = useSession();
   const toast = useToast();
-  const { tasks: ctxTasks, createSubtask, toggleSubtask, deleteSubtask } = useTasks();
+  const { tasks: ctxTasks, createTask, deleteTask, createSubtask, toggleSubtask, deleteSubtask } = useTasks();
   const [editing, setEditing] = useState(false);
   const task = ctxTasks.find(t => t.id === taskId) || tasks.find(t => t.id === taskId);
   const [commentText, setCommentText] = useState('');
   const [activeTab, setActiveTab] = useState<'details' | 'comments' | 'activity'>('details');
+
+  type NotificationPref = 'all' | 'mentions' | 'muted';
+  const [notifPref, setNotifPref] = useState<NotificationPref>('all');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDuplicating, setIsDuplicating] = useState(false);
+
+  useEffect(() => {
+    if (!taskId) return;
+    try {
+      const saved = localStorage.getItem(`taskflow_notif_pref_${taskId}`) as NotificationPref | null;
+      if (saved === 'all' || saved === 'mentions' || saved === 'muted') {
+        setNotifPref(saved);
+      } else {
+        setNotifPref('all');
+      }
+    } catch {
+      setNotifPref('all');
+    }
+  }, [taskId]);
+
+  const handleSetNotifPref = (pref: NotificationPref) => {
+    setNotifPref(pref);
+    try {
+      if (taskId) {
+        localStorage.setItem(`taskflow_notif_pref_${taskId}`, pref);
+      }
+    } catch {}
+
+    if (pref === 'all') {
+      toast.success('Subscribed to all task updates');
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    } else if (pref === 'mentions') {
+      toast.info('Notifications set to mentions & assignments');
+    } else {
+      toast.info('Task notifications muted');
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (!task) return;
+    const url = `${window.location.origin}/?task=${task.id}`;
+    navigator.clipboard.writeText(url).then(
+      () => toast.success('Task link copied to clipboard'),
+      () => toast.error('Failed to copy link')
+    );
+  };
+
+  const handleCopyId = () => {
+    if (!task) return;
+    const idText = task.taskNumber ?? task.id;
+    navigator.clipboard.writeText(idText).then(
+      () => toast.success(`Copied ${idText} to clipboard`),
+      () => toast.error('Failed to copy ID')
+    );
+  };
+
+  const handleDuplicateTask = async () => {
+    if (!task || isDuplicating) return;
+    setIsDuplicating(true);
+    try {
+      await createTask({
+        title: `${task.title} (Copy)`,
+        description: task.description || undefined,
+        status: task.status,
+        priority: task.priority,
+        projectId: task.projectId || undefined,
+        assigneeId: ('assigneeId' in task ? task.assigneeId : task.assignee?.id) ?? undefined,
+        estimate: task.estimate || undefined,
+        labels: task.labels || [],
+      });
+      toast.success('Task duplicated successfully');
+    } catch (err) {
+      console.error('[TaskDetail] Failed to duplicate task:', err);
+      toast.error('Failed to duplicate task');
+    } finally {
+      setIsDuplicating(false);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!task) return;
+    const url = `${window.location.origin}/?task=${task.id}`;
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: task.title,
+          text: `Task: ${task.title}`,
+          url,
+        });
+        return;
+      } catch {
+        // Fallback to copy link if user dismisses or share is not supported
+      }
+    }
+    handleCopyLink();
+  };
+
+  const handleDeleteTask = async () => {
+    if (!task || isDeleting) return;
+    setIsDeleting(true);
+    try {
+      await deleteTask(task.id);
+      toast.success('Task deleted successfully');
+      setShowDeleteConfirm(false);
+      onClose();
+    } catch (err) {
+      console.error('[TaskDetail] Failed to delete task:', err);
+      toast.error('Failed to delete task');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const [comments, setComments] = useState<DBComment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
@@ -93,6 +294,14 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
       setLoadingActivities(false);
     }
   }, [taskId]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadActivities(controller.signal);
+    return () => {
+      controller.abort();
+    };
+  }, [taskId, loadActivities]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -192,12 +401,149 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
               </svg>
               <span>Edit</span>
             </button>
-            <button className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#F3F4F6] text-[rgba(17,17,17,0.4)] transition-colors">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" /></svg>
-            </button>
-            <button className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#F3F4F6] text-[rgba(17,17,17,0.4)] transition-colors">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" /></svg>
-            </button>
+            {/* 3-Dot More Actions Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#F3F4F6] text-[rgba(17,17,17,0.45)] hover:text-[#111111] transition-colors cursor-pointer"
+                  title="More actions"
+                  aria-label="More actions"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="5" r="1" />
+                    <circle cx="12" cy="12" r="1" />
+                    <circle cx="12" cy="19" r="1" />
+                  </svg>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52 p-1.5 shadow-lg border border-[#E5E7EB]">
+                <DropdownMenuItem
+                  onClick={handleCopyLink}
+                  className="flex items-center gap-2 px-2.5 py-1.5 cursor-pointer text-[12.5px] text-[rgba(17,17,17,0.8)] hover:text-[#111111]"
+                >
+                  <Copy size={13} className="text-[rgba(17,17,17,0.5)] shrink-0" />
+                  <span>Copy task link</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={handleCopyId}
+                  className="flex items-center gap-2 px-2.5 py-1.5 cursor-pointer text-[12.5px] text-[rgba(17,17,17,0.8)] hover:text-[#111111]"
+                >
+                  <FileText size={13} className="text-[rgba(17,17,17,0.5)] shrink-0" />
+                  <span>Copy identifier</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={handleDuplicateTask}
+                  disabled={isDuplicating}
+                  className="flex items-center gap-2 px-2.5 py-1.5 cursor-pointer text-[12.5px] text-[rgba(17,17,17,0.8)] hover:text-[#111111]"
+                >
+                  <CopyCheck size={13} className="text-[rgba(17,17,17,0.5)] shrink-0" />
+                  <span>{isDuplicating ? 'Duplicating...' : 'Duplicate task'}</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={handleShare}
+                  className="flex items-center gap-2 px-2.5 py-1.5 cursor-pointer text-[12.5px] text-[rgba(17,17,17,0.8)] hover:text-[#111111]"
+                >
+                  <Share2 size={13} className="text-[rgba(17,17,17,0.5)] shrink-0" />
+                  <span>Share task</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator className="my-1 bg-[#F1F3F5]" />
+
+                <DropdownMenuItem
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="flex items-center gap-2 px-2.5 py-1.5 cursor-pointer text-[12.5px] text-red-600 focus:text-red-600 focus:bg-red-50 hover:bg-red-50"
+                >
+                  <Trash2 size={13} className="text-red-500 shrink-0" />
+                  <span>Delete task</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Notification Subscription Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className={`w-7 h-7 flex items-center justify-center rounded transition-colors cursor-pointer ${
+                    notifPref === 'all'
+                      ? 'text-[#2563EB] bg-[#EFF6FF] hover:bg-[#DBEAFE]'
+                      : notifPref === 'muted'
+                      ? 'text-[rgba(17,17,17,0.3)] hover:text-[#111111] hover:bg-[#F3F4F6]'
+                      : 'text-[rgba(17,17,17,0.55)] hover:bg-[#F3F4F6] hover:text-[#111111]'
+                  }`}
+                  title={`Notifications: ${
+                    notifPref === 'all' ? 'All Activity' : notifPref === 'mentions' ? 'Mentions Only' : 'Muted'
+                  }`}
+                  aria-label="Task notification preferences"
+                >
+                  {notifPref === 'muted' ? (
+                    <BellOff size={14} />
+                  ) : notifPref === 'all' ? (
+                    <BellRing size={14} />
+                  ) : (
+                    <Bell size={14} />
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64 p-1.5 shadow-lg border border-[#E5E7EB]">
+                <div className="px-2.5 py-1.5 border-b border-[#F1F3F5] mb-1">
+                  <p className="text-[12px] font-semibold text-[#111111]">Notifications</p>
+                  <p className="text-[11px] text-[rgba(17,17,17,0.45)]">Configure updates for this task</p>
+                </div>
+
+                <DropdownMenuItem
+                  onClick={() => handleSetNotifPref('all')}
+                  className="flex items-start gap-2.5 py-2 px-2.5 rounded-lg cursor-pointer"
+                >
+                  <BellRing size={14} className="mt-0.5 text-[#2563EB] shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12.5px] font-medium text-[#111111]">All Activity</span>
+                      {notifPref === 'all' && <Check size={13} className="text-[#2563EB]" />}
+                    </div>
+                    <p className="text-[10.5px] text-[rgba(17,17,17,0.45)] mt-0.5 leading-snug">
+                      Status changes, comments & subtasks
+                    </p>
+                  </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={() => handleSetNotifPref('mentions')}
+                  className="flex items-start gap-2.5 py-2 px-2.5 rounded-lg cursor-pointer"
+                >
+                  <AtSign size={14} className="mt-0.5 text-[rgba(17,17,17,0.6)] shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12.5px] font-medium text-[#111111]">Mentions Only</span>
+                      {notifPref === 'mentions' && <Check size={13} className="text-[#2563EB]" />}
+                    </div>
+                    <p className="text-[10.5px] text-[rgba(17,17,17,0.45)] mt-0.5 leading-snug">
+                      Only when assigned or tagged
+                    </p>
+                  </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={() => handleSetNotifPref('muted')}
+                  className="flex items-start gap-2.5 py-2 px-2.5 rounded-lg cursor-pointer"
+                >
+                  <BellOff size={14} className="mt-0.5 text-[rgba(17,17,17,0.4)] shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12.5px] font-medium text-[#111111]">Muted</span>
+                      {notifPref === 'muted' && <Check size={13} className="text-[#2563EB]" />}
+                    </div>
+                    <p className="text-[10.5px] text-[rgba(17,17,17,0.45)] mt-0.5 leading-snug">
+                      Never notify for this task
+                    </p>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#F3F4F6] text-[rgba(17,17,17,0.4)] transition-colors">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
             </button>
@@ -449,30 +795,40 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
             )}
 
             {activeTab === 'activity' && (
-              <div className="space-y-3">
-                {loadingActivities ? (
-                  <div className="space-y-3 py-2">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="flex items-center gap-3 animate-pulse">
-                        <div className="w-5 h-5 rounded-full bg-[#E5E7EB]" />
-                        <div className="flex-1 h-3 bg-[#F3F4F6] rounded" />
+              <div className="space-y-1">
+                {loadingActivities && activities.length === 0 ? (
+                  <div className="divide-y divide-[#F1F3F5] py-1">
+                    {[1, 2, 3, 4].map(i => (
+                      <div key={i} className="flex items-center justify-between py-2.5 px-2 animate-pulse">
+                        <div className={`h-3 bg-[#F3F4F6] rounded ${i % 2 === 0 ? 'w-3/5' : 'w-4/5'}`} />
+                        <div className="w-12 h-2.5 bg-[#F3F4F6] rounded shrink-0 ml-4" />
                       </div>
                     ))}
                   </div>
                 ) : activities.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-[13px] text-[rgba(17,17,17,0.4)]">No activity recorded yet.</p>
+                  <div className="text-center py-10 px-4">
+                    <p className="text-[13px] font-medium text-[rgba(17,17,17,0.6)]">No activity recorded</p>
+                    <p className="text-[11.5px] text-[rgba(17,17,17,0.38)] mt-1">Actions on this task will appear here.</p>
                   </div>
                 ) : (
-                  activities.map((a, i) => (
-                    <div key={a.id || i} className="flex items-start gap-3">
-                      <span className="text-[14px] mt-0.5 select-none">{a.icon}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[12.5px] text-[rgba(17,17,17,0.75)] break-words">{a.text}</p>
-                        <p className="text-[11px] text-[rgba(17,17,17,0.4)] mt-0.5">{a.timeAgo}</p>
+                  <div className="divide-y divide-[#F1F3F5]">
+                    {activities.map((a, i) => (
+                      <div
+                        key={a.id || i}
+                        className="flex items-baseline justify-between gap-4 py-2.5 px-2 -mx-2 rounded hover:bg-[#F9FAFB] transition-colors duration-150"
+                      >
+                        <div className="min-w-0 flex-1 text-[12.5px] text-[rgba(17,17,17,0.72)] leading-relaxed">
+                          {formatActivityText(a.text)}
+                        </div>
+                        <span
+                          className="shrink-0 text-[11px] text-[rgba(17,17,17,0.38)] tabular-nums whitespace-nowrap pl-2"
+                          title={a.createdAt ? new Date(a.createdAt).toLocaleString() : undefined}
+                        >
+                          {a.timeAgo}
+                        </span>
                       </div>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 )}
               </div>
             )}
@@ -568,6 +924,36 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
           onClose={() => setEditing(false)}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="sm:max-w-[420px] p-6">
+          <DialogHeader>
+            <DialogTitle className="text-[16px] font-semibold text-[#111111]">Delete Task</DialogTitle>
+            <DialogDescription className="text-[13px] text-[rgba(17,17,17,0.6)] leading-relaxed mt-1.5">
+              Are you sure you want to delete <span className="font-semibold text-[#111111]">{task?.title}</span>? This action cannot be undone and will delete all subtasks and comments.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-5 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={isDeleting}
+              className="px-3 py-1.5 text-[12.5px] font-medium text-[rgba(17,17,17,0.7)] hover:bg-[#F3F4F6] rounded-lg transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleDeleteTask}
+              disabled={isDeleting}
+              className="px-3.5 py-1.5 text-[12.5px] font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg transition-colors shadow-xs cursor-pointer"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Task'}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

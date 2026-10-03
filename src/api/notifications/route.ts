@@ -15,36 +15,156 @@ import { currentUser } from '@/data/mockData';
 import redisCache from '@/lib/redis';
 
 // Fallback in-memory demo notifications when DB has zero notifications
-const demoNotifications = [
+export interface DemoNotification {
+  id: string;
+  userId: string;
+  category: 'user' | 'project' | 'admin';
+  type: string;
+  title: string;
+  body: string;
+  taskId?: string | null;
+  actor?: { name: string; avatar: string };
+  meta?: string;
+  read: boolean;
+  createdAt: string;
+}
+
+const demoNotifications: DemoNotification[] = [
+  // User / Team Member Notifications
   {
-    id: 'demo-notif-1',
+    id: 'demo-notif-u1',
     userId: 'u1',
+    category: 'user',
     type: 'task_assigned',
-    title: 'Assigned to new task',
+    title: 'Task assigned to you',
     body: 'Sarah Chen assigned you to TF-012: Accessibility audit & keyboard navigation',
     taskId: 't2',
+    actor: { name: 'Sarah Chen', avatar: 'SC' },
     read: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
+    createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
   },
   {
-    id: 'demo-notif-2',
+    id: 'demo-notif-u2',
     userId: 'u1',
+    category: 'user',
     type: 'comment_mention',
-    title: 'New comment on TF-003',
-    body: 'Ahmed Malik mentioned: "The API schemas are now fully validated with Zod."',
+    title: 'Mentioned in comment',
+    body: 'Ahmed Malik mentioned you on TF-003: "The database indexes are ready for review."',
     taskId: 't3',
+    actor: { name: 'Ahmed Malik', avatar: 'AM' },
+    read: false,
+    createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+  },
+  {
+    id: 'demo-notif-u3',
+    userId: 'u1',
+    category: 'user',
+    type: 'task_overdue',
+    title: 'Task deadline approaching',
+    body: 'TF-002: Authentication flows is due within 24 hours.',
+    taskId: 't1',
+    read: true,
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
+  },
+  {
+    id: 'demo-notif-u4',
+    userId: 'u1',
+    category: 'user',
+    type: 'subtask_completed',
+    title: 'Subtask completed',
+    body: 'John Torres completed "Unit tests for token refresh" on TF-008.',
+    taskId: 't4',
+    actor: { name: 'John Torres', avatar: 'JT' },
+    read: true,
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
+  },
+
+  // Product Manager / Project & Sprint Notifications
+  {
+    id: 'demo-notif-pm1',
+    userId: 'u1',
+    category: 'project',
+    type: 'project_at_risk',
+    title: 'Project health: At Risk',
+    body: 'Mobile App Redesign health dropped to At Risk due to 2 overdue milestones.',
+    meta: 'Mobile App Redesign',
+    read: false,
+    createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+  },
+  {
+    id: 'demo-notif-pm2',
+    userId: 'u1',
+    category: 'project',
+    type: 'project_milestone',
+    title: 'Sprint milestone reached',
+    body: 'Sprint 14 reached 80% story points completion ahead of target cycle.',
+    meta: 'Sprint 14',
     read: false,
     createdAt: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
   },
   {
-    id: 'demo-notif-3',
+    id: 'demo-notif-pm3',
     userId: 'u1',
-    type: 'task_overdue',
-    title: 'Task due soon',
-    body: 'TF-002: Authentication flows is due within 24 hours.',
-    taskId: 't1',
+    category: 'project',
+    type: 'blocker_reported',
+    title: 'Critical blocker reported',
+    body: 'TF-045 flagged as blocker: "Cloudflare SSL certificate expired on staging environment."',
+    actor: { name: 'Rasel Ahmed', avatar: 'RA' },
     read: true,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 18).toISOString(),
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
+  },
+  {
+    id: 'demo-notif-pm4',
+    userId: 'u1',
+    category: 'project',
+    type: 'workload_alert',
+    title: 'Team workload threshold',
+    body: 'Frontend Engineering capacity exceeded 115% for upcoming release.',
+    read: true,
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+  },
+
+  // Admin / Security & System Notifications
+  {
+    id: 'demo-notif-adm1',
+    userId: 'u1',
+    category: 'admin',
+    type: 'security_alert',
+    title: 'Security audit alert',
+    body: 'New administrative session initiated from Chrome on macOS (IP: 192.168.1.104).',
+    read: false,
+    createdAt: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
+  },
+  {
+    id: 'demo-notif-adm2',
+    userId: 'u1',
+    category: 'admin',
+    type: 'user_registered',
+    title: 'New user registered',
+    body: 'David Miller (david@flowsync.io) successfully verified account as DevOps Engineer.',
+    actor: { name: 'David Miller', avatar: 'DM' },
+    read: false,
+    createdAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
+  },
+  {
+    id: 'demo-notif-adm3',
+    userId: 'u1',
+    category: 'admin',
+    type: 'backup_completed',
+    title: 'Automated database snapshot',
+    body: 'Daily PostgreSQL backup completed: 4.8MB compressed snapshot saved to cold storage.',
+    read: true,
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
+  },
+  {
+    id: 'demo-notif-adm4',
+    userId: 'u1',
+    category: 'admin',
+    type: 'system_metric',
+    title: 'Distributed cache peak',
+    body: 'Redis cache hit-rate reached 99.1% across 14,200 operations.',
+    read: true,
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 28).toISOString(),
   },
 ];
 
@@ -248,6 +368,59 @@ export async function PATCH(request: NextRequest) {
     );
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    let sessionUserId: string | undefined = undefined;
+    try {
+      const session = await auth();
+      sessionUserId = session?.user?.id;
+    } catch {}
+
+    const targetUserId = sessionUserId || 'u1';
+    const body = await request.json();
+
+    const newNotif: DemoNotification = {
+      id: `notif-${Date.now()}`,
+      userId: targetUserId,
+      category: body.category || 'user',
+      type: body.type || 'system_test',
+      title: body.title || 'Test Notification',
+      body: body.body || 'Your notification pipeline is working correctly.',
+      read: false,
+      createdAt: new Date().toISOString(),
+    };
+
+    const notifModel = getNotificationDelegate();
+    if (notifModel) {
+      try {
+        await notifModel.create({
+          data: {
+            userId: targetUserId,
+            title: newNotif.title,
+            body: newNotif.body,
+            type: newNotif.type,
+            read: false,
+          },
+        });
+      } catch (dbErr) {
+        console.warn('[POST /api/notifications] DB save warning:', dbErr);
+      }
+    }
+
+    demoNotifications.unshift(newNotif);
+    await redisCache.delPattern('notifs:*');
+
+    return NextResponse.json({ success: true, data: newNotif }, { status: 201 });
+  } catch (err) {
+    console.error('[POST /api/notifications] Error:', err);
+    return NextResponse.json(
+      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to create notification' } },
+      { status: 500 }
+    );
+  }
+}
+
 
 
 

@@ -3,4 +3,4 @@
  *
  * Re-exports GET and PATCH from src/api/notifications/route.ts.
  */
-export { GET, PATCH } from '@/api/notifications/route';
+export { GET, PATCH, POST } from '@/api/notifications/route';
