@@ -355,9 +355,22 @@ export default function SignupPage() {
     }
   };
 
-  const handleSocialSignIn = (provider: 'google' | 'github') => {
+  const handleSocialSignIn = async (provider: 'google' | 'github') => {
+    if (provider === 'google') {
+      setSocialLoading('google');
+      setError(null);
+      try {
+        await signIn('google', { callbackUrl: '/app' });
+      } catch (err: unknown) {
+        console.error('Google Sign-In error:', err);
+        setError('Failed to initiate Google Sign-In. Please try again.');
+        setSocialLoading(null);
+      }
+      return;
+    }
+
     setSocialLoading(provider);
-    signIn(provider, { callbackUrl: '/' });
+    signIn(provider, { callbackUrl: '/app' });
   };
 
   return (

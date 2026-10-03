@@ -17,8 +17,6 @@ import {
 } from 'lucide-react';
 import ForgotPasswordModal from '@/components/ForgotPasswordModal';
 
-
-
 // ---------------------------------------------------------------------------
 // LoginForm — uses useSearchParams, must be wrapped in <Suspense>
 // ---------------------------------------------------------------------------
@@ -26,6 +24,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const registered = searchParams.get('registered');
+  const authError = searchParams.get('error');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -38,6 +37,24 @@ function LoginForm() {
   const [success, setSuccess] = useState<string | null>(
     registered ? 'Account created successfully! Please sign in.' : null
   );
+
+  const callback = searchParams.get('callbackUrl');
+  const targetUrl = callback && callback !== '/' && !callback.startsWith('/auth') ? callback : '/app';
+
+  // Handle URL errors returned from NextAuth
+  React.useEffect(() => {
+    if (authError) {
+      if (authError === 'Configuration') {
+        setError('Google authentication encountered a configuration error. Please verify your settings.');
+      } else if (authError === 'AccessDenied') {
+        setError('Access denied by Google. If your Google Cloud app is in "Testing" mode, add your email under "Test users" in Google Cloud Console.');
+      } else if (authError === 'OAuthSignin' || authError === 'OAuthCallback') {
+        setError('Could not complete Google authentication. Please try again.');
+      } else {
+        setError(`Authentication error: ${authError}`);
+      }
+    }
+  }, [authError]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,8 +86,6 @@ function LoginForm() {
       }
 
       setSuccess('Authentication successful! Redirecting to workspace...');
-      const callback = searchParams.get('callbackUrl');
-      const targetUrl = callback && callback !== '/' && !callback.startsWith('/auth') ? callback : '/app';
       setTimeout(() => {
         router.push(targetUrl);
         router.refresh();
@@ -82,10 +97,21 @@ function LoginForm() {
     }
   };
 
-  const handleSocialSignIn = (provider: 'google' | 'github') => {
+  const handleSocialSignIn = async (provider: 'google' | 'github') => {
+    if (provider === 'google') {
+      setSocialLoading('google');
+      setError(null);
+      try {
+        await signIn('google', { callbackUrl: targetUrl });
+      } catch (err: unknown) {
+        console.error('Google Sign-In error:', err);
+        setError('Failed to initiate Google Sign-In. Please try again.');
+        setSocialLoading(null);
+      }
+      return;
+    }
+
     setSocialLoading(provider);
-    const callback = searchParams.get('callbackUrl');
-    const targetUrl = callback && callback !== '/' && !callback.startsWith('/auth') ? callback : '/app';
     signIn(provider, { callbackUrl: targetUrl });
   };
 
