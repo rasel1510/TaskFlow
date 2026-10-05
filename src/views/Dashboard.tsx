@@ -41,13 +41,13 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { StatCardSkeleton, TaskRowSkeleton } from '@/components/ui/Skeleton';
 import { Area, AreaChart, CartesianGrid, LabelList, Pie, PieChart, XAxis, YAxis } from 'recharts';
+import { NumberPopIn } from '@/components/NumberPopIn';
 import {
   CalendarDays,
   CheckCircle2,
   Clock,
   ExternalLink,
   Layers,
-  ListTodo,
   TrendingUp,
   Users,
 } from 'lucide-react';
@@ -232,35 +232,20 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
     <div className="flex-1 overflow-y-auto bg-background text-foreground">
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-5 md:py-8 space-y-6">
         
-        {/* Founder Top Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-border/60">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
+        {/* Panoramic Dashboard Banner with Overlay Text */}
+        <div className="relative w-full h-36 sm:h-44 md:h-52 rounded-xl overflow-hidden border border-border/60 bg-muted">
+          <img
+            src="/dashboard-banner.jpg"
+            alt="Dashboard Banner"
+            className="w-full h-full object-cover object-[center_45%] select-none"
+            loading="eager"
+          />
+
+          {/* Banner Content: Text with transitions.dev Text Reveal */}
+          <div className="absolute inset-0 flex flex-col justify-end p-5 sm:p-6 z-10 t-stagger is-shown">
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900 t-stagger-line">
               Good {greeting}, {userName}
             </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-              Here is your SaaS product engineering throughput, sprint velocity, and delivery status.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2.5 shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onViewChange('kanban')}
-              className="h-8 gap-1.5 text-xs font-medium shadow-none"
-            >
-              <Layers className="size-3.5" />
-              Kanban Board
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => onViewChange('tasks')}
-              className="h-8 gap-1.5 text-xs font-medium shadow-none"
-            >
-              <ListTodo className="size-3.5" />
-              All Tasks
-            </Button>
           </div>
         </div>
 
@@ -275,7 +260,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Total Backlog */}
-            <Card className="shadow-none border-border">
+            <Card className="shadow-none border-border t-card-enter t-card-stagger-1 t-hover-lift">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="font-normal text-muted-foreground text-xs">
                   Total Backlog & Tasks
@@ -284,7 +269,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
               </CardHeader>
               <CardContent className="flex flex-col gap-1.5">
                 <div className="text-2xl sm:text-3xl font-semibold tracking-tight tabular-nums">
-                  {totalTasks}
+                  <NumberPopIn value={totalTasks} />
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   <Delta value={8.5} variant="badge">
@@ -297,7 +282,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
             </Card>
 
             {/* In Progress */}
-            <Card className="shadow-none border-border">
+            <Card className="shadow-none border-border t-card-enter t-card-stagger-2 t-hover-lift">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="font-normal text-muted-foreground text-xs">
                   Active Execution
@@ -306,7 +291,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
               </CardHeader>
               <CardContent className="flex flex-col gap-1.5">
                 <div className="text-2xl sm:text-3xl font-semibold tracking-tight text-primary tabular-nums">
-                  {inProgress}
+                  <NumberPopIn value={inProgress} />
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   <span className="font-medium text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded text-[11px]">
@@ -318,7 +303,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
             </Card>
 
             {/* Completed */}
-            <Card className="shadow-none border-border">
+            <Card className="shadow-none border-border t-card-enter t-card-stagger-3 t-hover-lift">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="font-normal text-muted-foreground text-xs">
                   Completed Deliverables
@@ -327,7 +312,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
               </CardHeader>
               <CardContent className="flex flex-col gap-1.5">
                 <div className="text-2xl sm:text-3xl font-semibold tracking-tight text-emerald-600 tabular-nums">
-                  {done}
+                  <NumberPopIn value={done} />
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   <Delta value={12.4} variant="badge">
@@ -342,16 +327,16 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
             </Card>
 
             {/* Overdue / Blockers */}
-            <Card className="shadow-none border-border">
+            <Card className="shadow-none border-border t-card-enter t-card-stagger-4 t-hover-lift">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="font-normal text-muted-foreground text-xs">
-                  Overdue / Needs Attention
+                  Overdue
                 </CardTitle>
                 <StatusIndicator color={overdueCount > 0 ? 'rose' : 'emerald'} pulse={overdueCount > 0} />
               </CardHeader>
               <CardContent className="flex flex-col gap-1.5">
                 <div className={`text-2xl sm:text-3xl font-semibold tracking-tight tabular-nums ${overdueCount > 0 ? 'text-destructive' : 'text-foreground'}`}>
-                  {overdueCount}
+                  <NumberPopIn value={overdueCount} />
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   {overdueCount > 0 ? (
@@ -377,7 +362,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           
           {/* Main Velocity Area Chart (@efferd ConversationVolumeChart style) */}
-          <Card className="lg:col-span-2 shadow-none border-border flex flex-col justify-between">
+          <Card className="lg:col-span-2 shadow-none border-border flex flex-col justify-between t-card-enter t-card-stagger-5 t-hover-lift">
             <CardHeader className="space-y-1 pb-3">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div className="space-y-0.5">
@@ -388,9 +373,6 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
                       <DeltaValue />
                     </Delta>
                   </div>
-                  <CardDescription className="text-xs">
-                    Weekly task resolution compared against newly created requirements
-                  </CardDescription>
                 </div>
                 <Select
                   value={velocityPeriod}
@@ -411,13 +393,13 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
                 <div>
                   <div className="text-muted-foreground text-xs">Total Resolved</div>
                   <div className="font-semibold text-base sm:text-lg text-emerald-600 tabular-nums">
-                    {totalCompletedVelocity} tasks
+                    <NumberPopIn value={totalCompletedVelocity} /> tasks
                   </div>
                 </div>
                 <div>
                   <div className="text-muted-foreground text-xs">New Inflow</div>
                   <div className="font-semibold text-base sm:text-lg text-primary tabular-nums">
-                    {totalCreatedVelocity} tasks
+                    <NumberPopIn value={totalCreatedVelocity} /> tasks
                   </div>
                 </div>
                 <div>
@@ -489,7 +471,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
           </Card>
 
           {/* ⭐ THE CIRCULAR FIGURE (@efferd ChannelBreakdownChart style) */}
-          <Card className="shadow-none border-border flex flex-col justify-between">
+          <Card className="shadow-none border-border flex flex-col justify-between t-card-enter t-card-stagger-5 t-hover-lift">
             <CardHeader className="space-y-1 pb-1">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold">Task Distribution</CardTitle>
@@ -558,7 +540,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           
           {/* Project Progress Table */}
-          <Card className="lg:col-span-2 shadow-none border-border">
+          <Card className="lg:col-span-2 shadow-none border-border t-card-enter t-card-stagger-6 t-hover-lift">
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <div>
                 <CardTitle className="text-base font-semibold">Active Project Roadmaps</CardTitle>
@@ -656,7 +638,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
           </Card>
 
           {/* Upcoming Deadlines Widget */}
-          <Card className="shadow-none border-border">
+          <Card className="shadow-none border-border t-card-enter t-card-stagger-6 t-hover-lift">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold">Upcoming Deadlines</CardTitle>

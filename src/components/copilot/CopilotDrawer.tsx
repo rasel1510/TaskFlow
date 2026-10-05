@@ -165,7 +165,7 @@ export default function CopilotDrawer({
         const errorMsg: Message = {
           id: 'err-' + Date.now(),
           role: 'assistant',
-          content: `⚠️ ${json.message || 'Failed to process request with Copilot.'}`,
+          content: `⚠️ ${json.message || 'Failed to process request with FlowAi.'}`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
         setMessages(prev => [...prev, errorMsg]);
@@ -177,7 +177,7 @@ export default function CopilotDrawer({
         {
           id: 'err-' + Date.now(),
           role: 'assistant',
-          content: `⚠️ Error connecting to Copilot: ${errMsg}`,
+          content: `⚠️ Error connecting to FlowAi: ${errMsg}`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
@@ -212,7 +212,7 @@ export default function CopilotDrawer({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-[14px] font-semibold text-[#111111]">Copilot</h3>
+                <h3 className="text-[14px] font-semibold text-[#111111]">FlowAi</h3>
               </div>
               <p className="text-[11px] text-gray-400">
                 Workspace assistant

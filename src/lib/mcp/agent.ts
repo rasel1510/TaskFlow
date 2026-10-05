@@ -42,7 +42,7 @@ export async function runFlowSyncAgent(
   const todayStr = new Date().toISOString().split('T')[0];
   const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date());
 
-  const systemPrompt = `You are FlowSync AI Copilot. You execute workspace tasks concisely and directly.
+  const systemPrompt = `You are FlowAi. You execute workspace tasks concisely and directly.
 
 CURRENT CONTEXT:
 - Today's date: ${todayStr} (${weekday})
@@ -104,7 +104,7 @@ OPERATIONAL RULES:
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'https://flowsync.app',
-        'X-Title': 'FlowSync AI Copilot',
+        'X-Title': 'FlowAi',
       },
       body: JSON.stringify(payload),
     });
