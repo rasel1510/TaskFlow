@@ -15,6 +15,20 @@ import { NextRequest, NextResponse } from 'next/server';
 
 function parseSafeDate(raw: unknown): Date | undefined {
   if (!raw || typeof raw !== 'string') return undefined;
+  let str = raw.trim();
+  if (str.includes('T')) {
+    str = str.split('T')[0].trim();
+  }
+  const ymdMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (ymdMatch) {
+    const year = parseInt(ymdMatch[1], 10);
+    const month = parseInt(ymdMatch[2], 10) - 1;
+    const day = parseInt(ymdMatch[3], 10);
+    const d = new Date(Date.UTC(year, month, day, 12, 0, 0, 0));
+    if (!isNaN(d.getTime()) && year >= 2000 && year <= 2100) {
+      return d;
+    }
+  }
   const d = new Date(raw);
   if (isNaN(d.getTime())) return undefined;
   const year = d.getUTCFullYear();
@@ -78,7 +92,12 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       );
     }
 
-    return NextResponse.json({ success: true, data: task }, { status: 200 });
+    const serializedTask = {
+      ...task,
+      dueDate: task.dueDate ? task.dueDate.toISOString().split('T')[0] : null,
+    };
+
+    return NextResponse.json({ success: true, data: serializedTask }, { status: 200 });
   } catch (error) {
     console.error('[GET /api/tasks/:id] Error:', error);
     return NextResponse.json(
@@ -225,7 +244,16 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     });
 
     // ── Respond NOW — background work follows ────────────────────────────────
-    const response = NextResponse.json({ success: true, data: { ...existing, ...updated } }, { status: 200 });
+    const mergedTask = { ...existing, ...updated };
+    const serializedTask = {
+      ...mergedTask,
+      dueDate: mergedTask.dueDate
+        ? (mergedTask.dueDate instanceof Date
+            ? mergedTask.dueDate.toISOString().split('T')[0]
+            : String(mergedTask.dueDate).split('T')[0])
+        : null,
+    };
+    const response = NextResponse.json({ success: true, data: serializedTask }, { status: 200 });
 
     // Fire-and-forget: activity log + progress + cache (none block the response)
     fireAndForget(async () => {

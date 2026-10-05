@@ -50,11 +50,12 @@ interface HeaderProps {
   onCreateTask?: () => void;
   onMenuToggle: () => void;
   onOpenCommandPalette?: () => void;
+  onOpenCopilot?: () => void;
   onNavigate?: (view: View) => void;
   onOpenPWA?: () => void;
 }
 
-export default function Header({ currentView, onMenuToggle, onOpenCommandPalette, onNavigate, onOpenPWA }: HeaderProps) {
+export default function Header({ currentView, onMenuToggle, onOpenCommandPalette, onOpenCopilot, onNavigate, onOpenPWA }: HeaderProps) {
   const [showNotifs, setShowNotifs] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [expertiseRequired, setExpertiseRequired] = useState(false);
@@ -246,6 +247,25 @@ export default function Header({ currentView, onMenuToggle, onOpenCommandPalette
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
         </button>
+
+        {/* AI Copilot (MCP) */}
+        {onOpenCopilot && (
+          <button
+            type="button"
+            onClick={onOpenCopilot}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-blue-200/80 bg-blue-50/60 hover:bg-blue-100/70 text-[#2563EB] transition-all cursor-pointer shadow-2xs group"
+            aria-label="Open AI Copilot"
+            title="FlowSync Copilot (Ctrl+J)"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="animate-pulse">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+            </svg>
+            <span className="hidden sm:inline text-[12px] font-semibold tracking-tight">Copilot</span>
+            <kbd className="hidden lg:inline text-[9.5px] bg-white text-[#2563EB] border border-blue-200 rounded px-1 py-0.2 font-mono">
+              ⌘J
+            </kbd>
+          </button>
+        )}
 
         {/* Notifications */}
         <div className="relative">

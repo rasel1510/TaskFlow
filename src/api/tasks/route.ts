@@ -29,6 +29,20 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 function parseSafeDate(raw: unknown): Date | undefined {
   if (!raw || typeof raw !== 'string') return undefined;
+  let str = raw.trim();
+  if (str.includes('T')) {
+    str = str.split('T')[0].trim();
+  }
+  const ymdMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (ymdMatch) {
+    const year = parseInt(ymdMatch[1], 10);
+    const month = parseInt(ymdMatch[2], 10) - 1;
+    const day = parseInt(ymdMatch[3], 10);
+    const d = new Date(Date.UTC(year, month, day, 12, 0, 0, 0));
+    if (!isNaN(d.getTime()) && year >= 2000 && year <= 2100) {
+      return d;
+    }
+  }
   const d = new Date(raw);
   if (isNaN(d.getTime())) return undefined;
   const year = d.getUTCFullYear();
@@ -172,9 +186,13 @@ export async function GET(request: NextRequest) {
 
       const hasMore    = dbTasks.length > limit;
       const items      = hasMore ? dbTasks.slice(0, limit) : dbTasks;
+      const serialized = items.map(t => ({
+        ...t,
+        dueDate: t.dueDate ? t.dueDate.toISOString().split('T')[0] : null,
+      }));
       const nextCursor = hasMore && items.length > 0 ? items[items.length - 1].id : null;
 
-      return { items, meta: { hasMore, nextCursor, limit } };
+      return { items: serialized, meta: { hasMore, nextCursor, limit } };
     });
 
     return NextResponse.json({
@@ -407,7 +425,12 @@ export async function POST(request: NextRequest) {
       redisCache.delPattern('notifs:*'),
     ]);
 
-    return NextResponse.json({ success: true, data: newTask }, { status: 201 });
+    const serializedNewTask = {
+      ...newTask,
+      dueDate: newTask.dueDate ? newTask.dueDate.toISOString().split('T')[0] : null,
+    };
+
+    return NextResponse.json({ success: true, data: serializedNewTask }, { status: 201 });
   } catch (error) {
     console.error('[POST /api/tasks] Error creating task:', error);
     return NextResponse.json(

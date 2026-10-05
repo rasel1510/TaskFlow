@@ -589,7 +589,7 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
                 },
                 {
                   label: 'Due Date',
-                  content: <span className="text-[12.5px] text-[#111111]">{task.dueDate}</span>,
+                  content: <span className="text-[12.5px] text-[#111111]">{task.dueDate ? String(task.dueDate).split('T')[0] : '—'}</span>,
                 },
                 {
                   label: 'Estimate',

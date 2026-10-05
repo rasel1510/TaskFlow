@@ -86,6 +86,12 @@ interface TaskContextValue {
 // Context
 // -------------------------------------------------------------------------
 
+function cleanDueDate(d: unknown): string | null {
+  if (!d) return null;
+  const str = String(d).trim();
+  return str.includes('T') ? str.split('T')[0] : str;
+}
+
 const TaskContext = createContext<TaskContextValue | null>(null);
 
 export function TaskProvider({ children }: { children: React.ReactNode }) {
@@ -111,7 +117,11 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) throw new Error(`Failed to fetch tasks: ${res.status}`);
       const envelope = await res.json();
       // Handle both old raw-array and new { success, data } envelope shapes
-      const data: DBTask[] = Array.isArray(envelope) ? envelope : (envelope?.data ?? []);
+      const rawData: DBTask[] = Array.isArray(envelope) ? envelope : (envelope?.data ?? []);
+      const data: DBTask[] = rawData.map(t => ({
+        ...t,
+        dueDate: cleanDueDate(t.dueDate),
+      }));
       setTasks(data);
       setError(null);
     } catch (err) {
@@ -201,7 +211,11 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       }
 
       const envelope = await res.json();
-      const newTask: DBTask = envelope?.data ?? envelope;
+      const rawNewTask: DBTask = envelope?.data ?? envelope;
+      const newTask: DBTask = {
+        ...rawNewTask,
+        dueDate: cleanDueDate(rawNewTask.dueDate),
+      };
 
       // Replace temp entry with real server task (preserves list position)
       setTasks(prev => prev.map(t => t.id === tempId ? newTask : t));
@@ -280,7 +294,11 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       }
 
       const envelope = await res.json();
-      const updatedTask: DBTask = envelope?.data ?? envelope;
+      const rawUpdated: DBTask = envelope?.data ?? envelope;
+      const updatedTask: DBTask = {
+        ...rawUpdated,
+        dueDate: cleanDueDate(rawUpdated.dueDate),
+      };
       // Merge server response (has real assignee/project objects)
       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updatedTask } : t));
       toast.success('Task updated');

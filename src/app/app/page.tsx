@@ -22,6 +22,7 @@ import { TaskProvider } from '@/context/TaskContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import PWAModal from '@/components/PWAModal';
+import CopilotDrawer from '@/components/copilot/CopilotDrawer';
 
 type View =
   | 'dashboard'
@@ -48,6 +49,7 @@ export default function AppPage() {
   const [createTaskDate, setCreateTaskDate] = useState<string | undefined>(undefined);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [isPWAModalOpen, setIsPWAModalOpen] = useState(false);
+  const [isCopilotOpen, setIsCopilotOpen] = useState(false);
 
   // Redirect to home page if unauthenticated
   useEffect(() => {
@@ -73,12 +75,15 @@ export default function AppPage() {
     };
   }, [mobileSidebarOpen]);
 
-  // Global keydown listener for Command Palette (Ctrl+K / Cmd+K)
+  // Global keydown listener for Command Palette (Ctrl+K) & Copilot (Ctrl+J)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setCommandPaletteOpen(open => !open);
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
+        e.preventDefault();
+        setIsCopilotOpen(open => !open);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -226,6 +231,7 @@ export default function AppPage() {
             onCreateTask={() => setShowCreateTask(true)}
             onMenuToggle={() => setMobileSidebarOpen(o => !o)}
             onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+            onOpenCopilot={() => setIsCopilotOpen(true)}
             onNavigate={navigateTo}
             onOpenPWA={() => setIsPWAModalOpen(true)}
           />
@@ -376,6 +382,31 @@ export default function AppPage() {
           isOpen={isPWAModalOpen}
           onClose={() => setIsPWAModalOpen(false)}
         />
+
+        {/* FlowSync Copilot Drawer (Autonomous Agent & MCP Engine) */}
+        <CopilotDrawer
+          isOpen={isCopilotOpen}
+          onClose={() => setIsCopilotOpen(false)}
+          currentProjectId={selectedProjectId}
+          onSelectTask={id => setSelectedTask(id)}
+        />
+
+        {/* Floating Copilot Trigger Button */}
+        <button
+          type="button"
+          onClick={() => setIsCopilotOpen(true)}
+          aria-label="Open FlowSync Copilot"
+          title="FlowSync Copilot (Ctrl+J)"
+          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-[#111827] hover:bg-[#1F2937] text-white shadow-xl shadow-black/15 border border-white/10 hover:scale-105 active:scale-95 transition-all cursor-pointer group"
+        >
+          <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 group-hover:text-blue-300">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="animate-pulse">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+            </svg>
+          </div>
+          <span className="text-[12.5px] font-semibold tracking-tight">Copilot</span>
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-gray-300">⌘J</span>
+        </button>
       </div>
     </TaskProvider>
   );
