@@ -20,6 +20,8 @@ logs/
 # beside it.
 /.plugins/
 /.opencode-skills/
+/.agents/
+/skills-lock.json
 
 # Local user credential store (contains bcrypt password hashes)
 src/data/users.json

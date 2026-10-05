@@ -13,5 +13,8 @@
     "components": "@/components",
     "utils": "@/lib/utils",
     "ui": "@/components/ui"
+  },
+  "registries": {
+    "@efferd": "https://efferd.com/r/{style}/{name}.json"
   }
 }
