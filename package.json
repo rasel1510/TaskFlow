@@ -4,7 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "clean": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true});console.log('Cleaned .next')}catch(e){}\"",
     "dev": "next dev",
+    "dev:clean": "npm run clean && next dev",
     "build": "next build",
     "start": "next start",
     "postinstall": "prisma generate",
