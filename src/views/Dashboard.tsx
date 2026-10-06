@@ -233,17 +233,20 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-5 md:py-8 space-y-6">
         
         {/* Panoramic Dashboard Banner with Overlay Text */}
-        <div className="relative w-full h-36 sm:h-44 md:h-52 rounded-xl overflow-hidden border border-border/60 bg-muted">
+        <div className="relative w-full h-36 sm:h-44 md:h-52 rounded-xl overflow-hidden border border-border/60 bg-gradient-to-r from-sky-100 via-indigo-50 to-blue-100 dark:from-slate-900 dark:to-slate-800">
           <img
             src="/dashboard-banner.jpg"
             alt="Dashboard Banner"
             className="w-full h-full object-cover object-[center_45%] select-none"
             loading="eager"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
           />
 
           {/* Banner Content: Text with transitions.dev Text Reveal */}
-          <div className="absolute inset-0 flex flex-col justify-end p-5 sm:p-6 z-10 t-stagger is-shown">
-            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900 t-stagger-line">
+          <div className="absolute inset-0 flex flex-col justify-end p-5 sm:p-6 z-10 t-stagger is-shown pointer-events-none">
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 t-stagger-line drop-shadow-sm">
               Good {greeting}, {userName}
             </h1>
           </div>
