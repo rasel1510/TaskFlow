@@ -23,7 +23,7 @@ import { Eye, EyeOff, Bell, Mail, Monitor, Send, Check, Shield, Briefcase, User,
 
 /* ─────────────── types ─────────────── */
 
-type Section = 'profile' | 'workspace' | 'members' | 'notifications' | 'security' | 'integrations';
+type Section = 'profile' | 'workspace' | 'members' | 'notifications' | 'security';
 
 export const DEFAULT_EXPERTISE_OPTIONS = [
   { id: 'UI Design', label: 'UI Design' },
@@ -168,18 +168,8 @@ const navItems: { id: Section; label: string; group: string }[] = [
   { id: 'workspace',     label: 'General',      group: 'Workspace' },
   { id: 'members',       label: 'Members',      group: 'Workspace' },
   { id: 'notifications', label: 'Notifications',group: 'Workspace' },
-  { id: 'integrations',  label: 'Integrations', group: 'Integrations' },
 ];
-const groups = ['Account', 'Workspace', 'Integrations'];
-
-const integrations = [
-  { name: 'Slack',        desc: 'Get task notifications in Slack channels', connected: true,  icon: '#4A154B', letter: 'S' },
-  { name: 'GitHub',       desc: 'Link commits and PRs to tasks',            connected: true,  icon: '#111111', letter: 'G' },
-  { name: 'Figma',        desc: 'Attach design files to tasks',             connected: false, icon: '#F24E1E', letter: 'F' },
-  { name: 'Jira',         desc: 'Sync with Jira projects',                  connected: false, icon: '#0052CC', letter: 'J' },
-  { name: 'Google Drive', desc: 'Attach Drive files to tasks',              connected: false, icon: '#0F9D58', letter: 'G' },
-  { name: 'Zapier',       desc: 'Automate workflows with 5,000+ apps',      connected: false, icon: '#FF4A00', letter: 'Z' },
-];
+const groups = ['Account', 'Workspace'];
 
 /* ─────────────── helpers ─────────────── */
 
@@ -962,53 +952,6 @@ export default function Settings() {
               </div>
             </div>
 
-            {/* 2FA placeholder */}
-            <div className="border border-[#E5E7EB] rounded-xl p-5 mb-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-[14px] font-semibold text-[#111111]">Two-Factor Authentication</div>
-                  <div className="text-[12.5px] text-[rgba(17,17,17,0.5)] mt-0.5">
-                    Add an extra layer of security to your account
-                  </div>
-                </div>
-                <span className="text-[11.5px] font-medium px-2.5 py-1 rounded-full bg-[#FEF2F2] text-[#DC2626]">
-                  Not enabled
-                </span>
-              </div>
-              <button className="mt-3 px-4 py-2 bg-[#2563EB] text-white rounded-lg text-[13px] font-semibold hover:bg-[#1D4ED8] transition-colors">
-                Enable 2FA
-              </button>
-            </div>
-
-            {/* Active sessions */}
-            <div className="border border-[#E5E7EB] rounded-xl p-5">
-              <div className="text-[14px] font-semibold text-[#111111] mb-3">Active Sessions</div>
-              {[
-                { device: 'Chrome on Windows', location: 'Your current device', time: 'Active now', current: true },
-                { device: 'Safari on iPhone',  location: 'Mobile device',       time: '2 hours ago', current: false },
-              ].map((s, i) => (
-                <div key={i} className={`flex items-center justify-between py-3 ${i > 0 ? 'border-t border-[#F3F4F6]' : ''}`}>
-                  <div>
-                    <div className="text-[13px] font-medium text-[#111111] flex items-center gap-2">
-                      {s.device}
-                      {s.current && (
-                        <span className="text-[10px] bg-[#F0FDF4] text-[#16A34A] px-1.5 py-0.5 rounded font-medium">
-                          Current
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[11.5px] text-[rgba(17,17,17,0.45)] mt-0.5">
-                      {s.location} · {s.time}
-                    </div>
-                  </div>
-                  {!s.current && (
-                    <button className="text-[12.5px] font-medium text-[#DC2626] hover:underline">
-                      Revoke
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
           </div>
         )}
 
@@ -1491,45 +1434,7 @@ export default function Settings() {
           </div>
         )}
 
-        {/* ━━━━━━━━━━━━━━━━━━━━━━━━
-            INTEGRATIONS
-        ━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        {section === 'integrations' && (
-          <div>
-            <h2 className="text-[20px] font-bold text-[#111111] mb-1">Integrations</h2>
-            <p className="text-[13px] text-[rgba(17,17,17,0.45)] mb-6">Connect your tools with TaskFlow.</p>
-            <div className="grid grid-cols-2 gap-4">
-              {integrations.map(integration => (
-                <div key={integration.name} className="flex items-start gap-4 p-5 border border-[#E5E7EB] rounded-xl hover:border-[#93C5FD] transition-colors">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-[16px] font-bold text-white shrink-0"
-                    style={{ backgroundColor: integration.icon }}
-                  >
-                    {integration.letter}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[14px] font-semibold text-[#111111]">{integration.name}</span>
-                      {integration.connected && (
-                        <span className="text-[10.5px] font-medium px-1.5 py-0.5 rounded-full bg-[#F0FDF4] text-[#16A34A]">
-                          Connected
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[12px] text-[rgba(17,17,17,0.5)] mt-0.5 mb-2.5">{integration.desc}</p>
-                    <button className={`text-[12.5px] font-medium px-3 py-1.5 rounded-lg transition-colors ${
-                      integration.connected
-                        ? 'border border-[#E5E7EB] text-[rgba(17,17,17,0.6)] hover:bg-[#F9FAFB]'
-                        : 'bg-[#2563EB] text-white hover:bg-[#1D4ED8]'
-                    }`}>
-                      {integration.connected ? 'Manage' : 'Connect'}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+
 
 
       </div>
