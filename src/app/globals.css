@@ -374,3 +374,70 @@ body.modal-open {
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   HERO EDITORIAL SYNTAX ANIMATIONS
+   ───────────────────────────────────────────────────────────────────────── */
+@keyframes syntaxFloatSlow {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-7px) rotate(1.5deg);
+  }
+}
+
+@keyframes syntaxFloatFast {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(-1deg);
+  }
+}
+
+@keyframes syntaxPulseGlow {
+  0%, 100% {
+    opacity: 0.9;
+    filter: drop-shadow(0 0 6px currentColor);
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 14px currentColor);
+  }
+}
+
+.animate-syntax-float-slow {
+  animation: syntaxFloatSlow 5.5s ease-in-out infinite;
+}
+
+.animate-syntax-float-fast {
+  animation: syntaxFloatFast 3.8s ease-in-out infinite;
+}
+
+.animate-syntax-glow {
+  animation: syntaxPulseGlow 3s ease-in-out infinite alternate;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   MARQUEE SCROLL (Right to Left)
+   ───────────────────────────────────────────────────────────────────────── */
+@keyframes marqueeScroll {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-marquee-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  animation: marqueeScroll 25s linear infinite;
+}
+
+.animate-marquee-track:hover {
+  animation-play-state: paused;
+}
+

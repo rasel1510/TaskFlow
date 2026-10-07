@@ -32,6 +32,8 @@ import {
 import { animate, stagger } from 'animejs';
 import { LiquidGlassCard, LiquidButton } from '@/components/kokonutui/liquid-glass-card';
 import PWAModal from '@/components/PWAModal';
+import TrustedBySection from '@/components/TrustedBySection';
+import StreamlineVelocitySection from '@/components/StreamlineVelocitySection';
 
 interface LandingPageProps {
   onLaunchApp?: () => void;
@@ -165,6 +167,8 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
       router.push(isAuthenticated ? '/app' : '/auth/login');
     }
   };
+
+
 
   const toggleTaskCompletion = (taskId: string) => {
     setTasksCompleted(prev => ({
@@ -342,13 +346,6 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
 
                 <div className="mx-3 h-4 w-px bg-black/10 dark:bg-white/10" />
 
-                <Link
-                  href="/auth/login"
-                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring border border-black/15 dark:border-white/20 bg-transparent hover:bg-black/5 dark:hover:bg-white/10 rounded-md px-3 text-xs h-9 tracking-tighter text-black dark:text-white"
-                >
-                  Contact Sales
-                </Link>
-
                 <button
                   onClick={handleLaunch}
                   className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-black text-white hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90 shadow-sm rounded-md px-3 text-xs h-9 tracking-tighter"
@@ -419,71 +416,58 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
 
       <main className="relative min-h-screen w-full overflow-hidden scroll-smooth">
         {/* ─────────────────────────────────────────────────────────────────────────
-            2. HERO SECTION (KokonutUI Liquid Glass + Lume Layout)
+            2. HERO SECTION (Editorial AI Creator + Studio Animation Image)
             ───────────────────────────────────────────────────────────────────────── */}
         <section className="relative mx-auto flex min-h-[92vh] w-full max-w-7xl items-center px-4 pt-24 pb-12 sm:px-6 sm:pt-32 sm:pb-16">
-          <div className="grid w-full items-center gap-8 sm:gap-12 lg:grid-cols-2 lg:gap-16">
+          <div className="grid w-full items-center gap-10 sm:gap-14 lg:grid-cols-2 lg:gap-16">
             {/* Left Content Column */}
-            <div className="space-y-4 sm:space-y-6">
-              <div className="space-y-3 sm:space-y-4">
-                <h1 className="anime-hero-fade font-semibold text-3xl text-black leading-[1.1] tracking-[-0.02em] sm:text-4xl md:text-5xl lg:text-6xl dark:text-white">
-                  Tasks that flow, organize, and get results for you.
+            <div className="space-y-6 sm:space-y-7">
+              <div className="space-y-4">
+                <h1 className="anime-hero-fade font-bold text-4xl sm:text-5xl md:text-6xl lg:text-[4.25rem] text-slate-950 dark:text-white leading-[1.05] tracking-tight">
+                  AI that thinks, does,<br />
+                  and gets results for you.
                 </h1>
 
-                <p className="anime-hero-fade max-w-lg text-sm text-black/60 leading-relaxed tracking-tight sm:text-base md:text-lg dark:text-white/60">
-                  Accelerate your team velocity with project management that understands context, tracks sprints seamlessly, and keeps deliverables aligned—with zero cognitive friction.
+                <p className="anime-hero-fade max-w-lg text-base sm:text-lg text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
+                  Accelerate your productivity with AI that understands context, generates insights, and helps you accomplish more—safely and securely.
                 </p>
               </div>
 
-              {/* Action Area */}
-              <div className="anime-hero-fade flex flex-wrap items-center gap-3">
+              {/* Hero CTA Action */}
+              <div className="anime-hero-fade pt-1 flex flex-wrap items-center gap-3">
                 <button
+                  type="button"
                   onClick={handleLaunch}
-                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-all bg-black text-white hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90 shadow-sm px-5 h-11 rounded-lg text-sm tracking-tight cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-slate-950 hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-slate-100 dark:text-slate-950 font-semibold text-xs sm:text-sm tracking-tight transition-all active:scale-[0.98] shadow-sm cursor-pointer"
                 >
                   <span>{isAuthenticated ? 'Open Workspace' : 'Get Started Free'}</span>
                   <ArrowRight className="h-4 w-4" />
                 </button>
-                <Link
-                  href="/auth/login"
-                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors border border-black/15 dark:border-white/20 bg-transparent hover:bg-black/5 dark:hover:bg-white/10 px-4 h-11 rounded-lg text-sm tracking-tight text-black dark:text-white cursor-pointer"
-                >
-                  Sign In
-                </Link>
               </div>
 
               {/* Social Proof Row */}
               <div className="anime-hero-fade flex flex-wrap items-center gap-3 pt-2 sm:gap-4">
-                <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="flex items-center gap-2">
                   <div className="-space-x-1.5 flex sm:-space-x-2">
-                    <div className="relative h-6 w-6 overflow-hidden rounded-full border-2 border-white sm:h-7 sm:w-7 dark:border-black shadow-xs">
-                      <div className="flex h-full w-full items-center justify-center bg-black dark:bg-white">
-                        <span className="text-[9px] text-white tracking-tight sm:text-[10px] dark:text-black font-semibold">
-                          JD
-                        </span>
-                      </div>
+                    <div className="relative h-6 w-6 overflow-hidden rounded-full border-2 border-white sm:h-7 sm:w-7 dark:border-slate-900 shadow-xs bg-slate-900 text-white dark:bg-white dark:text-slate-900 flex items-center justify-center font-bold text-[9px] sm:text-[10px]">
+                      JD
                     </div>
-                    <div className="relative h-6 w-6 overflow-hidden rounded-full border-2 border-white sm:h-7 sm:w-7 dark:border-black shadow-xs">
-                      <div className="flex h-full w-full items-center justify-center bg-blue-600">
-                        <span className="text-[9px] text-white tracking-tight sm:text-[10px] font-semibold">
-                          SA
-                        </span>
-                      </div>
+                    <div className="relative h-6 w-6 overflow-hidden rounded-full border-2 border-white sm:h-7 sm:w-7 dark:border-slate-900 shadow-xs bg-blue-600 text-white flex items-center justify-center font-bold text-[9px] sm:text-[10px]">
+                      SA
                     </div>
-                    <div className="relative h-6 w-6 overflow-hidden rounded-full border-2 border-white sm:h-7 sm:w-7 dark:border-black shadow-xs">
-                      <div className="flex h-full w-full items-center justify-center bg-purple-600">
-                        <span className="text-[9px] text-white tracking-tight sm:text-[10px] font-semibold">
-                          MK
-                        </span>
-                      </div>
+                    <div className="relative h-6 w-6 overflow-hidden rounded-full border-2 border-white sm:h-7 sm:w-7 dark:border-slate-900 shadow-xs bg-purple-600 text-white flex items-center justify-center font-bold text-[9px] sm:text-[10px]">
+                      MK
                     </div>
                   </div>
-                  <span className="text-[11px] text-black/50 tracking-tight sm:text-xs dark:text-white/50">
-                    <span className="font-semibold text-black dark:text-white">{counters.users}+</span> users
+                  <span className="text-[11px] text-slate-500 tracking-tight sm:text-xs dark:text-slate-400">
+                    <strong className="font-semibold text-slate-900 dark:text-white">
+                      {counters.users}+
+                    </strong>{' '}
+                    users
                   </span>
                 </div>
 
-                <div className="hidden h-3 w-px bg-black/10 sm:block dark:bg-white/10" />
+                <div className="hidden h-3 w-px bg-slate-200 sm:block dark:bg-slate-800" />
 
                 <div className="flex items-center gap-1">
                   <div className="flex text-amber-500">
@@ -491,188 +475,116 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
                       <Star key={i} className="h-3 w-3 fill-current sm:h-3.5 sm:w-3.5" />
                     ))}
                   </div>
-                  <span className="text-[11px] text-black/50 tracking-tight sm:text-xs dark:text-white/50 font-medium">
+                  <span className="text-[11px] font-semibold text-slate-900 dark:text-white sm:text-xs">
                     5.0
                   </span>
                 </div>
 
-                <div className="hidden h-3 w-px bg-black/10 sm:block dark:bg-white/10" />
+                <div className="hidden h-3 w-px bg-slate-200 sm:block dark:bg-slate-800" />
 
-                <div className="flex items-center gap-2 text-[11px] text-black/50 sm:text-xs dark:text-white/50">
-                  <Zap className="h-3.5 w-3.5 text-blue-500" />
-                  <span>Powered by AI Engine</span>
+                <div className="flex items-center gap-2 text-[11px] text-slate-500 sm:text-xs dark:text-slate-400">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                    <Zap className="h-3.5 w-3.5 text-blue-500" />
+                  </div>
+                  <span>Powered by AI</span>
                 </div>
               </div>
             </div>
 
-            {/* Right Column: KokonutUI Liquid Glass Interactive Showcase */}
-            <div className="anime-hero-fade relative w-full">
-              <LiquidGlassCard
-                scale={24}
-                className="w-full rounded-2xl sm:rounded-3xl border border-black/10 dark:border-white/10 shadow-2xl p-4 sm:p-6 bg-gradient-to-br from-neutral-50/90 via-white/80 to-neutral-100/90 dark:from-neutral-900/90 dark:via-black/80 dark:to-neutral-950/90"
-              >
-                {/* Showcase Header */}
-                <div className="flex items-center justify-between pb-4 border-b border-black/5 dark:border-white/10">
-                  <div className="flex items-center gap-2.5">
-                    <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="font-semibold text-sm tracking-tight text-black dark:text-white">
-                      Active Sprint 14
-                    </span>
-                    <span className="rounded-full bg-black/5 dark:bg-white/10 px-2 py-0.5 text-[10px] font-mono text-black/60 dark:text-white/60">
-                      7 days left
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-black/50 dark:text-white/50">
-                    <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
-                    <span>84% complete</span>
-                  </div>
-                </div>
+            {/* Right Column: Professional Animated Editorial AI Image Card */}
+            <div className="anime-hero-fade relative w-full flex items-center justify-center">
+              <div className="group relative w-full max-w-[540px] aspect-square rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden shadow-2xl border border-black/10 dark:border-white/10 bg-[#BA5939] transition-all duration-500 hover:shadow-[0_25px_60px_rgba(186,89,57,0.35)]">
+                
+                {/* Main Editorial Creative Image */}
+                <img
+                  src="/hero-ai-creator.jpg"
+                  alt="AI Creator Workspace"
+                  className="w-full h-full object-cover select-none transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+                  loading="eager"
+                />
 
-                {/* Interactive Task Cards with Refractive Glass Highlights */}
-                <div className="py-4 space-y-2.5">
-                  {/* Task Card 1 */}
-                  <div
-                    onClick={() => toggleTaskCompletion('task1')}
-                    className="group/card flex items-center justify-between p-3 rounded-xl border border-black/5 dark:border-white/10 bg-white/70 dark:bg-white/[0.03] backdrop-blur-sm hover:border-black/15 dark:hover:border-white/20 transition-all cursor-pointer shadow-xs"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
-                          tasksCompleted.task1
-                            ? 'bg-black text-white dark:bg-white dark:text-black border-transparent'
-                            : 'border-black/20 dark:border-white/20'
-                        }`}
-                      >
-                        {tasksCompleted.task1 && <Check className="h-3 w-3 stroke-[3]" />}
-                      </div>
-                      <div>
-                        <p
-                          className={`text-xs sm:text-sm font-medium transition-all ${
-                            tasksCompleted.task1
-                              ? 'line-through text-black/40 dark:text-white/40'
-                              : 'text-black dark:text-white'
-                          }`}
-                        >
-                          Auth Pipeline & Session Renewal v2
-                        </p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-blue-600 dark:text-blue-400 font-mono">
-                            #TK-108
-                          </span>
-                          <span className="text-[10px] text-black/40 dark:text-white/40">• High Priority</span>
-                        </div>
-                      </div>
-                    </div>
-                    <span className="text-[11px] font-mono text-black/40 dark:text-white/40">2h ago</span>
+                {/* Subtle Ambient Vignette Overlay */}
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10" />
+
+                {/* Dynamic Glowing Neon Code & Syntax Animation Stream */}
+                <div className="pointer-events-none absolute inset-0 select-none">
+                  
+                  {/* Subtle Dotted Curving Arc Background Guide */}
+                  <svg className="absolute inset-0 w-full h-full opacity-40" viewBox="0 0 500 500" fill="none">
+                    <path
+                      d="M 50 250 C 70 140, 160 70, 320 65 C 370 68, 410 95, 430 135"
+                      stroke="url(#neonArcGlow)"
+                      strokeWidth="1.75"
+                      strokeDasharray="4 8"
+                      strokeLinecap="round"
+                    />
+                    <defs>
+                      <linearGradient id="neonArcGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#34d399" stopOpacity="0.9" />
+                        <stop offset="45%" stopColor="#38bdf8" stopOpacity="0.95" />
+                        <stop offset="100%" stopColor="#fb7185" stopOpacity="0.9" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+
+                  {/* Token Arc Segment 1: Upper Left Stream */}
+                  <div className="absolute top-[8%] left-[6%] sm:top-[9%] sm:left-[8%] font-mono text-xs sm:text-sm font-semibold tracking-wider whitespace-nowrap animate-syntax-float-slow flex items-center gap-1 sm:gap-1.5 drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]">
+                    <span className="text-[#34d399] drop-shadow-[0_0_8px_rgba(52,211,153,0.85)]">--\&gt;</span>
+                    <span className="text-[#fb7185] drop-shadow-[0_0_8px_rgba(251,113,133,0.85)]">-</span>
+                    <span className="text-[#fbbf24] drop-shadow-[0_0_8px_rgba(251,191,36,0.85)]">•</span>
+                    <span className="text-[#38bdf8] drop-shadow-[0_0_8px_rgba(56,189,248,0.85)]">{`{ - }`}</span>
+                    <span className="text-[#c084fc] drop-shadow-[0_0_8px_rgba(192,132,252,0.85)]">/</span>
+                    <span className="text-[#fb7185] drop-shadow-[0_0_8px_rgba(251,113,133,0.85)]">&quot; - _ &quot;</span>
+                    <span className="text-[#34d399] drop-shadow-[0_0_8px_rgba(52,211,153,0.85)]">)</span>
+                    <span className="text-[#fbbf24] drop-shadow-[0_0_8px_rgba(251,191,36,0.85)]">:</span>
+                    <span className="text-[#38bdf8] drop-shadow-[0_0_8px_rgba(56,189,248,0.85)]">{`{ }`}</span>
                   </div>
 
-                  {/* Task Card 2 */}
-                  <div
-                    onClick={() => toggleTaskCompletion('task2')}
-                    className="group/card flex items-center justify-between p-3 rounded-xl border border-purple-500/20 dark:border-purple-400/20 bg-purple-500/[0.04] backdrop-blur-sm hover:border-purple-500/40 transition-all cursor-pointer shadow-xs"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
-                          tasksCompleted.task2
-                            ? 'bg-purple-600 text-white border-transparent'
-                            : 'border-purple-400/30'
-                        }`}
-                      >
-                        {tasksCompleted.task2 && <Check className="h-3 w-3 stroke-[3]" />}
-                      </div>
-                      <div>
-                        <p
-                          className={`text-xs sm:text-sm font-medium transition-all ${
-                            tasksCompleted.task2
-                              ? 'line-through text-black/40 dark:text-white/40'
-                              : 'text-black dark:text-white'
-                          }`}
-                        >
-                          KokonutUI Liquid Glass SVG Integration
-                        </p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-purple-600 dark:text-purple-400 font-mono">
-                            #TK-109
-                          </span>
-                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                            • In Progress
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex -space-x-1">
-                      <div className="h-5 w-5 rounded-full bg-blue-600 text-[9px] text-white flex items-center justify-center font-bold">
-                        D
-                      </div>
-                      <div className="h-5 w-5 rounded-full bg-purple-600 text-[9px] text-white flex items-center justify-center font-bold">
-                        R
-                      </div>
-                    </div>
+                  {/* Token Arc Segment 2: Middle Left Curved Stream */}
+                  <div className="absolute top-[28%] left-[10%] sm:top-[30%] sm:left-[12%] font-mono text-xs sm:text-sm font-semibold tracking-wider whitespace-nowrap animate-syntax-float-fast flex items-center gap-1 sm:gap-1.5 drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]">
+                    <span className="text-[#fb7185] drop-shadow-[0_0_8px_rgba(251,113,133,0.85)]">~</span>
+                    <span className="text-[#34d399] drop-shadow-[0_0_8px_rgba(52,211,153,0.85)]">-</span>
+                    <span className="text-[#38bdf8] drop-shadow-[0_0_8px_rgba(56,189,248,0.85)]">&lt; / &gt;</span>
+                    <span className="text-[#fbbf24] drop-shadow-[0_0_8px_rgba(251,191,36,0.85)]">.</span>
+                    <span className="text-[#c084fc] drop-shadow-[0_0_8px_rgba(192,132,252,0.85)]">:</span>
+                    <span className="text-[#34d399] drop-shadow-[0_0_8px_rgba(52,211,153,0.85)]">{`} }`}</span>
+                    <span className="text-[#fb7185] drop-shadow-[0_0_8px_rgba(251,113,133,0.85)]">.</span>
                   </div>
 
-                  {/* Task Card 3 */}
-                  <div
-                    onClick={() => toggleTaskCompletion('task3')}
-                    className="group/card flex items-center justify-between p-3 rounded-xl border border-black/5 dark:border-white/10 bg-white/70 dark:bg-white/[0.03] backdrop-blur-sm hover:border-black/15 dark:hover:border-white/20 transition-all cursor-pointer shadow-xs"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
-                          tasksCompleted.task3
-                            ? 'bg-black text-white dark:bg-white dark:text-black border-transparent'
-                            : 'border-black/20 dark:border-white/20'
-                        }`}
-                      >
-                        {tasksCompleted.task3 && <Check className="h-3 w-3 stroke-[3]" />}
-                      </div>
-                      <div>
-                        <p
-                          className={`text-xs sm:text-sm font-medium transition-all ${
-                            tasksCompleted.task3
-                              ? 'line-through text-black/40 dark:text-white/40'
-                              : 'text-black dark:text-white'
-                          }`}
-                        >
-                          Real-time WebSocket & Kanban Drag Sync
-                        </p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-black/50 dark:text-white/50 font-mono">
-                            #TK-110
-                          </span>
-                          <span className="text-[10px] text-black/40 dark:text-white/40">• Upcoming</span>
-                        </div>
-                      </div>
-                    </div>
-                    <span className="text-[11px] font-mono text-black/40 dark:text-white/40">Sprint backlog</span>
+                  {/* Token Arc Segment 3: Lower Right Arc */}
+                  <div className="absolute bottom-[34%] right-[7%] sm:bottom-[32%] sm:right-[9%] font-mono text-xs sm:text-sm font-semibold tracking-wider whitespace-nowrap animate-syntax-glow flex items-center gap-1 sm:gap-1.5 drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]">
+                    <span className="text-[#fb7185] drop-shadow-[0_0_8px_rgba(251,113,133,0.85)]">&lt; / &gt;</span>
+                    <span className="text-[#fbbf24] drop-shadow-[0_0_8px_rgba(251,191,36,0.85)]">:</span>
+                    <span className="text-[#34d399] drop-shadow-[0_0_8px_rgba(52,211,153,0.85)]">- *</span>
                   </div>
-                </div>
 
-                {/* Mini Audio / Pulse Velocity Stream (Inspired by KokonutUI volume center) */}
-                <div className="pt-3 border-t border-black/5 dark:border-white/10 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-blue-500 animate-pulse" />
-                    <span className="text-[11px] font-medium text-black/70 dark:text-white/70">
-                      Live sync active
+                  {/* Floating Glass Pill Badge */}
+                  <div className="pointer-events-auto absolute bottom-5 left-5 sm:bottom-6 sm:left-6 flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-black/40 backdrop-blur-md border border-white/20 text-white shadow-xl transition-transform hover:scale-105 duration-200">
+                    <div className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+                    </div>
+                    <span className="text-xs font-medium tracking-tight">
+                      TaskFlow AI Engine active
                     </span>
                   </div>
-                  <div className="flex items-end gap-1 h-3.5">
-                    {[12, 18, 8, 22, 14, 20, 10, 16].map((h, i) => (
-                      <div
-                        key={i}
-                        className="w-1 rounded-full bg-blue-500/70"
-                        style={{
-                          height: `${h}px`,
-                          animation: `pulse 1.2s ease-in-out ${i * 0.15}s infinite alternate`,
-                        }}
-                      />
-                    ))}
-                  </div>
                 </div>
-              </LiquidGlassCard>
+              </div>
             </div>
+
           </div>
         </section>
+
+        {/* ─────────────────────────────────────────────────────────────────────────
+            2.5. TRUSTED BY SECTION
+            ───────────────────────────────────────────────────────────────────────── */}
+        <TrustedBySection />
+
+        {/* ─────────────────────────────────────────────────────────────────────────
+            2.7. STREAMLINE SPRINTS & VELOCITY SECTION
+            ───────────────────────────────────────────────────────────────────────── */}
+        <StreamlineVelocitySection />
 
         {/* ─────────────────────────────────────────────────────────────────────────
             3. FEATURES SECTION ("Everything you need to succeed")
@@ -682,12 +594,9 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
           className="relative mx-auto flex w-full max-w-7xl flex-col px-6 pt-16 pb-24 sm:pt-24 sm:pb-32"
         >
           <div className="mb-12 text-center">
-            <h2 className="mb-3 font-semibold text-3xl text-black tracking-tight sm:text-4xl lg:text-5xl dark:text-white">
+            <h2 className="font-semibold text-3xl text-black tracking-tight sm:text-4xl lg:text-5xl dark:text-white">
               Everything you need to succeed
             </h2>
-            <p className="mx-auto max-w-2xl text-black/60 text-sm leading-relaxed tracking-tight sm:text-base dark:text-white/60">
-              Powerful features designed to help you work smarter, not harder. Everything you need in one place.
-            </p>
           </div>
 
           <div className="grid w-full items-center gap-12 lg:grid-cols-2 lg:gap-16">
