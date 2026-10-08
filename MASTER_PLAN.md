@@ -35,7 +35,7 @@
 | 16 | **Dashboard** — stat cards, mini chart, recent tasks, upcoming deadlines | ✅ Partial |
 | 17 | **Reports view** — KPI cards, bar chart, donut chart, team workload table | ✅ UI Only |
 | 18 | **Projects view** — grid/list toggle, project cards, progress rings, health badges | ✅ UI Only |
-| 19 | **Settings view** — Profile, Security, Members, Notifications, Integrations, Billing | ✅ UI Only |
+| 19 | **Settings view** — Profile, Security, Members, Notifications, Integrations | ✅ UI Only |
 | 20 | **Responsive layout** — collapsible sidebar, mobile drawer, adaptive header | ✅ Solid |
 | 21 | **parseSafeDate guard** — dueDate year-range validation in POST and PATCH routes | ✅ Fixed |
 | 22 | **Demo user fallback** — mock users authenticate without DB for demo mode | ✅ Working |

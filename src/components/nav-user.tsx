@@ -14,7 +14,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { UserIcon, BellIcon, CommandIcon, LifeBuoyIcon, GraduationCapIcon, CreditCardIcon, LogOutIcon } from "lucide-react";
+import { UserIcon, BellIcon, CommandIcon, LifeBuoyIcon, GraduationCapIcon, LogOutIcon } from "lucide-react";
 
 const user = {
 	name: "Shaban Haider",
@@ -81,14 +81,7 @@ export function NavUser() {
 						Agent training
 					</DropdownMenuItem>
 				</DropdownMenuGroup>
-				<DropdownMenuSeparator />
-				<DropdownMenuGroup>
-					<DropdownMenuItem>
-						<CreditCardIcon
-						/>
-						Subscription
-					</DropdownMenuItem>
-				</DropdownMenuGroup>
+
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>
 					<DropdownMenuItem

@@ -7,7 +7,6 @@ import { useSession } from 'next-auth/react';
 import {
   ArrowRight,
   ChevronDown,
-  Check,
   Plus,
   Minus,
   Menu,
@@ -247,9 +246,9 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
     },
     {
       number: '006',
-      question: 'What is included in the 14-day free trial?',
+      question: 'How do I invite teammates to my workspace?',
       answer:
-        'The free trial gives you full access to all Pro features—including unlimited tasks, Kanban and Calendar views, sprint velocity analytics, workflow automations, and team invite seats. No credit card is required to begin.',
+        'You can invite collaborators directly by email or share a workspace invite link. Team members can be assigned Owner, Lead, Contributor, or Viewer roles with granular project permissions.',
     },
   ];
 
@@ -330,18 +329,6 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
                       <ChevronDown className="h-3.5 w-3.5 opacity-60 transition-transform duration-200" />
                     </button>
                   </div>
-                  <div className="relative">
-                    <button
-                      className="flex items-center gap-1 rounded-lg px-3 py-2 text-[15px] text-black tracking-tighter transition-all duration-200 hover:bg-black/5 dark:text-white dark:hover:bg-white/10"
-                      type="button"
-                      onClick={() => {
-                        const el = document.getElementById('pricing');
-                        el?.scrollIntoView({ behavior: 'smooth' });
-                      }}
-                    >
-                      Pricing
-                    </button>
-                  </div>
                 </nav>
 
                 <div className="mx-3 h-4 w-px bg-black/10 dark:bg-white/10" />
@@ -376,13 +363,6 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
                 className="block py-2 text-sm font-medium text-black/80 dark:text-white/80"
               >
                 Features
-              </a>
-              <a
-                href="#pricing"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block py-2 text-sm font-medium text-black/80 dark:text-white/80"
-              >
-                Pricing
               </a>
               <a
                 href="#faq"
@@ -809,174 +789,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
         </section>
 
         {/* ─────────────────────────────────────────────────────────────────────────
-            4. PRICING SECTION ("Pricing that scales with you")
-            ───────────────────────────────────────────────────────────────────────── */}
-        <section
-          id="pricing"
-          className="relative mx-auto flex w-full max-w-5xl flex-col px-6 pt-12 pb-24 sm:pt-16 sm:pb-32"
-        >
-          <div className="mb-16 text-center">
-            <h2 className="mb-3 font-semibold text-3xl text-black tracking-tight sm:text-4xl lg:text-5xl dark:text-white">
-              Pricing that scales with you
-            </h2>
-            <p className="mx-auto max-w-2xl text-black/60 text-sm leading-relaxed tracking-tight sm:text-base dark:text-white/60">
-              Choose your plan and adjust anytime. All plans include a 14-day free trial with full access.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {/* Plan 1: Free */}
-            <LiquidGlassCard
-              glassTone="blue"
-              scale={25}
-              className="group relative flex flex-col rounded-2xl p-6 backdrop-blur-md transition-all duration-300 hover:shadow-xl"
-            >
-              <h3 className="mb-2 font-semibold text-2xl text-black tracking-tighter dark:text-white">Free</h3>
-              <p className="mb-6 text-black/60 text-sm leading-relaxed tracking-tighter dark:text-white/60">
-                Perfect for individuals exploring task management
-              </p>
-              <div className="mb-6">
-                <div className="flex items-baseline gap-1">
-                  <span className="font-bold text-5xl text-black tracking-tighter dark:text-white">Free</span>
-                </div>
-              </div>
-
-              <Link
-                href="/auth/signup"
-                className="group/btn relative mb-6 flex h-9 w-full items-center justify-center overflow-hidden rounded-lg bg-black text-white dark:bg-white dark:text-black text-xs font-medium tracking-tighter shadow-sm transition-all duration-300 hover:shadow-lg"
-              >
-                <span className="relative z-10">Get Started</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 transition-opacity duration-300 group-hover/btn:opacity-100 dark:via-black/10" />
-              </Link>
-
-              <div className="space-y-2.5">
-                {[
-                  '1 Active Workspace',
-                  'Up to 50 active tasks',
-                  'Community support',
-                  'Basic Kanban & List views',
-                  'Mobile PWA access',
-                ].map((feature, i) => (
-                  <div key={i} className="flex items-start gap-2.5">
-                    <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-black/5 dark:bg-white/5">
-                      <Check className="h-2.5 w-2.5 text-black dark:text-white" />
-                    </div>
-                    <span className="text-black/70 text-sm leading-tight tracking-tighter dark:text-white/70">
-                      {feature}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </LiquidGlassCard>
-
-            {/* Plan 2: Pro */}
-            <LiquidGlassCard
-              glassTone="purple"
-              scale={30}
-              className="group relative flex flex-col rounded-2xl p-6 backdrop-blur-md transition-all duration-300 hover:shadow-2xl ring-1 ring-purple-500/30"
-            >
-              <div className="absolute -top-3 right-6 rounded-full bg-purple-600 px-2.5 py-0.5 text-[10px] font-semibold text-white tracking-tight uppercase shadow-xs">
-                Popular
-              </div>
-
-              <h3 className="mb-2 font-semibold text-2xl text-black tracking-tighter dark:text-white">Pro</h3>
-              <p className="mb-6 text-black/60 text-sm leading-relaxed tracking-tighter dark:text-white/60">
-                For fast-moving teams scaling workflows
-              </p>
-              <div className="mb-6">
-                <div className="flex items-baseline gap-1">
-                  <span className="font-bold text-5xl text-black tracking-tighter dark:text-white">$49</span>
-                  <span className="text-base text-black/60 tracking-tighter dark:text-white/60">/month</span>
-                </div>
-              </div>
-
-              <Link
-                href="/auth/signup"
-                className="group/btn relative mb-6 flex h-9 w-full items-center justify-center overflow-hidden rounded-lg bg-black text-white dark:bg-white dark:text-black text-xs font-medium tracking-tighter shadow-sm transition-all duration-300 hover:shadow-lg"
-              >
-                <span className="relative z-10">Start Free Trial</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 transition-opacity duration-300 group-hover/btn:opacity-100 dark:via-black/10" />
-              </Link>
-
-              <div className="space-y-2.5">
-                {[
-                  'Unlimited Tasks & Projects',
-                  'Kanban, Calendar & Reports',
-                  'Priority support 24/7',
-                  'Advanced velocity analytics',
-                  'Custom workflow automations',
-                  'Team collaboration & invites',
-                  'Webhook & GitHub integrations',
-                ].map((feature, i) => (
-                  <div key={i} className="flex items-start gap-2.5">
-                    <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-black/5 dark:bg-white/5">
-                      <Check className="h-2.5 w-2.5 text-black dark:text-white" />
-                    </div>
-                    <span className="text-black/70 text-sm leading-tight tracking-tighter dark:text-white/70">
-                      {feature}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </LiquidGlassCard>
-
-            {/* Plan 3: Sales / Enterprise */}
-            <LiquidGlassCard
-              glassTone="pink"
-              scale={25}
-              className="group relative flex flex-col rounded-2xl p-6 backdrop-blur-md transition-all duration-300 hover:shadow-xl"
-            >
-              <h3 className="mb-2 font-semibold text-2xl text-black tracking-tighter dark:text-white">Sales</h3>
-              <p className="mb-6 text-black/60 text-sm leading-relaxed tracking-tighter dark:text-white/60">
-                Custom enterprise solutions & SLA
-              </p>
-              <div className="mb-6">
-                <div className="flex items-baseline gap-1">
-                  <span className="font-bold text-5xl text-black tracking-tighter dark:text-white">$299</span>
-                  <span className="text-base text-black/60 tracking-tighter dark:text-white/60">/month</span>
-                </div>
-              </div>
-
-              <Link
-                href="/auth/login"
-                className="group/btn relative mb-6 flex h-9 w-full items-center justify-center overflow-hidden rounded-lg bg-black text-white dark:bg-white dark:text-black text-xs font-medium tracking-tighter shadow-sm transition-all duration-300 hover:shadow-lg"
-              >
-                <span className="relative z-10">Contact Sales</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 transition-opacity duration-300 group-hover/btn:opacity-100 dark:via-black/10" />
-              </Link>
-
-              <div className="space-y-2.5">
-                {[
-                  'Unlimited Workspaces & Seats',
-                  'Dedicated support engineer',
-                  'Custom AI training & models',
-                  '99.9% SLA uptime guarantee',
-                  'Advanced security & audit logs',
-                  'Single Sign-On (SAML/Okta)',
-                  'On-premise deployment option',
-                ].map((feature, i) => (
-                  <div key={i} className="flex items-start gap-2.5">
-                    <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-black/5 dark:bg-white/5">
-                      <Check className="h-2.5 w-2.5 text-black dark:text-white" />
-                    </div>
-                    <span className="text-black/70 text-sm leading-tight tracking-tighter dark:text-white/70">
-                      {feature}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </LiquidGlassCard>
-          </div>
-
-          <div className="mt-12 text-center">
-            <p className="mx-auto max-w-2xl text-black/60 text-sm tracking-tighter dark:text-white/60">
-              Prices shown do not include applicable tax. * Usage limits apply.
-            </p>
-          </div>
-        </section>
-
-        {/* ─────────────────────────────────────────────────────────────────────────
-            5. FAQ SECTION (Matching KokonutUI Lume (001) Numbered Style)
+            4. FAQ SECTION (Matching KokonutUI Lume (001) Numbered Style)
             ───────────────────────────────────────────────────────────────────────── */}
         <section
           id="faq"
@@ -987,7 +800,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
               Frequently asked questions
             </h2>
             <p className="mx-auto max-w-xl text-black/60 text-sm leading-relaxed tracking-tight dark:text-white/60">
-              Everything you need to know about the product and billing. Can't find the answer you're looking for?{' '}
+              Everything you need to know about the product and workspace. Can't find the answer you're looking for?{' '}
               <a
                 className="font-medium text-black underline decoration-black/20 underline-offset-4 transition-colors hover:decoration-black/40 dark:text-white dark:decoration-white/20 dark:hover:decoration-white/40"
                 href="#contact"
@@ -1078,14 +891,6 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
                     href="#features"
                   >
                     Features
-                  </a>
-                </li>
-                <li>
-                  <a
-                    className="text-black/60 text-sm leading-relaxed tracking-tight transition-colors hover:text-black dark:text-white/60 dark:hover:text-white"
-                    href="#pricing"
-                  >
-                    Pricing
                   </a>
                 </li>
                 <li>

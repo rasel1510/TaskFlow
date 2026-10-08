@@ -30,7 +30,7 @@ type Conversation = {
 const rows: Conversation[] = [
 	{
 		customer: "Northwind Labs",
-		subject: "Billing portal access",
+		subject: "Workspace permissions",
 		channel: "email",
 		waitMinutes: 6,
 		state: "waiting",

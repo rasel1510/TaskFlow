@@ -12,6 +12,7 @@ import {
   EyeOff,
   ArrowRight,
   ArrowLeft,
+  X,
   Loader2,
   AlertCircle,
   CheckCircle2,
@@ -358,46 +359,19 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center bg-white px-4 py-8 relative selection:bg-blue-50 selection:text-[#2563EB]">
-      {/* Back to Home Button */}
-      <div className="w-full max-w-[440px] mb-3 flex items-center justify-start">
+      <div className="relative w-full max-w-[440px] bg-white border border-[#E5E7EB] rounded-2xl p-5 sm:p-8 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06)] space-y-6">
+        {/* Close button (Back to Home) */}
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors group"
+          aria-label="Back to home"
+          className="absolute right-4 top-4 sm:right-5 sm:top-5 rounded-lg p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors focus:outline-none cursor-pointer"
         >
-          <ArrowLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
-          <span>Back to Home</span>
+          <X className="h-4 w-4 sm:h-5 sm:w-5" />
+          <span className="sr-only">Back to home</span>
         </Link>
-      </div>
-
-      <div className="w-full max-w-[440px] bg-white border border-[#E5E7EB] rounded-2xl p-5 sm:p-8 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06)] space-y-6">
         
         {/* Brand Header */}
         <div className="flex flex-col items-center text-center">
-          <Link href="/" className="inline-flex items-center gap-2.5 mb-5 group">
-            <div className="w-10 h-10 rounded-xl bg-[#2563EB] flex items-center justify-center shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform duration-200">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
-                <path
-                  d="M9 11l3 3L22 4"
-                  stroke="white"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
-                />
-                <path
-                  d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
-                  stroke="white"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
-                />
-              </svg>
-            </div>
-            <span className="text-[20px] font-bold tracking-tight text-[#111111]">
-              FlowSync
-            </span>
-          </Link>
 
           {step === 'form' ? (
             <h1 className="text-xl font-bold tracking-tight text-[#111111]">

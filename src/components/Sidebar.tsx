@@ -224,7 +224,7 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
           </div>
           <div className="flex-1 text-left min-w-0">
             <div className="text-[12px] font-semibold text-[#111111] truncate">FlowSync Inc.</div>
-            <div className="text-[10px] text-[rgba(17,17,17,0.45)] truncate">Pro Plan</div>
+            <div className="text-[10px] text-[rgba(17,17,17,0.45)] truncate">Workspace</div>
           </div>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2">
             <path d="M6 9l6 6 6-6"/>
