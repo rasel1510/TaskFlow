@@ -369,7 +369,7 @@ export default function SignupPage() {
           <X className="h-4 w-4 sm:h-5 sm:w-5" />
           <span className="sr-only">Back to home</span>
         </Link>
-        
+
         {/* Brand Header */}
         <div className="flex flex-col items-center text-center">
 
@@ -461,17 +461,15 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={() => setRoleDropdownOpen(prev => !prev)}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-white border rounded-xl text-xs text-[#111111] transition-all shadow-xs cursor-pointer ${
-                    roleDropdownOpen
-                      ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]'
-                      : 'border-[#E5E7EB] hover:border-gray-300'
-                  }`}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-white border rounded-xl text-xs text-[#111111] transition-all shadow-xs cursor-pointer ${roleDropdownOpen
+                    ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]'
+                    : 'border-[#E5E7EB] hover:border-gray-300'
+                    }`}
                 >
                   <span className="font-medium text-[#111111]">{formData.role}</span>
                   <ChevronDown
-                    className={`w-4 h-4 text-gray-400 transition-transform duration-150 shrink-0 ${
-                      roleDropdownOpen ? 'rotate-180 text-[#2563EB]' : ''
-                    }`}
+                    className={`w-4 h-4 text-gray-400 transition-transform duration-150 shrink-0 ${roleDropdownOpen ? 'rotate-180 text-[#2563EB]' : ''
+                      }`}
                   />
                 </button>
 
@@ -488,11 +486,10 @@ export default function SignupPage() {
                             setFormData(prev => ({ ...prev, role }));
                             setRoleDropdownOpen(false);
                           }}
-                          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-left transition-colors cursor-pointer ${
-                            isSelected
-                              ? 'bg-blue-50 text-[#2563EB] font-semibold'
-                              : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                          }`}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-left transition-colors cursor-pointer ${isSelected
+                            ? 'bg-blue-50 text-[#2563EB] font-semibold'
+                            : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                            }`}
                         >
                           <span>{role}</span>
                           {isSelected && (
@@ -529,6 +526,8 @@ export default function SignupPage() {
                   </button>
                 </div>
 
+
+
                 {/* Password Strength Meter */}
                 {formData.password && (
                   <div className="mt-2 space-y-1.5">
@@ -542,9 +541,8 @@ export default function SignupPage() {
                       {[1, 2, 3, 4].map(idx => (
                         <div
                           key={idx}
-                          className={`h-1 rounded-full transition-all duration-300 ${
-                            idx <= strengthScore ? getStrengthColor(strengthScore) : 'bg-gray-200'
-                          }`}
+                          className={`h-1 rounded-full transition-all duration-300 ${idx <= strengthScore ? getStrengthColor(strengthScore) : 'bg-gray-200'
+                            }`}
                         />
                       ))}
                     </div>
@@ -631,11 +629,10 @@ export default function SignupPage() {
                   onChange={e => handleDigitChange(idx, e.target.value)}
                   onKeyDown={e => handleDigitKeyDown(idx, e)}
                   onPaste={handleDigitPaste}
-                  className={`w-11 h-13 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-bold font-mono rounded-xl border bg-white text-[#111111] focus:outline-none transition-all shadow-xs ${
-                    digit
-                      ? 'border-[#2563EB] bg-blue-50/20 ring-2 ring-[#DBEAFE]'
-                      : 'border-[#E5E7EB] hover:border-gray-400 focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE]'
-                  }`}
+                  className={`w-11 h-13 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-bold font-mono rounded-xl border bg-white text-[#111111] focus:outline-none transition-all shadow-xs ${digit
+                    ? 'border-[#2563EB] bg-blue-50/20 ring-2 ring-[#DBEAFE]'
+                    : 'border-[#E5E7EB] hover:border-gray-400 focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE]'
+                    }`}
                   disabled={verifying}
                   autoComplete="one-time-code"
                 />

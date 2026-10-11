@@ -7,7 +7,6 @@ import { healthColors, priorityColors, statusColors, type ProjectHealth } from '
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -279,7 +278,6 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
                     <DeltaIcon variant="trend" />
                     <DeltaValue />
                   </Delta>
-                  <span className="text-muted-foreground text-[11px]">vs prior cycle</span>
                 </div>
               </CardContent>
             </Card>
@@ -300,7 +298,6 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
                   <span className="font-medium text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded text-[11px]">
                     {activeRate}% of sprint
                   </span>
-                  <span className="text-muted-foreground text-[11px]">currently in motion</span>
                 </div>
               </CardContent>
             </Card>
@@ -322,9 +319,6 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
                     <DeltaIcon variant="trend" />
                     <DeltaValue />
                   </Delta>
-                  <span className="text-muted-foreground text-[11px]">
-                    {completionRate}% completion rate
-                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -352,9 +346,6 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
                       Zero overdue
                     </span>
                   )}
-                  <span className="text-muted-foreground text-[11px]">
-                    {overdueCount > 0 ? 'past target deadline' : 'all on schedule'}
-                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -370,7 +361,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
-                    <CardTitle className="text-base font-semibold">Sprint Velocity & Throughput</CardTitle>
+                    <CardTitle className="text-base font-semibold">Sprint Velocity</CardTitle>
                     <Delta value={9.4} variant="badge">
                       <DeltaIcon variant="trend" />
                       <DeltaValue />
@@ -483,9 +474,6 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
                   <DeltaValue suffix="%" />
                 </Delta>
               </div>
-              <CardDescription className="text-xs">
-                Live task share across statuses
-              </CardDescription>
             </CardHeader>
 
             <CardContent className="my-auto py-2">
@@ -547,9 +535,6 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <div>
                 <CardTitle className="text-base font-semibold">Active Project Roadmaps</CardTitle>
-                <CardDescription className="text-xs">
-                  Progress tracking and health indicators across company initiatives
-                </CardDescription>
               </div>
               <Button
                 variant="ghost"
@@ -647,9 +632,6 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
                 <CardTitle className="text-base font-semibold">Upcoming Deadlines</CardTitle>
                 <CalendarDays className="size-4 text-muted-foreground" />
               </div>
-              <CardDescription className="text-xs">
-                Milestones requiring founder oversight
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 pt-0">
               {upcomingDeadlines.length === 0 ? (
@@ -698,9 +680,6 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <div>
                 <CardTitle className="text-base font-semibold">My Focus Tasks</CardTitle>
-                <CardDescription className="text-xs">
-                  Immediate deliverables directly assigned to your founder queue
-                </CardDescription>
               </div>
               <Button
                 variant="ghost"
@@ -776,9 +755,6 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
                 <CardTitle className="text-base font-semibold">Team Workload</CardTitle>
                 <Users className="size-4 text-muted-foreground" />
               </div>
-              <CardDescription className="text-xs">
-                Capacity and task fulfillment distribution
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 pt-1">
               {(!summary?.teamWorkload || summary.teamWorkload.length === 0) ? (
