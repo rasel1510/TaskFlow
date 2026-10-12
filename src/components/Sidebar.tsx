@@ -183,16 +183,18 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
       {/* Brand Header */}
       <div className="flex items-center gap-3 px-4 py-4 border-b border-[#E5E7EB]" style={{ height: 57 }}>
         <div className="flex items-center gap-2.5 select-none text-left min-w-0">
-          <div className="w-7 h-7 rounded-lg bg-[#2563EB] flex items-center justify-center shrink-0">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-              <path d="M9 11l3 3L22 4" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+          <div className="w-7 h-7 rounded-lg bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 50 50">
+              <title>FlowSync Logo</title>
+              <path d="M27.5308 40.1395C27.5757 35.5502 26.4122 31.8182 24.9322 31.8037C23.4521 31.7893 22.2159 35.4979 22.1711 40.0871C22.1262 44.6764 23.2897 48.4085 24.7697 48.4229C26.2498 48.4374 27.486 44.7288 27.5308 40.1395Z" />
+              <path d="M18.947 39.0972C21.4661 35.2608 22.5052 31.4922 21.268 30.6798C20.0307 29.8674 16.9856 32.3188 14.4666 36.1552C11.9475 39.9916 10.9084 43.7601 12.1456 44.5726C13.3829 45.385 16.4279 42.9336 18.947 39.0972Z" />
+              <path d="M12.2792 33.593C16.4726 31.7278 19.3843 29.1194 18.7827 27.767C18.1812 26.4146 14.2942 26.8304 10.1008 28.6957C5.90744 30.5609 2.99571 33.1693 3.59726 34.5217C4.1988 35.8741 8.08584 35.4583 12.2792 33.593Z" />
             </svg>
           </div>
-          <span className="font-bold text-[15px] text-[#111111] tracking-tight md:hidden">TaskFlow</span>
+          <span className="font-bold text-[15px] text-[#111111] tracking-tight md:hidden">FlowSync</span>
           {/* Show label on desktop only when not collapsed */}
           <span className="font-bold text-[15px] text-[#111111] tracking-tight hidden md:block" style={{ display: collapsed ? 'none' : undefined }}>
-            {!collapsed && 'TaskFlow'}
+            {!collapsed && 'FlowSync'}
           </span>
         </div>
         {/* Desktop collapse toggle */}
@@ -212,22 +214,6 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
-      </div>
-
-      {/* Workspace switcher — always visible on mobile, gated by collapsed on desktop */}
-      <div className={`mx-3 mt-3 mb-1 ${collapsed ? 'md:hidden' : ''}`}>
-        <button className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-[#F9FAFB] transition-colors">
-          <div className="w-6 h-6 rounded-md bg-[#DBEAFE] flex items-center justify-center shrink-0">
-            <span className="text-[10px] font-bold text-[#2563EB]">FS</span>
-          </div>
-          <div className="flex-1 text-left min-w-0">
-            <div className="text-[12px] font-semibold text-[#111111] truncate">FlowSync Inc.</div>
-            <div className="text-[10px] text-[rgba(17,17,17,0.45)] truncate">Workspace</div>
-          </div>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2">
-            <path d="M6 9l6 6 6-6"/>
           </svg>
         </button>
       </div>

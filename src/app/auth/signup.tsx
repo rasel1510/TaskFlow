@@ -527,7 +527,6 @@ export default function SignupPage() {
                 </div>
 
 
-
                 {/* Password Strength Meter */}
                 {formData.password && (
                   <div className="mt-2 space-y-1.5">

@@ -45,6 +45,114 @@ const breadcrumbs: Record<View, string[]> = {
   inbox: ['TaskFlow', 'Inbox'],
 };
 
+type NotifActivityTab = 'all' | 'assigned' | 'projects' | 'mentions';
+
+function getNotificationMeta(n: HeaderNotificationItem) {
+  const type = (n.type || '').toLowerCase();
+  const title = (n.title || '').toLowerCase();
+  const body = (n.body || '').toLowerCase();
+  const category = (n.category || '').toLowerCase();
+
+  // 1. Task Assignments
+  if (
+    type.includes('task_assigned') ||
+    type.includes('assigned') ||
+    title.includes('assigned to') ||
+    title.includes('assignment') ||
+    title.includes('task assigned') ||
+    body.includes('assigned you') ||
+    body.includes('you were assigned')
+  ) {
+    return {
+      tab: 'assigned' as const,
+      badge: 'Task',
+      badgeClass: 'bg-[#EFF6FF] text-[#2563EB]',
+      iconType: 'task',
+    };
+  }
+
+  // 2. Mentions & Comments
+  if (
+    type.includes('comment') ||
+    type.includes('mention') ||
+    title.includes('mention') ||
+    title.includes('comment') ||
+    body.includes('mentioned you') ||
+    body.includes('commented on')
+  ) {
+    return {
+      tab: 'mentions' as const,
+      badge: 'Mention',
+      badgeClass: 'bg-[#F5F3FF] text-[#7C3AED]',
+      iconType: 'mention',
+    };
+  }
+
+  // 3. Projects, Sprints, Milestones, Join Requests, Blockers
+  if (
+    category === 'project' ||
+    type.startsWith('project') ||
+    type.includes('sprint') ||
+    type.includes('milestone') ||
+    type.includes('blocker') ||
+    type.includes('workload') ||
+    type.includes('join_request') ||
+    type.includes('request_approved') ||
+    type.includes('request_declined') ||
+    title.includes('project') ||
+    title.includes('sprint') ||
+    title.includes('milestone') ||
+    title.includes('join request') ||
+    body.includes('project') ||
+    body.includes('sprint')
+  ) {
+    return {
+      tab: 'projects' as const,
+      badge: 'Project',
+      badgeClass: 'bg-[#FEF3C7] text-[#B45309]',
+      iconType: 'project',
+    };
+  }
+
+  // 4. Overdue / Due Date / Deadlines
+  if (type.includes('overdue') || title.includes('deadline') || title.includes('overdue')) {
+    return {
+      tab: 'assigned' as const,
+      badge: 'Deadline',
+      badgeClass: 'bg-[#FEF2F2] text-[#DC2626]',
+      iconType: 'alert',
+    };
+  }
+
+  // 5. System, Verification, Security
+  if (
+    category === 'admin' ||
+    type.includes('security') ||
+    type.includes('backup') ||
+    type.includes('audit') ||
+    type.includes('system') ||
+    title.includes('pipeline') ||
+    title.includes('verified') ||
+    title.includes('system') ||
+    title.includes('security')
+  ) {
+    return {
+      tab: 'all' as const,
+      badge: 'System',
+      badgeClass: 'bg-[#F3F4F6] text-[#4B5563]',
+      iconType: 'system',
+    };
+  }
+
+  // Fallback
+  return {
+    tab: 'all' as const,
+    badge: 'Update',
+    badgeClass: 'bg-[#F3F4F6] text-[#4B5563]',
+    iconType: 'general',
+  };
+}
+
 interface HeaderProps {
   currentView: View;
   onCreateTask?: () => void;
@@ -73,7 +181,7 @@ export default function Header({ currentView, onMenuToggle, onOpenCommandPalette
       meta: n.meta,
     }))
   );
-  const [notifCategory, setNotifCategory] = useState<'all' | 'user' | 'project' | 'admin'>('all');
+  const [notifTab, setNotifTab] = useState<NotifActivityTab>('all');
   const [filterUnreadOnly, setFilterUnreadOnly] = useState(false);
 
   const loadNotifications = useCallback(async (signal?: AbortSignal) => {
@@ -131,16 +239,19 @@ export default function Header({ currentView, onMenuToggle, onOpenCommandPalette
     }
   };
 
+  const assignedList = notificationsList.filter(n => getNotificationMeta(n).tab === 'assigned');
+  const projectsList = notificationsList.filter(n => getNotificationMeta(n).tab === 'projects');
+  const mentionsList = notificationsList.filter(n => getNotificationMeta(n).tab === 'mentions');
+
   const unreadTotal = notificationsList.filter(n => !n.read).length;
-  const unreadUser = notificationsList.filter(n => (n.category === 'user' || !n.category) && !n.read).length;
-  const unreadProject = notificationsList.filter(n => n.category === 'project' && !n.read).length;
-  const unreadAdmin = notificationsList.filter(n => n.category === 'admin' && !n.read).length;
+  const unreadAssigned = assignedList.filter(n => !n.read).length;
+  const unreadProjects = projectsList.filter(n => !n.read).length;
+  const unreadMentions = mentionsList.filter(n => !n.read).length;
 
   const filteredNotifications = notificationsList.filter(n => {
     if (filterUnreadOnly && n.read) return false;
-    if (notifCategory === 'all') return true;
-    if (notifCategory === 'user') return n.category === 'user' || !n.category;
-    return n.category === notifCategory;
+    if (notifTab === 'all') return true;
+    return getNotificationMeta(n).tab === notifTab;
   });
 
   const crumbs = breadcrumbs[currentView];
@@ -302,19 +413,19 @@ export default function Header({ currentView, onMenuToggle, onOpenCommandPalette
                   </div>
                 </div>
 
-                {/* Role Filter Tabs */}
+                {/* Activity Filter Tabs */}
                 <div className="flex border-b border-[#F1F3F5] px-2 bg-[#FAFBFC]">
                   {[
-                    { key: 'all', label: 'All', unread: unreadTotal, count: notificationsList.length },
-                    { key: 'user', label: 'User', unread: unreadUser, count: notificationsList.filter(n => n.category === 'user' || !n.category).length },
-                    { key: 'project', label: 'Product Mgr', unread: unreadProject, count: notificationsList.filter(n => n.category === 'project').length },
-                    { key: 'admin', label: 'Admin', unread: unreadAdmin, count: notificationsList.filter(n => n.category === 'admin').length },
+                    { key: 'all' as const, label: 'All', unread: unreadTotal, count: notificationsList.length },
+                    { key: 'assigned' as const, label: 'Assigned', unread: unreadAssigned, count: assignedList.length },
+                    { key: 'projects' as const, label: 'Projects', unread: unreadProjects, count: projectsList.length },
+                    { key: 'mentions' as const, label: 'Mentions', unread: unreadMentions, count: mentionsList.length },
                   ].map(tab => (
                     <button
                       key={tab.key}
-                      onClick={() => setNotifCategory(tab.key as any)}
+                      onClick={() => setNotifTab(tab.key)}
                       className={`flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium border-b-2 transition-all cursor-pointer relative ${
-                        notifCategory === tab.key
+                        notifTab === tab.key
                           ? 'border-[#2563EB] text-[#2563EB]'
                           : 'border-transparent text-[rgba(17,17,17,0.55)] hover:text-[#111111]'
                       }`}
@@ -340,9 +451,7 @@ export default function Header({ currentView, onMenuToggle, onOpenCommandPalette
                     </div>
                   ) : (
                     filteredNotifications.map(n => {
-                      const isUser = n.category === 'user' || !n.category;
-                      const isPM = n.category === 'project';
-                      const isAdmin = n.category === 'admin';
+                      const meta = getNotificationMeta(n);
                       const title = n.title || (n.action && n.user ? `${n.user.name} ${n.action} ${n.target}` : 'Notification');
                       const body = n.body || n.target || '';
                       const timeStr = n.timeAgo || n.time || 'recently';
@@ -367,17 +476,40 @@ export default function Header({ currentView, onMenuToggle, onOpenCommandPalette
                               <div className="w-7 h-7 rounded-full bg-[#E5E7EB] flex items-center justify-center text-[10px] font-bold text-[#111111]">
                                 {n.user.avatar}
                               </div>
+                            ) : meta.iconType === 'task' ? (
+                              <div className="w-7 h-7 rounded-full bg-[#EFF6FF] text-[#2563EB] flex items-center justify-center shrink-0">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                  <circle cx="8.5" cy="7" r="4" />
+                                  <polyline points="17 11 19 13 23 9" />
+                                </svg>
+                              </div>
+                            ) : meta.iconType === 'mention' ? (
+                              <div className="w-7 h-7 rounded-full bg-[#F5F3FF] text-[#7C3AED] flex items-center justify-center shrink-0">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                                </svg>
+                              </div>
+                            ) : meta.iconType === 'project' ? (
+                              <div className="w-7 h-7 rounded-full bg-[#FEF3C7] text-[#D97706] flex items-center justify-center shrink-0">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                </svg>
+                              </div>
+                            ) : meta.iconType === 'alert' ? (
+                              <div className="w-7 h-7 rounded-full bg-[#FEF2F2] text-[#DC2626] flex items-center justify-center shrink-0">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                  <circle cx="12" cy="12" r="10" />
+                                  <line x1="12" y1="8" x2="12" y2="12" />
+                                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                                </svg>
+                              </div>
                             ) : (
-                              <div
-                                className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                                  isAdmin
-                                    ? 'bg-[#F3E8FF] text-[#7C3AED]'
-                                    : isPM
-                                    ? 'bg-[#FEF3C7] text-[#D97706]'
-                                    : 'bg-[#EFF6FF] text-[#2563EB]'
-                                }`}
-                              >
-                                {isAdmin ? 'AD' : isPM ? 'PM' : 'UR'}
+                              <div className="w-7 h-7 rounded-full bg-[#F3F4F6] text-[#4B5563] flex items-center justify-center shrink-0">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                                </svg>
                               </div>
                             )}
                           </div>
@@ -387,15 +519,9 @@ export default function Header({ currentView, onMenuToggle, onOpenCommandPalette
                             <div className="flex items-center justify-between gap-1 mb-0.5">
                               <span className="text-[12.5px] font-semibold text-[#111111] truncate">{title}</span>
                               <span
-                                className={`text-[9.5px] font-medium px-1.5 py-0.2 rounded uppercase tracking-wider ${
-                                  isAdmin
-                                    ? 'bg-[#F3E8FF] text-[#7C3AED]'
-                                    : isPM
-                                    ? 'bg-[#FEF3C7] text-[#B45309]'
-                                    : 'bg-[#EFF6FF] text-[#2563EB]'
-                                }`}
+                                className={`text-[9.5px] font-semibold px-1.5 py-0.5 rounded tracking-wide ${meta.badgeClass}`}
                               >
-                                {isAdmin ? 'Admin' : isPM ? 'Product' : 'User'}
+                                {meta.badge}
                               </span>
                             </div>
                             <p className="text-[12px] text-[rgba(17,17,17,0.7)] leading-relaxed break-words">{body}</p>

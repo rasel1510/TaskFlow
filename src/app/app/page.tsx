@@ -23,6 +23,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import PWAModal from '@/components/PWAModal';
 import CopilotDrawer from '@/components/copilot/CopilotDrawer';
+import DraggableFlowAiButton from '@/components/copilot/DraggableFlowAiButton';
 
 type View =
   | 'dashboard'
@@ -391,22 +392,8 @@ export default function AppPage() {
           onSelectTask={id => setSelectedTask(id)}
         />
 
-        {/* Floating FlowAi Trigger Button */}
-        <button
-          type="button"
-          onClick={() => setIsCopilotOpen(true)}
-          aria-label="Open FlowAi"
-          title="FlowAi (Ctrl+J)"
-          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-[#111827] hover:bg-[#1F2937] text-white shadow-xl shadow-black/15 border border-white/10 hover:scale-105 active:scale-95 transition-all cursor-pointer group"
-        >
-          <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 group-hover:text-blue-300">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="animate-pulse">
-              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-            </svg>
-          </div>
-          <span className="text-[12.5px] font-semibold tracking-tight">FlowAi</span>
-          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-gray-300">⌘J</span>
-        </button>
+        {/* Floating Draggable FlowAi Trigger Button */}
+        <DraggableFlowAiButton onClick={() => setIsCopilotOpen(true)} />
       </div>
     </TaskProvider>
   );
