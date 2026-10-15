@@ -19,7 +19,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useToast } from '@/components/ui/Toast';
-import { Eye, EyeOff, Bell, Mail, Monitor, Send, Check, Shield, Briefcase, User, RefreshCw } from 'lucide-react';
+import { Eye, EyeOff, Send, Shield, Briefcase, User, RefreshCw } from 'lucide-react';
 
 /* ─────────────── types ─────────────── */
 
@@ -464,13 +464,6 @@ export default function Settings() {
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(DEFAULT_NOTIF_PREFS);
   const [notifSaving, setNotifSaving] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
-  const [browserPermission, setBrowserPermission] = useState<NotificationPermission>('default');
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setBrowserPermission(Notification.permission);
-    }
-  }, []);
 
   useEffect(() => {
     if (section !== 'notifications') return;
@@ -505,30 +498,6 @@ export default function Settings() {
 
   const toggleNotif = (key: keyof NotificationPreferences) => {
     setNotifPrefs(prev => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  const handleRequestPushPermission = async () => {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      toast.error('Browser push notifications are not supported in this browser');
-      return;
-    }
-    try {
-      const permission = await Notification.requestPermission();
-      setBrowserPermission(permission);
-      if (permission === 'granted') {
-        setNotifPrefs(prev => ({ ...prev, browserPush: true }));
-        toast.success('Browser notifications allowed');
-        new Notification('TaskFlow Notifications Enabled', {
-          body: 'You will now receive desktop alerts for important task and project updates.',
-          icon: '/favicon.ico',
-        });
-      } else if (permission === 'denied') {
-        setNotifPrefs(prev => ({ ...prev, browserPush: false }));
-        toast.error('Browser notifications blocked by your browser settings');
-      }
-    } catch (err) {
-      console.error('[Settings] Notification permission error:', err);
-    }
   };
 
   const handleSendTestNotification = async () => {
@@ -1084,7 +1053,7 @@ export default function Settings() {
               <div>
                 <h2 className="text-[20px] font-bold text-[#111111] mb-1">Notification Preferences</h2>
                 <p className="text-[13px] text-[rgba(17,17,17,0.5)]">
-                  Configure delivery channels, email frequencies, and automated role triggers.
+                  Configure automated workflow and role triggers.
                 </p>
               </div>
               <button
@@ -1098,128 +1067,7 @@ export default function Settings() {
               </button>
             </div>
 
-            {/* 1. Delivery Channels */}
-            <div className="border border-[#E5E7EB] rounded-xl p-5 bg-white">
-              <h3 className="text-[13.5px] font-semibold text-[#111111] mb-3 flex items-center gap-2">
-                <Bell size={15} className="text-[#2563EB]" />
-                <span>Delivery Channels</span>
-              </h3>
-              <div className="divide-y divide-[#F1F3F5]">
-                {/* In-App Alerts */}
-                <div className="flex items-center justify-between py-3">
-                  <div>
-                    <div className="text-[13px] font-medium text-[#111111]">In-App Alerts</div>
-                    <div className="text-[11.5px] text-[rgba(17,17,17,0.45)] mt-0.5">
-                      Show badge counts and entries in the top navigation bell
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => toggleNotif('inApp')}
-                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                      notifPrefs.inApp ? 'bg-[#2563EB]' : 'bg-[#E5E7EB]'
-                    }`}
-                    role="switch"
-                    aria-checked={notifPrefs.inApp}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                        notifPrefs.inApp ? 'translate-x-4' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {/* Desktop Push */}
-                <div className="flex items-center justify-between py-3">
-                  <div className="flex-1 mr-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[13px] font-medium text-[#111111]">Desktop Push Notifications</span>
-                      <span
-                        className={`text-[10px] font-medium px-1.5 py-0.2 rounded-full ${
-                          browserPermission === 'granted'
-                            ? 'bg-[#DCFCE7] text-[#16A34A]'
-                            : browserPermission === 'denied'
-                            ? 'bg-[#FEE2E2] text-[#DC2626]'
-                            : 'bg-[#FEF3C7] text-[#D97706]'
-                        }`}
-                      >
-                        {browserPermission === 'granted'
-                          ? 'Permission granted'
-                          : browserPermission === 'denied'
-                          ? 'Blocked in browser'
-                          : 'Permission required'}
-                      </span>
-                    </div>
-                    <div className="text-[11.5px] text-[rgba(17,17,17,0.45)] mt-0.5">
-                      Receive instant OS alerts when TaskFlow is running in the background
-                    </div>
-                    {browserPermission !== 'granted' && (
-                      <button
-                        type="button"
-                        onClick={handleRequestPushPermission}
-                        className="text-[11.5px] text-[#2563EB] hover:underline font-medium mt-1 inline-block cursor-pointer"
-                      >
-                        Enable browser permission →
-                      </button>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (browserPermission !== 'granted') {
-                        handleRequestPushPermission();
-                      } else {
-                        toggleNotif('browserPush');
-                      }
-                    }}
-                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                      notifPrefs.browserPush && browserPermission === 'granted' ? 'bg-[#2563EB]' : 'bg-[#E5E7EB]'
-                    }`}
-                    role="switch"
-                    aria-checked={notifPrefs.browserPush && browserPermission === 'granted'}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                        notifPrefs.browserPush && browserPermission === 'granted' ? 'translate-x-4' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {/* Email Digest Frequency */}
-                <div className="flex items-center justify-between py-3">
-                  <div>
-                    <div className="text-[13px] font-medium text-[#111111]">Email Delivery Schedule</div>
-                    <div className="text-[11.5px] text-[rgba(17,17,17,0.45)] mt-0.5">
-                      Choose how frequently email summaries are dispatched to your inbox
-                    </div>
-                  </div>
-                  <div className="flex items-center bg-[#F3F4F6] p-0.5 rounded-lg border border-[#E5E7EB]">
-                    {[
-                      { id: 'instant', label: 'Instant' },
-                      { id: 'daily', label: 'Daily Digest' },
-                      { id: 'off', label: 'Off' },
-                    ].map(opt => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setNotifPrefs(p => ({ ...p, emailDigest: opt.id as any }))}
-                        className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-all cursor-pointer ${
-                          notifPrefs.emailDigest === opt.id
-                            ? 'bg-white text-[#111111] shadow-xs'
-                            : 'text-[rgba(17,17,17,0.5)] hover:text-[#111111]'
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 2. Task & Workflow Triggers */}
+            {/* 1. Task & Workflow Triggers */}
             <div className="border border-[#E5E7EB] rounded-xl p-5 bg-white">
               <h3 className="text-[13.5px] font-semibold text-[#111111] mb-3 flex items-center gap-2">
                 <User size={15} className="text-[#2563EB]" />
@@ -1288,7 +1136,7 @@ export default function Settings() {
               </div>
             </div>
 
-            {/* 3. Product Manager & Sprints */}
+            {/* 2. Product Manager & Sprints */}
             <div className="border border-[#E5E7EB] rounded-xl p-5 bg-white">
               <h3 className="text-[13.5px] font-semibold text-[#111111] mb-3 flex items-center gap-2">
                 <Briefcase size={15} className="text-[#D97706]" />
@@ -1332,7 +1180,7 @@ export default function Settings() {
               </div>
             </div>
 
-            {/* 4. Administration & Governance */}
+            {/* 3. Administration & Governance */}
             <div className="border border-[#E5E7EB] rounded-xl p-5 bg-white">
               <h3 className="text-[13.5px] font-semibold text-[#111111] mb-3 flex items-center gap-2">
                 <Shield size={15} className="text-[#7C3AED]" />

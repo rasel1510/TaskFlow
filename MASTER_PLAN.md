@@ -553,6 +553,7 @@ model ProjectMilestone {
   @@index([projectId, completed])
 }
 ```
+
 **Create:** `src/api/projects/[id]/milestones/route.ts` — `GET` (milestones with task progress) and `POST` (create milestone).
 **Modify:** `src/views/ProjectDetail.tsx` — interactive roadmap timeline showing milestone progress bars, task groupings, and target release delivery flags.
 **Recruiter Signal**: Normalized relational modeling, hierarchical delivery architecture, agile/scrum release planning.
