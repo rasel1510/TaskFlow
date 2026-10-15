@@ -819,15 +819,9 @@ export default function ProjectDetail({
         {/* Tab 4: Team & RBAC with Expertise Matrix & Join Requests */}
         {activeTab === 'members' && (
           <div className="space-y-6">
-            {/* Header with Title and Add Member action */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#F3F4F6]">
-              <div>
-                <h3 className="text-[17px] font-bold text-[#111111]">Team &amp; Expertise Matrix</h3>
-                <p className="text-[12.5px] text-[rgba(17,17,17,0.5)] mt-0.5">
-                  Assign project members aligned with technical domain requirements and review join requests.
-                </p>
-              </div>
-              {isPMOrOwner && (
+            {/* Header with Add Member action */}
+            {isPMOrOwner && (
+              <div className="flex justify-end pb-3 border-b border-[#F3F4F6]">
                 <button
                   type="button"
                   onClick={() => {
@@ -842,8 +836,8 @@ export default function ProjectDetail({
                   </svg>
                   Add Member via Expertise Matrix
                 </button>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Pending Join Requests (Visible to Project Manager / Owner / Admin) */}
             {isPMOrOwner && (
