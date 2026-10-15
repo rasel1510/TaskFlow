@@ -819,26 +819,6 @@ export default function ProjectDetail({
         {/* Tab 4: Team & RBAC with Expertise Matrix & Join Requests */}
         {activeTab === 'members' && (
           <div className="space-y-6">
-            {/* Header with Add Member action */}
-            {isPMOrOwner && (
-              <div className="flex justify-end pb-3 border-b border-[#F3F4F6]">
-                <button
-                  type="button"
-                  onClick={() => {
-                    fetchAvailableUsers();
-                    setShowAddMemberModal(true);
-                  }}
-                  className="flex items-center gap-2 px-3.5 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg text-[13px] font-semibold transition-colors shadow-2xs cursor-pointer shrink-0"
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                  Add Member via Expertise Matrix
-                </button>
-              </div>
-            )}
-
             {/* Pending Join Requests (Visible to Project Manager / Owner / Admin) */}
             {isPMOrOwner && (
               <div className="space-y-3">
@@ -950,13 +930,32 @@ export default function ProjectDetail({
 
             {/* Current Project Members List */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-[14px] font-bold text-[#111111]">
-                  Active Team Members ({members.length})
-                </h4>
-                <span className="text-[11.5px] text-[rgba(17,17,17,0.45)]">
-                  Only assigned members can create tasks in this project
-                </span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h4 className="text-[14px] font-bold text-[#111111]">
+                    Active Team Members ({members.length})
+                  </h4>
+                  <p className="text-[11.5px] text-[rgba(17,17,17,0.45)] mt-0.5">
+                    Only assigned members can create tasks in this project
+                  </p>
+                </div>
+
+                {isPMOrOwner && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      fetchAvailableUsers();
+                      setShowAddMemberModal(true);
+                    }}
+                    className="flex items-center gap-2 px-3.5 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg text-[13px] font-semibold transition-colors shadow-2xs cursor-pointer shrink-0"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    Add Member via Expertise Matrix
+                  </button>
+                )}
               </div>
 
               {membersLoading ? (
