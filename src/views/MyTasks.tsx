@@ -652,12 +652,6 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
             ))
           )}
         </div>
-
-        <div className="flex items-center justify-between mt-3 px-1">
-          <span className="text-[12.5px] text-[rgba(17,17,17,0.4)]">
-            Showing {filtered.length} of {tasks.length} tasks
-          </span>
-        </div>
       </div>
 
       {/* Edit Task Modal */}

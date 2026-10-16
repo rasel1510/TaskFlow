@@ -296,7 +296,28 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         console.warn('[PATCH /api/projects/:id/requests] Notification warning:', notifErr);
       }
 
+      // 4. Update the manager's notification in inbox
+      try {
+        await prisma.notification.updateMany({
+          where: {
+            userId: currentUserId,
+            type: 'join_request',
+            OR: [
+              { taskId: projectId },
+              { body: { contains: `"${project.name}"` } },
+            ],
+          },
+          data: {
+            type: 'request_approved',
+            title: 'Project Request Approved',
+          },
+        });
+      } catch (notifErr) {
+        console.warn('[PATCH /api/projects/:id/requests] Manager notification update warning:', notifErr);
+      }
+
       await redisCache.delPattern('projects:*');
+      await redisCache.delPattern('notifications:*');
 
       return NextResponse.json({
         success: true,
@@ -322,7 +343,28 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         console.warn('[PATCH /api/projects/:id/requests] Notification warning:', notifErr);
       }
 
+      // Update manager's notification in inbox
+      try {
+        await prisma.notification.updateMany({
+          where: {
+            userId: currentUserId,
+            type: 'join_request',
+            OR: [
+              { taskId: projectId },
+              { body: { contains: `"${project.name}"` } },
+            ],
+          },
+          data: {
+            type: 'request_rejected',
+            title: 'Project Request Update',
+          },
+        });
+      } catch (notifErr) {
+        console.warn('[PATCH /api/projects/:id/requests] Manager notification update warning:', notifErr);
+      }
+
       await redisCache.delPattern('projects:*');
+      await redisCache.delPattern('notifications:*');
 
       return NextResponse.json({
         success: true,

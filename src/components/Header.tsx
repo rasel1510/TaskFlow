@@ -89,6 +89,16 @@ function getNotificationMeta(n: HeaderNotificationItem) {
     };
   }
 
+  // 2.4 Approved Requests
+  if (type === 'request_approved' || title.toLowerCase().includes('request approved')) {
+    return {
+      tab: 'projects' as const,
+      badge: 'Request Approved',
+      badgeClass: 'bg-[#ECFDF5] text-[#16A34A] border border-[#BBF7D0]',
+      iconType: 'request_approved',
+    };
+  }
+
   // 2.5 Join Requests
   if (type.includes('join_request') || title.includes('join request')) {
     return {
@@ -524,6 +534,14 @@ export default function Header({
                             ) : n.user?.avatar ? (
                               <div className="w-7 h-7 rounded-full bg-[#E5E7EB] flex items-center justify-center text-[10px] font-bold text-[#111111]">
                                 {n.user.avatar}
+                              </div>
+                            ) : meta.iconType === 'request_approved' ? (
+                              <div className="w-7 h-7 rounded-full bg-[#ECFDF5] text-[#16A34A] flex items-center justify-center shrink-0">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                  <circle cx="8.5" cy="7" r="4" />
+                                  <polyline points="17 11 19 13 23 9" />
+                                </svg>
                               </div>
                             ) : meta.iconType === 'join_request' ? (
                               <div className="w-7 h-7 rounded-full bg-[#FEF3C7] text-[#D97706] flex items-center justify-center shrink-0">

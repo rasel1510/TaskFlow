@@ -146,6 +146,17 @@ export default function Inbox({ onTaskClick, onProjectClick, onNavigate }: Inbox
   });
 
   const getIconForType = (type: string, title?: string) => {
+    if (type === 'request_approved' || title?.toLowerCase().includes('request approved')) {
+      return (
+        <div className="w-8 h-8 rounded-lg bg-[#ECFDF5] text-[#16A34A] flex items-center justify-center shrink-0">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="8.5" cy="7" r="4" />
+            <polyline points="17 11 19 13 23 9" />
+          </svg>
+        </div>
+      );
+    }
     if (type === 'join_request' || title?.toLowerCase().includes('join request')) {
       return (
         <div className="w-8 h-8 rounded-lg bg-[#FEF3C7] text-[#D97706] flex items-center justify-center shrink-0">
@@ -307,7 +318,26 @@ export default function Inbox({ onTaskClick, onProjectClick, onNavigate }: Inbox
           </div>
         ) : (
           filteredNotifications.map(item => {
-            const isJoinRequest = item.type === 'join_request' || item.title?.toLowerCase().includes('join request');
+            const isJoinRelated =
+              item.type === 'join_request' ||
+              item.type === 'request_approved' ||
+              item.type === 'request_rejected' ||
+              Boolean(item.title && item.title.toLowerCase().includes('join request')) ||
+              Boolean(item.title && item.title.toLowerCase().includes('request approved'));
+
+            const isApproved =
+              isJoinRelated &&
+              (item.type === 'request_approved' ||
+                (item as any).requestStatus === 'approved' ||
+                Boolean(item.title && item.title.toLowerCase().includes('request approved')));
+
+            const isJoinRequest =
+              isJoinRelated &&
+              !isApproved &&
+              (item.type === 'join_request' ||
+                Boolean(item.title && item.title.toLowerCase().includes('join request')) ||
+                (item as any).requestStatus === 'pending');
+
             return (
               <div
                 key={item.id}
@@ -328,11 +358,15 @@ export default function Inbox({ onTaskClick, onProjectClick, onNavigate }: Inbox
                     <h4 className="text-[13.5px] font-semibold text-[#111111] truncate">
                       {item.title}
                     </h4>
-                    {isJoinRequest && (
+                    {isApproved ? (
+                      <span className="px-2 py-0.5 rounded text-[10.5px] font-semibold bg-[#ECFDF5] text-[#16A34A] border border-[#BBF7D0] shrink-0">
+                        Request Approved
+                      </span>
+                    ) : isJoinRequest ? (
                       <span className="px-2 py-0.5 rounded text-[10.5px] font-semibold bg-[#FEF3C7] text-[#B45309] border border-[#FDE68A] shrink-0">
                         Join Request
                       </span>
-                    )}
+                    ) : null}
                     <span className="text-[12px] text-[rgba(17,17,17,0.4)] shrink-0 ml-auto">
                       {item.timeAgo}
                     </span>

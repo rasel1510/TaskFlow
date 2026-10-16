@@ -243,8 +243,9 @@ export async function GET(request: NextRequest) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const formatted = await Promise.all(items.map(async (n: any) => {
               let projectId = n.projectId || null;
+              let requestStatus: 'pending' | 'approved' | 'rejected' | null = null;
               const isJoinReq = n.type === 'join_request' || (n.title && n.title.toLowerCase().includes('join request'));
-              if (isJoinReq) {
+              if (isJoinReq || n.type === 'request_approved' || n.type === 'request_rejected') {
                 if (n.taskId && !n.taskId.startsWith('t')) {
                   projectId = n.taskId;
                 } else if (!projectId) {
@@ -259,10 +260,41 @@ export async function GET(request: NextRequest) {
                     } catch {}
                   }
                 }
+
+                if (projectId) {
+                  try {
+                    const applicantMatch = n.body?.match(/^(.+?)\s+has requested to join/i);
+                    const applicantName = applicantMatch ? applicantMatch[1].trim() : null;
+
+                    const matchingReq = await prisma.projectJoinRequest.findFirst({
+                      where: {
+                        projectId,
+                        ...(applicantName
+                          ? { user: { name: { contains: applicantName, mode: 'insensitive' } } }
+                          : {}),
+                      },
+                      select: { status: true },
+                      orderBy: { updatedAt: 'desc' },
+                    });
+
+                    if (matchingReq) {
+                      requestStatus = matchingReq.status as 'pending' | 'approved' | 'rejected';
+                    }
+                  } catch {}
+                }
               }
+
+              const isJoinRelated = isJoinReq || n.type === 'request_approved' || n.type === 'request_rejected';
+              const isApproved = isJoinRelated && (n.type === 'request_approved' || requestStatus === 'approved');
+              const isRejected = isJoinRelated && (n.type === 'request_rejected' || requestStatus === 'rejected');
 
               return {
                 ...n,
+                type: isApproved ? 'request_approved' : isRejected ? 'request_rejected' : n.type,
+                title: isApproved && (n.title === 'New Project Join Request' || n.title.toLowerCase().includes('join request'))
+                  ? 'Project Request Approved'
+                  : n.title,
+                requestStatus: isJoinRelated ? (isApproved ? 'approved' : isRejected ? 'rejected' : 'pending') : undefined,
                 projectId,
                 timeAgo: timeAgo(n.createdAt),
               };
