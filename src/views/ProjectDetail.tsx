@@ -63,6 +63,85 @@ interface ProjectDetailProps {
   initialTab?: 'overview' | 'tasks' | 'milestones' | 'members' | 'burndown' | 'settings';
 }
 
+function getTwoLetterCapital(name?: string | null, fallbackAvatar?: string | null): string {
+  if (fallbackAvatar && /^[A-Za-z]{2}$/.test(fallbackAvatar.trim())) {
+    return fallbackAvatar.trim().toUpperCase();
+  }
+
+  if (!name || !name.trim()) return '??';
+
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+
+  return parts[0].slice(0, 2).toUpperCase();
+}
+
+function isMockImage(url?: string | null): boolean {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return (
+    lower.includes('unsplash.com') ||
+    lower.includes('placeholder') ||
+    lower.includes('dummy') ||
+    lower.includes('mock') ||
+    lower.includes('avatar.vercel.sh') ||
+    lower.includes('pravatar') ||
+    lower.includes('dicebear') ||
+    lower.includes('ui-avatars.com')
+  );
+}
+
+function renderUserAvatar(
+  avatar?: string | null,
+  name?: string | null,
+  sizeClasses = 'w-10 h-10',
+  customBgText = 'bg-[#EFF6FF] text-[#2563EB] text-[13px] font-bold border border-[#DBEAFE]'
+) {
+  const twoLetters = getTwoLetterCapital(name, avatar);
+
+  // If mock avatar/image or no image available, strictly display Two letter of name in Capital
+  const hasRealImage = Boolean(
+    avatar &&
+      !isMockImage(avatar) &&
+      (avatar.startsWith('http://') ||
+        avatar.startsWith('https://') ||
+        avatar.startsWith('/') ||
+        avatar.startsWith('data:image/')) &&
+      !/^[A-Za-z]{1,4}$/.test(avatar.trim())
+  );
+
+  if (hasRealImage) {
+    return (
+      <div className={`${sizeClasses} rounded-full overflow-hidden shrink-0 border border-[#DBEAFE] bg-[#EFF6FF] flex items-center justify-center`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={avatar!}
+          alt={name || 'Avatar'}
+          className="w-full h-full object-cover rounded-full"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+            const parent = e.currentTarget.parentElement;
+            if (parent && !parent.querySelector('.avatar-fallback')) {
+              const span = document.createElement('span');
+              span.className = 'avatar-fallback font-bold text-[#2563EB] text-[12px]';
+              span.textContent = twoLetters;
+              parent.appendChild(span);
+            }
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${sizeClasses} rounded-full ${customBgText} flex items-center justify-center shrink-0`}>
+      {twoLetters}
+    </div>
+  );
+}
+
 export default function ProjectDetail({
   projectId,
   onBack,
@@ -872,9 +951,7 @@ export default function ProjectDetail({
                         <div key={req.id} className="p-4 rounded-xl border border-[#FDE68A] bg-[#FFFDF5] shadow-2xs space-y-3">
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center gap-2.5 min-w-0">
-                              <div className="w-9 h-9 rounded-full bg-[#2563EB] text-white font-bold text-[12px] flex items-center justify-center shrink-0">
-                                {applicant.avatar || applicant.name?.slice(0, 2).toUpperCase() || '?'}
-                              </div>
+                              {renderUserAvatar(applicant.avatar, applicant.name, 'w-9 h-9', 'bg-[#2563EB] text-white font-bold text-[12px]')}
                               <div className="min-w-0">
                                 <div className="text-[13.5px] font-semibold text-[#111111] truncate">{applicant.name}</div>
                                 <div className="text-[11.5px] text-[rgba(17,17,17,0.5)] truncate">{applicant.email}</div>
@@ -975,7 +1052,7 @@ export default function ProjectDetail({
                       <line x1="12" y1="5" x2="12" y2="19" />
                       <line x1="5" y1="12" x2="19" y2="12" />
                     </svg>
-                    Add Member via Expertise Matrix
+                    Add Member
                   </button>
                 )}
               </div>
@@ -993,9 +1070,7 @@ export default function ProjectDetail({
                     return (
                       <div key={m.userId} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-[#E5E7EB] bg-white hover:border-[#CBD5E1] transition-all">
                         <div className="flex items-start gap-3 min-w-0">
-                          <div className="w-10 h-10 rounded-full bg-[#EFF6FF] flex items-center justify-center font-bold text-[13px] text-[#2563EB] shrink-0 border border-[#DBEAFE]">
-                            {m.avatar || m.name?.slice(0, 2).toUpperCase() || '?'}
-                          </div>
+                          {renderUserAvatar(m.avatar, m.name, 'w-10 h-10')}
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-[13.5px] font-semibold text-[#111111]">{m.name}</span>
@@ -1374,7 +1449,7 @@ export default function ProjectDetail({
         )}
       </div>
 
-      {/* Add Member via Expertise Matrix Modal */}
+      {/* Add Member Modal */}
       {showAddMemberModal && (
         <div
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150"
@@ -1387,11 +1462,8 @@ export default function ProjectDetail({
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#F3F4F6] shrink-0">
               <div>
-                <h3 className="text-[17px] font-bold text-[#111111] flex items-center gap-2">
-                  <span>Add Member via Expertise Matrix</span>
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] font-medium border border-[#BFDBFE]">
-                    Project Manager
-                  </span>
+                <h3 className="text-[17px] font-bold text-[#111111]">
+                  Add member by expertise matrix
                 </h3>
               </div>
               <button
@@ -1406,11 +1478,8 @@ export default function ProjectDetail({
             {/* Expertise Matrix Filter & Requirements Toolbar */}
             <div className="p-4 border-b border-[#F3F4F6] bg-[#FAFAFB] shrink-0 space-y-3">
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-[rgba(17,17,17,0.6)]">
-                    Project Manager: Select Expertise Matrix Needed
-                  </span>
-                  {requiredSkills.length > 0 && (
+                {requiredSkills.length > 0 && (
+                  <div className="flex items-center justify-end mb-1.5">
                     <button
                       type="button"
                       onClick={() => setRequiredSkills([])}
@@ -1418,8 +1487,8 @@ export default function ProjectDetail({
                     >
                       Clear skills ({requiredSkills.length})
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 {/* Expertise Matrix Selector Chips */}
                 <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
@@ -1559,9 +1628,7 @@ export default function ProjectDetail({
                         }`}
                       >
                         <div className="flex items-start gap-3 min-w-0">
-                          <div className="w-10 h-10 rounded-full bg-[#EFF6FF] text-[#2563EB] font-bold text-[13px] flex items-center justify-center shrink-0 border border-[#DBEAFE]">
-                            {user.avatar || user.name?.slice(0, 2).toUpperCase() || '?'}
-                          </div>
+                          {renderUserAvatar(user.avatar, user.name, 'w-10 h-10')}
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-[13.5px] font-semibold text-[#111111]">{user.name}</span>
@@ -1744,9 +1811,7 @@ export default function ProjectDetail({
 
             {/* Member Card */}
             <div className="p-3 bg-[#F9FAFB] rounded-xl border border-[#E5E7EB] mb-6 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#EFF6FF] text-[#2563EB] font-bold text-[13px] flex items-center justify-center border border-[#DBEAFE] shrink-0">
-                {memberToRemove.avatar || memberToRemove.name?.slice(0, 2).toUpperCase() || '?'}
-              </div>
+              {renderUserAvatar(memberToRemove.avatar, memberToRemove.name, 'w-10 h-10')}
               <div className="min-w-0 flex-1">
                 <div className="text-[13.5px] font-semibold text-[#111111] truncate">{memberToRemove.name}</div>
                 {memberToRemove.email && (
