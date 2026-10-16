@@ -9,6 +9,7 @@ export interface NotificationItem {
   title: string;
   body: string;
   taskId?: string | null;
+  projectId?: string | null;
   read: boolean;
   createdAt: string;
   timeAgo: string;
@@ -16,12 +17,14 @@ export interface NotificationItem {
 
 interface InboxProps {
   onTaskClick: (taskId: string) => void;
+  onProjectClick?: (projectId: string, tab?: 'overview' | 'tasks' | 'milestones' | 'members' | 'burndown' | 'settings') => void;
+  onNavigate?: (view: any) => void;
 }
 
-export default function Inbox({ onTaskClick }: InboxProps) {
+export default function Inbox({ onTaskClick, onProjectClick, onNavigate }: InboxProps) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'all' | 'unread' | 'assigned' | 'comments'>('all');
+  const [tab, setTab] = useState<'all' | 'unread' | 'requests' | 'assigned' | 'comments'>('all');
   const toast = useToast();
 
   const fetchNotifications = useCallback(async (signal?: AbortSignal) => {
@@ -87,9 +90,44 @@ export default function Inbox({ onTaskClick }: InboxProps) {
     }
   };
 
-  const handleNotificationClick = (item: NotificationItem) => {
+  const resolveAndNavigateToProject = async (item: NotificationItem) => {
+    let pid = item.projectId || (item.taskId && !item.taskId.startsWith('t') ? item.taskId : null) || (item.type === 'join_request' || item.title?.toLowerCase().includes('join request') ? item.taskId : null);
+
+    if (!pid) {
+      // Extract project name inside quotes, e.g. Rasel has requested to join "CRM System"
+      const match = item.body?.match(/"([^"]+)"/)?.[1];
+      if (match) {
+        try {
+          const res = await fetch('/api/projects');
+          const json = await res.json();
+          const list = Array.isArray(json.data) ? json.data : (Array.isArray(json) ? json : []);
+          const found = list.find((p: any) => p.name?.trim().toLowerCase() === match.trim().toLowerCase());
+          if (found?.id) {
+            pid = found.id;
+          }
+        } catch (err) {
+          console.warn('[Inbox] Failed to lookup project by name:', err);
+        }
+      }
+    }
+
+    if (pid && onProjectClick) {
+      onProjectClick(pid, 'overview');
+    } else if (onNavigate) {
+      onNavigate('projects');
+    } else {
+      toast.info('Opening projects...');
+    }
+  };
+
+  const handleNotificationClick = async (item: NotificationItem) => {
     if (!item.read) {
       markAsRead(item.id, true);
+    }
+    const isJoinRequest = item.type === 'join_request' || item.title?.toLowerCase().includes('join request');
+    if (isJoinRequest) {
+      await resolveAndNavigateToProject(item);
+      return;
     }
     if (item.taskId) {
       onTaskClick(item.taskId);
@@ -97,15 +135,29 @@ export default function Inbox({ onTaskClick }: InboxProps) {
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
+  const requestsCount = notifications.filter(n => n.type === 'join_request' || n.title?.toLowerCase().includes('join request')).length;
 
   const filteredNotifications = notifications.filter(item => {
     if (tab === 'unread') return !item.read;
+    if (tab === 'requests') return item.type === 'join_request' || item.title?.toLowerCase().includes('join request');
     if (tab === 'assigned') return item.type === 'task_assigned';
     if (tab === 'comments') return item.type === 'comment_mention';
     return true;
   });
 
-  const getIconForType = (type: string) => {
+  const getIconForType = (type: string, title?: string) => {
+    if (type === 'join_request' || title?.toLowerCase().includes('join request')) {
+      return (
+        <div className="w-8 h-8 rounded-lg bg-[#FEF3C7] text-[#D97706] flex items-center justify-center shrink-0">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="8.5" cy="7" r="4" />
+            <line x1="20" y1="8" x2="20" y2="14" />
+            <line x1="23" y1="11" x2="17" y2="11" />
+          </svg>
+        </div>
+      );
+    }
     switch (type) {
       case 'task_assigned':
         return (
@@ -191,6 +243,19 @@ export default function Inbox({ onTaskClick }: InboxProps) {
         >
           Unread ({unreadCount})
         </button>
+        {requestsCount > 0 && (
+          <button
+            onClick={() => setTab('requests')}
+            className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap shrink-0 transition-colors flex items-center gap-1.5 ${
+              tab === 'requests' ? 'bg-white shadow-2xs text-[#D97706]' : 'text-[rgba(17,17,17,0.5)] hover:text-[#D97706]'
+            }`}
+          >
+            <span>Requests</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10.5px] font-semibold bg-[#FEF3C7] text-[#B45309]">
+              {requestsCount}
+            </span>
+          </button>
+        )}
         <button
           onClick={() => setTab('assigned')}
           className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap shrink-0 transition-colors ${
@@ -241,34 +306,43 @@ export default function Inbox({ onTaskClick }: InboxProps) {
             </p>
           </div>
         ) : (
-          filteredNotifications.map(item => (
-            <div
-              key={item.id}
-              onClick={() => handleNotificationClick(item)}
-              className={`flex items-start gap-4 px-6 py-4 transition-colors cursor-pointer group ${
-                !item.read ? 'bg-[#FAFCFF] hover:bg-[#F4F8FF]' : 'bg-white hover:bg-[#F9FAFB]'
-              }`}
-            >
-              {/* Type Icon */}
-              {getIconForType(item.type)}
+          filteredNotifications.map(item => {
+            const isJoinRequest = item.type === 'join_request' || item.title?.toLowerCase().includes('join request');
+            return (
+              <div
+                key={item.id}
+                onClick={() => handleNotificationClick(item)}
+                className={`flex items-start gap-4 px-6 py-4 transition-colors cursor-pointer group ${
+                  !item.read ? 'bg-[#FAFCFF] hover:bg-[#F4F8FF]' : 'bg-white hover:bg-[#F9FAFB]'
+                }`}
+              >
+                {/* Type Icon */}
+                {getIconForType(item.type, item.title)}
 
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  {!item.read && (
-                    <span className="w-2 h-2 rounded-full bg-[#2563EB] shrink-0" />
-                  )}
-                  <h4 className="text-[13.5px] font-semibold text-[#111111] truncate">
-                    {item.title}
-                  </h4>
-                  <span className="text-[12px] text-[rgba(17,17,17,0.4)] shrink-0 ml-auto">
-                    {item.timeAgo}
-                  </span>
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    {!item.read && (
+                      <span className="w-2 h-2 rounded-full bg-[#2563EB] shrink-0" />
+                    )}
+                    <h4 className="text-[13.5px] font-semibold text-[#111111] truncate">
+                      {item.title}
+                    </h4>
+                    {isJoinRequest && (
+                      <span className="px-2 py-0.5 rounded text-[10.5px] font-semibold bg-[#FEF3C7] text-[#B45309] border border-[#FDE68A] shrink-0">
+                        Join Request
+                      </span>
+                    )}
+                    <span className="text-[12px] text-[rgba(17,17,17,0.4)] shrink-0 ml-auto">
+                      {item.timeAgo}
+                    </span>
+                  </div>
+                  <p className="text-[13px] text-[rgba(17,17,17,0.7)] leading-relaxed">
+                    {item.body}
+                  </p>
+
+
                 </div>
-                <p className="text-[13px] text-[rgba(17,17,17,0.7)] leading-relaxed">
-                  {item.body}
-                </p>
-              </div>
 
               {/* Action: Toggle Read */}
               <div className="shrink-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -287,8 +361,9 @@ export default function Inbox({ onTaskClick }: InboxProps) {
                 </button>
               </div>
             </div>
-          ))
-        )}
+          );
+        })
+      )}
       </div>
     </div>
   );

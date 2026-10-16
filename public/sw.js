@@ -32,6 +32,8 @@ self.addEventListener('install', (event) => {
   );
 });
 
+
+
 // ── Activate: remove stale caches ────────────────────────────────────────
 self.addEventListener('activate', (event) => {
   const VALID_CACHES = new Set([CACHE_NAME, STATIC_CACHE, API_CACHE]);
@@ -179,3 +181,13 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
+
+
+
+
+
+
+
+
+
+

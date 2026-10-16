@@ -16,7 +16,6 @@ function Skeleton({
 export function TaskRowSkeleton() {
   return (
     <div className="flex items-center gap-3 px-5 py-3.5 border-b border-[#F3F4F6] animate-pulse">
-      <div className="w-4 h-4 rounded bg-[#E5E7EB] shrink-0" />
       <div className="flex-1 min-w-0 space-y-1.5">
         <div className="h-4 bg-[#E5E7EB] rounded w-2/3" />
         <div className="h-3 bg-[#F3F4F6] rounded w-20" />

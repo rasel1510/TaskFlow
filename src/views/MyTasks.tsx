@@ -485,12 +485,6 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
         <div className="hidden md:block bg-white border border-[#E5E7EB] rounded-xl">
           {/* Table header */}
           <div className="flex items-center gap-3 px-5 py-3 bg-[#F9FAFB] border-b border-[#E5E7EB] rounded-t-xl text-[11.5px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)]">
-            <input
-              type="checkbox"
-              checked={selected.size === filtered.length && filtered.length > 0}
-              onChange={selectAll}
-              className="w-4 h-4 rounded border-[#D1D5DB] accent-[#2563EB]"
-            />
             <span className="flex-1">Task</span>
             <span className="w-32">Project</span>
             <span className="w-28">Status</span>
@@ -548,7 +542,6 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
                   selected.has(task.id) ? 'bg-[#FAFBFF]' : ''
                 } ${i < filtered.length - 1 ? 'border-b border-[#F3F4F6]' : 'rounded-b-xl'}`}
               >
-                <input type="checkbox" checked={selected.has(task.id)} onClick={e => toggleSelect(task.id, e)} onChange={() => {}} className="w-4 h-4 rounded border-[#D1D5DB] accent-[#2563EB]" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className={`text-[13.5px] font-medium text-[#111111] truncate ${task.status === 'done' ? 'line-through opacity-50' : ''}`}>{task.title}</span>
@@ -610,15 +603,7 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
                   selected.has(task.id) ? 'border-[#93C5FD] bg-[#FAFBFF]' : ''
                 }`}
               >
-                {/* Top row: checkbox + title + actions */}
                 <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(task.id)}
-                    onClick={e => toggleSelect(task.id, e)}
-                    onChange={() => {}}
-                    className="w-4 h-4 rounded border-[#D1D5DB] accent-[#2563EB] mt-0.5 shrink-0"
-                  />
                   <div className="flex-1 min-w-0">
                     <p className={`text-[14px] font-medium text-[#111111] leading-snug ${task.status === 'done' ? 'line-through opacity-50' : ''}`}>
                       {task.title}

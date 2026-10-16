@@ -46,6 +46,7 @@ export default function AppPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [projectDetailTab, setProjectDetailTab] = useState<'overview' | 'tasks' | 'milestones' | 'members' | 'burndown' | 'settings'>('overview');
   const [showCreateTask, setShowCreateTask] = useState(false);
   const [createTaskDate, setCreateTaskDate] = useState<string | undefined>(undefined);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -128,9 +129,19 @@ export default function AppPage() {
     return null;
   }
 
+  const handleOpenProject = (
+    projectId: string,
+    tab: 'overview' | 'tasks' | 'milestones' | 'members' | 'burndown' | 'settings' = 'overview'
+  ) => {
+    setSelectedProjectId(projectId);
+    setProjectDetailTab(tab);
+    setView('project-detail');
+  };
+
   const navigateTo = (v: View) => {
     if (v !== 'project-detail') {
       setSelectedProjectId(null);
+      setProjectDetailTab('overview');
     }
     setView(v);
   };
@@ -147,18 +158,17 @@ export default function AppPage() {
         return (
           <Projects
             onViewChange={v => setView(v)}
-            onSelectProject={id => {
-              setSelectedProjectId(id);
-              setView('project-detail');
-            }}
+            onSelectProject={id => handleOpenProject(id, 'overview')}
           />
         );
       case 'project-detail':
         return selectedProjectId ? (
           <ProjectDetail
             projectId={selectedProjectId}
+            initialTab={projectDetailTab}
             onBack={() => {
               setSelectedProjectId(null);
+              setProjectDetailTab('overview');
               setView('projects');
             }}
             onTaskClick={setSelectedTask}
@@ -167,10 +177,7 @@ export default function AppPage() {
         ) : (
           <Projects
             onViewChange={v => setView(v)}
-            onSelectProject={id => {
-              setSelectedProjectId(id);
-              setView('project-detail');
-            }}
+            onSelectProject={id => handleOpenProject(id, 'overview')}
           />
         );
       case 'calendar':
@@ -194,7 +201,13 @@ export default function AppPage() {
           />
         );
       case 'inbox':
-        return <Inbox onTaskClick={setSelectedTask} />;
+        return (
+          <Inbox
+            onTaskClick={setSelectedTask}
+            onProjectClick={handleOpenProject}
+            onNavigate={navigateTo}
+          />
+        );
       case 'reports':
         return <Reports />;
       case 'settings':
@@ -235,6 +248,8 @@ export default function AppPage() {
             onOpenCopilot={() => setIsCopilotOpen(true)}
             onNavigate={navigateTo}
             onOpenPWA={() => setIsPWAModalOpen(true)}
+            onTaskClick={setSelectedTask}
+            onProjectClick={handleOpenProject}
           />
           {/* Main content area — on mobile, reserve space for the bottom nav (56px) */}
           <main className="flex flex-1 overflow-hidden min-h-0">

@@ -23,6 +23,7 @@ export interface DemoNotification {
   title: string;
   body: string;
   taskId?: string | null;
+  projectId?: string | null;
   actor?: { name: string; avatar: string };
   meta?: string;
   read: boolean;
@@ -240,9 +241,31 @@ export async function GET(request: NextRequest) {
 
           if (items.length > 0 || totalCount > 0) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const formatted = items.map((n: any) => ({
-              ...n,
-              timeAgo: timeAgo(n.createdAt),
+            const formatted = await Promise.all(items.map(async (n: any) => {
+              let projectId = n.projectId || null;
+              const isJoinReq = n.type === 'join_request' || (n.title && n.title.toLowerCase().includes('join request'));
+              if (isJoinReq) {
+                if (n.taskId && !n.taskId.startsWith('t')) {
+                  projectId = n.taskId;
+                } else if (!projectId) {
+                  const match = n.body?.match(/"([^"]+)"/);
+                  if (match && match[1]) {
+                    try {
+                      const foundProj = await prisma.project.findFirst({
+                        where: { name: match[1] },
+                        select: { id: true },
+                      });
+                      if (foundProj) projectId = foundProj.id;
+                    } catch {}
+                  }
+                }
+              }
+
+              return {
+                ...n,
+                projectId,
+                timeAgo: timeAgo(n.createdAt),
+              };
             }));
 
             return {

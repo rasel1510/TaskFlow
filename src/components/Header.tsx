@@ -16,6 +16,7 @@ interface HeaderNotificationItem {
   action?: string;
   target?: string;
   taskId?: string | null;
+  projectId?: string | null;
   meta?: string;
 }
 
@@ -85,6 +86,16 @@ function getNotificationMeta(n: HeaderNotificationItem) {
       badge: 'Mention',
       badgeClass: 'bg-[#F5F3FF] text-[#7C3AED]',
       iconType: 'mention',
+    };
+  }
+
+  // 2.5 Join Requests
+  if (type.includes('join_request') || title.includes('join request')) {
+    return {
+      tab: 'projects' as const,
+      badge: 'Join Request',
+      badgeClass: 'bg-[#FEF3C7] text-[#B45309] border border-[#FDE68A]',
+      iconType: 'join_request',
     };
   }
 
@@ -161,9 +172,20 @@ interface HeaderProps {
   onOpenCopilot?: () => void;
   onNavigate?: (view: View) => void;
   onOpenPWA?: () => void;
+  onTaskClick?: (taskId: string) => void;
+  onProjectClick?: (projectId: string, tab?: 'overview' | 'tasks' | 'milestones' | 'members' | 'burndown' | 'settings') => void;
 }
 
-export default function Header({ currentView, onMenuToggle, onOpenCommandPalette, onOpenCopilot, onNavigate, onOpenPWA }: HeaderProps) {
+export default function Header({
+  currentView,
+  onMenuToggle,
+  onOpenCommandPalette,
+  onOpenCopilot,
+  onNavigate,
+  onOpenPWA,
+  onTaskClick,
+  onProjectClick,
+}: HeaderProps) {
   const [showNotifs, setShowNotifs] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [expertiseRequired, setExpertiseRequired] = useState(false);
@@ -459,8 +481,35 @@ export default function Header({ currentView, onMenuToggle, onOpenCommandPalette
                       return (
                         <div
                           key={n.id}
-                          onClick={() => {
+                          onClick={async () => {
                             if (!n.read) markAsRead(n.id, true);
+                            setShowNotifs(false);
+                            const isJoinRequest = n.type === 'join_request' || n.title?.toLowerCase().includes('join request');
+                            if (isJoinRequest) {
+                              let pid = n.projectId || (n.taskId && !n.taskId.startsWith('t') ? n.taskId : null) || (isJoinRequest ? n.taskId : null);
+                              if (!pid) {
+                                const match = n.body?.match(/"([^"]+)"/)?.[1];
+                                if (match) {
+                                  try {
+                                    const res = await fetch('/api/projects');
+                                    const json = await res.json();
+                                    const list = Array.isArray(json.data) ? json.data : (Array.isArray(json) ? json : []);
+                                    const found = list.find((p: any) => p.name?.trim().toLowerCase() === match.trim().toLowerCase());
+                                    if (found?.id) pid = found.id;
+                                  } catch {}
+                                }
+                              }
+                              if (pid && onProjectClick) {
+                                onProjectClick(pid, 'overview');
+                                return;
+                              } else if (onNavigate) {
+                                onNavigate('projects');
+                                return;
+                              }
+                            }
+                            if (n.taskId && onTaskClick) {
+                              onTaskClick(n.taskId);
+                            }
                           }}
                           className={`group flex items-start gap-3 px-4 py-3 transition-colors cursor-pointer ${
                             !n.read ? 'bg-[#FAFCFF] hover:bg-[#F0F6FF]' : 'hover:bg-[#F9FAFB]'
@@ -475,6 +524,15 @@ export default function Header({ currentView, onMenuToggle, onOpenCommandPalette
                             ) : n.user?.avatar ? (
                               <div className="w-7 h-7 rounded-full bg-[#E5E7EB] flex items-center justify-center text-[10px] font-bold text-[#111111]">
                                 {n.user.avatar}
+                              </div>
+                            ) : meta.iconType === 'join_request' ? (
+                              <div className="w-7 h-7 rounded-full bg-[#FEF3C7] text-[#D97706] flex items-center justify-center shrink-0">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                  <circle cx="8.5" cy="7" r="4" />
+                                  <line x1="20" y1="8" x2="20" y2="14" />
+                                  <line x1="23" y1="11" x2="17" y2="11" />
+                                </svg>
                               </div>
                             ) : meta.iconType === 'task' ? (
                               <div className="w-7 h-7 rounded-full bg-[#EFF6FF] text-[#2563EB] flex items-center justify-center shrink-0">

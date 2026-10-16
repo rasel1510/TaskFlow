@@ -165,6 +165,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           type: 'join_request',
           title: 'New Project Join Request',
           body: `${session.user?.name || 'A user'} has requested to join "${project.name}"`,
+          taskId: projectId,
         },
       });
     } catch (notifErr) {

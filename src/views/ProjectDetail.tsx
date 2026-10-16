@@ -60,6 +60,7 @@ interface ProjectDetailProps {
   onBack: () => void;
   onTaskClick: (taskId: string) => void;
   onCreateTask?: (projectId: string) => void;
+  initialTab?: 'overview' | 'tasks' | 'milestones' | 'members' | 'burndown' | 'settings';
 }
 
 export default function ProjectDetail({
@@ -67,10 +68,11 @@ export default function ProjectDetail({
   onBack,
   onTaskClick,
   onCreateTask,
+  initialTab = 'overview',
 }: ProjectDetailProps) {
   const [project, setProject] = useState<ProjectData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'milestones' | 'members' | 'burndown' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'milestones' | 'members' | 'burndown' | 'settings'>(initialTab);
   const [taskSearch, setTaskSearch] = useState('');
   const [taskStatusFilter, setTaskStatusFilter] = useState('all');
 
@@ -336,6 +338,24 @@ export default function ProjectDetail({
   }, [fetchProject]);
 
   useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
+  useEffect(() => {
+    if (activeTab === 'members') {
+      const timer = setTimeout(() => {
+        const el = document.getElementById('pending-requests');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
     if (activeTab === 'milestones') fetchMilestones();
     if (activeTab === 'members') {
       fetchMembers();
@@ -589,7 +609,7 @@ export default function ProjectDetail({
             { key: 'overview', label: 'Overview' },
             { key: 'tasks', label: `Tasks (${project.totalTasks})` },
             { key: 'milestones', label: 'Roadmap' },
-            { key: 'members', label: 'Team & RBAC' },
+            { key: 'members', label: 'Team' },
             { key: 'burndown', label: 'Burndown' },
           ] as { key: typeof activeTab; label: string }[]).map(({ key, label }) => (
             <button
@@ -816,21 +836,23 @@ export default function ProjectDetail({
           </div>
         )}
 
-        {/* Tab 4: Team & RBAC with Expertise Matrix & Join Requests */}
+        {/* Tab 4: Team with Expertise Matrix & Join Requests */}
         {activeTab === 'members' && (
           <div className="space-y-6">
             {/* Pending Join Requests (Visible to Project Manager / Owner / Admin) */}
-            {isPMOrOwner && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-[14px] font-bold text-[#111111]">Pending Project Requests</h4>
-                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
-                    joinRequests.filter(r => r.status === 'pending').length > 0
-                      ? 'bg-[#FEF3C7] text-[#D97706] border border-[#FDE68A]'
-                      : 'bg-[#F3F4F6] text-[#6B7280]'
-                  }`}>
-                    {joinRequests.filter(r => r.status === 'pending').length}
-                  </span>
+            {(isPMOrOwner || joinRequests.some(r => r.status === 'pending')) && (
+              <div id="pending-requests" className="space-y-3 scroll-mt-6 p-4 rounded-2xl bg-gradient-to-r from-[#FFFDF5] to-[#FEFDF0] border border-[#FDE68A] shadow-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-[14px] font-bold text-[#111111]">Pending Project Requests</h4>
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                      joinRequests.filter(r => r.status === 'pending').length > 0
+                        ? 'bg-[#FEF3C7] text-[#D97706] border border-[#FDE68A]'
+                        : 'bg-[#F3F4F6] text-[#6B7280]'
+                    }`}>
+                      {joinRequests.filter(r => r.status === 'pending').length}
+                    </span>
+                  </div>
                 </div>
 
                 {joinRequestsLoading ? (
@@ -1371,9 +1393,6 @@ export default function ProjectDetail({
                     Project Manager
                   </span>
                 </h3>
-                <p className="text-[12px] text-[rgba(17,17,17,0.5)] mt-0.5">
-                  Select the required expertise skills you need for this project to match and add qualified users.
-                </p>
               </div>
               <button
                 type="button"
