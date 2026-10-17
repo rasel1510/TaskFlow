@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import { healthColors, statusColors, priorityColors, type ProjectHealth, type Status, type Priority } from '@/data/mockData';
+import { healthColors, statusColors, priorityColors, currentUser, type ProjectHealth, type Status, type Priority } from '@/data/mockData';
 import { useToast } from '@/components/ui/Toast';
 import { LIFECYCLE_STATE_CONFIG, validateLifecycleTransition, type ProjectLifecycleState } from '@/lib/projectLifecycle';
 import { ROLE_DESCRIPTIONS, type ProjectRole } from '@/lib/permissions';
 import type { MilestoneRecord } from '@/api/projects/[id]/milestones/route';
 import type { MemberRecord } from '@/api/projects/[id]/members/route';
 import type { BurndownResult } from '@/api/projects/[id]/burndown/route';
+import type { ProjectMessage } from '@/api/projects/[id]/messages/route';
 import DatePicker from '@/components/ui/DatePicker';
 
 interface ProjectTask {
@@ -60,7 +61,7 @@ interface ProjectDetailProps {
   onBack: () => void;
   onTaskClick: (taskId: string) => void;
   onCreateTask?: (projectId: string) => void;
-  initialTab?: 'overview' | 'tasks' | 'milestones' | 'members' | 'burndown' | 'settings';
+  initialTab?: 'overview' | 'tasks' | 'milestones' | 'members' | 'messages' | 'burndown' | 'settings';
 }
 
 function getTwoLetterCapital(name?: string | null, fallbackAvatar?: string | null): string {
@@ -151,9 +152,20 @@ export default function ProjectDetail({
 }: ProjectDetailProps) {
   const [project, setProject] = useState<ProjectData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'milestones' | 'members' | 'burndown' | 'settings'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'milestones' | 'members' | 'messages' | 'burndown' | 'settings'>(initialTab);
   const [taskSearch, setTaskSearch] = useState('');
   const [taskStatusFilter, setTaskStatusFilter] = useState('all');
+
+  // Messages state (Team Chat)
+  const [messages, setMessages] = useState<ProjectMessage[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [messageText, setMessageText] = useState('');
+  const [attachedImage, setAttachedImage] = useState<{ dataUrl: string; name: string; size: number } | null>(null);
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [chatSearch, setChatSearch] = useState('');
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; name?: string } | null>(null);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Milestones state
   const [milestones, setMilestones] = useState<MilestoneRecord[]>([]);
@@ -223,7 +235,9 @@ export default function ProjectDetail({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (memberToRemove && !isRemovingMember) {
+        if (lightboxImage) {
+          setLightboxImage(null);
+        } else if (memberToRemove && !isRemovingMember) {
           setMemberToRemove(null);
         } else if (showDeleteModal && !isDeletingProject) {
           setShowDeleteModal(false);
@@ -234,7 +248,7 @@ export default function ProjectDetail({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [memberToRemove, isRemovingMember, showDeleteModal, isDeletingProject, showAddMemberModal]);
+  }, [lightboxImage, memberToRemove, isRemovingMember, showDeleteModal, isDeletingProject, showAddMemberModal]);
 
   const fetchProject = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -441,7 +455,203 @@ export default function ProjectDetail({
       fetchJoinRequests();
     }
     if (activeTab === 'burndown') fetchBurndown();
+    if (activeTab === 'messages') {
+      fetchMessages();
+      fetchMembers();
+    }
   }, [activeTab, fetchMilestones, fetchMembers, fetchJoinRequests, fetchBurndown]);
+
+  const fetchMessages = useCallback(async (signal?: AbortSignal) => {
+    try {
+      setMessagesLoading(true);
+      const res = await fetch(`/api/projects/${projectId}/messages`, { signal });
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setMessages(json.data);
+      }
+    } catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') return;
+      console.warn('[ProjectDetail] Messages fetch error:', e);
+    } finally {
+      setMessagesLoading(false);
+    }
+  }, [projectId]);
+
+  // Real-time Server-Sent Events (SSE) stream for instant live delivery
+  useEffect(() => {
+    if (activeTab !== 'messages') return;
+
+    let es: EventSource | null = null;
+    try {
+      es = new EventSource(`/api/projects/${projectId}/messages/stream`);
+
+      es.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.type === 'message:created' && payload.data) {
+            const newMsg: ProjectMessage = payload.data;
+            setMessages(prev => {
+              // Avoid duplicate if already added by sender's optimistic update
+              if (prev.some(m => m.id === newMsg.id)) return prev;
+              return [...prev, newMsg];
+            });
+          } else if (payload.type === 'message:updated' && payload.data) {
+            const updatedMsg: ProjectMessage = payload.data;
+            setMessages(prev => prev.map(m => (m.id === updatedMsg.id ? updatedMsg : m)));
+          } else if (payload.type === 'message:deleted' && payload.data?.id) {
+            const deletedId = payload.data.id;
+            setMessages(prev => prev.filter(m => m.id !== deletedId));
+          }
+        } catch {
+          // Non-JSON stream chunk or ping
+        }
+      };
+
+      es.onerror = () => {
+        // Handled silently
+      };
+    } catch (err) {
+      console.warn('[SSE] EventSource init failed:', err);
+    }
+
+    return () => {
+      if (es) {
+        es.close();
+      }
+    };
+  }, [activeTab, projectId]);
+
+  // Scroll to bottom when messages change or tab opens
+  useEffect(() => {
+    if (activeTab === 'messages' && !messagesLoading) {
+      chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [activeTab, messagesLoading, messages.length]);
+
+  const handleImageFileSelected = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file (PNG, JPG, WebP, GIF)');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image size must be under 10MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      if (dataUrl) {
+        setAttachedImage({
+          dataUrl,
+          name: file.name,
+          size: file.size,
+        });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleChatPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (items) {
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            e.preventDefault();
+            handleImageFileSelected(file);
+            return;
+          }
+        }
+      }
+    }
+  };
+
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!messageText.trim() && !attachedImage) return;
+
+    try {
+      setSendingMessage(true);
+      const res = await fetch(`/api/projects/${projectId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: messageText.trim(),
+          imageUrl: attachedImage?.dataUrl || null,
+          imageName: attachedImage?.name || null,
+          imageSize: attachedImage?.size || null,
+        }),
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        setMessages(prev => [...prev, json.data]);
+        setMessageText('');
+        setAttachedImage(null);
+        setTimeout(() => {
+          chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 80);
+      } else {
+        toast.error(json.error || 'Failed to send message');
+      }
+    } catch (err) {
+      console.error('[ProjectDetail] Send message error:', err);
+      toast.error('Failed to send message');
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  const handleToggleReaction = async (messageId: string, emoji: string) => {
+    const uid = currentUserId || currentUser.id;
+    setMessages(prev =>
+      prev.map(m => {
+        if (m.id !== messageId) return m;
+        const reactions = { ...(m.reactions || {}) };
+        const userList = reactions[emoji] || [];
+        if (userList.includes(uid)) {
+          reactions[emoji] = userList.filter(id => id !== uid);
+          if (reactions[emoji].length === 0) delete reactions[emoji];
+        } else {
+          reactions[emoji] = [...userList, uid];
+        }
+        return { ...m, reactions };
+      })
+    );
+
+    try {
+      await fetch(`/api/projects/${projectId}/messages`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId, emoji }),
+      });
+    } catch (err) {
+      console.error('[ProjectDetail] Reaction error:', err);
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    setMessages(prev => prev.filter(m => m.id !== messageId));
+    try {
+      await fetch(`/api/projects/${projectId}/messages?messageId=${messageId}`, {
+        method: 'DELETE',
+      });
+      toast.success('Message deleted');
+    } catch (err) {
+      console.error('[ProjectDetail] Delete message error:', err);
+      toast.error('Failed to delete message');
+    }
+  };
+
+  const filteredMessages = messages.filter(m => {
+    if (!chatSearch.trim()) return true;
+    const q = chatSearch.toLowerCase();
+    return (
+      m.content?.toLowerCase().includes(q) ||
+      m.userName.toLowerCase().includes(q) ||
+      m.imageName?.toLowerCase().includes(q)
+    );
+  });
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -689,6 +899,7 @@ export default function ProjectDetail({
             { key: 'tasks', label: `Tasks (${project.totalTasks})` },
             { key: 'milestones', label: 'Roadmap' },
             { key: 'members', label: 'Team' },
+            { key: 'messages', label: `Messages${messages.length > 0 ? ` (${messages.length})` : ''}` },
             { key: 'burndown', label: 'Burndown' },
           ] as { key: typeof activeTab; label: string }[]).map(({ key, label }) => (
             <button
@@ -708,30 +919,32 @@ export default function ProjectDetail({
 
       {/* Main Tab Content */}
       <div className="flex-1 p-4 sm:p-6 max-w-6xl w-full mx-auto space-y-5 sm:space-y-6">
-        {/* KPI Metric Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFB]">
-            <span className="text-[12px] font-medium text-[rgba(17,17,17,0.5)]">Total Tasks</span>
-            <div className="text-[22px] font-bold text-[#111111] mt-1">{project.totalTasks}</div>
-          </div>
-          <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFB]">
-            <span className="text-[12px] font-medium text-[rgba(17,17,17,0.5)]">Completed</span>
-            <div className="text-[22px] font-bold text-[#16A34A] mt-1">
-              {project.completedTasks}
-              <span className="text-[12px] font-normal text-[rgba(17,17,17,0.4)] ml-1.5">
-                ({project.completionRate}%)
-              </span>
+        {/* KPI Metric Cards — shown when not in Messages tab */}
+        {activeTab !== 'messages' && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFB]">
+              <span className="text-[12px] font-medium text-[rgba(17,17,17,0.5)]">Total Tasks</span>
+              <div className="text-[22px] font-bold text-[#111111] mt-1">{project.totalTasks}</div>
+            </div>
+            <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFB]">
+              <span className="text-[12px] font-medium text-[rgba(17,17,17,0.5)]">Completed</span>
+              <div className="text-[22px] font-bold text-[#16A34A] mt-1">
+                {project.completedTasks}
+                <span className="text-[12px] font-normal text-[rgba(17,17,17,0.4)] ml-1.5">
+                  ({project.completionRate}%)
+                </span>
+              </div>
+            </div>
+            <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFB]">
+              <span className="text-[12px] font-medium text-[rgba(17,17,17,0.5)]">In Progress</span>
+              <div className="text-[22px] font-bold text-[#2563EB] mt-1">{project.inProgressTasks}</div>
+            </div>
+            <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFB]">
+              <span className="text-[12px] font-medium text-[rgba(17,17,17,0.5)]">Overdue</span>
+              <div className="text-[22px] font-bold text-[#DC2626] mt-1">{project.overdueTasks}</div>
             </div>
           </div>
-          <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFB]">
-            <span className="text-[12px] font-medium text-[rgba(17,17,17,0.5)]">In Progress</span>
-            <div className="text-[22px] font-bold text-[#2563EB] mt-1">{project.inProgressTasks}</div>
-          </div>
-          <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFB]">
-            <span className="text-[12px] font-medium text-[rgba(17,17,17,0.5)]">Overdue</span>
-            <div className="text-[22px] font-bold text-[#DC2626] mt-1">{project.overdueTasks}</div>
-          </div>
-        </div>
+        )}
 
         {/* Tab 1: Overview */}
         {activeTab === 'overview' && (
@@ -1160,13 +1373,6 @@ export default function ProjectDetail({
                   ))}
                 </div>
 
-                {/* SLA status banner */}
-                <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-[13px] font-medium ${burndown.isOnTrack ? 'bg-[#ECFDF5] border-[#D1FAE5] text-emerald-700' : 'bg-[#FEF2F2] border-[#FECACA] text-[#DC2626]'}`}>
-                  <span>{burndown.isOnTrack ? '✅ On Track — within SLA' : '⚠️ At Risk — velocity below target'}</span>
-                  {burndown.daysUntilForecastedCompletion !== null && (
-                    <span className="ml-auto text-[12px] opacity-70">~{burndown.daysUntilForecastedCompletion}d to projected completion</span>
-                  )}
-                </div>
 
                 {/* SVG Burndown Chart */}
                 {burndown.series.length > 1 && (
@@ -1444,6 +1650,360 @@ export default function ProjectDetail({
                   Only Project Managers can permanently delete projects.
                 </p>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 6: Messages & Team Chat */}
+        {activeTab === 'messages' && (
+          <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-xs flex flex-col h-[700px] overflow-hidden">
+            {/* Chat Channel Header */}
+            <div className="px-5 py-3 border-b border-[#F1F3F5] bg-white flex items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center shrink-0 border border-blue-100 shadow-2xs">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-[15px] font-bold text-[#111111] truncate">#{project.name}</h3>
+                  <p className="text-[12px] text-slate-500 truncate">
+                    Direct communication &amp; image sharing for all project contributors
+                  </p>
+                </div>
+              </div>
+
+              {/* Search & Team Participants */}
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="relative hidden sm:block">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.2" className="absolute left-2.5 top-1/2 -translate-y-1/2">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                  </svg>
+                  <input
+                    type="text"
+                    value={chatSearch}
+                    onChange={e => setChatSearch(e.target.value)}
+                    placeholder="Search messages..."
+                    className="pl-8 pr-3 py-1.5 rounded-lg border border-[#E5E7EB] text-[12px] bg-[#FAFAFB] focus:bg-white placeholder-[#9CA3AF] outline-none focus:border-[#2563EB] w-36 sm:w-44 transition-colors"
+                  />
+                  {chatSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setChatSearch('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-[11px]"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Team member avatars */}
+                {members.length > 0 && (
+                  <div className="hidden sm:flex items-center -space-x-2 pl-1" title={`${members.length} team members in channel`}>
+                    {members.slice(0, 4).map(m => (
+                      <div key={m.userId} className="ring-2 ring-white rounded-full">
+                        {renderUserAvatar(m.avatar, m.name, 'w-7 h-7', 'bg-[#EFF6FF] text-[#2563EB] text-[10px] font-bold border border-blue-200 shadow-2xs')}
+                      </div>
+                    ))}
+                    {members.length > 4 && (
+                      <span className="w-7 h-7 rounded-full bg-slate-100 text-[10px] font-semibold text-slate-600 flex items-center justify-center ring-2 ring-white border border-slate-200">
+                        +{members.length - 4}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Message Stream */}
+            <div
+              className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-2 bg-white"
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => {
+                e.preventDefault();
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                  handleImageFileSelected(e.dataTransfer.files[0]);
+                }
+              }}
+            >
+              {messagesLoading && messages.length === 0 ? (
+                <div className="py-24 flex flex-col items-center justify-center gap-2.5 text-slate-400 text-[13px]">
+                  <div className="w-5 h-5 border-2 border-[#2563EB] border-t-transparent rounded-full animate-spin" />
+                  Loading project conversation...
+                </div>
+              ) : filteredMessages.length === 0 ? (
+                <div className="py-20 text-center text-[13px] text-slate-400 space-y-2.5">
+                  <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 shadow-2xs">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                  </div>
+                  <p className="font-semibold text-slate-700">
+                    {chatSearch ? 'No messages match your search filter.' : 'No messages yet in this project.'}
+                  </p>
+                  <p className="text-[12px] text-slate-400 max-w-xs mx-auto">
+                    {chatSearch ? 'Try a different keyword.' : 'Be the first to share an update or project image with the team!'}
+                  </p>
+                </div>
+              ) : (
+                filteredMessages.map((m, idx) => {
+                  const isCurrentUser = m.userId === currentUserId || m.userEmail === currentUser.email;
+                  const canDelete = isCurrentUser || isPM;
+                  const dateStr = new Date(m.createdAt).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  });
+                  const prevMsg = filteredMessages[idx - 1];
+                  const prevDateStr = prevMsg
+                    ? new Date(prevMsg.createdAt).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })
+                    : null;
+                  const showDateDivider = dateStr !== prevDateStr;
+
+                  return (
+                    <React.Fragment key={m.id}>
+                      {showDateDivider && (
+                        <div className="flex items-center gap-3 my-5">
+                          <div className="flex-1 h-px bg-slate-200/80" />
+                          <span className="text-[11px] font-semibold text-slate-500 px-3 py-0.5 rounded-full bg-slate-50 border border-slate-200/90 shadow-2xs">
+                            {dateStr}
+                          </span>
+                          <div className="flex-1 h-px bg-slate-200/80" />
+                        </div>
+                      )}
+
+                      <div className="relative group rounded-xl px-3.5 py-2.5 hover:bg-slate-50/90 transition-colors flex items-start gap-3">
+                        {/* Sender Avatar */}
+                        {renderUserAvatar(m.userAvatar, m.userName, 'w-8 h-8', 'bg-blue-50 text-[#2563EB] text-[11px] font-bold border border-blue-200/90 shadow-2xs shrink-0 mt-0.5')}
+
+                        <div className="flex-1 min-w-0">
+                          {/* Sender info */}
+                          <div className="flex items-center gap-2 flex-wrap pr-20 sm:pr-24">
+                            <span className="text-[13px] font-semibold text-slate-900 tracking-tight">
+                              {m.userName}
+                            </span>
+                            {m.userRole && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200/80">
+                                {m.userRole}
+                              </span>
+                            )}
+                            {isCurrentUser && (
+                              <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-blue-50 text-[#2563EB] border border-blue-200">
+                                You
+                              </span>
+                            )}
+                            <span className="text-[11px] text-slate-400">
+                              {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+
+                          {/* Message Text */}
+                          {m.content && (
+                            <p className="text-[13px] text-slate-800 leading-relaxed mt-1 break-words whitespace-pre-wrap">
+                              {m.content}
+                            </p>
+                          )}
+
+                          {/* Attached Image (Compact, professional thumbnail) */}
+                          {m.imageUrl && (
+                            <div className="mt-2 inline-block max-w-[240px] sm:max-w-[260px]">
+                              <div
+                                onClick={() => setLightboxImage({ url: m.imageUrl!, name: m.imageName || 'Image attachment' })}
+                                className="relative rounded-xl overflow-hidden border border-slate-200/90 bg-slate-100 group/img cursor-pointer hover:shadow-md hover:border-blue-400 transition-all block"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={m.imageUrl}
+                                  alt={m.imageName || 'Shared image'}
+                                  className="w-full max-h-36 sm:max-h-40 object-cover object-center transition-transform duration-200 group-hover/img:scale-[1.02]"
+                                />
+                                <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover/img:opacity-100">
+                                  <span className="px-2.5 py-1 rounded-full bg-black/75 text-white text-[11px] font-medium backdrop-blur-xs flex items-center gap-1.5 shadow-sm">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                      <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+                                    </svg>
+                                    Click to enlarge
+                                  </span>
+                                </div>
+                              </div>
+                              {m.imageName && (
+                                <div className="flex items-center justify-between text-[10.5px] text-slate-500 mt-1 px-0.5">
+                                  <span className="truncate max-w-[170px] font-medium">{m.imageName}</span>
+                                  {m.imageSize && (
+                                    <span className="shrink-0 font-mono text-[10px] text-slate-400">{(m.imageSize / 1024).toFixed(0)} KB</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Reactions strip */}
+                          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                            {['👍', '❤️', '🚀', '🔥', '👀'].map(emoji => {
+                              const reactionList = m.reactions?.[emoji] || [];
+                              const hasReacted = reactionList.includes(currentUserId || currentUser.id);
+                              if (reactionList.length === 0) return null;
+                              return (
+                                <button
+                                  type="button"
+                                  key={emoji}
+                                  onClick={() => handleToggleReaction(m.id, emoji)}
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] border transition-all cursor-pointer ${
+                                    hasReacted
+                                      ? 'bg-blue-50 border-blue-200 text-[#2563EB] font-bold shadow-2xs'
+                                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                  }`}
+                                  title={`${reactionList.length} reaction(s)`}
+                                >
+                                  <span>{emoji}</span>
+                                  <span>{reactionList.length}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Floating Action Menu on Hover (Top-Right) */}
+                        <div className="absolute right-3 top-2.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 bg-white border border-slate-200 rounded-lg shadow-sm px-1.5 py-1 z-10">
+                          {['👍', '❤️', '🚀', '🔥', '👀'].map(emoji => (
+                            <button
+                              type="button"
+                              key={emoji}
+                              onClick={() => handleToggleReaction(m.id, emoji)}
+                              className="w-6 h-6 rounded hover:bg-slate-100 text-[12px] flex items-center justify-center transition-colors cursor-pointer"
+                              title={`React with ${emoji}`}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                          {canDelete && (
+                            <>
+                              <div className="w-px h-3.5 bg-slate-200 mx-0.5" />
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMessage(m.id)}
+                                title="Delete message"
+                                className="w-6 h-6 rounded hover:bg-red-50 text-slate-400 hover:text-red-600 flex items-center justify-center transition-colors cursor-pointer"
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                                </svg>
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </React.Fragment>
+                  );
+                })
+              )}
+              <div ref={chatBottomRef} />
+            </div>
+
+            {/* Chat Composer (Single Unified Professional Card) */}
+            <div className="p-4 bg-white border-t border-slate-200 shrink-0">
+              <form onSubmit={handleSendMessage} className="rounded-xl border border-slate-200 bg-[#FAFBFD] focus-within:bg-white focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-blue-100 transition-all p-2.5 shadow-2xs">
+                {/* Image attachment preview (before sending) */}
+                {attachedImage && (
+                  <div className="mb-2 p-2 rounded-lg border border-blue-200 bg-blue-50/70 flex items-center gap-2.5 animate-in fade-in slide-in-from-bottom-1 duration-150">
+                    <div className="w-10 h-10 rounded-md overflow-hidden border border-blue-200 bg-white shrink-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={attachedImage.dataUrl} alt="Upload preview" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex-1 min-w-0 text-[12px]">
+                      <div className="font-semibold text-blue-900 truncate">{attachedImage.name}</div>
+                      <div className="text-[11px] text-blue-600">{(attachedImage.size / 1024).toFixed(0)} KB ready to send</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAttachedImage(null)}
+                      className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-blue-200 text-blue-900 transition-colors cursor-pointer text-xs"
+                      title="Remove attached image"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+
+                {/* Hidden File Input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  className="hidden"
+                  onChange={e => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleImageFileSelected(e.target.files[0]);
+                      e.target.value = '';
+                    }
+                  }}
+                />
+
+                {/* Textarea */}
+                <textarea
+                  rows={2}
+                  value={messageText}
+                  onChange={e => setMessageText(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                  onPaste={handleChatPaste}
+                  placeholder={`Write a message to #${project.name}...`}
+                  className="w-full bg-transparent px-1 text-[13px] text-slate-900 placeholder-[#9CA3AF] outline-none resize-none min-h-[40px] max-h-32 leading-relaxed"
+                />
+
+                {/* Action Bar inside Container */}
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 mt-1">
+                  <div className="flex items-center gap-1.5">
+                    {/* Attach Image Button */}
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-slate-600 hover:text-[#2563EB] hover:bg-blue-50 text-[12px] font-medium transition-colors cursor-pointer"
+                      title="Attach an image file"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                      </svg>
+                      <span className="hidden sm:inline">Attach Image</span>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <span className="text-[11px] text-slate-400 hidden sm:inline">Enter ↵ to send</span>
+                    <button
+                      type="submit"
+                      disabled={sendingMessage || (!messageText.trim() && !attachedImage)}
+                      className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-semibold transition-all cursor-pointer ${
+                        sendingMessage || (!messageText.trim() && !attachedImage)
+                          ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                          : 'bg-[#2563EB] hover:bg-[#1D4ED8] text-white shadow-xs'
+                      }`}
+                    >
+                      {sendingMessage ? (
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <span>Send</span>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13"/>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                          </svg>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </form>
             </div>
           </div>
         )}
@@ -1853,6 +2413,48 @@ export default function ProjectDetail({
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox Modal for Shared Images */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xs flex flex-col items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div className="w-full max-w-4xl flex items-center justify-between text-white mb-3 px-2" onClick={e => e.stopPropagation()}>
+            <span className="text-[14px] font-semibold truncate max-w-md">
+              {lightboxImage.name || 'Shared Image Preview'}
+            </span>
+            <div className="flex items-center gap-2">
+              <a
+                href={lightboxImage.url}
+                download={lightboxImage.name || 'project_image.png'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-[12px] font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download
+              </a>
+              <button
+                type="button"
+                onClick={() => setLightboxImage(null)}
+                className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors cursor-pointer"
+                title="Close preview"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+          <div className="max-h-[85vh] max-w-[90vw] overflow-hidden rounded-xl border border-white/10 shadow-2xl" onClick={e => e.stopPropagation()}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={lightboxImage.url}
+              alt={lightboxImage.name || 'Full view'}
+              className="max-h-[85vh] max-w-[90vw] object-contain rounded-xl"
+            />
           </div>
         </div>
       )}

@@ -34,17 +34,7 @@ const pageTitles: Record<View, string> = {
   inbox: 'Inbox',
 };
 
-const breadcrumbs: Record<View, string[]> = {
-  dashboard: ['TaskFlow', 'Dashboard'],
-  tasks: ['TaskFlow', 'My Tasks'],
-  kanban: ['TaskFlow', 'Board'],
-  projects: ['TaskFlow', 'Projects'],
-  calendar: ['TaskFlow', 'Calendar'],
-  timeline: ['TaskFlow', 'Timeline'],
-  reports: ['TaskFlow', 'Reports'],
-  settings: ['TaskFlow', 'Settings'],
-  inbox: ['TaskFlow', 'Inbox'],
-};
+
 
 type NotifActivityTab = 'all' | 'assigned' | 'projects' | 'mentions';
 
@@ -286,7 +276,6 @@ export default function Header({
     return getNotificationMeta(n).tab === notifTab;
   });
 
-  const crumbs = breadcrumbs[currentView];
 
   const { data: session } = useSession();
   const userId = (session?.user as { id?: string })?.id;
@@ -344,17 +333,6 @@ export default function Header({
         {pageTitles[currentView]}
       </span>
 
-      {/* Breadcrumb — desktop only */}
-      <nav className="hidden md:flex items-center gap-1.5 text-[13px] shrink-0">
-        {crumbs.map((crumb, i) => (
-          <span key={i} className="flex items-center gap-1.5">
-            {i > 0 && <span className="text-[#D1D5DB]">/</span>}
-            <span className={i === crumbs.length - 1 ? 'font-semibold text-[#111111]' : 'text-[rgba(17,17,17,0.45)]'}>
-              {crumb}
-            </span>
-          </span>
-        ))}
-      </nav>
 
       {/* Search — desktop only (triggers Command Palette) */}
       <div className="hidden md:flex flex-1 justify-center">

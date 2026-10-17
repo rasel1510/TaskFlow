@@ -46,7 +46,7 @@ export default function AppPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [projectDetailTab, setProjectDetailTab] = useState<'overview' | 'tasks' | 'milestones' | 'members' | 'burndown' | 'settings'>('overview');
+  const [projectDetailTab, setProjectDetailTab] = useState<'overview' | 'tasks' | 'milestones' | 'members' | 'messages' | 'burndown' | 'settings'>('overview');
   const [showCreateTask, setShowCreateTask] = useState(false);
   const [createTaskDate, setCreateTaskDate] = useState<string | undefined>(undefined);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -131,7 +131,7 @@ export default function AppPage() {
 
   const handleOpenProject = (
     projectId: string,
-    tab: 'overview' | 'tasks' | 'milestones' | 'members' | 'burndown' | 'settings' = 'overview'
+    tab: 'overview' | 'tasks' | 'milestones' | 'members' | 'messages' | 'burndown' | 'settings' = 'overview'
   ) => {
     setSelectedProjectId(projectId);
     setProjectDetailTab(tab);
