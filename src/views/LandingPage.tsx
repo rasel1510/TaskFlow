@@ -33,6 +33,7 @@ import { LiquidGlassCard, LiquidButton } from '@/components/kokonutui/liquid-gla
 import PWAModal from '@/components/PWAModal';
 import TrustedBySection from '@/components/TrustedBySection';
 import StreamlineVelocitySection from '@/components/StreamlineVelocitySection';
+import Footer from '@/components/Footer';
 
 interface LandingPageProps {
   onLaunchApp?: () => void;
@@ -858,143 +859,9 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
       </main>
 
       {/* ─────────────────────────────────────────────────────────────────────────
-          6. FOOTER (Matching KokonutUI Lume Template Structure)
+          6. FOOTER (Minimalist 5-Column Grid with Alpine Landscape Artwork)
           ───────────────────────────────────────────────────────────────────────── */}
-      <footer className="relative mx-auto w-full max-w-7xl px-6 pt-24 pb-12 sm:pt-32 sm:pb-16 border-t border-black/10 dark:border-white/10">
-        <div className="flex flex-col gap-16 md:flex-row md:items-start md:justify-between">
-          {/* Brand Info */}
-          <div className="max-w-sm shrink-0">
-            <Link
-              className="flex items-center gap-2 font-semibold text-3xl text-black tracking-tight transition-opacity hover:opacity-80 dark:text-white"
-              href="/"
-            >
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-black text-white dark:bg-white dark:text-black">
-                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 50 50">
-                  <path d="M27.5308 40.1395C27.5757 35.5502 26.4122 31.8182 24.9322 31.8037C23.4521 31.7893 22.2159 35.4979 22.1711 40.0871C22.1262 44.6764 23.2897 48.4085 24.7697 48.4229C26.2498 48.4374 27.486 44.7288 27.5308 40.1395Z" />
-                </svg>
-              </div>
-              <span>TaskFlow</span>
-            </Link>
-            <p className="mt-4 text-base text-black/60 leading-relaxed tracking-tight dark:text-white/60">
-              We are a team of developers and designers passionate about creating frictionless project management experiences.
-            </p>
-          </div>
-
-          {/* Links Grid */}
-          <div className="grid grid-cols-2 gap-12 sm:grid-cols-3 md:gap-16">
-            <div className="space-y-4">
-              <h3 className="font-semibold text-black text-sm tracking-tight dark:text-white">Product</h3>
-              <ul className="space-y-3">
-                <li>
-                  <a
-                    className="text-black/60 text-sm leading-relaxed tracking-tight transition-colors hover:text-black dark:text-white/60 dark:hover:text-white"
-                    href="#features"
-                  >
-                    Features
-                  </a>
-                </li>
-                <li>
-                  <a
-                    className="text-black/60 text-sm leading-relaxed tracking-tight transition-colors hover:text-black dark:text-white/60 dark:hover:text-white"
-                    href="/app"
-                  >
-                    Workspace
-                  </a>
-                </li>
-                <li>
-                  <button
-                    onClick={() => setIsPWAModalOpen(true)}
-                    className="text-black/60 text-sm leading-relaxed tracking-tight transition-colors hover:text-black dark:text-white/60 dark:hover:text-white text-left"
-                  >
-                    Install PWA App
-                  </button>
-                </li>
-              </ul>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="font-semibold text-black text-sm tracking-tight dark:text-white">Company</h3>
-              <ul className="space-y-3">
-                <li>
-                  <a
-                    className="text-black/60 text-sm leading-relaxed tracking-tight transition-colors hover:text-black dark:text-white/60 dark:hover:text-white"
-                    href="#"
-                  >
-                    About
-                  </a>
-                </li>
-                <li>
-                  <a
-                    className="text-black/60 text-sm leading-relaxed tracking-tight transition-colors hover:text-black dark:text-white/60 dark:hover:text-white"
-                    href="#"
-                  >
-                    Careers
-                  </a>
-                </li>
-                <li>
-                  <a
-                    className="text-black/60 text-sm leading-relaxed tracking-tight transition-colors hover:text-black dark:text-white/60 dark:hover:text-white"
-                    href="#"
-                  >
-                    Contact
-                  </a>
-                </li>
-                <li>
-                  <a
-                    className="text-black/60 text-sm leading-relaxed tracking-tight transition-colors hover:text-black dark:text-white/60 dark:hover:text-white"
-                    href="#"
-                  >
-                    Privacy
-                  </a>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Stay Updated Newsletter Form */}
-          <div className="max-w-sm shrink-0 space-y-4">
-            <h3 className="font-semibold text-black text-sm tracking-tight dark:text-white">Stay updated</h3>
-            <p className="text-black/60 text-sm leading-relaxed tracking-tight dark:text-white/60">
-              Get the latest updates on high-velocity sprints and AI workflows.
-            </p>
-            <form onSubmit={e => e.preventDefault()} className="space-y-3">
-              <div className="flex gap-2">
-                <input
-                  type="email"
-                  placeholder="Enter your email"
-                  required
-                  className="flex w-full border py-1 shadow-xs transition-colors h-9 flex-1 rounded-lg border-black/10 bg-transparent px-3 text-sm tracking-tight placeholder:text-black/40 focus:border-black focus:ring-1 focus:ring-black dark:border-white/10 dark:focus:border-white dark:focus:ring-white dark:placeholder:text-white/40 text-black dark:text-white"
-                />
-                <button
-                  type="submit"
-                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium text-sm group h-9 w-9 rounded-lg bg-black p-0 text-white shadow-xs transition-all duration-300 hover:bg-black/90 hover:shadow-lg dark:bg-white dark:text-black dark:hover:bg-white/90"
-                >
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                </button>
-              </div>
-              <p className="text-black/40 text-xs tracking-tight dark:text-white/40">
-                No spam. Unsubscribe anytime.
-              </p>
-            </form>
-          </div>
-        </div>
-
-        {/* Bottom Legal / Copyright */}
-        <div className="mt-16 flex flex-col justify-between gap-4 border-black/10 border-t pt-8 text-black/50 text-xs tracking-tight sm:flex-row sm:items-center dark:border-white/10 dark:text-white/50">
-          <p>© 2025 TaskFlow. All rights reserved.</p>
-          <div className="flex gap-6">
-            <a className="transition-colors hover:text-black dark:hover:text-white" href="#">
-              Terms
-            </a>
-            <a className="transition-colors hover:text-black dark:hover:text-white" href="#">
-              Privacy
-            </a>
-            <a className="transition-colors hover:text-black dark:hover:text-white" href="#">
-              Cookies
-            </a>
-          </div>
-        </div>
-      </footer>
+      <Footer onOpenPWA={() => setIsPWAModalOpen(true)} />
 
       {/* PWA Modal Component */}
       <PWAModal isOpen={isPWAModalOpen} onClose={() => setIsPWAModalOpen(false)} />
