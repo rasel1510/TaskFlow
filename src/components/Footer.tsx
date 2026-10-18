@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import FlyingBirds from './FlyingBirds';
 import {
   Globe,
   ChevronDown,
@@ -305,6 +306,9 @@ export default function Footer({ onOpenPWA }: FooterProps) {
       <div className="relative w-full overflow-hidden select-none pointer-events-none mt-4 sm:mt-6">
         {/* Soft atmospheric gradient fade to transition smoothly from the footer background */}
         <div className="absolute inset-x-0 top-0 h-16 sm:h-24 bg-gradient-to-b from-white dark:from-[#0c0d0e] via-white/50 dark:via-[#0c0d0e]/50 to-transparent z-10 pointer-events-none" />
+
+        {/* Animated Flying Birds Layer Soaring Over the Horizon */}
+        <FlyingBirds />
 
         {/* Light Mode: Ethereal high-resolution alpine mountain castle */}
         <div className="block dark:hidden w-full">

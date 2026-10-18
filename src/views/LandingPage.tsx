@@ -797,19 +797,9 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
           className="relative mx-auto flex w-full max-w-3xl flex-col px-6 pt-12 pb-24 sm:pt-16 sm:pb-32"
         >
           <div className="mb-12 text-center">
-            <h2 className="mb-2 font-semibold text-2xl text-black tracking-tight sm:text-3xl dark:text-white">
+            <h2 className="font-semibold text-2xl text-black tracking-tight sm:text-3xl dark:text-white">
               Frequently asked questions
             </h2>
-            <p className="mx-auto max-w-xl text-black/60 text-sm leading-relaxed tracking-tight dark:text-white/60">
-              Everything you need to know about the product and workspace. Can't find the answer you're looking for?{' '}
-              <a
-                className="font-medium text-black underline decoration-black/20 underline-offset-4 transition-colors hover:decoration-black/40 dark:text-white dark:decoration-white/20 dark:hover:decoration-white/40"
-                href="#contact"
-              >
-                Contact us
-              </a>
-              .
-            </p>
           </div>
 
           <div className="space-y-2">
