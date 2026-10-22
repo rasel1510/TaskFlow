@@ -7,8 +7,9 @@ import { statusColors, priorityColors, type Status, type Priority } from '../dat
 import { useToast } from '@/components/ui/Toast';
 import { TaskRowSkeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/EmptyState';
+import gsap from 'gsap';
 
-type SortMode = 'none' | 'high' | 'medium' | 'low';
+type SortMode = 'none' | 'urgent' | 'high' | 'medium' | 'low';
 
 interface MyTasksProps {
   onTaskClick: (taskId: string) => void;
@@ -35,9 +36,6 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
   const toast = useToast();
   const [statusFilter, setStatusFilter] = useState<Status | 'all'>('all');
   const [search, setSearch] = useState('');
-  const [sortMode, setSortMode] = useState<SortMode>('none');
-  const [sortMenuOpen, setSortMenuOpen] = useState(false);
-  const sortMenuRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkStatusMenu, setBulkStatusMenu] = useState(false);
@@ -48,11 +46,91 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
   const [taskToDelete, setTaskToDelete] = useState<DBTask | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const [sortMode, setSortMode] = useState<SortMode>('none');
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const sortMenuRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const arrowRef = useRef<SVGSVGElement>(null);
+  const timelineRef = useRef<gsap.core.Timeline | null>(null);
+
+  // Initialize GSAP dropdown animation (elastic panel, elastic arrow, stagger items)
+  const initDD = useCallback(() => {
+    if (!menuRef.current || !arrowRef.current) return;
+    if (timelineRef.current) {
+      timelineRef.current.kill();
+    }
+
+    const menu = menuRef.current;
+    const arrow = arrowRef.current;
+    const items = menu.querySelectorAll('.dropdown-item');
+
+    gsap.set(menu, { autoAlpha: 0, yPercent: -15, scale: 0.85, transformOrigin: 'top right' });
+    gsap.set(arrow, { rotation: 0, transformOrigin: 'center center' });
+    gsap.set(items, { opacity: 1, x: 0 });
+    menu.classList.remove('open');
+
+    const tl = gsap.timeline({ paused: true });
+
+    tl.to(arrow, {
+      rotation: 180,
+      duration: 0.9,
+      ease: 'elastic.out(1.2, 0.3)',
+    }, 0)
+    .to(menu, {
+      autoAlpha: 1,
+      yPercent: 0,
+      scale: 1,
+      duration: 1,
+      ease: 'elastic.out(1.2, 0.3)',
+    }, 0)
+    .from(items, {
+      opacity: 0,
+      x: -20,
+      duration: 0.5,
+      ease: 'back.out(3)',
+      stagger: 0.07,
+    }, 0.1);
+
+    timelineRef.current = tl;
+  }, []);
+
+  useEffect(() => {
+    initDD();
+    return () => {
+      timelineRef.current?.kill();
+    };
+  }, [initDD]);
+
+  const toggleDropdown = useCallback((open: boolean) => {
+    const tl = timelineRef.current;
+    const menu = menuRef.current;
+    if (!tl || !menu) return;
+
+    if (open) {
+      setSortMenuOpen(true);
+      menu.classList.add('open');
+      tl.timeScale(1).play();
+    } else {
+      setSortMenuOpen(false);
+      tl.eventCallback('onReverseComplete', () => {
+        menu.classList.remove('open');
+      });
+      tl.timeScale(2.5).reverse();
+    }
+  }, []);
+
+  const handleSelectSort = useCallback((mode: SortMode) => {
+    setSortMode(prev => (prev === mode ? 'none' : mode));
+    toggleDropdown(false);
+  }, [toggleDropdown]);
+
   // Close sort menu on click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (sortMenuRef.current && !sortMenuRef.current.contains(e.target as Node)) {
-        setSortMenuOpen(false);
+        if (sortMenuOpen) {
+          toggleDropdown(false);
+        }
       }
     };
     if (sortMenuOpen) {
@@ -61,7 +139,7 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [sortMenuOpen]);
+  }, [sortMenuOpen, toggleDropdown]);
 
   const filtered: DBTask[] = useMemo(() => {
     const list = tasks.filter(t => {
@@ -81,9 +159,14 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
       let scoreA = 0;
       let scoreB = 0;
 
-      if (sortMode === 'high') {
-        // High priority first: urgent (4) -> high (3) -> medium (2) -> low (1)
+      if (sortMode === 'urgent') {
+        // Urgent priority first: urgent (4) -> high (3) -> medium (2) -> low (1)
         const weights: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1 };
+        scoreA = weights[pA] ?? 0;
+        scoreB = weights[pB] ?? 0;
+      } else if (sortMode === 'high') {
+        // High priority first: high (4) -> urgent (3) -> medium (2) -> low (1)
+        const weights: Record<string, number> = { high: 4, urgent: 3, medium: 2, low: 1 };
         scoreA = weights[pA] ?? 0;
         scoreB = weights[pB] ?? 0;
       } else if (sortMode === 'medium') {
@@ -264,70 +347,50 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
             ))}
           </div>
 
-          {/* Sort Button & Dropdown Menu */}
-          <div className="relative flex items-center text-[12.5px]" ref={sortMenuRef}>
-            {sortMode === 'none' ? (
+          {/* Sort Button & Motion Dropdown Menu */}
+          <div className="dropdown-wrap relative flex items-center text-[12.5px]" ref={sortMenuRef}>
+            <div className={`flex items-center rounded-lg border transition-all ${
+              sortMode !== 'none'
+                ? 'border-[#CBD5E1] bg-[#F8FAFC] text-[#111111]'
+                : 'border-[#E5E7EB] bg-white text-[rgba(17,17,17,0.7)] hover:text-[#111111] hover:border-[#CBD5E1] hover:bg-[#F9FAFB]'
+            }`}>
               <button
                 type="button"
-                onClick={() => setSortMenuOpen(v => !v)}
-                className="flex items-center gap-1.5 px-3 py-1.5 border border-[#E5E7EB] hover:border-[#CBD5E1] rounded-lg bg-white text-[12.5px] text-[rgba(17,17,17,0.7)] hover:text-[#111111] hover:bg-[#F9FAFB] transition-all font-medium"
+                onClick={() => toggleDropdown(!sortMenuOpen)}
+                className="dropdown-trigger flex items-center gap-2 px-3 py-1.5 font-medium cursor-pointer"
                 aria-expanded={sortMenuOpen}
                 aria-haspopup="true"
                 aria-label="Sort tasks by priority"
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <line x1="8" y1="6" x2="21" y2="6"/>
-                  <line x1="8" y1="12" x2="21" y2="12"/>
-                  <line x1="8" y1="18" x2="21" y2="18"/>
-                  <line x1="3" y1="6" x2="3.01" y2="6"/>
-                  <line x1="3" y1="12" x2="3.01" y2="12"/>
-                  <line x1="3" y1="18" x2="3.01" y2="18"/>
-                </svg>
-                <span>Sort</span>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className={`transition-transform duration-150 ${sortMenuOpen ? 'rotate-180' : ''}`}>
-                  <path d="M6 9l6 6 6-6"/>
+                <span className={sortMode !== 'none' ? 'capitalize font-medium' : ''}>
+                  {sortMode === 'none' ? 'Sort' : `Sort: ${sortMode}`}
+                </span>
+                <svg
+                  ref={arrowRef}
+                  className="dd-arrow shrink-0"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                >
+                  <path
+                    d="M3 4.5L6 7.5L9 4.5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </button>
-            ) : (
-              <div className={`flex items-center rounded-lg border overflow-hidden ${
-                sortMode === 'high'
-                  ? 'border-[#FED7AA] bg-[#FFF7ED] text-[#EA580C]'
-                  : sortMode === 'medium'
-                  ? 'border-[#FDE68A] bg-[#FFFBEB] text-[#D97706]'
-                  : 'border-[#E5E7EB] bg-[#F9FAFB] text-[#4B5563]'
-              }`}>
+              {sortMode !== 'none' && (
                 <button
                   type="button"
-                  onClick={() => setSortMenuOpen(v => !v)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 font-medium transition-colors ${
-                    sortMode === 'high'
-                      ? 'hover:bg-[#FFEDD5]'
-                      : sortMode === 'medium'
-                      ? 'hover:bg-[#FEF3C7]'
-                      : 'hover:bg-[#F3F4F6]'
-                  }`}
-                  aria-expanded={sortMenuOpen}
-                  aria-haspopup="true"
-                  aria-label={`Sort by priority: ${sortMode}`}
-                >
-                  <span className={`w-2 h-2 rounded-full ${
-                    sortMode === 'high' ? 'bg-[#EA580C]' : sortMode === 'medium' ? 'bg-[#F59E0B]' : 'bg-[#6B7280]'
-                  }`} />
-                  <span className="capitalize">Sort: {sortMode}</span>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className={`transition-transform duration-150 ${sortMenuOpen ? 'rotate-180' : ''}`}>
-                    <path d="M6 9l6 6 6-6"/>
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSortMode('none')}
-                  className={`px-2 py-1.5 border-l transition-colors ${
-                    sortMode === 'high'
-                      ? 'border-[#FED7AA] hover:bg-[#FFEDD5]'
-                      : sortMode === 'medium'
-                      ? 'border-[#FDE68A] hover:bg-[#FEF3C7]'
-                      : 'border-[#E5E7EB] hover:bg-[#F3F4F6]'
-                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSortMode('none');
+                    if (sortMenuOpen) toggleDropdown(false);
+                  }}
+                  className="px-2 py-1.5 border-l border-[#CBD5E1] hover:bg-[#F1F5F9] transition-colors cursor-pointer text-[rgba(17,17,17,0.5)] hover:text-[#111111]"
                   title="Clear sort"
                   aria-label="Clear sort"
                 >
@@ -336,82 +399,70 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
                     <line x1="6" y1="6" x2="18" y2="18"/>
                   </svg>
                 </button>
-              </div>
-            )}
+              )}
+            </div>
 
-            {/* Dropdown Menu */}
-            {sortMenuOpen && (
-              <div className="absolute right-0 top-full mt-1.5 w-48 bg-white border border-[#E5E7EB] rounded-xl shadow-xl z-50 py-1.5 animate-in fade-in zoom-in-95 duration-100">
-                <div className="px-3 py-1.5 text-[11px] font-semibold text-[rgba(17,17,17,0.4)] uppercase tracking-wider">
-                  Sort by Priority
-                </div>
-
-                {/* High */}
-                <button
-                  type="button"
-                  onClick={() => { setSortMode('high'); setSortMenuOpen(false); }}
-                  className={`w-full text-left px-3 py-2 text-[12.5px] flex items-center justify-between hover:bg-[#F3F4F6] transition-colors ${
-                    sortMode === 'high' ? 'text-[#EA580C] font-semibold bg-[#FFF7ED]' : 'text-[#111111]'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#EA580C] shrink-0" />
-                    <span>High</span>
-                  </span>
-                  {sortMode === 'high' && (
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#EA580C" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  )}
-                </button>
-
-                {/* Medium */}
-                <button
-                  type="button"
-                  onClick={() => { setSortMode('medium'); setSortMenuOpen(false); }}
-                  className={`w-full text-left px-3 py-2 text-[12.5px] flex items-center justify-between hover:bg-[#F3F4F6] transition-colors ${
-                    sortMode === 'medium' ? 'text-[#D97706] font-semibold bg-[#FFFBEB]' : 'text-[#111111]'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B] shrink-0" />
-                    <span>Medium</span>
-                  </span>
-                  {sortMode === 'medium' && (
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  )}
-                </button>
-
-                {/* Low */}
-                <button
-                  type="button"
-                  onClick={() => { setSortMode('low'); setSortMenuOpen(false); }}
-                  className={`w-full text-left px-3 py-2 text-[12.5px] flex items-center justify-between hover:bg-[#F3F4F6] transition-colors ${
-                    sortMode === 'low' ? 'text-[#4B5563] font-semibold bg-[#F3F4F6]' : 'text-[#111111]'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#6B7280] shrink-0" />
-                    <span>Low</span>
-                  </span>
-                  {sortMode === 'low' && (
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4B5563" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  )}
-                </button>
-
-                {sortMode !== 'none' && (
-                  <>
-                    <div className="my-1 border-t border-[#F3F4F6]" />
-                    <button
-                      type="button"
-                      onClick={() => { setSortMode('none'); setSortMenuOpen(false); }}
-                      className="w-full text-left px-3 py-2 text-[12px] text-[#DC2626] hover:bg-[#FEF2F2] transition-colors flex items-center gap-2 font-medium"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      Reset to Default
-                    </button>
-                  </>
+            {/* Motion Dropdown Menu */}
+            <div
+              ref={menuRef}
+              className="dropdown-menu absolute right-0 top-[calc(100%+6px)] w-36 bg-white border border-[#E5E7EB] rounded-xl shadow-xl z-50 py-1 overflow-hidden"
+            >
+              {/* Low */}
+              <button
+                type="button"
+                onClick={() => handleSelectSort('low')}
+                className={`dropdown-item w-full text-left px-3.5 py-2 text-[12.5px] flex items-center justify-between hover:bg-[#F3F4F6] transition-colors cursor-pointer ${
+                  sortMode === 'low' ? 'text-[#111111] font-semibold bg-[#F3F4F6]' : 'text-[rgba(17,17,17,0.7)] hover:text-[#111111]'
+                }`}
+              >
+                <span>Low</span>
+                {sortMode === 'low' && (
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                 )}
-              </div>
-            )}
+              </button>
+
+              {/* Medium */}
+              <button
+                type="button"
+                onClick={() => handleSelectSort('medium')}
+                className={`dropdown-item w-full text-left px-3.5 py-2 text-[12.5px] flex items-center justify-between hover:bg-[#F3F4F6] transition-colors cursor-pointer ${
+                  sortMode === 'medium' ? 'text-[#111111] font-semibold bg-[#F3F4F6]' : 'text-[rgba(17,17,17,0.7)] hover:text-[#111111]'
+                }`}
+              >
+                <span>Medium</span>
+                {sortMode === 'medium' && (
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                )}
+              </button>
+
+              {/* High */}
+              <button
+                type="button"
+                onClick={() => handleSelectSort('high')}
+                className={`dropdown-item w-full text-left px-3.5 py-2 text-[12.5px] flex items-center justify-between hover:bg-[#F3F4F6] transition-colors cursor-pointer ${
+                  sortMode === 'high' ? 'text-[#111111] font-semibold bg-[#F3F4F6]' : 'text-[rgba(17,17,17,0.7)] hover:text-[#111111]'
+                }`}
+              >
+                <span>High</span>
+                {sortMode === 'high' && (
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                )}
+              </button>
+
+              {/* Urgent */}
+              <button
+                type="button"
+                onClick={() => handleSelectSort('urgent')}
+                className={`dropdown-item w-full text-left px-3.5 py-2 text-[12.5px] flex items-center justify-between hover:bg-[#F3F4F6] transition-colors cursor-pointer ${
+                  sortMode === 'urgent' ? 'text-[#111111] font-semibold bg-[#F3F4F6]' : 'text-[rgba(17,17,17,0.7)] hover:text-[#111111]'
+                }`}
+              >
+                <span>Urgent</span>
+                {sortMode === 'urgent' && (
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -492,16 +543,18 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
               type="button"
               onClick={() => {
                 setSortMode(prev => {
-                  if (prev === 'none') return 'high';
+                  if (prev === 'none') return 'urgent';
+                  if (prev === 'urgent') return 'high';
                   if (prev === 'high') return 'medium';
                   if (prev === 'medium') return 'low';
                   return 'none';
                 });
               }}
               className="w-24 flex items-center gap-1.5 hover:text-[#111111] transition-colors text-left uppercase tracking-wide cursor-pointer group"
-              title="Click to cycle priority sort: High → Medium → Low → Default"
+              title="Click to cycle priority sort: Urgent → High → Medium → Low → Default"
             >
               <span>Priority</span>
+              {sortMode === 'urgent' && <span className="w-2 h-2 rounded-full bg-[#EF4444] shrink-0" />}
               {sortMode === 'high' && <span className="w-2 h-2 rounded-full bg-[#EA580C] shrink-0" />}
               {sortMode === 'medium' && <span className="w-2 h-2 rounded-full bg-[#F59E0B] shrink-0" />}
               {sortMode === 'low' && <span className="w-2 h-2 rounded-full bg-[#6B7280] shrink-0" />}

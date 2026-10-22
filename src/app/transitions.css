@@ -178,6 +178,34 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
+   Motion Dropdown (Elastic panel, elastic arrow, item stagger)
+   ───────────────────────────────────────────────────────────────────────── */
+.dropdown-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.dd-arrow {
+  transform-origin: center center;
+  display: block;
+}
+
+.dropdown-menu {
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.dropdown-menu.open {
+  pointer-events: auto;
+}
+
+.dropdown-item {
+  will-change: transform, opacity;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
    Accessibility: Prefers-reduced-motion guard
    ───────────────────────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
