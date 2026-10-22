@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/Toast';
 import { TaskRowSkeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/EmptyState';
 import gsap from 'gsap';
+import { RadialTaskMenu } from '@/components/RadialTaskMenu';
 
 type SortMode = 'none' | 'urgent' | 'high' | 'medium' | 'low';
 
@@ -28,7 +29,10 @@ const statuses: { value: Status | 'all'; label: string }[] = [
 function formatDate(d: string | null): string {
   if (!d) return '—';
   try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
-  catch { return d; }
+  catch {
+    return d;
+
+  }
 }
 
 export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
@@ -45,6 +49,7 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
   const [editingTask, setEditingTask] = useState<DBTask | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<DBTask | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [activeRowMenuId, setActiveRowMenuId] = useState<string | null>(null);
 
   const [sortMode, setSortMode] = useState<SortMode>('none');
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
@@ -76,20 +81,20 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
       duration: 0.9,
       ease: 'elastic.out(1.2, 0.3)',
     }, 0)
-    .to(menu, {
-      autoAlpha: 1,
-      yPercent: 0,
-      scale: 1,
-      duration: 1,
-      ease: 'elastic.out(1.2, 0.3)',
-    }, 0)
-    .from(items, {
-      opacity: 0,
-      x: -20,
-      duration: 0.5,
-      ease: 'back.out(3)',
-      stagger: 0.07,
-    }, 0.1);
+      .to(menu, {
+        autoAlpha: 1,
+        yPercent: 0,
+        scale: 1,
+        duration: 1,
+        ease: 'elastic.out(1.2, 0.3)',
+      }, 0)
+      .from(items, {
+        opacity: 0,
+        x: -20,
+        duration: 0.5,
+        ease: 'back.out(3)',
+        stagger: 0.07,
+      }, 0.1);
 
     timelineRef.current = tl;
   }, []);
@@ -140,6 +145,26 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [sortMenuOpen, toggleDropdown]);
+
+  // Close active radial action menu on click outside or Escape
+  useEffect(() => {
+    const handleDocClick = () => {
+      setActiveRowMenuId(null);
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setActiveRowMenuId(null);
+      }
+    };
+    if (activeRowMenuId) {
+      document.addEventListener('click', handleDocClick);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('click', handleDocClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeRowMenuId]);
 
   const filtered: DBTask[] = useMemo(() => {
     const list = tasks.filter(t => {
@@ -297,7 +322,7 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
             className="flex items-center gap-2 px-3 md:px-4 py-2 bg-[#2563EB] text-white rounded-lg text-[13px] md:text-[13.5px] font-semibold hover:bg-[#1D4ED8] transition-colors"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
             </svg>
             <span className="hidden sm:inline">New Task</span>
           </button>
@@ -307,7 +332,7 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-4 md:mb-5">
           <div className="flex items-center gap-2 px-3 py-1.5 sm:py-2 border border-[#E5E7EB] hover:border-[#CBD5E1] rounded-lg bg-[#F9FAFB] focus-within:bg-white focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-[#DBEAFE] transition-all flex-1 shadow-2xs">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" className="shrink-0">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
             <input
               value={search}
@@ -323,8 +348,8 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
                 aria-label="Clear search"
               >
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="18" y1="6" x2="6" y2="18"/>
-                  <line x1="6" y1="6" x2="18" y2="18"/>
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
             )}
@@ -336,11 +361,10 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
               <button
                 key={s.value}
                 onClick={() => setStatusFilter(s.value as Status | 'all')}
-                className={`px-2.5 md:px-3 py-1 rounded-md text-[12px] md:text-[12.5px] font-medium transition-colors whitespace-nowrap ${
-                  statusFilter === s.value
+                className={`px-2.5 md:px-3 py-1 rounded-md text-[12px] md:text-[12.5px] font-medium transition-colors whitespace-nowrap ${statusFilter === s.value
                     ? 'bg-white text-[#111111] shadow-sm'
                     : 'text-[rgba(17,17,17,0.5)] hover:text-[#111111]'
-                }`}
+                  }`}
               >
                 {s.label}
               </button>
@@ -349,11 +373,10 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
 
           {/* Sort Button & Motion Dropdown Menu */}
           <div className="dropdown-wrap relative flex items-center text-[12.5px]" ref={sortMenuRef}>
-            <div className={`flex items-center rounded-lg border transition-all ${
-              sortMode !== 'none'
+            <div className={`flex items-center rounded-lg border transition-all ${sortMode !== 'none'
                 ? 'border-[#CBD5E1] bg-[#F8FAFC] text-[#111111]'
                 : 'border-[#E5E7EB] bg-white text-[rgba(17,17,17,0.7)] hover:text-[#111111] hover:border-[#CBD5E1] hover:bg-[#F9FAFB]'
-            }`}>
+              }`}>
               <button
                 type="button"
                 onClick={() => toggleDropdown(!sortMenuOpen)}
@@ -395,8 +418,8 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
                   aria-label="Clear sort"
                 >
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
                 </button>
               )}
@@ -411,13 +434,12 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
               <button
                 type="button"
                 onClick={() => handleSelectSort('low')}
-                className={`dropdown-item w-full text-left px-3.5 py-2 text-[12.5px] flex items-center justify-between hover:bg-[#F3F4F6] transition-colors cursor-pointer ${
-                  sortMode === 'low' ? 'text-[#111111] font-semibold bg-[#F3F4F6]' : 'text-[rgba(17,17,17,0.7)] hover:text-[#111111]'
-                }`}
+                className={`dropdown-item w-full text-left px-3.5 py-2 text-[12.5px] flex items-center justify-between hover:bg-[#F3F4F6] transition-colors cursor-pointer ${sortMode === 'low' ? 'text-[#111111] font-semibold bg-[#F3F4F6]' : 'text-[rgba(17,17,17,0.7)] hover:text-[#111111]'
+                  }`}
               >
                 <span>Low</span>
                 {sortMode === 'low' && (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                 )}
               </button>
 
@@ -425,13 +447,12 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
               <button
                 type="button"
                 onClick={() => handleSelectSort('medium')}
-                className={`dropdown-item w-full text-left px-3.5 py-2 text-[12.5px] flex items-center justify-between hover:bg-[#F3F4F6] transition-colors cursor-pointer ${
-                  sortMode === 'medium' ? 'text-[#111111] font-semibold bg-[#F3F4F6]' : 'text-[rgba(17,17,17,0.7)] hover:text-[#111111]'
-                }`}
+                className={`dropdown-item w-full text-left px-3.5 py-2 text-[12.5px] flex items-center justify-between hover:bg-[#F3F4F6] transition-colors cursor-pointer ${sortMode === 'medium' ? 'text-[#111111] font-semibold bg-[#F3F4F6]' : 'text-[rgba(17,17,17,0.7)] hover:text-[#111111]'
+                  }`}
               >
                 <span>Medium</span>
                 {sortMode === 'medium' && (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                 )}
               </button>
 
@@ -439,13 +460,12 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
               <button
                 type="button"
                 onClick={() => handleSelectSort('high')}
-                className={`dropdown-item w-full text-left px-3.5 py-2 text-[12.5px] flex items-center justify-between hover:bg-[#F3F4F6] transition-colors cursor-pointer ${
-                  sortMode === 'high' ? 'text-[#111111] font-semibold bg-[#F3F4F6]' : 'text-[rgba(17,17,17,0.7)] hover:text-[#111111]'
-                }`}
+                className={`dropdown-item w-full text-left px-3.5 py-2 text-[12.5px] flex items-center justify-between hover:bg-[#F3F4F6] transition-colors cursor-pointer ${sortMode === 'high' ? 'text-[#111111] font-semibold bg-[#F3F4F6]' : 'text-[rgba(17,17,17,0.7)] hover:text-[#111111]'
+                  }`}
               >
                 <span>High</span>
                 {sortMode === 'high' && (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                 )}
               </button>
 
@@ -453,13 +473,12 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
               <button
                 type="button"
                 onClick={() => handleSelectSort('urgent')}
-                className={`dropdown-item w-full text-left px-3.5 py-2 text-[12.5px] flex items-center justify-between hover:bg-[#F3F4F6] transition-colors cursor-pointer ${
-                  sortMode === 'urgent' ? 'text-[#111111] font-semibold bg-[#F3F4F6]' : 'text-[rgba(17,17,17,0.7)] hover:text-[#111111]'
-                }`}
+                className={`dropdown-item w-full text-left px-3.5 py-2 text-[12.5px] flex items-center justify-between hover:bg-[#F3F4F6] transition-colors cursor-pointer ${sortMode === 'urgent' ? 'text-[#111111] font-semibold bg-[#F3F4F6]' : 'text-[rgba(17,17,17,0.7)] hover:text-[#111111]'
+                  }`}
               >
                 <span>Urgent</span>
                 {sortMode === 'urgent' && (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                 )}
               </button>
             </div>
@@ -483,7 +502,7 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
                 </button>
                 {bulkStatusMenu && (
                   <div className="absolute left-0 top-full mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 min-w-[160px] py-1">
-                    {['backlog','todo','in_progress','in_review','done'].map(s => (
+                    {['backlog', 'todo', 'in_progress', 'in_review', 'done'].map(s => (
                       <button key={s} onClick={() => handleBulkAction('update', { status: s })}
                         className="w-full text-left px-3 py-2 text-[12.5px] hover:bg-[#F3F4F6] capitalize">
                         {s.replace(/_/g, ' ')}
@@ -504,7 +523,7 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
                 </button>
                 {bulkPriorityMenu && (
                   <div className="absolute left-0 top-full mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-50 min-w-[140px] py-1">
-                    {['low','medium','high','urgent'].map(p => (
+                    {['low', 'medium', 'high', 'urgent'].map(p => (
                       <button key={p} onClick={() => handleBulkAction('update', { priority: p })}
                         className="w-full text-left px-3 py-2 text-[12.5px] hover:bg-[#F3F4F6] capitalize">
                         {p}
@@ -560,8 +579,8 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
               {sortMode === 'low' && <span className="w-2 h-2 rounded-full bg-[#6B7280] shrink-0" />}
               {sortMode === 'none' && (
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-0 group-hover:opacity-50 transition-opacity">
-                  <path d="M7 15l5 5 5-5"/>
-                  <path d="M7 9l5-5 5 5"/>
+                  <path d="M7 15l5 5 5-5" />
+                  <path d="M7 9l5-5 5 5" />
                 </svg>
               )}
             </button>
@@ -591,9 +610,9 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
               <div
                 key={task.id}
                 onClick={() => onTaskClick(task.id)}
-                className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer transition-colors hover:bg-[#F9FAFB] group ${
-                  selected.has(task.id) ? 'bg-[#FAFBFF]' : ''
-                } ${i < filtered.length - 1 ? 'border-b border-[#F3F4F6]' : 'rounded-b-xl'}`}
+                className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer transition-colors hover:bg-[#F9FAFB] group ${activeRowMenuId === task.id ? 'z-30 relative' : 'relative'
+                  } ${selected.has(task.id) ? 'bg-[#FAFBFF]' : ''
+                  } ${i < filtered.length - 1 ? 'border-b border-[#F3F4F6]' : 'rounded-b-xl'}`}
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -620,13 +639,20 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
                 </div>
                 <span className="w-28 text-[12.5px] text-[rgba(17,17,17,0.6)]">{formatDate(task.dueDate)}</span>
                 <span className="w-16 text-[12.5px] text-[rgba(17,17,17,0.5)]">{task.estimate ?? '—'}</span>
-                <div className="w-20 flex items-center justify-end gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-                  <button type="button" title="Edit task" aria-label={`Edit task ${task.title}`} onClick={e => { e.stopPropagation(); setEditingTask(task); }} className="w-7 h-7 flex items-center justify-center rounded-md text-[rgba(17,17,17,0.4)] hover:text-[#2563EB] hover:bg-[#EFF6FF] border border-transparent hover:border-[#BFDBFE] transition-all">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                  </button>
-                  <button type="button" title="Delete task" aria-label={`Delete task ${task.title}`} onClick={e => { e.stopPropagation(); setTaskToDelete(task); }} className="w-7 h-7 flex items-center justify-center rounded-md text-[rgba(17,17,17,0.4)] hover:text-[#DC2626] hover:bg-[#FEF2F2] border border-transparent hover:border-[#FECACA] transition-all">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
-                  </button>
+                <div className="w-20 flex items-center justify-end pr-1 shrink-0 relative" onClick={e => e.stopPropagation()}>
+                  <RadialTaskMenu
+                    isOpen={activeRowMenuId === task.id}
+                    onToggle={() => setActiveRowMenuId(prev => (prev === task.id ? null : task.id))}
+                    onEdit={() => {
+                      setEditingTask(task);
+                      setActiveRowMenuId(null);
+                    }}
+                    onDelete={() => {
+                      setTaskToDelete(task);
+                      setActiveRowMenuId(null);
+                    }}
+                    taskTitle={task.title}
+                  />
                 </div>
               </div>
             ))
@@ -652,9 +678,9 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
               <div
                 key={task.id}
                 onClick={() => onTaskClick(task.id)}
-                className={`bg-white border border-[#E5E7EB] rounded-xl px-4 py-3.5 cursor-pointer transition-colors active:bg-[#F9FAFB] ${
-                  selected.has(task.id) ? 'border-[#93C5FD] bg-[#FAFBFF]' : ''
-                }`}
+                className={`bg-white border border-[#E5E7EB] rounded-xl px-4 py-3.5 cursor-pointer transition-colors active:bg-[#F9FAFB] ${activeRowMenuId === task.id ? 'z-30 relative' : 'relative'
+                  } ${selected.has(task.id) ? 'border-[#93C5FD] bg-[#FAFBFF]' : ''
+                  }`}
               >
                 <div className="flex items-start gap-3">
                   <div className="flex-1 min-w-0">
@@ -669,24 +695,21 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
                       <span className="text-[11px] text-[rgba(17,17,17,0.5)] truncate">{task.project?.name ?? '—'}</span>
                     </div>
                   </div>
-                  {/* Action buttons */}
-                  <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      aria-label={`Edit task ${task.title}`}
-                      onClick={e => { e.stopPropagation(); setEditingTask(task); }}
-                      className="w-9 h-9 flex items-center justify-center rounded-lg text-[rgba(17,17,17,0.4)] hover:text-[#2563EB] hover:bg-[#EFF6FF] transition-all"
-                    >
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`Delete task ${task.title}`}
-                      onClick={e => { e.stopPropagation(); setTaskToDelete(task); }}
-                      className="w-9 h-9 flex items-center justify-center rounded-lg text-[rgba(17,17,17,0.4)] hover:text-[#DC2626] hover:bg-[#FEF2F2] transition-all"
-                    >
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
-                    </button>
+                  {/* Action button */}
+                  <div className="flex items-center justify-end shrink-0 relative pr-1" onClick={e => e.stopPropagation()}>
+                    <RadialTaskMenu
+                      isOpen={activeRowMenuId === task.id}
+                      onToggle={() => setActiveRowMenuId(prev => (prev === task.id ? null : task.id))}
+                      onEdit={() => {
+                        setEditingTask(task);
+                        setActiveRowMenuId(null);
+                      }}
+                      onDelete={() => {
+                        setTaskToDelete(task);
+                        setActiveRowMenuId(null);
+                      }}
+                      taskTitle={task.title}
+                    />
                   </div>
                 </div>
                 {/* Bottom row: status + priority + due date */}
