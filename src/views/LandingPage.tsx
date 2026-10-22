@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {
@@ -68,6 +69,67 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
       router.replace('/app');
     }
   }, [status, router]);
+
+  // Orbix Studio style continuous slow-motion scroll physics for navbar
+  const navbarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    let currentY = 0;
+    let targetY = 0;
+    let currentOpacity = 1;
+    let targetOpacity = 1;
+    let animationFrameId: number | null = null;
+    let isRunning = false;
+
+    const updateMotion = () => {
+      // Smooth linear interpolation (lerp) for organic slow-motion inertia
+      currentY += (targetY - currentY) * 0.085;
+      currentOpacity += (targetOpacity - currentOpacity) * 0.085;
+
+      if (navbarRef.current) {
+        navbarRef.current.style.transform = `translate3d(0, ${currentY.toFixed(2)}px, 0)`;
+        navbarRef.current.style.opacity = `${Math.max(0, Math.min(1, currentOpacity)).toFixed(3)}`;
+        navbarRef.current.style.pointerEvents = currentOpacity <= 0.05 ? 'none' : 'auto';
+      }
+
+      // Continue animation until motion fully settles
+      if (Math.abs(targetY - currentY) > 0.1 || Math.abs(targetOpacity - currentOpacity) > 0.005) {
+        animationFrameId = requestAnimationFrame(updateMotion);
+      } else {
+        currentY = targetY;
+        currentOpacity = targetOpacity;
+        if (navbarRef.current) {
+          navbarRef.current.style.transform = `translate3d(0, ${currentY}px, 0)`;
+          navbarRef.current.style.opacity = `${currentOpacity}`;
+          navbarRef.current.style.pointerEvents = currentOpacity <= 0.05 ? 'none' : 'auto';
+        }
+        isRunning = false;
+      }
+    };
+
+    const handleScroll = () => {
+      const scrollY = window.scrollY || window.pageYOffset;
+      // In the initial scroll (0-90px), the navbar moves up in slow motion and exits first
+      const progress = Math.min(Math.max(scrollY / 90, 0), 1);
+      targetY = -progress * 110;
+      targetOpacity = Math.max(0, 1 - progress * 1.1);
+
+      if (!isRunning) {
+        isRunning = true;
+        animationFrameId = requestAnimationFrame(updateMotion);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
 
   // Anime.js: Hero Entrance & Floating Background Orbs
   useEffect(() => {
@@ -265,12 +327,15 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
       </div>
 
       {/* ─────────────────────────────────────────────────────────────────────────
-          1. NAVIGATION BAR (KokonutUI Lume Pattern)
+          1. NAVIGATION BAR (Orbix Studio Parallax Motion)
           ───────────────────────────────────────────────────────────────────────── */}
-      <div className="fixed top-0 right-0 left-0 z-50">
-        <header className="w-full tracking-tighter transition-all duration-300 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-black/5 dark:border-white/10">
+      <div
+        ref={navbarRef}
+        className="fixed top-0 right-0 left-0 z-50 pointer-events-auto will-change-transform"
+      >
+        <header className="w-full tracking-tighter transition-all duration-300 bg-transparent border-none">
           <div className="mx-auto max-w-7xl px-6">
-            <div className="flex h-16 items-center justify-between gap-8">
+            <div className="flex h-16 sm:h-20 items-center justify-between gap-8">
               {/* Brand Logo */}
               <div className="flex items-center">
                 <Link aria-label="FlowSync" className="flex items-center gap-2.5 group" href="/">
@@ -288,272 +353,118 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
                 </Link>
               </div>
 
-              {/* Desktop Nav Links */}
-              <div className="hidden items-center gap-1 lg:flex">
-                <nav className="group/nav flex items-center gap-1">
-                  <div className="relative">
-                    <button
-                      className="flex items-center gap-1 rounded-lg px-3 py-2 text-[15px] text-black tracking-tighter transition-all duration-200 hover:bg-black/5 dark:text-white dark:hover:bg-white/10"
-                      type="button"
-                      onClick={() => {
-                        const el = document.getElementById('features');
-                        el?.scrollIntoView({ behavior: 'smooth' });
-                      }}
-                    >
-                      Products
-                      <ChevronDown className="h-3.5 w-3.5 opacity-60 transition-transform duration-200" />
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <button
-                      className="flex items-center gap-1 rounded-lg px-3 py-2 text-[15px] text-black tracking-tighter transition-all duration-200 hover:bg-black/5 dark:text-white dark:hover:bg-white/10"
-                      type="button"
-                      onClick={() => {
-                        const el = document.getElementById('features');
-                        el?.scrollIntoView({ behavior: 'smooth' });
-                      }}
-                    >
-                      Solutions
-                      <ChevronDown className="h-3.5 w-3.5 opacity-60 transition-transform duration-200" />
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <button
-                      className="flex items-center gap-1 rounded-lg px-3 py-2 text-[15px] text-black tracking-tighter transition-all duration-200 hover:bg-black/5 dark:text-white dark:hover:bg-white/10"
-                      type="button"
-                      onClick={() => {
-                        const el = document.getElementById('faq');
-                        el?.scrollIntoView({ behavior: 'smooth' });
-                      }}
-                    >
-                      Resources
-                      <ChevronDown className="h-3.5 w-3.5 opacity-60 transition-transform duration-200" />
-                    </button>
-                  </div>
-                </nav>
-
-                <div className="mx-3 h-4 w-px bg-black/10 dark:bg-white/10" />
-
-                <button
-                  onClick={handleLaunch}
-                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-black text-white hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90 shadow-sm rounded-md px-3 text-xs h-9 tracking-tighter"
+              {/* Right Action Button */}
+              <div className="flex items-center">
+                <Link
+                  href="/auth/login"
+                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-xl shadow-black/20 rounded-full px-6 py-2.5 text-xs sm:text-[13px] h-9 sm:h-10 tracking-tight cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  {isAuthenticated ? 'Open Workspace' : 'Try FlowSync'}
-                </button>
-              </div>
-
-              {/* Mobile Menu Trigger */}
-              <div className="flex items-center gap-2 lg:hidden">
-                <button
-                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/10 h-10 w-10 text-black dark:text-white"
-                  aria-label="Toggle mobile menu"
-                >
-                  {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-                </button>
+                  Try FlowSync
+                </Link>
               </div>
             </div>
           </div>
-
-          {/* Mobile Menu Overlay */}
-          {mobileMenuOpen && (
-            <div className="border-b border-black/10 dark:border-white/10 bg-white dark:bg-black px-6 py-4 lg:hidden space-y-3">
-              <a
-                href="#features"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block py-2 text-sm font-medium text-black/80 dark:text-white/80"
-              >
-                Features
-              </a>
-              <a
-                href="#faq"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block py-2 text-sm font-medium text-black/80 dark:text-white/80"
-              >
-                FAQ
-              </a>
-              <div className="pt-2 flex flex-col gap-2">
-                <Link
-                  href="/auth/login"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="w-full text-center py-2.5 rounded-lg border border-black/15 dark:border-white/20 text-xs font-semibold text-black dark:text-white"
-                >
-                  Sign In
-                </Link>
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    handleLaunch();
-                  }}
-                  className="w-full text-center py-2.5 rounded-lg bg-black text-white dark:bg-white dark:text-black text-xs font-semibold"
-                >
-                  {isAuthenticated ? 'Open Workspace' : 'Get Started Free'}
-                </button>
-              </div>
-            </div>
-          )}
         </header>
       </div>
 
       <main className="relative min-h-screen w-full overflow-hidden scroll-smooth">
         {/* ─────────────────────────────────────────────────────────────────────────
-            2. HERO SECTION (Editorial AI Creator + Studio Animation Image)
+            2. HERO SECTION (Scenic Landscape Panoramic + Centered Editorial Design)
             ───────────────────────────────────────────────────────────────────────── */}
-        <section className="relative mx-auto flex min-h-[92vh] w-full max-w-7xl items-center px-4 pt-24 pb-12 sm:px-6 sm:pt-32 sm:pb-16">
-          <div className="grid w-full items-center gap-10 sm:gap-14 lg:grid-cols-2 lg:gap-16">
-            {/* Left Content Column */}
-            <div className="space-y-6 sm:space-y-7">
-              <div className="space-y-4">
-                <h1 className="anime-hero-fade font-bold text-4xl sm:text-5xl md:text-6xl lg:text-[4.25rem] text-slate-950 dark:text-white leading-[1.05] tracking-tight">
-                  AI that thinks, does,<br />
-                  and gets results for you.
-                </h1>
+        <section className="relative w-full min-h-screen flex flex-col justify-between items-center px-4 pt-24 pb-8 sm:pt-28 sm:pb-10 overflow-hidden select-none">
+          {/* Panoramic Meadow Landscape Background */}
+          <div className="absolute inset-0 z-0 select-none pointer-events-none">
+            <Image
+              src="/hero-landscape.jpg"
+              alt="Scenic Green Grassland Landscape"
+              fill
+              priority
+              className="object-cover object-[center_35%] w-full h-full scale-105"
+            />
+            {/* Ambient Daylight Overlay for optimal text readability */}
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white/95 dark:from-transparent dark:via-black/40 dark:to-[#0c0d0e]" />
 
-                <p className="anime-hero-fade max-w-lg text-base sm:text-lg text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
-                  Accelerate your productivity with AI that understands context, generates insights, and helps you accomplish more—safely and securely.
-                </p>
-              </div>
+            {/* Seamless Soft Bottom Fade into next section */}
+            <div className="absolute inset-x-0 bottom-0 h-32 sm:h-44 bg-gradient-to-t from-white via-white/80 to-transparent dark:from-[#0c0d0e] dark:via-[#0c0d0e]/80 dark:to-transparent" />
+          </div>
 
-              {/* Hero CTA Action */}
-              <div className="anime-hero-fade pt-1 flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleLaunch}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-slate-950 hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-slate-100 dark:text-slate-950 font-semibold text-xs sm:text-sm tracking-tight transition-all active:scale-[0.98] shadow-sm cursor-pointer"
-                >
-                  <span>{isAuthenticated ? 'Open Workspace' : 'Get Started Free'}</span>
-                  <ArrowRight className="h-4 w-4" />
-                </button>
-              </div>
+          {/* Centered Editorial Content */}
+          <div className="relative z-10 mx-auto max-w-4xl w-full flex flex-col items-center text-center space-y-6 sm:space-y-7 my-auto pt-4 sm:pt-8">
+            {/* 1. Main Title */}
+            <h1 className="anime-hero-fade font-bold text-4xl sm:text-5xl md:text-6xl lg:text-[4.15rem] text-neutral-950 dark:text-white leading-[1.08] tracking-tight max-w-3xl">
+              Product Design & Dev Agency For<br className="hidden sm:inline" /> B2B SaaS Companies
+            </h1>
 
-              {/* Social Proof Row */}
-              <div className="anime-hero-fade flex flex-wrap items-center gap-3 pt-2 sm:gap-4">
+            {/* 3. Subtitle */}
+            <p className="anime-hero-fade max-w-2xl text-sm sm:text-base md:text-[16.5px] text-neutral-700 dark:text-neutral-300 leading-relaxed font-normal">
+              We help SaaS companies turn ideas into modern digital products through fast product design and development processes completed in as little as 2–4 weeks.
+            </p>
+
+            {/* 4. Rating & Reviews Block (Clutch 5.0) */}
+            <div className="anime-hero-fade pt-1 pb-1 flex items-center justify-center">
+              <div className="flex items-center gap-3">
+                {/* Circular C Logo + 5.0 */}
                 <div className="flex items-center gap-2">
-                  <div className="-space-x-1.5 flex sm:-space-x-2">
-                    <div className="relative h-6 w-6 overflow-hidden rounded-full border-2 border-white sm:h-7 sm:w-7 dark:border-slate-900 shadow-xs bg-slate-900 text-white dark:bg-white dark:text-slate-900 flex items-center justify-center font-bold text-[9px] sm:text-[10px]">
-                      JD
-                    </div>
-                    <div className="relative h-6 w-6 overflow-hidden rounded-full border-2 border-white sm:h-7 sm:w-7 dark:border-slate-900 shadow-xs bg-blue-600 text-white flex items-center justify-center font-bold text-[9px] sm:text-[10px]">
-                      SA
-                    </div>
-                    <div className="relative h-6 w-6 overflow-hidden rounded-full border-2 border-white sm:h-7 sm:w-7 dark:border-slate-900 shadow-xs bg-purple-600 text-white flex items-center justify-center font-bold text-[9px] sm:text-[10px]">
-                      MK
-                    </div>
+                  <div className="w-7 h-7 rounded-full bg-[#185550] text-[#ff705a] flex items-center justify-center text-xs font-black shadow-xs">
+                    <span className="font-extrabold text-[15px] leading-none">C</span>
                   </div>
-                  <span className="text-[11px] text-slate-500 tracking-tight sm:text-xs dark:text-slate-400">
-                    <strong className="font-semibold text-slate-900 dark:text-white">
-                      {counters.users}+
-                    </strong>{' '}
-                    users
-                  </span>
-                </div>
-
-                <div className="hidden h-3 w-px bg-slate-200 sm:block dark:bg-slate-800" />
-
-                <div className="flex items-center gap-1">
-                  <div className="flex text-amber-500">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="h-3 w-3 fill-current sm:h-3.5 sm:w-3.5" />
-                    ))}
-                  </div>
-                  <span className="text-[11px] font-semibold text-slate-900 dark:text-white sm:text-xs">
+                  <span className="text-2xl sm:text-[26px] font-extrabold tracking-tight text-neutral-950 dark:text-white leading-none">
                     5.0
                   </span>
                 </div>
 
-                <div className="hidden h-3 w-px bg-slate-200 sm:block dark:bg-slate-800" />
-
-                <div className="flex items-center gap-2 text-[11px] text-slate-500 sm:text-xs dark:text-slate-400">
-                  <div className="flex items-center gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                    <Zap className="h-3.5 w-3.5 text-blue-500" />
+                {/* 5 Coral Red Stars + 49+ Reviews */}
+                <div className="flex flex-col items-start justify-center leading-none">
+                  <div className="flex text-[#FF4D4D] gap-0.5">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="h-3.5 w-3.5 fill-[#FF4D4D] text-[#FF4D4D]" />
+                    ))}
                   </div>
-                  <span>Powered by AI</span>
+                  <span className="text-[11px] font-medium text-neutral-600 dark:text-neutral-400 mt-1">
+                    49+ Reviews
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Right Column: Professional Animated Editorial AI Image Card */}
-            <div className="anime-hero-fade relative w-full flex items-center justify-center">
-              <div className="group relative w-full max-w-[540px] aspect-square rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden shadow-2xl border border-black/10 dark:border-white/10 bg-[#BA5939] transition-all duration-500 hover:shadow-[0_25px_60px_rgba(186,89,57,0.35)]">
-                
-                {/* Main Editorial Creative Image */}
-                <img
-                  src="/hero-ai-creator.jpg"
-                  alt="AI Creator Workspace"
-                  className="w-full h-full object-cover select-none transition-transform duration-700 ease-out group-hover:scale-[1.03]"
-                  loading="eager"
-                />
 
-                {/* Subtle Ambient Vignette Overlay */}
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10" />
+          </div>
 
-                {/* Dynamic Glowing Neon Code & Syntax Animation Stream */}
-                <div className="pointer-events-none absolute inset-0 select-none">
-                  
-                  {/* Subtle Dotted Curving Arc Background Guide */}
-                  <svg className="absolute inset-0 w-full h-full opacity-40" viewBox="0 0 500 500" fill="none">
-                    <path
-                      d="M 50 250 C 70 140, 160 70, 320 65 C 370 68, 410 95, 430 135"
-                      stroke="url(#neonArcGlow)"
-                      strokeWidth="1.75"
-                      strokeDasharray="4 8"
-                      strokeLinecap="round"
-                    />
-                    <defs>
-                      <linearGradient id="neonArcGlow" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#34d399" stopOpacity="0.9" />
-                        <stop offset="45%" stopColor="#38bdf8" stopOpacity="0.95" />
-                        <stop offset="100%" stopColor="#fb7185" stopOpacity="0.9" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
+          {/* 6. Floating Bottom Island Bar */}
+          <div className="anime-hero-fade relative z-10 mt-6 sm:mt-10 mb-2 sm:mb-4 flex justify-center w-full">
+            <div className="inline-flex items-center gap-6 sm:gap-8 px-5 py-2.5 rounded-full bg-neutral-950 text-white dark:bg-neutral-900 dark:border dark:border-neutral-800 shadow-2xl border border-neutral-800/80 backdrop-blur-lg">
+              {/* Left Brand Icon */}
+              <button
+                type="button"
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors cursor-pointer"
+                title="FlowSync"
+              >
+                <svg className="h-3.5 w-3.5 text-white" fill="currentColor" viewBox="0 0 50 50">
+                  <path d="M27.5308 40.1395C27.5757 35.5502 26.4122 31.8182 24.9322 31.8037C23.4521 31.7893 22.2159 35.4979 22.1711 40.0871C22.1262 44.6764 23.2897 48.4085 24.7697 48.4229C26.2498 48.4374 27.486 44.7288 27.5308 40.1395Z" />
+                  <path d="M18.947 39.0972C21.4661 35.2608 22.5052 31.4922 21.268 30.6798C20.0307 29.8674 16.9856 32.3188 14.4666 36.1552C11.9475 39.9916 10.9084 43.7601 12.1456 44.5726C13.3829 45.385 16.4279 42.9336 18.947 39.0972Z" />
+                  <path d="M12.2792 33.593C16.4726 31.7278 19.3843 29.1194 18.7827 27.767C18.1812 26.4146 14.2942 26.8304 10.1008 28.6957C5.90744 30.5609 2.99571 33.1693 3.59726 34.5217C4.1988 35.8741 8.08584 35.4583 12.2792 33.593Z" />
+                </svg>
+              </button>
 
-                  {/* Token Arc Segment 1: Upper Left Stream */}
-                  <div className="absolute top-[8%] left-[6%] sm:top-[9%] sm:left-[8%] font-mono text-xs sm:text-sm font-semibold tracking-wider whitespace-nowrap animate-syntax-float-slow flex items-center gap-1 sm:gap-1.5 drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]">
-                    <span className="text-[#34d399] drop-shadow-[0_0_8px_rgba(52,211,153,0.85)]">--\&gt;</span>
-                    <span className="text-[#fb7185] drop-shadow-[0_0_8px_rgba(251,113,133,0.85)]">-</span>
-                    <span className="text-[#fbbf24] drop-shadow-[0_0_8px_rgba(251,191,36,0.85)]">•</span>
-                    <span className="text-[#38bdf8] drop-shadow-[0_0_8px_rgba(56,189,248,0.85)]">{`{ - }`}</span>
-                    <span className="text-[#c084fc] drop-shadow-[0_0_8px_rgba(192,132,252,0.85)]">/</span>
-                    <span className="text-[#fb7185] drop-shadow-[0_0_8px_rgba(251,113,133,0.85)]">&quot; - _ &quot;</span>
-                    <span className="text-[#34d399] drop-shadow-[0_0_8px_rgba(52,211,153,0.85)]">)</span>
-                    <span className="text-[#fbbf24] drop-shadow-[0_0_8px_rgba(251,191,36,0.85)]">:</span>
-                    <span className="text-[#38bdf8] drop-shadow-[0_0_8px_rgba(56,189,248,0.85)]">{`{ }`}</span>
-                  </div>
+              {/* Center Metric */}
+              <span className="text-xs font-semibold text-neutral-300 tracking-tight select-none">
+                0%
+              </span>
 
-                  {/* Token Arc Segment 2: Middle Left Curved Stream */}
-                  <div className="absolute top-[28%] left-[10%] sm:top-[30%] sm:left-[12%] font-mono text-xs sm:text-sm font-semibold tracking-wider whitespace-nowrap animate-syntax-float-fast flex items-center gap-1 sm:gap-1.5 drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]">
-                    <span className="text-[#fb7185] drop-shadow-[0_0_8px_rgba(251,113,133,0.85)]">~</span>
-                    <span className="text-[#34d399] drop-shadow-[0_0_8px_rgba(52,211,153,0.85)]">-</span>
-                    <span className="text-[#38bdf8] drop-shadow-[0_0_8px_rgba(56,189,248,0.85)]">&lt; / &gt;</span>
-                    <span className="text-[#fbbf24] drop-shadow-[0_0_8px_rgba(251,191,36,0.85)]">.</span>
-                    <span className="text-[#c084fc] drop-shadow-[0_0_8px_rgba(192,132,252,0.85)]">:</span>
-                    <span className="text-[#34d399] drop-shadow-[0_0_8px_rgba(52,211,153,0.85)]">{`} }`}</span>
-                    <span className="text-[#fb7185] drop-shadow-[0_0_8px_rgba(251,113,133,0.85)]">.</span>
-                  </div>
-
-                  {/* Token Arc Segment 3: Lower Right Arc */}
-                  <div className="absolute bottom-[34%] right-[7%] sm:bottom-[32%] sm:right-[9%] font-mono text-xs sm:text-sm font-semibold tracking-wider whitespace-nowrap animate-syntax-glow flex items-center gap-1 sm:gap-1.5 drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]">
-                    <span className="text-[#fb7185] drop-shadow-[0_0_8px_rgba(251,113,133,0.85)]">&lt; / &gt;</span>
-                    <span className="text-[#fbbf24] drop-shadow-[0_0_8px_rgba(251,191,36,0.85)]">:</span>
-                    <span className="text-[#34d399] drop-shadow-[0_0_8px_rgba(52,211,153,0.85)]">- *</span>
-                  </div>
-
-                  {/* Floating Glass Pill Badge */}
-                  <div className="pointer-events-auto absolute bottom-5 left-5 sm:bottom-6 sm:left-6 flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-black/40 backdrop-blur-md border border-white/20 text-white shadow-xl transition-transform hover:scale-105 duration-200">
-                    <div className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
-                    </div>
-                    <span className="text-xs font-medium tracking-tight">
-                      FlowSync AI Engine active
-                    </span>
-                  </div>
-                </div>
-              </div>
+              {/* Right Menu Trigger */}
+              <button
+                type="button"
+                onClick={() => {
+                  const el = document.getElementById('features');
+                  el?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-white hover:text-neutral-300 transition-colors cursor-pointer"
+              >
+                <span className="text-[14px] leading-none">☰</span>
+                <span>Menu</span>
+              </button>
             </div>
-
           </div>
         </section>
 
