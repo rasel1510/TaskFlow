@@ -506,6 +506,13 @@ export default function TrustedBySection() {
       className="relative w-full bg-white dark:bg-black py-8 sm:py-12 select-none"
     >
       <div className="relative mx-auto max-w-[1360px] px-3 sm:px-6 lg:px-8">
+        {/* Title above cards */}
+        <div className="mb-6 sm:mb-8 text-center">
+          <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+            Trusted Users
+          </p>
+        </div>
+
         {/* 2 Rows of 5 Separated Cards Grid with reduced gap and wider card layout */}
         <div className="flex flex-col gap-2 sm:gap-2.5 lg:gap-3 w-full">
           {/* Row 1 — 5 Cards */}
