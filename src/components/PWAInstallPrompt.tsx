@@ -124,7 +124,7 @@ export default function PWAInstallPrompt() {
       const downloadUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = downloadUrl;
-      a.download = 'TaskFlow.url';
+      a.download = 'FlowSync.url';
       a.rel = 'noopener noreferrer';
       a.addEventListener('click', (ev) => ev.stopPropagation());
       a.dispatchEvent(new MouseEvent('click', { bubbles: false, cancelable: true }));
@@ -144,7 +144,7 @@ export default function PWAInstallPrompt() {
     <div
       className="pwa-install-banner fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-[9990] w-[calc(100vw-2rem)] max-w-sm"
       role="dialog"
-      aria-label="Install TaskFlow app"
+      aria-label="Install FlowSync app"
     >
       <div className="bg-white border border-[#E5E7EB] rounded-2xl shadow-2xl shadow-black/10 overflow-hidden">
         {/* Header */}
@@ -154,7 +154,7 @@ export default function PWAInstallPrompt() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/icons/icon-192.png"
-              alt="TaskFlow"
+              alt="FlowSync"
               className="w-full h-full object-cover"
               onError={(ev) => {
                 ev.currentTarget.style.display = 'none';
@@ -162,7 +162,7 @@ export default function PWAInstallPrompt() {
             />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[14px] font-bold text-[#111111]">Install TaskFlow</p>
+            <p className="text-[14px] font-bold text-[#111111]">Install FlowSync</p>
             <p className="text-[11.5px] text-[#6B7280] leading-snug">
               Fast, standalone workspace with offline support.
             </p>

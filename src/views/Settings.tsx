@@ -524,7 +524,7 @@ export default function Settings() {
         'Notification' in window &&
         Notification.permission === 'granted'
       ) {
-        new Notification('TaskFlow Test Alert', {
+        new Notification('FlowSync Test Alert', {
           body: 'Your notification preferences are working perfectly.',
           icon: '/favicon.ico',
         });
@@ -1248,8 +1248,8 @@ export default function Settings() {
             <p className="text-[13px] text-[rgba(17,17,17,0.45)] mb-6">Manage your workspace settings.</p>
             <div className="space-y-4">
               {[
-                { label: 'Workspace Name', value: 'TaskFlow Inc.' },
-                { label: 'Workspace URL',  value: 'taskflow.app' },
+                { label: 'Workspace Name', value: 'FlowSync Inc.' },
+                { label: 'Workspace URL',  value: 'flowsync.app' },
                 { label: 'Industry',       value: 'Software / Technology' },
               ].map(({ label, value }) => (
                 <div key={label}>

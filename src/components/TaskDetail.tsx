@@ -146,7 +146,7 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
   useEffect(() => {
     if (!taskId) return;
     try {
-      const saved = localStorage.getItem(`taskflow_notif_pref_${taskId}`) as NotificationPref | null;
+      const saved = localStorage.getItem(`flowsync_notif_pref_${taskId}`) as NotificationPref | null;
       if (saved === 'all' || saved === 'mentions' || saved === 'muted') {
         setNotifPref(saved);
       } else {
@@ -161,7 +161,7 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
     setNotifPref(pref);
     try {
       if (taskId) {
-        localStorage.setItem(`taskflow_notif_pref_${taskId}`, pref);
+        localStorage.setItem(`flowsync_notif_pref_${taskId}`, pref);
       }
     } catch {}
 

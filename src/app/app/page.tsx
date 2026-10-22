@@ -118,7 +118,7 @@ export default function AppPage() {
           </div>
           <div className="flex items-center gap-2 text-xs font-medium text-gray-500">
             <div className="w-3.5 h-3.5 border-2 border-[#2563EB] border-t-transparent rounded-full animate-spin" />
-            Loading TaskFlow...
+            Loading FlowSync...
           </div>
         </div>
       </div>

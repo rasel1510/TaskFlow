@@ -124,7 +124,7 @@ export default function PWAModal({ isOpen, onClose }: PWAModalProps) {
       const downloadUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = downloadUrl;
-      a.download = 'TaskFlow.url';
+      a.download = 'FlowSync.url';
       a.rel = 'noopener noreferrer';
       a.addEventListener('click', (ev) => ev.stopPropagation());
       a.dispatchEvent(new MouseEvent('click', { bubbles: false, cancelable: true }));
@@ -189,7 +189,7 @@ export default function PWAModal({ isOpen, onClose }: PWAModalProps) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/icons/icon-192.png"
-            alt="TaskFlow"
+            alt="FlowSync"
             className="w-full h-full object-cover"
             onError={(ev) => {
               ev.currentTarget.style.display = 'none';
@@ -199,7 +199,7 @@ export default function PWAModal({ isOpen, onClose }: PWAModalProps) {
 
         {/* Title */}
         <h3 className="text-lg font-bold text-slate-900 mb-5">
-          TaskFlow
+          FlowSync
         </h3>
 
         {/* 1-Click Action Button / Progress */}

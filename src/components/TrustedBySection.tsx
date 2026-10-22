@@ -364,11 +364,11 @@ const BRAND_PAIRS: BrandPair[] = [
     },
   },
 
-  // 10. TaskFlow ⇄ HubSpot
+  // 10. FlowSync ⇄ HubSpot
   {
-    id: 'taskflow-hubspot',
+    id: 'flowsync-hubspot',
     front: {
-      name: 'TaskFlow',
+      name: 'FlowSync',
       category: 'Agile Orchestration',
       accent: '#2563EB',
       render: () => (
@@ -380,7 +380,7 @@ const BRAND_PAIRS: BrandPair[] = [
             </svg>
           </div>
           <span className="font-sans font-extrabold text-base sm:text-lg tracking-tight text-[#2563EB] dark:text-[#60a5fa]">
-            TaskFlow
+            FlowSync
           </span>
         </div>
       ),

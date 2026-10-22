@@ -10,7 +10,7 @@ interface AppErrorProps {
 
 export default function AppRouteError({ error, reset }: AppErrorProps) {
   useEffect(() => {
-    console.error('[TaskFlow Workspace Error]:', error);
+    console.error('[FlowSync Workspace Error]:', error);
 
     // Auto-recover from chunk or module loading errors caused by cache updates
     const isChunkOrModuleError =

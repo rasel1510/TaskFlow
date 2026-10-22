@@ -9,7 +9,7 @@ interface ErrorProps {
 
 export default function ErrorPage({ error, reset }: ErrorProps) {
   useEffect(() => {
-    console.error('[TaskFlow App Error]:', error);
+    console.error('[FlowSync App Error]:', error);
 
     // Auto-recover from chunk or module loading errors caused by cache updates
     const isChunkOrModuleError =

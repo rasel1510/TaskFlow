@@ -217,15 +217,15 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
   const faqs = [
     {
       number: '001',
-      question: 'How does context understanding work in TaskFlow?',
+      question: 'How does context understanding work in FlowSync?',
       answer:
-        'TaskFlow maintains project context across tasks, documents, and sprints. It analyzes related issues, pull request links, and blocker dependencies, allowing teams to instantly see root causes and summarize weekly progress.',
+        'FlowSync maintains project context across tasks, documents, and sprints. It analyzes related issues, pull request links, and blocker dependencies, allowing teams to instantly see root causes and summarize weekly progress.',
     },
     {
       number: '002',
       question: 'Can I switch between or import from Jira, Linear, or Trello?',
       answer:
-        'Yes. TaskFlow includes one-click migration importers for Linear, Jira, and CSV datasets. Your team tags, assignees, priorities, and descriptions are preserved and organized instantly.',
+        'Yes. FlowSync includes one-click migration importers for Linear, Jira, and CSV datasets. Your team tags, assignees, priorities, and descriptions are preserved and organized instantly.',
     },
     {
       number: '003',
@@ -235,15 +235,15 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
     },
     {
       number: '004',
-      question: 'Does TaskFlow work offline on mobile and desktop?',
+      question: 'Does FlowSync work offline on mobile and desktop?',
       answer:
-        'Yes! TaskFlow is a fully featured Progressive Web App (PWA) with service-worker caching and offline sync. You can install it natively on iOS, Android, macOS, and Windows to work anywhere with zero latency.',
+        'Yes! FlowSync is a fully featured Progressive Web App (PWA) with service-worker caching and offline sync. You can install it natively on iOS, Android, macOS, and Windows to work anywhere with zero latency.',
     },
     {
       number: '005',
       question: 'Can I switch between different AI models?',
       answer:
-        'Yes. TaskFlow integrates seamlessly with Anthropic Claude, OpenAI GPT, Google Gemini, and Grok. You can configure custom API keys or leverage our managed inference router for sprint generation.',
+        'Yes. FlowSync integrates seamlessly with Anthropic Claude, OpenAI GPT, Google Gemini, and Grok. You can configure custom API keys or leverage our managed inference router for sprint generation.',
     },
     {
       number: '006',
@@ -273,17 +273,17 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
             <div className="flex h-16 items-center justify-between gap-8">
               {/* Brand Logo */}
               <div className="flex items-center">
-                <Link aria-label="TaskFlow" className="flex items-center gap-2.5 group" href="/">
+                <Link aria-label="FlowSync" className="flex items-center gap-2.5 group" href="/">
                   <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-black text-white dark:bg-white dark:text-black shadow-xs group-hover:scale-105 transition-transform duration-200">
                     <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 50 50">
-                      <title>TaskFlow Logo</title>
+                      <title>FlowSync Logo</title>
                       <path d="M27.5308 40.1395C27.5757 35.5502 26.4122 31.8182 24.9322 31.8037C23.4521 31.7893 22.2159 35.4979 22.1711 40.0871C22.1262 44.6764 23.2897 48.4085 24.7697 48.4229C26.2498 48.4374 27.486 44.7288 27.5308 40.1395Z" />
                       <path d="M18.947 39.0972C21.4661 35.2608 22.5052 31.4922 21.268 30.6798C20.0307 29.8674 16.9856 32.3188 14.4666 36.1552C11.9475 39.9916 10.9084 43.7601 12.1456 44.5726C13.3829 45.385 16.4279 42.9336 18.947 39.0972Z" />
                       <path d="M12.2792 33.593C16.4726 31.7278 19.3843 29.1194 18.7827 27.767C18.1812 26.4146 14.2942 26.8304 10.1008 28.6957C5.90744 30.5609 2.99571 33.1693 3.59726 34.5217C4.1988 35.8741 8.08584 35.4583 12.2792 33.593Z" />
                     </svg>
                   </div>
                   <span className="font-bold text-2xl text-black tracking-tighter transition-colors dark:text-white">
-                    TaskFlow
+                    FlowSync
                   </span>
                 </Link>
               </div>
@@ -338,7 +338,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
                   onClick={handleLaunch}
                   className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-black text-white hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90 shadow-sm rounded-md px-3 text-xs h-9 tracking-tighter"
                 >
-                  {isAuthenticated ? 'Open Workspace' : 'Try TaskFlow'}
+                  {isAuthenticated ? 'Open Workspace' : 'Try FlowSync'}
                 </button>
               </div>
 
@@ -547,7 +547,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
                     </div>
                     <span className="text-xs font-medium tracking-tight">
-                      TaskFlow AI Engine active
+                      FlowSync AI Engine active
                     </span>
                   </div>
                 </div>

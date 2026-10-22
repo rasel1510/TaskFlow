@@ -10,7 +10,7 @@ interface GlobalErrorProps {
 export default function GlobalError({ error, reset }: GlobalErrorProps) {
   useEffect(() => {
     // Log unexpected critical error
-    console.error('[TaskFlow Global Error]:', error);
+    console.error('[FlowSync Global Error]:', error);
 
     // Auto-recover from chunk or module loading errors caused by cache updates
     const isChunkOrModuleError =

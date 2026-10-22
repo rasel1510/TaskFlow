@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
             priority: t.priority,
             assigneeName: assignee?.name || 'Unassigned',
             assigneeEmail: assignee?.email || 'N/A',
-            projectName: project?.name || 'TaskFlow Core',
+            projectName: project?.name || 'FlowSync Core',
             dueDate: t.dueDate || 'None',
             createdAt: t.createdAt ? String(t.createdAt).split('T')[0] : '2026-09-01',
           };
@@ -159,7 +159,7 @@ export async function GET(request: NextRequest) {
 
     const csvContent = csvLines.join('\r\n');
     const dateStamp = new Date().toISOString().split('T')[0];
-    const filename = `taskflow-tasks-${dateStamp}.csv`;
+    const filename = `flowsync-tasks-${dateStamp}.csv`;
 
     return new NextResponse(csvContent, {
       status: 200,

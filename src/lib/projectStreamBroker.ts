@@ -68,8 +68,8 @@ class ProjectStreamBroker {
 }
 
 // Global singleton to persist across HMR reloads in Next.js
-const globalForBroker = globalThis as unknown as { __taskFlowStreamBroker?: ProjectStreamBroker };
-export const projectStreamBroker = globalForBroker.__taskFlowStreamBroker ?? new ProjectStreamBroker();
+const globalForBroker = globalThis as unknown as { __flowSyncStreamBroker?: ProjectStreamBroker };
+export const projectStreamBroker = globalForBroker.__flowSyncStreamBroker ?? new ProjectStreamBroker();
 if (process.env.NODE_ENV !== 'production') {
-  globalForBroker.__taskFlowStreamBroker = projectStreamBroker;
+  globalForBroker.__flowSyncStreamBroker = projectStreamBroker;
 }

@@ -81,7 +81,7 @@ export default function Footer({ onOpenPWA }: FooterProps) {
                   href="#features"
                   className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white transition-colors"
                 >
-                  About TaskFlow
+                  About FlowSync
                 </Link>
               </li>
               <li>
@@ -178,13 +178,13 @@ export default function Footer({ onOpenPWA }: FooterProps) {
               {/* Email item */}
               <li>
                 <a
-                  href="mailto:support@taskflow.dev"
+                  href="mailto:support@flowsync.dev"
                   className="group flex items-center gap-3 text-neutral-700 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-white transition-colors"
                 >
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50 text-blue-600 dark:text-blue-400 transition-colors group-hover:border-blue-400 dark:group-hover:border-blue-500">
                     <Mail className="h-4 w-4" />
                   </div>
-                  <span className="text-[13.5px] tracking-tight">support@taskflow.dev</span>
+                  <span className="text-[13.5px] tracking-tight">support@flowsync.dev</span>
                 </a>
               </li>
 

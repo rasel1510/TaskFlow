@@ -1,4 +1,4 @@
-# TaskFlow — Modern High-Velocity Engineering & Project Management
+# FlowSync — Modern High-Velocity Engineering & Project Management
 
 > Enterprise-grade project, sprint, and task management SaaS platform built with Next.js 15 App Router, React 19, Tailwind CSS, shadcn/ui, NextAuth v5, and Prisma ORM.  
 > 📐 **Scalability & Engineering Standards:** See [ARCHITECTURE.md](file:///c:/Users/DELL/Desktop/TaskFlow/ARCHITECTURE.md) for time/space complexity budgets ($O(1)$/$O(\log N)$ first), noise-free UI design guidelines, and scaling protocols for millions of concurrent users.
@@ -7,7 +7,7 @@
 
 ## 🚀 Overview
 
-**TaskFlow** is designed for modern agile product, engineering, and design teams. It combines sprint roadmaps, kanban boards, task tracking, predictive SLA risk engines, team velocity analytics, and secure multi-tenant role-based access control into one unified, ultra-fast workspace.
+**FlowSync** is designed for modern agile product, engineering, and design teams. It combines sprint roadmaps, kanban boards, task tracking, predictive SLA risk engines, team velocity analytics, and secure multi-tenant role-based access control into one unified, ultra-fast workspace.
 
 ---
 
@@ -101,7 +101,7 @@ npm install
 Create a `.env` file in the project root:
 
 ```env
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/taskflow?schema=public"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/flowsync?schema=public"
 AUTH_SECRET="super-secret-random-32-character-string"
 NEXTAUTH_URL="http://localhost:3000"
 ```

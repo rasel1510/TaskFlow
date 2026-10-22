@@ -157,7 +157,7 @@ export default function Reports() {
       const a = document.createElement('a');
       const dateStamp = new Date().toISOString().split('T')[0];
       a.href = url;
-      a.download = `taskflow-tasks-${dateStamp}.csv`;
+      a.download = `flowsync-tasks-${dateStamp}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

@@ -1,4 +1,4 @@
-# TaskFlow — High-Scale Architecture & Engineering Standards
+# FlowSync — High-Scale Architecture & Engineering Standards
 
 > **Target Audience:** Staff / Principal Engineers, AI Agents, and Core Contributors  
 > **System Target:** Millions of Concurrent Active Users  
@@ -8,7 +8,7 @@
 
 ## 1. Core Engineering Tenets
 
-Every architectural decision and line of code in TaskFlow must strictly adhere to these four core tenets:
+Every architectural decision and line of code in FlowSync must strictly adhere to these four core tenets:
 
 1. **Optimal Computational & Space Complexity ($O(1)$ / $O(\log N)$ First)**:
    - Minimize CPU cycles and heap memory allocations.
@@ -70,7 +70,7 @@ A high-scale productivity tool must respect user attention and cognitive bandwid
 
 ```
 +-------------------------------------------------------------+
-|                      TaskFlow Workspace                     |
+|                      FlowSync Workspace                     |
 |  +---------+---------------------------------------------+  |
 |  | Sidebar | Main View: Focused, Calm, High Information   |  |
 |  | Minimal | Density without Clutter                     |  |

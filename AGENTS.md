@@ -1,4 +1,4 @@
-# TaskFlow
+# FlowSync
 
 Next.js + Tailwind CSS + shadcn/ui project for project and task management.
 
@@ -8,7 +8,7 @@ Next.js + Tailwind CSS + shadcn/ui project for project and task management.
 
 ## 🏛️ High-Scale Engineering Mandates (Millions of Users)
 
-All code contributed to TaskFlow must adhere to Staff/Principal-level engineering standards:
+All code contributed to FlowSync must adhere to Staff/Principal-level engineering standards:
 
 1. **Lowest Time & Space Complexity ($O(1)$ / $O(\log N)$ First)**:
    - **No Quadratic Iteration**: Never nest `.find()` or `.filter()` inside loops ($O(N^2)$). Always index data using `Map<string, T>` or `Set<string>` for $O(1)$ lookups.

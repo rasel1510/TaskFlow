@@ -54,7 +54,7 @@ export function RadialTaskMenu({
         scale: 1,
         opacity: 1,
         duration: 0.32,
-        delay: 0.04,
+        delay: 0.02,
         ease: 'back.out(1.7)',
         pointerEvents: 'auto',
       });
@@ -148,11 +148,10 @@ export function RadialTaskMenu({
           e.stopPropagation();
           onToggle();
         }}
-        className={`w-7 h-7 rounded-full flex items-center justify-center cursor-pointer relative z-10 transition-all active:scale-95 ${
-          isOpen
-            ? 'bg-[#111111] text-white border border-[#111111] shadow-sm'
-            : 'bg-white text-[rgba(17,17,17,0.55)] hover:text-[#111111] border border-[#E5E7EB] hover:border-[#CBD5E1] hover:bg-[#F9FAFB] shadow-xs'
-        }`}
+        className={`w-7 h-7 rounded-full flex items-center justify-center cursor-pointer relative z-10 transition-all active:scale-95 ${isOpen
+          ? 'bg-[#111111] text-white border border-[#111111] shadow-sm'
+          : 'bg-white text-[rgba(17,17,17,0.55)] hover:text-[#111111] border border-[#E5E7EB] hover:border-[#CBD5E1] hover:bg-[#F9FAFB] shadow-xs'
+          }`}
       >
         <span ref={iconRef} className="inline-flex items-center justify-center">
           {isOpen ? (

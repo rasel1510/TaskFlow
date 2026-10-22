@@ -269,10 +269,10 @@ class TieredCache {
 }
 
 // Global singleton instance across Next.js API route modules
-const globalForCache = globalThis as unknown as { __taskFlowCache?: TieredCache };
-export const redisCache = globalForCache.__taskFlowCache ?? new TieredCache();
+const globalForCache = globalThis as unknown as { __flowSyncCache?: TieredCache };
+export const redisCache = globalForCache.__flowSyncCache ?? new TieredCache();
 if (process.env.NODE_ENV !== 'production') {
-  globalForCache.__taskFlowCache = redisCache;
+  globalForCache.__flowSyncCache = redisCache;
 }
 
 export default redisCache;

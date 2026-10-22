@@ -24,20 +24,20 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'TaskFlow — Modern Project & Task Management',
+  title: 'FlowSync — Modern Project & Task Management',
   description:
     'Organize tasks, track projects, and ship faster — your all-in-one SaaS workspace for individuals and teams.',
   keywords: ['task management', 'project management', 'productivity', 'kanban', 'timeline'],
-  applicationName: 'TaskFlow',
+  applicationName: 'FlowSync',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'TaskFlow',
+    title: 'FlowSync',
   },
   formatDetection: { telephone: false },
   openGraph: {
-    title: 'TaskFlow — Modern Project & Task Management',
+    title: 'FlowSync — Modern Project & Task Management',
     description: 'Organize tasks, track projects, and ship faster.',
     type: 'website',
   },

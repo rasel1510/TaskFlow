@@ -1,4 +1,4 @@
-# TaskFlow — Full Development Master Plan
+# FlowSync — Full Development Master Plan
 ### Target: Expert Full-Stack Developer Hiring Submission
 ### Standard: Staff/Principal Engineer | Production-Grade | End-to-End Real Data
 

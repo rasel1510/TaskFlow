@@ -1,7 +1,7 @@
 /**
  * src/lib/validators.ts
  *
- * Central Zod v4 schema library for all TaskFlow API inputs.
+ * Central Zod v4 schema library for all FlowSync API inputs.
  *
  * Every API route handler imports and uses these schemas instead of
  * writing ad-hoc typeof/length checks. This gives us:
