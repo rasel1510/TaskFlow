@@ -140,8 +140,10 @@ export default function RootLayout({
         />
 
         {/*
-          Service Worker registration — runs after the page is interactive.
-          strategy="afterInteractive" ensures this never blocks page load or LCP.
+          Service Worker management:
+          - Development: Immediately unregister any lingering service workers and purge all
+            CacheStorage caches so developers never need Ctrl+Shift+R or get served stale chunks.
+          - Production: Register /sw.js for PWA caching & offline support.
         */}
         <Script
           id="sw-register"
@@ -149,24 +151,46 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
-                    .then(function(reg) {
-                      reg.update().catch(function() {});
-                      reg.addEventListener('updatefound', function() {
-                        var newWorker = reg.installing;
-                        if (!newWorker) return;
-                        newWorker.addEventListener('statechange', function() {
-                          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            window.dispatchEvent(new CustomEvent('sw-update-available', { detail: reg }));
-                          }
-                        });
-                      });
-                    })
-                    .catch(function(err) {
-                      console.warn('[SW] Registration failed:', err);
+                var isDev = window.location.hostname === 'localhost' ||
+                            window.location.hostname === '127.0.0.1' ||
+                            window.location.hostname.endsWith('.local') ||
+                            Boolean(window.location.port);
+
+                if (isDev) {
+                  // In development mode, kill any registered service worker and wipe CacheStorage
+                  navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    for (var i = 0; i < registrations.length; i++) {
+                      registrations[i].unregister();
+                    }
+                  });
+                  if ('caches' in window) {
+                    caches.keys().then(function(names) {
+                      for (var i = 0; i < names.length; i++) {
+                        caches.delete(names[i]);
+                      }
                     });
-                });
+                  }
+                } else {
+                  // In production, register the service worker after load
+                  window.addEventListener('load', function() {
+                    navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
+                      .then(function(reg) {
+                        reg.update().catch(function() {});
+                        reg.addEventListener('updatefound', function() {
+                          var newWorker = reg.installing;
+                          if (!newWorker) return;
+                          newWorker.addEventListener('statechange', function() {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                              window.dispatchEvent(new CustomEvent('sw-update-available', { detail: reg }));
+                            }
+                          });
+                        });
+                      })
+                      .catch(function(err) {
+                        console.warn('[SW] Registration failed:', err);
+                      });
+                  });
+                }
               }
             `,
           }}

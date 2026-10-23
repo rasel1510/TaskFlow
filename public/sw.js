@@ -10,6 +10,29 @@
  * Offline: Serves cached pages gracefully, queues write requests for retry.
  */
 
+const isDev = typeof location !== 'undefined' && (
+  location.hostname === 'localhost' ||
+  location.hostname === '127.0.0.1' ||
+  location.hostname.endsWith('.local') ||
+  Boolean(location.port)
+);
+
+if (isDev) {
+  // In development, immediately clear caches, skip waiting, and unregister
+  // so developers and users never get served stale cached chunks or need Ctrl+Shift+R
+  self.addEventListener('install', () => {
+    self.skipWaiting();
+  });
+  self.addEventListener('activate', (event) => {
+    event.waitUntil(
+      caches.keys()
+        .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+        .then(() => self.registration.unregister())
+        .then(() => self.clients.claim())
+    );
+  });
+} else {
+
 const CACHE_NAME = 'flowsync-v9';
 const STATIC_CACHE = 'flowsync-static-v9';
 const API_CACHE = 'flowsync-api-v9';
@@ -181,6 +204,8 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
+}
+
 
 
 

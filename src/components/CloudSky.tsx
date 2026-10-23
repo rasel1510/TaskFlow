@@ -293,6 +293,7 @@ interface Props {
     clouds?: Clouds
     sun?: Sun
     pointer?: Pointer
+    targetRef?: React.RefObject<HTMLElement | null>
 }
 
 export default function CloudSky(props: Props) {
@@ -310,7 +311,11 @@ export default function CloudSky(props: Props) {
         pointer,
         width,
         height,
+        targetRef,
     } = props
+
+    const targetRefCurrent = useRef(targetRef)
+    targetRefCurrent.current = targetRef
 
     // A group the designer never opened arrives undefined; spread-merging over a
     // typed literal beats a hand-written ?? chain, where one missed key silently
@@ -448,24 +453,44 @@ export default function CloudSky(props: Props) {
             raf = requestAnimationFrame(render)
         }
 
-        // The rect RATIO is zoom-invariant -- offset and size scale together --
-        // so this is safe on a zoomed Framer canvas where absolute px are not.
+        // Restrict cursor tracking strictly to the target area (e.g. Sky Portion).
+        // When cursor is inside the target area, calculate normalized canvas coordinates [-1, 1].
+        // When cursor leaves the target area (or leaves window / scrolls), smoothly transition to idle.
         const track = (e: PointerEvent) => {
-            const r = canvas.getBoundingClientRect()
-            if (r.width <= 0 || r.height <= 0) return
-            ptrRef.current.x = ((e.clientX - r.left) / r.width) * 2 - 1
-            ptrRef.current.y = 1 - ((e.clientY - r.top) / r.height) * 2
+            const canvasRect = canvas.getBoundingClientRect()
+            if (canvasRect.width <= 0 || canvasRect.height <= 0) return
+
+            const targetEl = targetRefCurrent.current?.current || canvas
+            const targetRect = targetEl.getBoundingClientRect()
+            if (targetRect.width <= 0 || targetRect.height <= 0) return
+
+            // Strict containment test: only active when cursor is within the designated Sky Portion
+            const isInside =
+                e.clientX >= targetRect.left &&
+                e.clientX <= targetRect.right &&
+                e.clientY >= targetRect.top &&
+                e.clientY <= targetRect.bottom
+
+            if (!isInside) {
+                ptrRef.current.inside = false
+                return
+            }
+
+            ptrRef.current.x = ((e.clientX - canvasRect.left) / canvasRect.width) * 2 - 1
+            ptrRef.current.y = 1 - ((e.clientY - canvasRect.top) / canvasRect.height) * 2
             ptrRef.current.inside = true
         }
+
         const onLeave = () => {
             ptrRef.current.inside = false
         }
 
         window.addEventListener("pointermove", track, { passive: true })
         window.addEventListener("pointerleave", onLeave)
-        canvas.addEventListener("pointermove", track)
-        canvas.addEventListener("pointerenter", track)
-        canvas.addEventListener("pointerleave", onLeave)
+        window.addEventListener("pointerup", onLeave)
+        window.addEventListener("pointercancel", onLeave)
+        window.addEventListener("scroll", onLeave, { passive: true })
+        document.addEventListener("mouseleave", onLeave)
 
         raf = requestAnimationFrame(render)
 
@@ -475,9 +500,10 @@ export default function CloudSky(props: Props) {
             cancelAnimationFrame(raf)
             window.removeEventListener("pointermove", track)
             window.removeEventListener("pointerleave", onLeave)
-            canvas.removeEventListener("pointermove", track)
-            canvas.removeEventListener("pointerenter", track)
-            canvas.removeEventListener("pointerleave", onLeave)
+            window.removeEventListener("pointerup", onLeave)
+            window.removeEventListener("pointercancel", onLeave)
+            window.removeEventListener("scroll", onLeave)
+            document.removeEventListener("mouseleave", onLeave)
         }
     }, [])
 

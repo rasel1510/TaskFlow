@@ -74,6 +74,9 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
   // Orbix Studio style continuous slow-motion scroll physics for navbar
   const navbarRef = useRef<HTMLDivElement>(null);
 
+  // Dedicated Sky portion ref: limits cloud cursor interaction strictly to the sky
+  const skyAreaRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -373,11 +376,20 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
             2. HERO SECTION (Scenic Landscape Panoramic + Centered Editorial Design)
             ───────────────────────────────────────────────────────────────────────── */}
         <section className="relative w-full min-h-screen flex flex-col justify-between items-center px-4 pt-36 sm:pt-44 md:pt-48 pb-6 sm:pb-8 overflow-hidden select-none">
+          {/* Explicit Sky Interaction Zone: Restricts cursor movement reaction strictly to the Sky portion of the hero */}
+          <div
+            ref={skyAreaRef}
+            data-sky-portion="true"
+            className="absolute inset-x-0 top-0 h-[38%] pointer-events-none z-0"
+            aria-hidden="true"
+          />
+
           {/* Panoramic Meadow Landscape Background */}
           <div className="absolute inset-0 z-0 select-none pointer-events-none">
             {/* Animated WebGL Cloud Sky Background (Originkit Drifting Cumulus Clouds) */}
             <div className="absolute inset-0 z-0 overflow-hidden">
               <CloudSky
+                targetRef={skyAreaRef}
                 className="w-full h-full"
                 background="#0075FF"
                 baseColor="#B4D2F0"
@@ -414,28 +426,28 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
           <div className="relative z-10 mx-auto max-w-4xl w-full flex flex-col items-center text-center space-y-6 sm:space-y-7 my-auto pt-8 sm:pt-14 md:pt-16">
             {/* 1. Main Title */}
             <h1 className="anime-hero-fade font-bold text-4xl sm:text-5xl md:text-6xl lg:text-[4.15rem] text-neutral-950 dark:text-white leading-[1.08] tracking-tight max-w-3xl">
-              Product Design & Dev Agency For<br className="hidden sm:inline" /> B2B SaaS Companies
+              Smart Task & Project Management<br className="hidden sm:inline" /> Built for Modern Teams
             </h1>
 
             {/* 3. Subtitle */}
             <p className="anime-hero-fade max-w-2xl text-sm sm:text-base md:text-[16.5px] text-neutral-700 dark:text-neutral-300 leading-relaxed font-normal">
-              We help SaaS companies turn ideas into modern digital products through fast product design and development processes completed in as little as 2–4 weeks.
+              Empower any team to plan, track, and execute tasks and projects with effortless efficiency. Streamline workflows, eliminate bottlenecks, and ship high-impact work faster.
             </p>
 
-            {/* 4. Rating & Reviews Block (Clutch 5.0) */}
+            {/* 4. Rating & Reviews Block */}
             <div className="anime-hero-fade pt-1 pb-1 flex items-center justify-center">
               <div className="flex items-center gap-3">
-                {/* Circular C Logo + 5.0 */}
+                {/* 5.0 Rating Badge */}
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full bg-[#185550] text-[#ff705a] flex items-center justify-center text-xs font-black shadow-xs">
-                    <span className="font-extrabold text-[15px] leading-none">C</span>
+                  <div className="w-7 h-7 rounded-full bg-neutral-950 text-white dark:bg-white dark:text-black flex items-center justify-center text-xs font-bold shadow-xs">
+                    <span className="font-bold text-[13px] leading-none">★</span>
                   </div>
                   <span className="text-2xl sm:text-[26px] font-extrabold tracking-tight text-neutral-950 dark:text-white leading-none">
                     5.0
                   </span>
                 </div>
 
-                {/* 5 Coral Red Stars + 49+ Reviews */}
+                {/* 5 Coral Red Stars + Reviews */}
                 <div className="flex flex-col items-start justify-center leading-none">
                   <div className="flex text-[#FF4D4D] gap-0.5">
                     {[...Array(5)].map((_, i) => (
@@ -443,7 +455,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
                     ))}
                   </div>
                   <span className="text-[11px] font-medium text-neutral-600 dark:text-neutral-400 mt-1">
-                    49+ Reviews
+                    Loved by 1,200+ Teams
                   </span>
                 </div>
               </div>
