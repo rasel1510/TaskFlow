@@ -35,6 +35,7 @@ import PWAModal from '@/components/PWAModal';
 import TrustedBySection from '@/components/TrustedBySection';
 import StreamlineVelocitySection from '@/components/StreamlineVelocitySection';
 import Footer from '@/components/Footer';
+import CloudSky from '@/components/CloudSky';
 
 interface LandingPageProps {
   onLaunchApp?: () => void;
@@ -371,15 +372,36 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
         {/* ─────────────────────────────────────────────────────────────────────────
             2. HERO SECTION (Scenic Landscape Panoramic + Centered Editorial Design)
             ───────────────────────────────────────────────────────────────────────── */}
-        <section className="relative w-full min-h-screen flex flex-col justify-between items-center px-4 pt-24 pb-8 sm:pt-28 sm:pb-10 overflow-hidden select-none">
+        <section className="relative w-full min-h-screen flex flex-col justify-between items-center px-4 pt-36 sm:pt-44 md:pt-48 pb-6 sm:pb-8 overflow-hidden select-none">
           {/* Panoramic Meadow Landscape Background */}
           <div className="absolute inset-0 z-0 select-none pointer-events-none">
+            {/* Animated WebGL Cloud Sky Background (Originkit Drifting Cumulus Clouds) */}
+            <div className="absolute inset-0 z-0 overflow-hidden">
+              <CloudSky
+                className="w-full h-full"
+                background="#0075FF"
+                baseColor="#B4D2F0"
+                accentColor="#FFFFFF"
+                density={100}
+                speed={64}
+                size={130}
+                clouds={{ cirrus: 100, shadow: 70, softness: 200 }}
+                sun={{ x: 100, y: 100, glow: "#FFFFFF" }}
+                pointer={{ wind: 300, damping: 50, parallax: 300 }}
+              />
+            </div>
+
+            {/* Landscape with Hills & Foreground (masked at top to blend seamlessly with CloudSky) */}
             <Image
               src="/hero-landscape.jpg"
               alt="Scenic Green Grassland Landscape"
               fill
               priority
               className="object-cover object-[center_35%] w-full h-full scale-105"
+              style={{
+                maskImage: 'linear-gradient(to bottom, transparent 0%, transparent 20%, black 40%, black 100%)',
+                WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, transparent 20%, black 40%, black 100%)',
+              }}
             />
             {/* Ambient Daylight Overlay for optimal text readability */}
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white/95 dark:from-transparent dark:via-black/40 dark:to-[#0c0d0e]" />
@@ -389,7 +411,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
           </div>
 
           {/* Centered Editorial Content */}
-          <div className="relative z-10 mx-auto max-w-4xl w-full flex flex-col items-center text-center space-y-6 sm:space-y-7 my-auto pt-4 sm:pt-8">
+          <div className="relative z-10 mx-auto max-w-4xl w-full flex flex-col items-center text-center space-y-6 sm:space-y-7 my-auto pt-8 sm:pt-14 md:pt-16">
             {/* 1. Main Title */}
             <h1 className="anime-hero-fade font-bold text-4xl sm:text-5xl md:text-6xl lg:text-[4.15rem] text-neutral-950 dark:text-white leading-[1.08] tracking-tight max-w-3xl">
               Product Design & Dev Agency For<br className="hidden sm:inline" /> B2B SaaS Companies
@@ -431,7 +453,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
           </div>
 
           {/* 6. Floating Bottom Island Bar */}
-          <div className="anime-hero-fade relative z-10 mt-6 sm:mt-10 mb-2 sm:mb-4 flex justify-center w-full">
+          <div className="anime-hero-fade relative z-10 mt-8 sm:mt-12 mb-2 sm:mb-3 flex justify-center w-full">
             <div className="inline-flex items-center gap-6 sm:gap-8 px-5 py-2.5 rounded-full bg-neutral-950 text-white dark:bg-neutral-900 dark:border dark:border-neutral-800 shadow-2xl border border-neutral-800/80 backdrop-blur-lg">
               {/* Left Brand Icon */}
               <button
