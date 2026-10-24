@@ -30,6 +30,8 @@ import {
   Users,
 } from 'lucide-react';
 import { animate, stagger } from 'animejs';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { LiquidGlassCard, LiquidButton } from '@/components/kokonutui/liquid-glass-card';
 import PWAModal from '@/components/PWAModal';
 import TrustedBySection from '@/components/TrustedBySection';
@@ -243,6 +245,123 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
     }));
   };
 
+  // GSAP: Pinned Panels with Overscroll for Features and FAQ
+  const slidesWrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    gsap.registerPlugin(ScrollTrigger);
+
+    const wrapper = slidesWrapperRef.current;
+    if (!wrapper) return;
+
+    let ctx: gsap.Context | null = null;
+
+    const setupPinnedPanels = () => {
+      if (ctx) ctx.revert();
+
+      ctx = gsap.context(() => {
+        // Collect all panels inside slides wrapper
+        const panels = gsap.utils.toArray<HTMLElement>('.section', wrapper);
+        // Pop the trailing element leaving our active sections
+        panels.pop();
+
+        panels.forEach((panel) => {
+          // Get the element holding the content inside the panel
+          const innerpanel = panel.querySelector<HTMLElement>('.section-inner');
+          if (!innerpanel) return;
+
+          // Clear previous inline styles before measurement
+          panel.style.marginBottom = '';
+          gsap.set(innerpanel, { clearProps: 'transform' });
+          gsap.set(panel, { clearProps: 'transform,opacity' });
+
+          // Get the Height of the content inside the panel
+          const panelHeight = innerpanel.offsetHeight;
+          // Get the window height
+          const windowHeight = window.innerHeight;
+
+          const difference = panelHeight - windowHeight;
+
+          // ratio (between 0 and 1) representing the portion of the overall animation that's for the fake-scrolling
+          const fakeScrollRatio = difference > 0 ? difference / (difference + windowHeight) : 0;
+
+          // if we need to fake scroll (because the panel is taller than the window), add the appropriate amount of margin to the bottom so that the next element comes in at the proper time.
+          if (fakeScrollRatio) {
+            panel.style.marginBottom = panelHeight * fakeScrollRatio + 'px';
+          }
+
+          const tl = gsap.timeline({
+            scrollTrigger: {
+              trigger: panel,
+              start: 'bottom bottom',
+              end: () => (fakeScrollRatio ? `+=${innerpanel.offsetHeight}` : 'bottom top'),
+              pinSpacing: false,
+              pin: true,
+              scrub: true,
+              invalidateOnRefresh: true,
+            },
+          });
+
+          // fake scroll. We use 1 because that's what the rest of the timeline consists of (0.9 scale + 0.1 fade)
+          if (fakeScrollRatio) {
+            tl.to(innerpanel, {
+              yPercent: -100,
+              y: window.innerHeight,
+              duration: 1 / (1 - fakeScrollRatio) - 1,
+              ease: 'none',
+            });
+          }
+
+          tl.fromTo(panel, { scale: 1, opacity: 1 }, { scale: 0.7, opacity: 0.5, duration: 0.9 })
+            .to(panel, { opacity: 0, duration: 0.1 });
+        });
+      }, wrapper);
+    };
+
+    const mountTimer = setTimeout(() => {
+      setupPinnedPanels();
+    }, 120);
+
+    const handleResize = () => {
+      setupPinnedPanels();
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      clearTimeout(mountTimer);
+      window.removeEventListener('resize', handleResize);
+      if (ctx) ctx.revert();
+    };
+  }, []);
+
+  // Update margins and refresh ScrollTrigger on accordion / tab changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const wrapper = slidesWrapperRef.current;
+      if (!wrapper) return;
+      const panels = wrapper.querySelectorAll<HTMLElement>('.section');
+      panels.forEach((panel) => {
+        const innerpanel = panel.querySelector<HTMLElement>('.section-inner');
+        if (!innerpanel) return;
+        const panelHeight = innerpanel.offsetHeight;
+        const windowHeight = window.innerHeight;
+        const difference = panelHeight - windowHeight;
+        const fakeScrollRatio = difference > 0 ? difference / (difference + windowHeight) : 0;
+        if (fakeScrollRatio) {
+          panel.style.marginBottom = panelHeight * fakeScrollRatio + 'px';
+        } else {
+          panel.style.marginBottom = '0px';
+        }
+      });
+      ScrollTrigger.refresh();
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [openFaqIndex, activeFeatureIndex]);
+
   // Feature items matching KokonutUI Lume template structure
   const features = [
     {
@@ -320,7 +439,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
   ];
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-white text-black selection:bg-black/10 selection:text-black dark:bg-black dark:text-white dark:selection:bg-white/20 dark:selection:text-white font-sans tracking-tight">
+    <div className="relative min-h-screen w-full overflow-x-clip bg-white text-black selection:bg-black/10 selection:text-black dark:bg-black dark:text-white dark:selection:bg-white/20 dark:selection:text-white font-sans tracking-tight">
       {/* ─────────────────────────────────────────────────────────────────────────
           BACKGROUND AMBIENT LIQUID ORBS (Anime.js animated)
           ───────────────────────────────────────────────────────────────────────── */}
@@ -371,7 +490,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
         </header>
       </div>
 
-      <main className="relative min-h-screen w-full overflow-hidden scroll-smooth">
+      <main className="relative min-h-screen w-full overflow-x-clip scroll-smooth">
         {/* ─────────────────────────────────────────────────────────────────────────
             2. HERO SECTION (Scenic Landscape Panoramic + Centered Editorial Design)
             ───────────────────────────────────────────────────────────────────────── */}
@@ -513,19 +632,23 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
         <StreamlineVelocitySection />
 
         {/* ─────────────────────────────────────────────────────────────────────────
-            3. FEATURES SECTION ("Everything you need to succeed")
+            PINNED PANELS WITH OVERSCROLL: FEATURES & FAQ SECTIONS
             ───────────────────────────────────────────────────────────────────────── */}
-        <section
-          id="features"
-          className="relative mx-auto flex w-full max-w-7xl flex-col px-6 pt-16 pb-24 sm:pt-24 sm:pb-32"
-        >
-          <div className="mb-12 text-center">
-            <h2 className="font-semibold text-3xl text-black tracking-tight sm:text-4xl lg:text-5xl dark:text-white">
-              Everything you need to succeed
-            </h2>
-          </div>
+        <div ref={slidesWrapperRef} className="slides-wrapper relative w-full px-3 sm:px-6 lg:px-8 mt-12 sm:mt-16">
+          {/* 3. FEATURES SECTION ("Everything you need to succeed") */}
+          <section
+            id="features"
+            className="section section-1 section-features w-full h-[calc(100vh-64px)] relative flex justify-center box-border overflow-hidden rounded-2xl sm:rounded-3xl border border-neutral-200/90 dark:border-neutral-800/80 bg-neutral-50/95 dark:bg-[#0e0f11] shadow-2xl backdrop-blur-sm"
+          >
+            <div className="section-content w-full h-full flex justify-center overflow-hidden">
+              <div className="section-inner w-full max-w-7xl px-6 pt-12 pb-[20vh] sm:pt-16 md:pt-20 flex flex-col items-center">
+                <div className="mb-12 text-center">
+                  <h2 className="font-semibold text-3xl text-black tracking-tight sm:text-4xl lg:text-5xl dark:text-white">
+                    Everything you need to succeed
+                  </h2>
+                </div>
 
-          <div className="grid w-full items-center gap-12 lg:grid-cols-2 lg:gap-16">
+                <div className="grid w-full items-center gap-12 lg:grid-cols-2 lg:gap-16 my-auto">
             {/* Left Column: Interactive Liquid Glass Preview Card */}
             <div ref={featureShowcaseRef} className="relative h-[320px] w-full sm:h-[380px] lg:h-[420px]">
               <LiquidGlassCard
@@ -732,22 +855,24 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
               </div>
             </div>
           </div>
-        </section>
+        </div>
+      </div>
+    </section>
 
-        {/* ─────────────────────────────────────────────────────────────────────────
-            4. FAQ SECTION (Matching KokonutUI Lume (001) Numbered Style)
-            ───────────────────────────────────────────────────────────────────────── */}
-        <section
-          id="faq"
-          className="relative mx-auto flex w-full max-w-3xl flex-col px-6 pt-12 pb-24 sm:pt-16 sm:pb-32"
-        >
-          <div className="mb-12 text-center">
-            <h2 className="font-semibold text-2xl text-black tracking-tight sm:text-3xl dark:text-white">
-              Frequently asked questions
-            </h2>
-          </div>
+      {/* 4. FAQ SECTION (Matching KokonutUI Lume (001) Numbered Style) */}
+      <section
+        id="faq"
+        className="section section-2 section-faq w-full h-[calc(100vh-64px)] relative flex justify-center box-border overflow-hidden rounded-2xl sm:rounded-3xl border border-neutral-200/90 dark:border-neutral-800/80 bg-white dark:bg-[#111215] shadow-2xl backdrop-blur-sm"
+      >
+        <div className="section-content w-full h-full flex justify-center overflow-hidden">
+          <div className="section-inner w-full max-w-3xl px-6 pt-12 pb-[20vh] sm:pt-16 md:pt-20 flex flex-col items-center">
+            <div className="mb-12 text-center">
+              <h2 className="font-semibold text-2xl text-black tracking-tight sm:text-3xl dark:text-white">
+                Frequently asked questions
+              </h2>
+            </div>
 
-          <div className="space-y-2">
+            <div className="w-full space-y-2">
             {faqs.map((faq, index) => {
               const isOpen = openFaqIndex === index;
 
@@ -790,8 +915,14 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
               );
             })}
           </div>
-        </section>
-      </main>
+        </div>
+      </div>
+    </section>
+
+    {/* Dummy / Anchor element so panels.pop() pops this end-marker leaving section-1 & section-2 as active overscrolling panels */}
+    <div className="section section-end h-px w-full pointer-events-none opacity-0" />
+  </div>
+</main>
 
       {/* ─────────────────────────────────────────────────────────────────────────
           6. FOOTER (Minimalist 5-Column Grid with Alpine Landscape Artwork)

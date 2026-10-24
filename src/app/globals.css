@@ -441,3 +441,46 @@ body.modal-open {
   animation-play-state: paused;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   GSAP PINNED PANELS WITH OVERSCROLL
+   ───────────────────────────────────────────────────────────────────────── */
+.slides-wrapper {
+  margin-top: 64px;
+  position: relative;
+  width: 100%;
+}
+
+.slides-wrapper .section {
+  width: 100%;
+  height: calc(100vh - 64px);
+  display: flex;
+  justify-content: center;
+  position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 20px;
+  will-change: transform, opacity;
+}
+
+.slides-wrapper .section-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.slides-wrapper .section-inner {
+  width: 100%;
+  height: auto;
+  min-height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+  padding-bottom: 20vh;
+  will-change: transform;
+}
+
