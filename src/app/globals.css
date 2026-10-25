@@ -484,3 +484,19 @@ body.modal-open {
   will-change: transform;
 }
 
+/* Gradient Beam CTA Animations */
+@keyframes beam-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dots-move {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 24px 24px;
+  }
+}
+

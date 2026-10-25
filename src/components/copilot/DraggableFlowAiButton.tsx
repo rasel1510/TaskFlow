@@ -192,30 +192,95 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
             }
           : undefined
       }
-      className={`fixed z-40 flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-[#111827] hover:bg-[#1F2937] text-white border border-white/10 select-none touch-none ${
+      className={`group fixed z-40 flex items-center justify-center rounded-full px-4 py-2.5 [isolation:isolate] select-none touch-none focus:outline-none transition-all duration-500 ${
         position ? '' : 'bottom-6 right-6'
       } ${
         isDragging
-          ? 'cursor-grabbing scale-105 shadow-2xl shadow-black/40 ring-2 ring-blue-500/50'
-          : 'cursor-grab hover:scale-105 active:scale-95 shadow-xl shadow-black/15 transition-transform duration-150'
+          ? 'cursor-grabbing scale-105 shadow-[0_0_50px_0px_rgba(234,88,12,0.85)]'
+          : 'cursor-grab hover:scale-[1.03] active:scale-95 shadow-xl shadow-black/40 hover:shadow-[0_0_45px_-8px_rgba(234,88,12,0.65)]'
       }`}
     >
-      <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 pointer-events-none">
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="animate-pulse"
-        >
-          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-        </svg>
+      <style>{`
+        @keyframes beam-spin { to { transform: rotate(360deg); } }
+        @keyframes dots-move { 
+          0% { background-position: 0 0; } 
+          100% { background-position: 24px 24px; } 
+        }
+      `}</style>
+
+      {/* Surrounding Ambient Gradient Background Light (Outer Soft Halo) - Displays on Hover */}
+      <div
+        className={`absolute -inset-5 sm:-inset-6 rounded-full pointer-events-none -z-30 transition-all duration-500 ease-out ${
+          isDragging ? 'opacity-100 scale-110' : 'opacity-0'
+        } group-hover:opacity-100 group-hover:scale-110`}
+        style={{
+          background:
+            'radial-gradient(ellipse at center, rgba(234, 88, 12, 0.45) 0%, rgba(249, 115, 22, 0.22) 42%, rgba(234, 88, 12, 0.08) 68%, transparent 85%)',
+          filter: 'blur(16px)',
+        }}
+      />
+
+      {/* Surrounding Ambient Gradient Light (Concentrated Warm Rim Light) - Displays on Hover */}
+      <div
+        className={`absolute -inset-2.5 sm:-inset-3 rounded-full pointer-events-none -z-20 transition-all duration-500 ease-out ${
+          isDragging ? 'opacity-100' : 'opacity-0'
+        } group-hover:opacity-100`}
+        style={{
+          background:
+            'radial-gradient(ellipse at center, rgba(251, 146, 60, 0.48) 0%, rgba(234, 88, 12, 0.28) 55%, transparent 80%)',
+          filter: 'blur(8px)',
+        }}
+      />
+
+      {/* Full Border Beam (Single Beam) */}
+      <div className="absolute inset-0 -z-10 rounded-full overflow-hidden p-[1px] pointer-events-none">
+        <div
+          className="absolute inset-[-150%] bg-[conic-gradient(from_0deg,transparent_0_280deg,#ea580c_340deg,#fdba74_360deg)]"
+          style={{ animation: 'beam-spin 3s linear infinite' }}
+        />
+        <div className="absolute inset-[1px] rounded-full bg-black" />
       </div>
-      <span className="text-[12.5px] font-semibold tracking-tight pointer-events-none">FlowAi</span>
+
+      {/* Inner Background & Effects */}
+      <div className="absolute -z-5 overflow-hidden bg-zinc-950 rounded-full top-[1.5px] right-[1.5px] bottom-[1.5px] left-[1.5px] pointer-events-none">
+        {/* Light Monotone Gradient Background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-zinc-800/60 to-transparent" />
+
+        {/* Animated Dots Pattern */}
+        <div
+          className="opacity-30 mix-blend-overlay absolute inset-0"
+          style={{
+            backgroundImage: 'radial-gradient(rgba(255,255,255,0.6) 1px, transparent 1px)',
+            backgroundSize: '12px 12px',
+            animation: 'dots-move 8s linear infinite',
+          }}
+        />
+
+        {/* Orange Glow on Hover (Inner Base Light) */}
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2/3 h-1/2 bg-orange-500/0 blur-2xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-orange-500/35" />
+      </div>
+
+      {/* Content - strictly preserved without altering icon or text */}
+      <div className="relative z-10 flex items-center gap-2 pointer-events-none">
+        <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 pointer-events-none transition-transform duration-300 group-hover:scale-110">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="animate-pulse"
+          >
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+          </svg>
+        </div>
+        <span className="text-[12.5px] font-semibold tracking-tight text-white/90 transition-colors duration-300 group-hover:text-white pointer-events-none">
+          FlowAi
+        </span>
+      </div>
     </button>
   );
 }
