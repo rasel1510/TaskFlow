@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSession, signOut } from 'next-auth/react';
-import { currentUser, notifications } from '../data/mockData';
 
 interface HeaderNotificationItem {
   id: string;
@@ -189,20 +188,7 @@ export default function Header({
   const [showNotifs, setShowNotifs] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [expertiseRequired, setExpertiseRequired] = useState(false);
-  const [notificationsList, setNotificationsList] = useState<HeaderNotificationItem[]>(() =>
-    notifications.map(n => ({
-      id: n.id,
-      category: n.category,
-      type: n.type,
-      title: n.title,
-      body: n.body,
-      timeAgo: n.timeAgo || n.time,
-      read: n.read,
-      actor: n.user ? { name: n.user.name, avatar: n.user.avatar } : undefined,
-      taskId: n.taskId,
-      meta: n.meta,
-    }))
-  );
+  const [notificationsList, setNotificationsList] = useState<HeaderNotificationItem[]>([]);
   const [notifTab, setNotifTab] = useState<NotifActivityTab>('all');
   const [filterUnreadOnly, setFilterUnreadOnly] = useState(false);
 
@@ -210,7 +196,7 @@ export default function Header({
     try {
       const res = await fetch('/api/notifications', { signal });
       const json = await res.json();
-      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+      if (json.success && Array.isArray(json.data)) {
         setNotificationsList(json.data);
       }
     } catch (err: unknown) {
@@ -279,12 +265,12 @@ export default function Header({
 
   const { data: session } = useSession();
   const userId = (session?.user as { id?: string })?.id;
-  const userName = session?.user?.name || currentUser.name;
-  const userEmail = session?.user?.email || currentUser.email;
-  const userRole = (session?.user as { role?: string })?.role || currentUser.role;
+  const userName = session?.user?.name || 'User';
+  const userEmail = session?.user?.email || '';
+  const userRole = (session?.user as { role?: string })?.role || 'Member';
   const userAvatar =
     (session?.user as { avatar?: string })?.avatar ||
-    (session?.user?.name ? session.user.name.slice(0, 2).toUpperCase() : currentUser.avatar);
+    (session?.user?.name ? session.user.name.slice(0, 2).toUpperCase() : 'U');
 
   useEffect(() => {
     if (!userId) return;

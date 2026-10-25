@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
-import { users as mockUsers } from '@/data/mockData';
 import { findStoredUserByEmail, saveStoredUser } from '@/data/userStore';
 import { SignupSchema, validationError } from '@/lib/validators';
 import { generateOtp, storeVerificationOtp } from '@/lib/verification';
@@ -49,12 +48,9 @@ export async function POST(req: Request) {
     const avatar = getInitials(name);
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // First check fallback store / mock users for existing account
+    // First check fallback store for existing account
     const existingStored = findStoredUserByEmail(normalizedEmail);
-    const existingMock = mockUsers.find(
-      u => u.email.toLowerCase() === normalizedEmail
-    );
-    if (existingStored || existingMock) {
+    if (existingStored) {
       return NextResponse.json(
         { message: 'An account with this email already exists' },
         { status: 409 }

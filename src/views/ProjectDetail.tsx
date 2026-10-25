@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import { healthColors, statusColors, priorityColors, currentUser, type ProjectHealth, type Status, type Priority } from '@/data/mockData';
+import { healthColors, statusColors, priorityColors, type ProjectHealth, type Status, type Priority } from '@/data/mockData';
 import { useToast } from '@/components/ui/Toast';
 import { LIFECYCLE_STATE_CONFIG, validateLifecycleTransition, type ProjectLifecycleState } from '@/lib/projectLifecycle';
 import { ROLE_DESCRIPTIONS, type ProjectRole } from '@/lib/permissions';
@@ -603,7 +603,7 @@ export default function ProjectDetail({
   };
 
   const handleToggleReaction = async (messageId: string, emoji: string) => {
-    const uid = currentUserId || currentUser.id;
+    const uid = currentUserId || '';
     setMessages(prev =>
       prev.map(m => {
         if (m.id !== messageId) return m;
@@ -1747,7 +1747,7 @@ export default function ProjectDetail({
                 </div>
               ) : (
                 filteredMessages.map((m, idx) => {
-                  const isCurrentUser = m.userId === currentUserId || m.userEmail === currentUser.email;
+                  const isCurrentUser = Boolean(currentUserId && m.userId === currentUserId) || Boolean(session?.user?.email && m.userEmail === session.user.email);
                   const canDelete = isCurrentUser || isPM;
                   const dateStr = new Date(m.createdAt).toLocaleDateString('en-US', {
                     month: 'short',
@@ -1845,7 +1845,7 @@ export default function ProjectDetail({
                           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                             {['👍', '❤️', '🚀', '🔥', '👀'].map(emoji => {
                               const reactionList = m.reactions?.[emoji] || [];
-                              const hasReacted = reactionList.includes(currentUserId || currentUser.id);
+                              const hasReacted = Boolean(currentUserId && reactionList.includes(currentUserId));
                               if (reactionList.length === 0) return null;
                               return (
                                 <button

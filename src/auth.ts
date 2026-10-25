@@ -2,7 +2,6 @@ import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
-import { users as mockUsers } from '@/data/mockData';
 import { findStoredUserByEmail } from '@/data/userStore';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -104,22 +103,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
         } catch (storeError) {
           console.warn('[auth.ts] Error checking local user store:', storeError);
-        }
-
-        // Graceful fallback for mock/demo users
-        const mockUser = mockUsers.find(
-          u => u.email.toLowerCase() === email
-        );
-
-        if (mockUser) {
-          // Allow demo access with standard password or demo mock accounts
-          return {
-            id: mockUser.id,
-            name: mockUser.name,
-            email: mockUser.email,
-            image: mockUser.avatar,
-            role: mockUser.role,
-          };
         }
 
         return null;

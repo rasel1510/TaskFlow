@@ -37,7 +37,6 @@ function parseSafeDate(raw: unknown): Date | undefined {
 }
 
 import prisma from '@/lib/prisma';
-import { users as mockUsers, projects as mockProjects } from '@/data/mockData';
 import { getAllStoredUsers } from '@/data/userStore';
 import { UpdateTaskSchema, validationError } from '@/lib/validators';
 import { logActivity } from '@/lib/activity';
@@ -179,17 +178,6 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             });
           }
         }
-        if (!dbUser) {
-          const mock = mockUsers.find(u => u.id === trimmed || u.email.toLowerCase() === trimmed.toLowerCase());
-          if (mock) {
-            dbUser = await prisma.user.upsert({
-              where: { id: mock.id },
-              update: {},
-              create: { id: mock.id, name: mock.name, email: mock.email, avatar: mock.avatar, role: mock.role },
-              select: { id: true },
-            });
-          }
-        }
         updateData.assigneeId = dbUser?.id ?? null;
       }
     }
@@ -197,28 +185,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     // projectId — resolve once
     if ('projectId' in body && typeof body.projectId === 'string' && body.projectId.trim()) {
       const pId = body.projectId.trim();
-      let proj = await prisma.project.findUnique({ where: { id: pId }, select: { id: true } });
-      if (!proj) {
-        const mock = mockProjects.find(p => p.id === pId);
-        if (mock) {
-          const owner = await prisma.user.findFirst({ select: { id: true } });
-          if (owner) {
-            proj = await prisma.project.upsert({
-              where: { id: mock.id },
-              update: {},
-              create: {
-                id: mock.id, name: mock.name, description: mock.description,
-                color: mock.color || '#2563EB',
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                health: (mock.health as any) || 'on_track',
-                progress: typeof mock.progress === 'number' ? mock.progress : 0,
-                ownerId: owner.id,
-              },
-              select: { id: true },
-            });
-          }
-        }
-      }
+      const proj = await prisma.project.findUnique({ where: { id: pId }, select: { id: true } });
       if (proj) updateData.projectId = proj.id;
     }
 

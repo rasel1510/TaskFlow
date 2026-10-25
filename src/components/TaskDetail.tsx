@@ -3,7 +3,7 @@ import { useSession } from 'next-auth/react';
 import { useTasks, type DBTask } from '@/context/TaskContext';
 import { useToast } from '@/components/ui/Toast';
 import EditTaskModal from './EditTaskModal';
-import { tasks, statusColors, priorityColors, getProjectName, type Status, type Priority } from '../data/mockData';
+import { statusColors, priorityColors, getProjectName, type Status, type Priority } from '../data/mockData';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -133,7 +133,7 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
   const toast = useToast();
   const { tasks: ctxTasks, createTask, deleteTask, createSubtask, toggleSubtask, deleteSubtask } = useTasks();
   const [editing, setEditing] = useState(false);
-  const task = ctxTasks.find(t => t.id === taskId) || tasks.find(t => t.id === taskId);
+  const task = ctxTasks.find(t => t.id === taskId);
   const [commentText, setCommentText] = useState('');
   const [activeTab, setActiveTab] = useState<'details' | 'comments' | 'activity'>('details');
 
@@ -205,7 +205,7 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
         status: task.status,
         priority: task.priority,
         projectId: task.projectId || undefined,
-        assigneeId: ('assigneeId' in task ? task.assigneeId : task.assignee?.id) ?? undefined,
+        assigneeId: (task as { assigneeId?: string; assignee?: { id: string } }).assigneeId || (task as { assigneeId?: string; assignee?: { id: string } }).assignee?.id || undefined,
         estimate: task.estimate || undefined,
         labels: task.labels || [],
       });

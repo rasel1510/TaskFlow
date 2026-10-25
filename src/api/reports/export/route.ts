@@ -8,7 +8,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { tasks as mockTasks, projects as mockProjects, users as mockUsers } from '@/data/mockData';
 
 function sanitizeCsvCell(value: unknown): string {
   if (value === null || value === undefined) return '""';
@@ -100,30 +99,8 @@ export async function GET(request: NextRequest) {
         createdAt: t.createdAt.toISOString().split('T')[0],
       }));
     } catch (dbErr) {
-      console.warn('[GET /api/reports/export] DB failed, fallback to mock data:', dbErr);
-
-      rows = mockTasks
-        .filter((t) => {
-          if (projectIdParam && t.projectId !== projectIdParam) return false;
-          if (statusParam && t.status !== statusParam) return false;
-          return true;
-        })
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .map((t: any) => {
-          const assignee = t.assignee || mockUsers.find((u) => u.id === t.assigneeId);
-          const project = mockProjects.find((p) => p.id === t.projectId);
-          return {
-            taskNumber: t.taskNumber || t.id,
-            title: t.title,
-            status: t.status,
-            priority: t.priority,
-            assigneeName: assignee?.name || 'Unassigned',
-            assigneeEmail: assignee?.email || 'N/A',
-            projectName: project?.name || 'FlowSync Core',
-            dueDate: t.dueDate || 'None',
-            createdAt: t.createdAt ? String(t.createdAt).split('T')[0] : '2026-09-01',
-          };
-        });
+      console.warn('[GET /api/reports/export] DB query warning:', dbErr);
+      rows = [];
     }
 
     // Generate CSV Content

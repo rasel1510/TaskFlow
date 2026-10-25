@@ -52,7 +52,6 @@ function parseSafeDate(raw: unknown): Date | undefined {
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { getAllStoredUsers } from '@/data/userStore';
-import { users as mockUsers, projects as mockProjects } from '@/data/mockData';
 import { auth } from '@/auth';
 import { CreateTaskSchema, TaskQuerySchema, validationError } from '@/lib/validators';
 import { logActivity } from '@/lib/activity';
@@ -287,22 +286,6 @@ export async function POST(request: NextRequest) {
               avatar: storedUser.avatar,
               role:   storedUser.role,
             },
-          });
-        } catch { dbUser = null; }
-      }
-    }
-    if (!dbUser) {
-      // Try mock users
-      const mockUser = mockUsers.find(u =>
-        (resolvedEmail && u.email.toLowerCase() === resolvedEmail) ||
-        (resolvedId    && u.id === resolvedId)
-      );
-      if (mockUser) {
-        try {
-          dbUser = await prisma.user.upsert({
-            where: { id: mockUser.id },
-            update: {},
-            create: { id: mockUser.id, name: mockUser.name, email: mockUser.email, avatar: mockUser.avatar, role: mockUser.role },
           });
         } catch { dbUser = null; }
       }

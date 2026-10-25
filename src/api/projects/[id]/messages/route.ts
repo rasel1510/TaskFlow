@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { currentUser, users as mockUsers } from '@/data/mockData';
 import { projectStreamBroker } from '@/lib/projectStreamBroker';
 
 interface RouteContext {
@@ -26,67 +25,9 @@ export interface ProjectMessage {
 // In-memory messages store keyed by projectId
 const projectMessagesStore = new Map<string, ProjectMessage[]>();
 
-// Seed initial realistic conversations for demo projects
 function getOrCreateProjectMessages(projectId: string): ProjectMessage[] {
   if (!projectMessagesStore.has(projectId)) {
-    const now = Date.now();
-    const seed: ProjectMessage[] = [
-      {
-        id: `seed-msg-1-${projectId}`,
-        projectId,
-        userId: 'u2',
-        userName: 'Sarah Chen',
-        userEmail: 'sarah@flowsync.io',
-        userAvatar: 'SC',
-        userRole: 'Frontend Engineer',
-        content: 'Hey team! Welcome to the project channel. All sprint discussions, deliverables, and assets can be shared directly here.',
-        imageUrl: null,
-        createdAt: new Date(now - 3600 * 1000 * 24 * 2).toISOString(),
-        reactions: { '👋': ['u1', 'u3'], '🚀': ['u1'] },
-      },
-      {
-        id: `seed-msg-2-${projectId}`,
-        projectId,
-        userId: 'u3',
-        userName: 'Ahmed Malik',
-        userEmail: 'ahmed@flowsync.io',
-        userAvatar: 'AM',
-        userRole: 'Backend Engineer',
-        content: 'Database indexes and schema migrations for the core modules are finished and verified. Everything is ready for frontend integration.',
-        imageUrl: null,
-        createdAt: new Date(now - 3600 * 1000 * 18).toISOString(),
-        reactions: { '🔥': ['u2'], '👍': ['u1'] },
-      },
-      {
-        id: `seed-msg-3-${projectId}`,
-        projectId,
-        userId: 'u5',
-        userName: 'Maria Lopez',
-        userEmail: 'maria@flowsync.io',
-        userAvatar: 'ML',
-        userRole: 'UI Designer',
-        content: 'Sharing the latest UI preview for the project workflow dashboard. Let me know if the component hierarchy looks solid!',
-        imageUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80',
-        imageName: 'analytics_dashboard_preview.png',
-        imageSize: 421000,
-        createdAt: new Date(now - 3600 * 1000 * 2).toISOString(),
-        reactions: { '❤️': ['u1', 'u2', 'u3'], '🙌': ['u2'] },
-      },
-      {
-        id: `seed-msg-4-${projectId}`,
-        projectId,
-        userId: 'u1',
-        userName: 'Rasel Ahmed',
-        userEmail: 'rasel@flowsync.io',
-        userAvatar: 'RA',
-        userRole: 'Project Manager',
-        content: 'Looks awesome Maria! Great contrast and clean data density. Let\'s proceed with this design for the upcoming release.',
-        imageUrl: null,
-        createdAt: new Date(now - 1800 * 1000).toISOString(),
-        reactions: { '🚀': ['u5'] },
-      },
-    ];
-    projectMessagesStore.set(projectId, seed);
+    projectMessagesStore.set(projectId, []);
   }
   return projectMessagesStore.get(projectId)!;
 }
@@ -137,14 +78,20 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
     }
 
-    // Determine sender identity from session or fallback
-    const senderId = (session?.user as { id?: string })?.id || currentUser.id;
-    const senderName = session?.user?.name || currentUser.name;
-    const senderEmail = session?.user?.email || currentUser.email;
+    const senderId = (session?.user as { id?: string })?.id;
+    if (!senderId) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized. Please sign in to send messages.' },
+        { status: 401 }
+      );
+    }
+
+    const senderName = session?.user?.name || 'User';
+    const senderEmail = session?.user?.email || '';
     const senderAvatar =
       (session?.user as { avatar?: string })?.avatar ||
-      (senderName ? senderName.slice(0, 2).toUpperCase() : currentUser.avatar);
-    const senderRole = (session?.user as { role?: string })?.role || currentUser.role;
+      (session?.user?.name ? session.user.name.slice(0, 2).toUpperCase() : 'U');
+    const senderRole = (session?.user as { role?: string })?.role || 'Member';
 
     const newMessage: ProjectMessage = {
       id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
@@ -183,6 +130,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
     const session = await auth();
+    const currentUid = (session?.user as { id?: string })?.id;
+
+    if (!currentUid) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { messageId, emoji } = body;
 
@@ -190,7 +143,6 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ success: false, error: 'messageId and emoji are required' }, { status: 400 });
     }
 
-    const currentUid = (session?.user as { id?: string })?.id || currentUser.id;
     const messages = getOrCreateProjectMessages(projectId);
     const target = messages.find(m => m.id === messageId);
 
@@ -239,8 +191,12 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     }
 
     const session = await auth();
-    const currentUid = (session?.user as { id?: string })?.id || currentUser.id;
-    const currentRole = (session?.user as { role?: string })?.role || currentUser.role;
+    const currentUid = (session?.user as { id?: string })?.id;
+    const currentRole = (session?.user as { role?: string })?.role;
+
+    if (!currentUid) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
 
     const messages = getOrCreateProjectMessages(projectId);
     const index = messages.findIndex(m => m.id === messageId);

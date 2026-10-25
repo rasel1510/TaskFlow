@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
-import { users as mockUsers } from '@/data/mockData';
 import { getAllStoredUsers } from '@/data/userStore';
 import redisCache from '@/lib/redis';
 import { getOrProvisionUserTeam } from '@/lib/tenant';
@@ -50,19 +49,7 @@ export async function GET() {
       // Merge users uniquely by email or id
       const userMap = new Map<string, { id: string; name: string; email: string; role: string; avatar: string; expertise?: string[] }>();
 
-      // 1. Add mock users as base
-      for (const u of mockUsers) {
-        userMap.set(u.email.toLowerCase(), {
-          id: u.id,
-          name: u.name,
-          email: u.email,
-          role: u.role,
-          avatar: u.avatar,
-          expertise: (u as { expertise?: string[] }).expertise || [],
-        });
-      }
-
-      // 2. Add local stored users
+      // 1. Add local stored users
       for (const u of storedUsers) {
         const existing = userMap.get(u.email.toLowerCase());
         const userExpertise = ((u as { expertise?: string[] }).expertise?.length)
@@ -78,7 +65,7 @@ export async function GET() {
         });
       }
 
-      // 3. Add DB users (highest priority)
+      // 2. Add DB users (highest priority)
       for (const u of dbUsers) {
         const existing = userMap.get(u.email.toLowerCase());
         const userExpertise = (u.expertise && u.expertise.length > 0)
@@ -103,11 +90,6 @@ export async function GET() {
     });
   } catch (error) {
     console.error('[GET /api/users] Error:', error);
-    return NextResponse.json(mockUsers, { status: 200 });
+    return NextResponse.json([], { status: 200 });
   }
 }
-
-
-
-
-

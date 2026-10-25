@@ -14,7 +14,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
-import { tasks as mockTasks, projects as mockProjects } from '@/data/mockData';
 
 export async function GET(request: NextRequest) {
   try {
@@ -87,72 +86,29 @@ export async function GET(request: NextRequest) {
         }),
       ]);
 
-      // If DB has matches or is active, return DB results
-      if (dbTasks.length > 0 || dbProjects.length > 0) {
-        return NextResponse.json(
-          {
-            success: true,
-            data: {
-              tasks: dbTasks,
-              projects: dbProjects,
-            },
+      return NextResponse.json(
+        {
+          success: true,
+          data: {
+            tasks: dbTasks,
+            projects: dbProjects,
           },
-          { status: 200 }
-        );
-      }
-    } catch (dbErr) {
-      console.warn('[GET /api/search] DB error, falling back to mock search:', dbErr);
-    }
-
-    // Fallback: search in mock data (offline / demo mode)
-    const lowerQ = q.toLowerCase();
-    const fallbackTasks = mockTasks
-      .filter(
-        t =>
-          t.title.toLowerCase().includes(lowerQ) ||
-          (t.taskNumber && t.taskNumber.toLowerCase().includes(lowerQ))
-      )
-      .slice(0, limit)
-      .map(t => {
-        const proj = mockProjects.find(p => p.id === t.projectId);
-        return {
-          id: t.id,
-          taskNumber: t.taskNumber ?? t.id,
-          title: t.title,
-          status: t.status,
-          priority: t.priority,
-          dueDate: t.dueDate,
-          projectId: t.projectId,
-          project: proj ? { id: proj.id, name: proj.name, color: proj.color } : null,
-        };
-      });
-
-    const fallbackProjects = mockProjects
-      .filter(
-        p =>
-          p.name.toLowerCase().includes(lowerQ) ||
-          p.description.toLowerCase().includes(lowerQ)
-      )
-      .slice(0, Math.min(limit, 5))
-      .map(p => ({
-        id: p.id,
-        name: p.name,
-        description: p.description,
-        color: p.color,
-        health: p.health,
-        progress: p.progress,
-      }));
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: {
-          tasks: fallbackTasks,
-          projects: fallbackProjects,
         },
-      },
-      { status: 200 }
-    );
+        { status: 200 }
+      );
+    } catch (dbErr) {
+      console.warn('[GET /api/search] DB error:', dbErr);
+      return NextResponse.json(
+        {
+          success: true,
+          data: {
+            tasks: [],
+            projects: [],
+          },
+        },
+        { status: 200 }
+      );
+    }
   } catch (error) {
     console.error('[GET /api/search] Unexpected error:', error);
     return NextResponse.json(

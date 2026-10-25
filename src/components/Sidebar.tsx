@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
-import { currentUser } from '../data/mockData';
 import { useTaskContext } from '@/context/TaskContext';
 
 type View = 'dashboard' | 'tasks' | 'kanban' | 'projects' | 'calendar' | 'timeline' | 'reports' | 'settings' | 'inbox';
@@ -102,11 +101,11 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
 
   const { data: session } = useSession();
   const userId = (session?.user as { id?: string })?.id;
-  const userName = session?.user?.name || currentUser.name;
-  const userRole = (session?.user as { role?: string })?.role || currentUser.role;
+  const userName = session?.user?.name || 'User';
+  const userRole = (session?.user as { role?: string })?.role || 'Member';
   const userAvatar =
     (session?.user as { avatar?: string })?.avatar ||
-    (session?.user?.name ? session.user.name.slice(0, 2).toUpperCase() : currentUser.avatar);
+    (session?.user?.name ? session.user.name.slice(0, 2).toUpperCase() : 'U');
 
   const [expertiseRequired, setExpertiseRequired] = useState(false);
 
