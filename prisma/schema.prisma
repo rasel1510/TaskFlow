@@ -31,6 +31,46 @@ enum ProjectHealth {
   completed
 }
 
+model Team {
+  id          String           @id @default(cuid())
+  name        String
+  slug        String           @unique
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  members     User[]
+  projects    Project[]
+  invitations TeamInvitation[]
+
+  @@index([slug])
+}
+
+enum InviteStatus {
+  pending
+  accepted
+  expired
+  revoked
+}
+
+model TeamInvitation {
+  id          String       @id @default(cuid())
+  teamId      String
+  team        Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  email       String
+  role        String       @default("MEMBER")
+  token       String       @unique
+  status      InviteStatus @default(pending)
+  invitedById String
+  invitedBy   User         @relation("SentTeamInvites", fields: [invitedById], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([teamId, status])
+  @@index([email])
+  @@index([token])
+}
+
 model User {
   id        String    @id @default(cuid())
   name      String
@@ -43,12 +83,19 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  // Tenant Scoping — Exactly one Team per User
+  teamId        String?
+  team          Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
   tasksAssigned Task[]               @relation("TaskAssignee")
   projectsOwned Project[]            @relation("ProjectOwner")
   memberships   ProjectMember[]
   joinRequests  ProjectJoinRequest[]
   comments      Comment[]
   notifications Notification[]
+  sentTeamInvites TeamInvitation[]   @relation("SentTeamInvites")
+
+  @@index([teamId])
 }
 
 model Project {
@@ -65,6 +112,10 @@ model Project {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
+  // Tenant Scoping — Project belongs to a Team
+  teamId       String?
+  team         Team?         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
   ownerId      String
   owner        User                 @relation("ProjectOwner", fields: [ownerId], references: [id])
   tasks        Task[]
@@ -72,6 +123,7 @@ model Project {
   joinRequests ProjectJoinRequest[]
 
   @@index([lifecycleState])
+  @@index([teamId])
 }
 
 model ProjectMember {

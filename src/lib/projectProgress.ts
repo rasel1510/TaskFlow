@@ -8,7 +8,6 @@
  */
 
 import prisma from '@/lib/prisma';
-import { projects as mockProjects } from '@/data/mockData';
 import redisCache from '@/lib/redis';
 
 export async function recomputeProjectProgress(projectId: string): Promise<number> {
@@ -39,21 +38,9 @@ export async function recomputeProjectProgress(projectId: string): Promise<numbe
       redisCache.delPattern('reports:*'),
     ]);
 
-    // Also update mockProjects array in memory for demo resilience
-    const mockProj = mockProjects.find((p) => p.id === projectId);
-    if (mockProj) {
-      mockProj.progress = progress;
-    }
-
     return progress;
   } catch (error) {
-    console.warn(`[recomputeProjectProgress] Failed to recompute via Prisma for project "${projectId}", calculating in-memory:`, error);
-
-    // Fallback: in-memory computation from mockProjects
-    const mockProj = mockProjects.find((p) => p.id === projectId);
-    if (mockProj) {
-      return mockProj.progress;
-    }
+    console.warn(`[recomputeProjectProgress] Failed to recompute via Prisma for project "${projectId}":`, error);
     return 0;
   }
 }

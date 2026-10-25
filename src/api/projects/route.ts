@@ -15,9 +15,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
-import { projects as mockProjects } from '@/data/mockData';
 import { CreateProjectSchema, validationError } from '@/lib/validators';
 import redisCache from '@/lib/redis';
+import { getOrProvisionUserTeam } from '@/lib/tenant';
 
 /**
  * Safely parse a date string. Returns undefined for empty, invalid, or
@@ -45,7 +45,32 @@ export async function GET() {
       currentUserRole = (session?.user as { role?: string })?.role;
     } catch {}
 
+    if (!currentUserId) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
+        { status: 401 }
+      );
+    }
+
+    // Resolve tenant boundary: strictly isolate to the authenticated user's single team
+    const teamContext = await getOrProvisionUserTeam(currentUserId);
+    const teamFilter = teamContext?.teamId
+      ? {
+          OR: [
+            { teamId: teamContext.teamId },
+            { ownerId: currentUserId },
+            { members: { some: { userId: currentUserId } } },
+          ],
+        }
+      : {
+          OR: [
+            { ownerId: currentUserId },
+            { members: { some: { userId: currentUserId } } },
+          ],
+        };
+
     const dbProjects = await prisma.project.findMany({
+      where: teamFilter,
       include: {
         owner: {
           select: { id: true, name: true, email: true, avatar: true, role: true, expertise: true },
@@ -136,8 +161,8 @@ export async function GET() {
       headers: { 'Cache-Control': 'no-store' },
     });
   } catch (error) {
-    console.error('[GET /api/projects] DB warning, falling back to mock:', error);
-    return NextResponse.json({ success: true, data: mockProjects }, { status: 200 });
+    console.error('[GET /api/projects] DB warning, returning empty list:', error);
+    return NextResponse.json({ success: true, data: [] }, { status: 200 });
   }
 }
 
@@ -215,6 +240,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Resolve PM's team
+    const teamContext = await getOrProvisionUserTeam(validOwnerId);
+
     let newProject;
     try {
       newProject = await prisma.project.create({
@@ -222,6 +250,7 @@ export async function POST(request: NextRequest) {
           name,
           description: description || '',
           ownerId: validOwnerId,
+          teamId: teamContext?.teamId,
           color: color || '#2563EB',
           startDate: parseSafeDate(startDate),
           dueDate:   parseSafeDate(dueDate),
@@ -248,34 +277,11 @@ export async function POST(request: NextRequest) {
         console.warn('[POST /api/projects] Member creation warning:', memErr);
       }
     } catch (dbErr) {
-      console.warn('[POST /api/projects] DB creation failed, saving to mock fallback:', dbErr);
-      const fallbackId = `p-${Date.now()}`;
-      const mockOwner = {
-        id: sessionUserId,
-        name: session?.user?.name || 'Project Manager',
-        email: session?.user?.email || '',
-        avatar: (session?.user as { avatar?: string })?.avatar || 'PM',
-        role: sessionUserRole || 'Project Manager',
-      };
-      const fallbackProject = {
-        id: fallbackId,
-        name,
-        description: description || '',
-        color: color || '#2563EB',
-        health: 'on_track' as const,
-        progress: 0,
-        startDate: startDate || null,
-        dueDate: dueDate || null,
-        createdAt: new Date().toISOString(),
-        ownerId: sessionUserId,
-        owner: mockOwner,
-        taskCount: 0,
-        members: [mockOwner],
-        lifecycleState: 'ACTIVE',
-        archivedAt: null,
-      };
-      (mockProjects as any).unshift(fallbackProject);
-      newProject = fallbackProject;
+      console.error('[POST /api/projects] DB creation failed:', dbErr);
+      return NextResponse.json(
+        { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to create project in database' } },
+        { status: 500 }
+      );
     }
 
     // Invalidate project and report caches

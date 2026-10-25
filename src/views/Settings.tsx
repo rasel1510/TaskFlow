@@ -19,7 +19,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useToast } from '@/components/ui/Toast';
-import { Eye, EyeOff, Send, Shield, Briefcase, User, RefreshCw } from 'lucide-react';
+import { Eye, EyeOff, Send, Shield, Briefcase, User, RefreshCw, Mail, Copy, Check, Trash2, X, Plus, Building2, Loader2 } from 'lucide-react';
 
 /* ─────────────── types ─────────────── */
 
@@ -434,31 +434,129 @@ export default function Settings() {
     }
   };
 
-  /* ─────────── 3.3 Members state ─────────── */
-  const [members, setMembers]         = useState<MemberRow[]>([]);
+  /* ─────────── 3.3 Members & Team Invites state ─────────── */
+  interface PendingInvite {
+    id: string;
+    email: string;
+    role: string;
+    status: string;
+    token: string;
+    expiresAt: string;
+    createdAt: string;
+    invitedBy?: {
+      name: string;
+      email: string;
+    };
+  }
+
+  const [members, setMembers] = useState<MemberRow[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
+  const [teamName, setTeamName] = useState<string>('Your Workspace');
+  const [invites, setInvites] = useState<PendingInvite[]>([]);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<'MEMBER' | 'PROJECT_MANAGER' | 'VIEWER'>('MEMBER');
+  const [sendingInvite, setSendingInvite] = useState(false);
+  const [devInviteUrl, setDevInviteUrl] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const currentUserRole = (session?.user as { role?: string })?.role;
+  const isPM =
+    currentUserRole === 'Project Manager' ||
+    currentUserRole === 'PROJECT_MANAGER' ||
+    currentUserRole?.toLowerCase() === 'project manager' ||
+    currentUserRole?.toLowerCase() === 'admin';
+
+  const fetchMembersAndInvites = useCallback(async (signal?: AbortSignal) => {
+    setMembersLoading(true);
+    try {
+      const [usersRes, invitesRes] = await Promise.all([
+        fetch('/api/users', { signal }).catch(() => null),
+        fetch('/api/team/invite', { signal }).catch(() => null),
+      ]);
+
+      if (signal?.aborted) return;
+
+      if (usersRes?.ok) {
+        const json = await usersRes.json();
+        setMembers(json.data ?? []);
+      }
+
+      if (invitesRes?.ok) {
+        const json = await invitesRes.json();
+        if (json.success && json.data) {
+          setTeamName(json.data.teamName || 'Your Workspace');
+          setInvites(json.data.invites || []);
+        }
+      }
+    } catch {
+      // gracefully degrade
+    } finally {
+      if (!signal?.aborted) setMembersLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (section !== 'members') return;
     const ctrl = new AbortController();
-    const fetchMembers = async () => {
-      setMembersLoading(true);
-      try {
-        const res = await fetch('/api/users', { signal: ctrl.signal });
-        if (ctrl.signal.aborted) return;
-        if (res.ok) {
-          const json = await res.json();
-          setMembers(json.data ?? []);
-        }
-      } catch {
-        // silently degrade
-      } finally {
-        if (!ctrl.signal.aborted) setMembersLoading(false);
-      }
-    };
-    fetchMembers();
+    fetchMembersAndInvites(ctrl.signal);
     return () => ctrl.abort();
-  }, [section]);
+  }, [section, fetchMembersAndInvites]);
+
+  const handleSendInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail.trim()) return;
+
+    setSendingInvite(true);
+    setDevInviteUrl(null);
+
+    try {
+      const res = await fetch('/api/team/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: inviteEmail.trim(),
+          role: inviteRole,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        toast.error(json.error?.message || 'Failed to dispatch invitation');
+      } else {
+        toast.success(json.message || `Invitation dispatched to ${inviteEmail}`);
+        if (json.data?.devMode && json.data?.inviteUrl) {
+          setDevInviteUrl(json.data.inviteUrl);
+        } else {
+          setShowInviteModal(false);
+          setInviteEmail('');
+        }
+        fetchMembersAndInvites();
+      }
+    } catch {
+      toast.error('Network error dispatching invitation');
+    } finally {
+      setSendingInvite(false);
+    }
+  };
+
+  const handleRevokeInvite = async (inviteId: string) => {
+    try {
+      const res = await fetch(`/api/team/invite?id=${encodeURIComponent(inviteId)}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        toast.success('Invitation revoked');
+        setInvites(prev => prev.filter(inv => inv.id !== inviteId));
+      } else {
+        toast.error(json.error || 'Failed to revoke invitation');
+      }
+    } catch {
+      toast.error('Network error revoking invitation');
+    }
+  };
 
   /* ─────────── 3.4 Notifications state & real logic ─────────── */
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(DEFAULT_NOTIF_PREFS);
@@ -925,119 +1023,346 @@ export default function Settings() {
         )}
 
         {/* ━━━━━━━━━━━━━━━━━━━━━━━━
-            3.3  MEMBERS (live DB)
+            3.3  MEMBERS & TEAM INVITATIONS (Multi-Tenant SaaS)
         ━━━━━━━━━━━━━━━━━━━━━━━━ */}
         {section === 'members' && (
-          <div>
-            <div className="flex items-center justify-between mb-6">
+          <div className="space-y-6">
+            {/* Team / Workspace Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#F3F4F6]">
               <div>
-                <h2 className="text-[20px] font-bold text-[#111111] mb-1">Members</h2>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#2563EB] flex items-center justify-center shrink-0">
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-[20px] font-bold text-[#111111] tracking-tight">{teamName}</h2>
+                  </div>
+                </div>
                 {membersLoading ? (
-                  <div className="flex items-center gap-1.5 text-[13px] text-[rgba(17,17,17,0.4)]">
-                    <Spinner size={12} /> Loading members…
+                  <div className="flex items-center gap-1.5 text-[12.5px] text-[rgba(17,17,17,0.4)] mt-1">
+                    <Spinner size={12} /> Loading team members…
                   </div>
                 ) : (
-                  <p className="text-[13px] text-[rgba(17,17,17,0.45)]">
-                    {members.length} member{members.length !== 1 ? 's' : ''} in your workspace
+                  <p className="text-[12.5px] text-[rgba(17,17,17,0.5)] mt-1">
+                    {members.length} team member{members.length !== 1 ? 's' : ''}
+                    {invites.length > 0 && ` · ${invites.length} pending invitation${invites.length !== 1 ? 's' : ''}`}
                   </p>
                 )}
               </div>
-              <button className="flex items-center gap-2 px-4 py-2 bg-[#2563EB] text-white rounded-lg text-[13px] font-semibold hover:bg-[#1D4ED8] transition-colors">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                Invite Member
-              </button>
-            </div>
 
-            <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden">
-              {/* Table header */}
-              <div className="flex items-center gap-4 px-5 py-3 bg-[#F9FAFB] border-b border-[#E5E7EB]
-                              text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)]">
-                <span className="flex-1">Member</span>
-                <span className="w-24">Role</span>
-                <span className="w-20">Status</span>
-                <span className="w-28">Member since</span>
-                <span className="w-16" />
-              </div>
-
-              {/* Rows */}
-              {membersLoading ? (
-                /* Skeleton rows */
-                Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-4 px-5 py-3.5 border-b border-[#F3F4F6] last:border-0 animate-pulse">
-                    <div className="flex-1 flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[#F3F4F6]" />
-                      <div className="space-y-1.5">
-                        <div className="h-3 w-28 rounded bg-[#F3F4F6]" />
-                        <div className="h-2.5 w-36 rounded bg-[#F3F4F6]" />
-                      </div>
-                    </div>
-                    <div className="h-3 w-16 rounded bg-[#F3F4F6]" />
-                    <div className="h-4 w-12 rounded-full bg-[#F3F4F6]" />
-                    <div className="h-3 w-16 rounded bg-[#F3F4F6]" />
-                  </div>
-                ))
-              ) : members.length === 0 ? (
-                <div className="text-center py-10 text-[13px] text-[rgba(17,17,17,0.4)]">
-                  No members found
-                </div>
-              ) : (
-                members.map((u, i) => (
-                  <div
-                    key={u.id}
-                    className={`flex items-center gap-4 px-5 py-3.5 hover:bg-[#F9FAFB] transition-colors ${
-                      i < members.length - 1 ? 'border-b border-[#F3F4F6]' : ''
-                    }`}
-                  >
-                    <div className="flex-1 flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[#2563EB] flex items-center justify-center text-[11px] font-bold text-white shrink-0">
-                        {u.avatar || u.name?.slice(0, 2)?.toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="text-[13.5px] font-medium text-[#111111] flex items-center gap-1.5">
-                          {u.name}
-                          {u.id === userId && (
-                            <span className="text-[10px] bg-[#DBEAFE] text-[#2563EB] px-1.5 py-0.5 rounded font-medium">
-                              You
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[11.5px] text-[rgba(17,17,17,0.4)]">{u.email}</div>
-                      </div>
-                    </div>
-
-                    {/* Role label */}
-                    <span className="w-24 text-[12.5px] text-[rgba(17,17,17,0.65)]">
-                      {u.id === userId ? 'Owner' : u.role || 'Member'}
-                    </span>
-
-                    {/* Status badge */}
-                    <span className="w-20">
-                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#16A34A]">
-                        Active
-                      </span>
-                    </span>
-
-                    {/* Member since */}
-                    <span className="w-28 text-[12px] text-[rgba(17,17,17,0.45)]">
-                      {new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                    </span>
-
-                    {/* Actions */}
-                    <div className="w-16 flex items-center gap-1">
-                      <button className="text-[11.5px] text-[#2563EB] hover:underline">Edit</button>
-                      {u.id !== userId && (
-                        <>
-                          <span className="text-[rgba(17,17,17,0.2)]">·</span>
-                          <button className="text-[11.5px] text-[#DC2626] hover:underline">Remove</button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))
+              {/* Invite button — Only Project Managers or Admins */}
+              {isPM && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowInviteModal(true);
+                    setDevInviteUrl(null);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#2563EB] text-white rounded-xl text-[13px] font-semibold hover:bg-[#1D4ED8] active:scale-[0.99] transition-all shadow-xs cursor-pointer shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Invite Teammate</span>
+                </button>
               )}
             </div>
+
+            {/* Active Members Table */}
+            <div>
+              <h3 className="text-[14px] font-bold text-[#111111] mb-2.5">Active Team Members</h3>
+              <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden shadow-2xs">
+                {/* Table header */}
+                <div className="flex items-center gap-4 px-5 py-3 bg-[#F9FAFB] border-b border-[#E5E7EB] text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)]">
+                  <span className="flex-1">Member</span>
+                  <span className="w-28">Team Role</span>
+                  <span className="w-20">Status</span>
+                  <span className="w-28">Joined</span>
+                  <span className="w-16" />
+                </div>
+
+                {/* Rows */}
+                {membersLoading ? (
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-4 px-5 py-3.5 border-b border-[#F3F4F6] last:border-0 animate-pulse">
+                      <div className="flex-1 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-[#F3F4F6]" />
+                        <div className="space-y-1.5">
+                          <div className="h-3 w-28 rounded bg-[#F3F4F6]" />
+                          <div className="h-2.5 w-36 rounded bg-[#F3F4F6]" />
+                        </div>
+                      </div>
+                      <div className="h-3 w-16 rounded bg-[#F3F4F6]" />
+                      <div className="h-4 w-12 rounded-full bg-[#F3F4F6]" />
+                      <div className="h-3 w-16 rounded bg-[#F3F4F6]" />
+                    </div>
+                  ))
+                ) : members.length === 0 ? (
+                  <div className="text-center py-10 text-[13px] text-[rgba(17,17,17,0.4)]">
+                    No members in this team yet
+                  </div>
+                ) : (
+                  members.map((u, i) => (
+                    <div
+                      key={u.id}
+                      className={`flex items-center gap-4 px-5 py-3.5 hover:bg-[#F9FAFB] transition-colors ${
+                        i < members.length - 1 ? 'border-b border-[#F3F4F6]' : ''
+                      }`}
+                    >
+                      <div className="flex-1 flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-[#2563EB] flex items-center justify-center text-[11px] font-bold text-white shrink-0">
+                          {u.avatar || u.name?.slice(0, 2)?.toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-[13.5px] font-medium text-[#111111] flex items-center gap-1.5 truncate">
+                            <span>{u.name}</span>
+                            {u.id === userId && (
+                              <span className="text-[10px] bg-[#DBEAFE] text-[#2563EB] px-1.5 py-0.5 rounded font-semibold">
+                                You
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11.5px] text-[rgba(17,17,17,0.45)] truncate">{u.email}</div>
+                        </div>
+                      </div>
+
+                      {/* Role label */}
+                      <span className="w-28 text-[12.5px] font-medium text-gray-700 truncate">
+                        {u.role === 'PROJECT_MANAGER' || u.role === 'Project Manager' ? 'Project Manager' : u.role || 'Member'}
+                      </span>
+
+                      {/* Status badge */}
+                      <span className="w-20">
+                        <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#16A34A]">
+                          Active
+                        </span>
+                      </span>
+
+                      {/* Member since */}
+                      <span className="w-28 text-[12px] text-[rgba(17,17,17,0.45)]">
+                        {new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                      </span>
+
+                      {/* Actions */}
+                      <div className="w-16 flex items-center gap-1 text-[11.5px]">
+                        {u.id === userId ? (
+                          <span className="text-gray-400">Owner</span>
+                        ) : (
+                          <span className="text-gray-400">Member</span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Pending Invitations Section (Visible to PMs) */}
+            {isPM && invites.length > 0 && (
+              <div className="pt-2">
+                <div className="flex items-center gap-2 mb-2.5">
+                  <Mail className="w-4 h-4 text-[#2563EB]" />
+                  <h3 className="text-[14px] font-bold text-[#111111]">Pending Email Invitations</h3>
+                  <span className="text-[11px] px-2 py-0.2 rounded-full bg-amber-50 text-amber-700 font-semibold border border-amber-200">
+                    {invites.length} Pending
+                  </span>
+                </div>
+
+                <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden shadow-2xs">
+                  <div className="flex items-center gap-4 px-5 py-3 bg-[#F9FAFB] border-b border-[#E5E7EB] text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)]">
+                    <span className="flex-1">Invited Email</span>
+                    <span className="w-28">Assigned Role</span>
+                    <span className="w-28">Expires</span>
+                    <span className="w-20 text-right">Action</span>
+                  </div>
+
+                  {invites.map((inv, idx) => (
+                    <div
+                      key={inv.id}
+                      className={`flex items-center gap-4 px-5 py-3.5 hover:bg-[#F9FAFB] transition-colors ${
+                        idx < invites.length - 1 ? 'border-b border-[#F3F4F6]' : ''
+                      }`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px] font-medium text-[#111111] truncate">{inv.email}</div>
+                        <div className="text-[11px] text-gray-400">
+                          Invited {new Date(inv.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </div>
+                      </div>
+
+                      <div className="w-28 text-[12px] font-medium text-gray-700">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-[#2563EB]">
+                          {inv.role === 'PROJECT_MANAGER' ? 'Project Manager' : inv.role === 'VIEWER' ? 'Viewer' : 'Member'}
+                        </span>
+                      </div>
+
+                      <div className="w-28 text-[11.5px] text-gray-500">
+                        {new Date(inv.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </div>
+
+                      <div className="w-20 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleRevokeInvite(inv.id)}
+                          className="text-[11px] text-red-600 hover:text-red-700 hover:underline font-medium cursor-pointer"
+                        >
+                          Revoke
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Invite Teammate Modal */}
+            {showInviteModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
+                <div className="relative w-full max-w-md bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-xl space-y-5 animate-in zoom-in-95 duration-150">
+                  {/* Close button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowInviteModal(false);
+                      setDevInviteUrl(null);
+                    }}
+                    className="absolute right-4 top-4 p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center shrink-0">
+                      <Mail className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-[#111111]">Invite Teammate</h3>
+                      <p className="text-xs text-gray-500">Add a colleague to {teamName}</p>
+                    </div>
+                  </div>
+
+                  {/* Dev Mode direct link display */}
+                  {devInviteUrl && (
+                    <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl space-y-2">
+                      <div className="text-[11px] font-semibold text-blue-900 flex items-center justify-between">
+                        <span>🛠️ Dev Mode Active (Invite Link Generated)</span>
+                        {copiedLink && (
+                          <span className="text-emerald-600 flex items-center gap-1">
+                            <Check className="w-3 h-3" /> Copied!
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value={devInviteUrl}
+                          className="flex-1 text-[11px] font-mono px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-blue-950 select-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(devInviteUrl);
+                            setCopiedLink(true);
+                            setTimeout(() => setCopiedLink(false), 2000);
+                          }}
+                          className="px-3 py-1.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer shrink-0"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>Copy</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {!devInviteUrl && (
+                    <form onSubmit={handleSendInvite} className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-[#111111] mb-1.5">
+                          Colleague&apos;s Work Email
+                        </label>
+                        <input
+                          type="email"
+                          required
+                          placeholder="developer@company.com"
+                          value={inviteEmail}
+                          onChange={e => setInviteEmail(e.target.value)}
+                          className="w-full px-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-[#111111] mb-1.5">
+                          Assigned Role in Team
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            { id: 'MEMBER', label: 'Member', desc: 'Can work on tasks' },
+                            { id: 'PROJECT_MANAGER', label: 'PM / Co-Lead', desc: 'Can manage projects' },
+                            { id: 'VIEWER', label: 'Viewer', desc: 'Read-only access' },
+                          ].map(r => (
+                            <button
+                              key={r.id}
+                              type="button"
+                              onClick={() => setInviteRole(r.id as any)}
+                              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                                inviteRole === r.id
+                                  ? 'border-[#2563EB] bg-blue-50/50 ring-1 ring-[#2563EB]'
+                                  : 'border-[#E5E7EB] hover:border-gray-300 bg-white'
+                              }`}
+                            >
+                              <div className="text-xs font-semibold text-gray-900">{r.label}</div>
+                              <div className="text-[10px] text-gray-500 mt-0.5 leading-tight">{r.desc}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="pt-2 flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowInviteModal(false)}
+                          className="px-4 py-2 border border-[#E5E7EB] text-gray-700 hover:bg-gray-50 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={sendingInvite || !inviteEmail.trim()}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-xl shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
+                        >
+                          {sendingInvite ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Sending Invite...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Send className="w-3.5 h-3.5" />
+                              <span>Send Invitation</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {devInviteUrl && (
+                    <div className="pt-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowInviteModal(false);
+                          setDevInviteUrl(null);
+                          setInviteEmail('');
+                        }}
+                        className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                      >
+                        Done
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

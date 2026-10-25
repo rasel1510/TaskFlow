@@ -255,6 +255,206 @@ export async function sendVerificationOtpEmail({
   }
 }
 
+// ---------------------------------------------------------------------------
+// Team Invitation Email Dispatcher
+// ---------------------------------------------------------------------------
+export interface SendTeamInviteParams {
+  to: string;
+  inviterName: string;
+  teamName: string;
+  inviteUrl: string;
+  role: string;
+  expiresInDays?: number;
+}
+
+export async function sendTeamInviteEmail({
+  to,
+  inviterName,
+  teamName,
+  inviteUrl,
+  role,
+  expiresInDays = 7,
+}: SendTeamInviteParams): Promise<MailResult> {
+  const from = process.env.SMTP_FROM || `"FlowSync" <${process.env.SMTP_USER || 'noreply@flowsync.app'}>`;
+  const transporter = getSmtpTransporter();
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invitation to join ${teamName} on FlowSync</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #F9FAFB;
+      color: #111111;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrapper {
+      width: 100%;
+      background-color: #F9FAFB;
+      padding: 40px 16px;
+      box-sizing: border-box;
+    }
+    .container {
+      max-width: 520px;
+      margin: 0 auto;
+      background: #ffffff;
+      border: 1px solid #E5E7EB;
+      border-radius: 16px;
+      padding: 36px 32px;
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      background-color: #2563EB;
+      border-radius: 10px;
+      display: inline-block;
+      text-align: center;
+      line-height: 36px;
+      color: #ffffff;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    .brand-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: #111111;
+      letter-spacing: -0.5px;
+      display: inline-block;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #111111;
+      margin: 0 0 12px 0;
+      letter-spacing: -0.4px;
+    }
+    p {
+      font-size: 14px;
+      line-height: 22px;
+      color: #4B5563;
+      margin: 0 0 20px 0;
+    }
+    .invite-box {
+      background-color: #EFF6FF;
+      border: 1px solid #DBEAFE;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 24px 0;
+      text-align: center;
+    }
+    .btn {
+      display: inline-block;
+      background-color: #2563EB;
+      color: #ffffff !important;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 12px 28px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    }
+    .btn:hover {
+      background-color: #1D4ED8;
+    }
+    .footer {
+      border-top: 1px solid #F3F4F6;
+      padding-top: 20px;
+      margin-top: 28px;
+      font-size: 12px;
+      line-height: 18px;
+      color: #9CA3AF;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+      <div class="brand">
+        <div class="brand-icon">✓</div>
+        <span class="brand-name">FlowSync</span>
+      </div>
+
+      <h1>Join ${teamName}</h1>
+      <p>Hello,</p>
+      <p><strong>${inviterName}</strong> has invited you to collaborate in <strong>${teamName}</strong> as a <strong>${role}</strong> on FlowSync.</p>
+
+      <div class="invite-box">
+        <p style="margin-bottom: 16px; font-weight: 500; color: #1E3A8A;">You can accept this invitation and begin working across projects:</p>
+        <a href="${inviteUrl}" class="btn" target="_blank">Accept Invitation & Join Team</a>
+        <p style="margin-top: 12px; margin-bottom: 0; font-size: 11px; color: #64748B;">This invitation link will expire in ${expiresInDays} days.</p>
+      </div>
+
+      <p style="font-size: 12px; color: #9CA3AF; word-break: break-all;">
+        Or copy and paste this URL into your browser:<br>
+        <a href="${inviteUrl}" style="color: #2563EB;">${inviteUrl}</a>
+      </p>
+
+      <div class="footer">
+        © ${new Date().getFullYear()} FlowSync Technologies Inc. All rights reserved.<br>
+        High-Performance Task & Project Management Infrastructure.
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+
+  if (!transporter) {
+    console.log('\n======================================================');
+    console.log('📨 [SMTP DEV MODE] FlowSync Team Invitation Dispatch');
+    console.log(`To:        ${to}`);
+    console.log(`Inviter:   ${inviterName}`);
+    console.log(`Team:      ${teamName} (Role: ${role})`);
+    console.log(`Invite URL: >>> [ ${inviteUrl} ] <<<`);
+    console.log(`Expires:   ${expiresInDays} days`);
+    console.log('======================================================\n');
+
+    return {
+      success: true,
+      devMode: true,
+      previewCode: inviteUrl,
+    };
+  }
+
+  try {
+    const info = await transporter.sendMail({
+      from,
+      to,
+      subject: `${inviterName} invited you to join ${teamName} on FlowSync`,
+      text: `${inviterName} has invited you to join ${teamName} as ${role} on FlowSync. Click here to accept: ${inviteUrl}`,
+      html,
+    });
+
+    return {
+      success: true,
+      messageId: info.messageId,
+      devMode: false,
+    };
+  } catch (error) {
+    console.error('[SMTP ERROR] Failed to send team invite email:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to send invite email',
+      previewCode: process.env.NODE_ENV !== 'production' ? inviteUrl : undefined,
+    };
+  }
+}
+
 /**
  * Verify SMTP connection credentials
  */
@@ -280,3 +480,4 @@ export async function verifySmtpConnection(): Promise<{ success: boolean; messag
     };
   }
 }
+

@@ -59,22 +59,31 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     const { currentPassword, newPassword } = parsed.data;
 
-    // Fetch the stored hash — only the password column, nothing else
-    const user = await prisma.user.findUnique({
-      where: { id },
-      select: { id: true, password: true },
-    });
+    const { findStoredUserById, findStoredUserByEmail, updateStoredUser } = await import('@/data/userStore');
+    const stored = findStoredUserById(id) || (session.user.email ? findStoredUserByEmail(session.user.email) : null);
 
-    if (!user) {
+    let user = null;
+    try {
+      user = await prisma.user.findUnique({
+        where: { id },
+        select: { id: true, password: true },
+      });
+    } catch (e) {
+      console.warn('[PATCH /api/users/:id/password] DB lookup error:', e);
+    }
+
+    if (!user && !stored) {
       return NextResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'User not found' } },
         { status: 404 }
       );
     }
 
-    // If user has no password stored (demo/OAuth user), allow setting one directly
-    if (user.password) {
-      const isValid = await bcrypt.compare(currentPassword, user.password);
+    const currentHash = user?.password || stored?.password;
+
+    // If user has a password stored, verify it
+    if (currentHash) {
+      const isValid = await bcrypt.compare(currentPassword, currentHash);
       if (!isValid) {
         return NextResponse.json(
           { success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Current password is incorrect' } },
@@ -84,8 +93,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
 
     // Reject if new password is same as current
-    if (user.password) {
-      const isSame = await bcrypt.compare(newPassword, user.password);
+    if (currentHash) {
+      const isSame = await bcrypt.compare(newPassword, currentHash);
       if (isSame) {
         return NextResponse.json(
           { success: false, error: { code: 'BAD_REQUEST', message: 'New password must be different from current password' } },
@@ -97,10 +106,36 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     // Hash with bcrypt work factor 12 (OWASP recommended minimum)
     const hashedPassword = await bcrypt.hash(newPassword, 12);
 
-    await prisma.user.update({
-      where: { id },
-      data: { password: hashedPassword },
-    });
+    try {
+      if (user) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { password: hashedPassword },
+        });
+      } else if (stored) {
+        await prisma.user.upsert({
+          where: { id: stored.id },
+          create: {
+            id: stored.id,
+            name: stored.name,
+            email: stored.email,
+            password: hashedPassword,
+            role: stored.role || 'User',
+            avatar: stored.avatar || 'U',
+            expertise: stored.expertise || [],
+            createdAt: new Date(stored.createdAt),
+          },
+          update: {
+            password: hashedPassword,
+          },
+        });
+      }
+    } catch (dbErr) {
+      console.warn('[PATCH /api/users/:id/password] Prisma update failed:', dbErr);
+    }
+
+    // Always update local userStore
+    updateStoredUser(id, { password: hashedPassword });
 
     return NextResponse.json(
       { success: true, data: { message: 'Password updated successfully' } },

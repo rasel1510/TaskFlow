@@ -60,8 +60,8 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     }
 
     if (!user) {
-      const { findStoredUserById } = await import('@/data/userStore');
-      const stored = findStoredUserById(id);
+      const { findStoredUserById, findStoredUserByEmail } = await import('@/data/userStore');
+      const stored = findStoredUserById(id) || (session.user.email ? findStoredUserByEmail(session.user.email) : null);
       if (stored) {
         user = {
           id: stored.id,
@@ -69,9 +69,28 @@ export async function GET(_request: NextRequest, context: RouteContext) {
           email: stored.email,
           role: stored.role,
           avatar: stored.avatar,
-          expertise: [],
+          expertise: stored.expertise || [],
           createdAt: new Date(stored.createdAt),
         };
+
+        // Self-heal DB in the background if connection is alive
+        try {
+          prisma.user.upsert({
+            where: { id: stored.id },
+            create: {
+              id: stored.id,
+              name: stored.name,
+              email: stored.email.toLowerCase().trim(),
+              password: stored.password || null,
+              role: stored.role || 'User',
+              avatar: stored.avatar || 'U',
+              expertise: stored.expertise || [],
+              emailVerified: stored.emailVerified ? new Date(stored.emailVerified) : null,
+              createdAt: new Date(stored.createdAt),
+            },
+            update: {},
+          }).catch(() => {});
+        } catch (_) {}
       } else if (session?.user?.id === id) {
         user = {
           id: session.user.id,
@@ -144,21 +163,106 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (parsed.data.avatar !== undefined && parsed.data.avatar !== null) updateData.avatar = parsed.data.avatar;
     if (parsed.data.expertise !== undefined) updateData.expertise = parsed.data.expertise;
 
-    const updated = await prisma.user.update({
-      where: { id },
-      data: updateData,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        avatar: true,
-        expertise: true,
-        createdAt: true,
-      },
+    const { findStoredUserById, findStoredUserByEmail, updateStoredUser } = await import('@/data/userStore');
+    const stored = findStoredUserById(id) || (session.user.email ? findStoredUserByEmail(session.user.email) : null);
+
+    let updatedPrismaUser = null;
+
+    try {
+      // 1. Check if user exists by id in DB
+      const dbUser = await prisma.user.findUnique({
+        where: { id },
+        select: { id: true, email: true },
+      });
+
+      if (dbUser) {
+        updatedPrismaUser = await prisma.user.update({
+          where: { id },
+          data: updateData,
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            avatar: true,
+            expertise: true,
+            createdAt: true,
+          },
+        });
+      } else {
+        // User not found by id in DB. Check by email or provision record
+        const userEmail = (stored?.email || session.user.email || '').toLowerCase().trim();
+        let dbUserByEmail = null;
+        if (userEmail) {
+          dbUserByEmail = await prisma.user.findUnique({
+            where: { email: userEmail },
+            select: { id: true },
+          });
+        }
+
+        if (dbUserByEmail) {
+          updatedPrismaUser = await prisma.user.update({
+            where: { id: dbUserByEmail.id },
+            data: updateData,
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              avatar: true,
+              expertise: true,
+              createdAt: true,
+            },
+          });
+        } else if (userEmail) {
+          // Provision in Prisma with custom id to preserve relations
+          updatedPrismaUser = await prisma.user.create({
+            data: {
+              id,
+              name: updateData.name ?? stored?.name ?? session.user.name ?? 'User',
+              email: userEmail,
+              role: updateData.role ?? stored?.role ?? (session.user as { role?: string })?.role ?? 'User',
+              avatar: updateData.avatar ?? stored?.avatar ?? (session.user as { avatar?: string })?.avatar ?? 'U',
+              expertise: updateData.expertise ?? stored?.expertise ?? [],
+              password: stored?.password || null,
+              emailVerified: stored?.emailVerified ? new Date(stored.emailVerified) : null,
+              createdAt: stored?.createdAt ? new Date(stored.createdAt) : new Date(),
+            },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              avatar: true,
+              expertise: true,
+              createdAt: true,
+            },
+          });
+        }
+      }
+    } catch (dbError) {
+      console.warn('[PATCH /api/users/:id] Prisma update error, falling back to userStore:', dbError);
+    }
+
+    // Always update local store if applicable
+    const updatedStored = updateStoredUser(id, {
+      ...(updateData.name !== undefined && { name: updateData.name }),
+      ...(updateData.role !== undefined && { role: updateData.role }),
+      ...(updateData.avatar !== undefined && { avatar: updateData.avatar }),
+      ...(updateData.expertise !== undefined && { expertise: updateData.expertise }),
     });
 
-    return NextResponse.json({ success: true, data: updated }, { status: 200 });
+    const responseData = updatedPrismaUser || {
+      id,
+      name: updateData.name ?? updatedStored?.name ?? session.user.name ?? 'User',
+      email: updatedStored?.email ?? session.user.email ?? '',
+      role: updateData.role ?? updatedStored?.role ?? (session.user as { role?: string })?.role ?? 'User',
+      avatar: updateData.avatar ?? updatedStored?.avatar ?? (session.user as { avatar?: string })?.avatar ?? 'U',
+      expertise: updateData.expertise ?? updatedStored?.expertise ?? [],
+      createdAt: updatedStored?.createdAt ? new Date(updatedStored.createdAt) : new Date(),
+    };
+
+    return NextResponse.json({ success: true, data: responseData }, { status: 200 });
   } catch (error) {
     console.error('[PATCH /api/users/:id] Error:', error);
     return NextResponse.json(

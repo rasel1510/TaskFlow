@@ -8,6 +8,7 @@ export interface StoredUser {
   password: string; // bcrypt hash
   role: string;
   avatar: string;
+  expertise?: string[];
   emailVerified?: string;
   createdAt: string;
 }
@@ -72,6 +73,7 @@ export function saveStoredUser(data: {
   password: string;
   role: string;
   avatar: string;
+  expertise?: string[];
   emailVerified?: string;
 }): StoredUser {
   const allUsers = loadUsers();
@@ -85,6 +87,7 @@ export function saveStoredUser(data: {
     password: data.password,
     role: data.role || 'User',
     avatar: data.avatar,
+    expertise: data.expertise !== undefined ? data.expertise : (existingIndex >= 0 ? allUsers[existingIndex].expertise : []),
     emailVerified: data.emailVerified !== undefined ? data.emailVerified : (existingIndex >= 0 ? allUsers[existingIndex].emailVerified : undefined),
     createdAt: existingIndex >= 0 ? allUsers[existingIndex].createdAt : new Date().toISOString(),
   };
@@ -97,6 +100,33 @@ export function saveStoredUser(data: {
 
   saveUsers(allUsers);
   return newUser;
+}
+
+export function updateStoredUser(
+  idOrEmail: string,
+  updates: Partial<Omit<StoredUser, 'id'>>
+): StoredUser | null {
+  const allUsers = loadUsers();
+  const normalized = idOrEmail.toLowerCase().trim();
+  const index = allUsers.findIndex(
+    u => u.id === idOrEmail || u.email.toLowerCase().trim() === normalized
+  );
+
+  if (index === -1) {
+    return null;
+  }
+
+  const existing = allUsers[index];
+  const updatedUser: StoredUser = {
+    ...existing,
+    ...updates,
+    id: existing.id,
+    email: updates.email ? updates.email.toLowerCase().trim() : existing.email,
+  };
+
+  allUsers[index] = updatedUser;
+  saveUsers(allUsers);
+  return updatedUser;
 }
 
 export function getAllStoredUsers(): StoredUser[] {

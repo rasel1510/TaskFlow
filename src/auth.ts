@@ -57,9 +57,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         // ─── 2. Standard Credentials Login ───
         try {
-          // Attempt to find user in database
+          // Attempt to find user in database with team information
           const dbUser = await prisma.user.findUnique({
             where: { email },
+            include: { team: { select: { id: true, name: true, slug: true } } },
           });
 
           if (dbUser) {
@@ -75,6 +76,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               email: dbUser.email,
               image: dbUser.avatar,
               role: dbUser.role,
+              teamId: dbUser.teamId,
+              teamName: dbUser.team?.name,
             };
           }
         } catch {
@@ -132,6 +135,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.id = user.id;
         token.role = (user as { role?: string }).role || 'User';
         token.avatar = (user as { avatar?: string }).avatar || user.image;
+        token.teamId = (user as { teamId?: string }).teamId;
+        token.teamName = (user as { teamName?: string }).teamName;
       }
       return token;
     },
@@ -140,6 +145,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.id = token.id as string;
         (session.user as { role?: string }).role = (token.role as string) || 'User';
         (session.user as { avatar?: string }).avatar = (token.avatar as string) || '';
+        (session.user as { teamId?: string }).teamId = (token.teamId as string) || '';
+        (session.user as { teamName?: string }).teamName = (token.teamName as string) || '';
       }
       return session;
     },

@@ -13,7 +13,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
-import { projects as mockProjects, tasks as mockTasks } from '@/data/mockData';
 import { UpdateProjectSchema, validationError } from '@/lib/validators';
 import { computeProjectHealth } from '@/lib/projectHealthEngine';
 import { validateLifecycleTransition, type ProjectLifecycleState } from '@/lib/projectLifecycle';
@@ -127,70 +126,12 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         );
       }
     } catch (dbErr) {
-      console.warn('[GET /api/projects/:id] DB query warning, falling back to mock:', dbErr);
+      console.warn('[GET /api/projects/:id] DB query warning:', dbErr);
     }
-
-    // Fallback: search in mock projects
-    const fallbackProject = mockProjects.find((p) => p.id === projectId);
-    if (!fallbackProject) {
-      return NextResponse.json(
-        { success: false, error: { code: 'NOT_FOUND', message: `Project "${projectId}" not found` } },
-        { status: 404 }
-      );
-    }
-
-    const projectTasks = mockTasks
-      .filter((t) => t.projectId === projectId)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((t: any) => ({
-        id: t.id,
-        taskNumber: t.taskNumber ?? t.id,
-        title: t.title,
-        status: t.status,
-        priority: t.priority,
-        dueDate: t.dueDate,
-        estimate: t.estimate,
-        assignee: t.assignee,
-        createdAt: t.createdAt ?? null,
-        updatedAt: t.updatedAt ?? null,
-        _count: { subtasks: t.subtasks?.length ?? 0, comments: t.commentsCount ?? 0 },
-      }));
-
-    const totalTasks = projectTasks.length;
-    const completedTasks = projectTasks.filter((t) => t.status === 'done').length;
-    const inProgressTasks = projectTasks.filter(
-      (t) => t.status === 'in_progress' || t.status === 'in_review'
-    ).length;
-    const overdueTasks = fallbackProject.overdueTasks ?? 0;
-    const completionRate = fallbackProject.progress ?? 0;
-
-    const slaAnalysis = computeProjectHealth({
-      startDate: fallbackProject.startDate,
-      dueDate: fallbackProject.dueDate,
-      progress: completionRate,
-      totalTasks,
-      completedTasks,
-      overdueTasks,
-    });
 
     return NextResponse.json(
-      {
-        success: true,
-        data: {
-          ...fallbackProject,
-          health: slaAnalysis.health,
-          tasks: projectTasks,
-          totalTasks,
-          completedTasks,
-          inProgressTasks,
-          overdueTasks,
-          completionRate,
-          slaAnalysis,
-          lifecycleState: (fallbackProject as any).lifecycleState || 'ACTIVE',
-          archivedAt: (fallbackProject as any).archivedAt || null,
-        },
-      },
-      { status: 200 }
+      { success: false, error: { code: 'NOT_FOUND', message: `Project "${projectId}" not found` } },
+      { status: 404 }
     );
   } catch (err) {
     console.error('[GET /api/projects/:id] Error:', err);
@@ -235,14 +176,16 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     // Step 4.11 Lifecycle State Transition Validation
     if (body.lifecycleState && typeof body.lifecycleState === 'string') {
       const targetState = body.lifecycleState as ProjectLifecycleState;
-      // Fetch current state (DB or mock fallback)
+      // Fetch current state from DB
       const current = await prisma.project.findUnique({ where: { id: projectId } }).catch(() => null);
-      const fallbackCurrent = current ? null : mockProjects.find((p) => p.id === projectId);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (!current) {
+        return NextResponse.json(
+          { success: false, error: { code: 'NOT_FOUND', message: `Project "${projectId}" not found` } },
+          { status: 404 }
+        );
+      }
       const currentState: ProjectLifecycleState =
-        ((current as any)?.lifecycleState as ProjectLifecycleState) ||
-        ((fallbackCurrent as any)?.lifecycleState as ProjectLifecycleState) ||
-        'ACTIVE';
+        ((current as any)?.lifecycleState as ProjectLifecycleState) || 'ACTIVE';
 
       const validation = validateLifecycleTransition(currentState, targetState);
       if (!validation.valid) {
@@ -289,31 +232,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
       return NextResponse.json({ success: true, data: updated }, { status: 200 });
     } catch (dbErr) {
-      console.warn('[PATCH /api/projects/:id] DB error, updating mock fallback:', dbErr);
+      console.error('[PATCH /api/projects/:id] DB update error:', dbErr);
+      return NextResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: `Project "${projectId}" not found or failed to update` } },
+        { status: 404 }
+      );
     }
-
-    // Mock fallback update
-    const proj = mockProjects.find((p) => p.id === projectId);
-    if (proj) {
-      if (name) proj.name = name;
-      if (description) proj.description = description;
-      if (color) proj.color = color;
-      if (body.health) proj.health = body.health as any;
-      if (updateData.lifecycleState) (proj as any).lifecycleState = updateData.lifecycleState;
-      if (updateData.archivedAt !== undefined) (proj as any).archivedAt = updateData.archivedAt;
-
-      await Promise.all([
-        redisCache.delPattern('projects:*'),
-        redisCache.delPattern('reports:*'),
-      ]).catch(() => {});
-
-      return NextResponse.json({ success: true, data: proj }, { status: 200 });
-    }
-
-    return NextResponse.json(
-      { success: false, error: { code: 'NOT_FOUND', message: `Project "${projectId}" not found` } },
-      { status: 404 }
-    );
   } catch (err) {
     console.error('[PATCH /api/projects/:id] Error:', err);
     return NextResponse.json(
@@ -350,22 +274,12 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
         { status: 200 }
       );
     } catch (dbErr) {
-      console.warn('[DELETE /api/projects/:id] DB error:', dbErr);
-    }
-
-    const idx = mockProjects.findIndex((p) => p.id === projectId);
-    if (idx !== -1) {
-      mockProjects.splice(idx, 1);
+      console.error('[DELETE /api/projects/:id] DB error:', dbErr);
       return NextResponse.json(
-        { success: true, data: { message: `Project "${projectId}" removed` } },
-        { status: 200 }
+        { success: false, error: { code: 'NOT_FOUND', message: `Project "${projectId}" not found or already deleted` } },
+        { status: 404 }
       );
     }
-
-    return NextResponse.json(
-      { success: false, error: { code: 'NOT_FOUND', message: `Project "${projectId}" not found` } },
-      { status: 404 }
-    );
   } catch (err) {
     console.error('[DELETE /api/projects/:id] Error:', err);
     return NextResponse.json(

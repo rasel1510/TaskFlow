@@ -10,7 +10,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { tasks as mockTasks, projects as mockProjects } from '@/data/mockData';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -80,31 +79,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
       console.warn('[GET /api/projects/:id/burndown] DB warning, using mock data:', dbErr);
     }
 
-    // Fallback to mock data
     if (!project) {
-      const mockProj = mockProjects.find(p => p.id === projectId);
-      if (!mockProj) {
-        return NextResponse.json(
-          { success: false, error: { code: 'NOT_FOUND', message: `Project "${projectId}" not found` } },
-          { status: 404 }
-        );
-      }
-      project = {
-        id: mockProj.id,
-        name: mockProj.name,
-        startDate: mockProj.startDate ? new Date(mockProj.startDate) : null,
-        dueDate: mockProj.dueDate ? new Date(mockProj.dueDate) : null,
-      };
-      allTasks = mockTasks
-        .filter(t => t.projectId === projectId)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .map((t: any) => ({
-          id: t.id,
-          status: t.status,
-          createdAt: new Date(t.createdAt || Date.now()),
-          updatedAt: new Date(t.updatedAt || Date.now()),
-          dueDate: t.dueDate ? new Date(t.dueDate) : null,
-        }));
+      return NextResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: `Project "${projectId}" not found` } },
+        { status: 404 }
+      );
     }
 
     // Determine project date range

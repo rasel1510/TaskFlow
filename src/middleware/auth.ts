@@ -63,8 +63,9 @@ export function applyAuthMiddleware(request: NextRequest): NextResponse | null {
   const sessionToken = getSessionToken(request);
   const onAuthRoute = isAuthRoute(pathname);
 
-  // Dedicated landing showcase route is always accessible
+  // Dedicated landing showcase route and invite onboarding route are always accessible
   const isLandingRoute = pathname.startsWith('/landing');
+  const isInviteRoute  = pathname.startsWith('/invite');
 
   // Rule 1: Authenticated user accessing root ('/') or auth pages
   // They are already logged in — send them straight into their workspace!
@@ -73,7 +74,7 @@ export function applyAuthMiddleware(request: NextRequest): NextResponse | null {
   }
 
   // Rule 2: Unauthenticated user on protected route (like /app) → redirect to '/'
-  if (!sessionToken && !onAuthRoute && !isLandingRoute && pathname !== '/') {
+  if (!sessionToken && !onAuthRoute && !isLandingRoute && !isInviteRoute && pathname !== '/') {
     return NextResponse.redirect(new URL('/', request.url));
   }
 

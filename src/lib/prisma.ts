@@ -17,7 +17,7 @@ const globalForPrisma = globalThis as unknown as {
   __adapterId?: string;
 };
 
-const CURRENT_ADAPTER_ID = 'neon-wss-v5';
+const CURRENT_ADAPTER_ID = 'neon-wss-v6';
 
 function createPrismaClient(): PrismaClient {
   const connectionString = process.env.DATABASE_URL;

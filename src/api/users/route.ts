@@ -1,12 +1,23 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { auth } from '@/auth';
 import { users as mockUsers } from '@/data/mockData';
 import { getAllStoredUsers } from '@/data/userStore';
 import redisCache from '@/lib/redis';
+import { getOrProvisionUserTeam } from '@/lib/tenant';
 
 export async function GET() {
   try {
-    const mergedList = await redisCache.wrap('users:all', 120, async () => {
+    let currentUserId: string | undefined;
+    try {
+      const session = await auth();
+      currentUserId = session?.user?.id;
+    } catch {}
+
+    const teamContext = currentUserId ? await getOrProvisionUserTeam(currentUserId) : null;
+    const cacheKey = teamContext ? `users:team:${teamContext.teamId}` : 'users:all';
+
+    const mergedList = await redisCache.wrap(cacheKey, 60, async () => {
       let dbUsers: Array<{
         id: string;
         name: string;
@@ -17,7 +28,9 @@ export async function GET() {
       }> = [];
 
       try {
+        const teamFilter = teamContext?.teamId ? { teamId: teamContext.teamId } : {};
         dbUsers = await prisma.user.findMany({
+          where: teamFilter,
           select: {
             id: true,
             name: true,
