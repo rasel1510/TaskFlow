@@ -192,8 +192,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
       },
     });
 
-    // Construct invitation link
-    const origin = request.headers.get('origin') || request.nextUrl.origin || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    // Construct invitation link (resolve origin accurately across Vercel deployments)
+    const origin =
+      request.headers.get('origin') ||
+      request.nextUrl.origin ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+      process.env.NEXTAUTH_URL ||
+      'http://localhost:3000';
     const inviteUrl = `${origin}/invite/accept?token=${token}`;
 
     const inviterName = session.user.name || session.user.email?.split('@')[0] || 'Project Manager';
@@ -209,10 +214,33 @@ export async function POST(request: NextRequest, context: RouteContext) {
       expiresInDays,
     });
 
+    if (!mailResult.success && !mailResult.devMode) {
+      console.error('[POST /api/projects/:id/invitations] Mail delivery failed:', mailResult.error);
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'EMAIL_DISPATCH_FAILED',
+            message: `Invitation created in database, but email failed to send: ${mailResult.error || 'SMTP delivery failed'}. Please configure SMTP environment variables in Vercel.`,
+          },
+          data: {
+            id: invitation.id,
+            email: invitation.email,
+            role: invitation.role,
+            expiresAt: invitation.expiresAt.toISOString(),
+            inviteUrl,
+          },
+        },
+        { status: 502 }
+      );
+    }
+
     return NextResponse.json(
       {
         success: true,
-        message: `Invitation email successfully sent to ${email}`,
+        message: mailResult.devMode
+          ? `Invitation created (Dev Mode). Share link: ${inviteUrl}`
+          : `Invitation email successfully sent to ${email}`,
         data: {
           id: invitation.id,
           email: invitation.email,

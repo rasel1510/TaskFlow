@@ -18,6 +18,24 @@ interface MailResult {
 }
 
 // ---------------------------------------------------------------------------
+// Sender Address Resolver
+// ---------------------------------------------------------------------------
+export function getSenderAddress(): string {
+  const configuredFrom = process.env.SMTP_FROM?.trim();
+  const user = process.env.SMTP_USER?.trim() || 'noreply@flowsync.app';
+
+  // Gmail SMTP strictly rejects or spam-flags emails where "From" claims to be an unverified
+  // domain like flowsync.app. When using Gmail SMTP, default to "FlowSync <user@gmail.com>".
+  if (process.env.SMTP_HOST?.toLowerCase().includes('gmail') && user.includes('@')) {
+    if (!configuredFrom || configuredFrom.includes('flowsync.app') || !configuredFrom.includes(user)) {
+      return `"FlowSync" <${user}>`;
+    }
+  }
+
+  return configuredFrom || `"FlowSync" <${user}>`;
+}
+
+// ---------------------------------------------------------------------------
 // Transporter Factory
 // ---------------------------------------------------------------------------
 function getSmtpTransporter() {
@@ -42,10 +60,13 @@ function getSmtpTransporter() {
     tls: {
       rejectUnauthorized: process.env.NODE_ENV === 'production',
     },
-    pool: true,
-    maxConnections: 5,
-    maxMessages: 100,
-  });
+    // On serverless hosts like Vercel, persistent pooling freezes sockets across invocations.
+    // Disabling pool ensures fresh, reliable socket connections with timeouts.
+    pool: false,
+    connectionTimeout: 10000,
+    greetingTimeout: 5000,
+    socketTimeout: 15000,
+  } as any);
 }
 
 // ---------------------------------------------------------------------------
@@ -209,11 +230,20 @@ export async function sendVerificationOtpEmail({
   otp,
   expiresInMinutes = 10,
 }: SendOtpParams): Promise<MailResult> {
-  const from = process.env.SMTP_FROM || `"FlowSync" <${process.env.SMTP_USER || 'noreply@flowsync.app'}>`;
+  const from = getSenderAddress();
   const transporter = getSmtpTransporter();
 
-  // If no SMTP configured, provide structured dev fallback with console preview
+  // If no SMTP configured, provide structured dev fallback in local development,
+  // or return an explicit configuration error in production (e.g. Vercel).
   if (!transporter) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[SMTP ERROR] SMTP server is not configured in Vercel environment variables (SMTP_HOST, SMTP_USER, SMTP_PASS).');
+      return {
+        success: false,
+        error: 'SMTP credentials (SMTP_HOST, SMTP_USER, SMTP_PASS) are not configured in Vercel environment variables.',
+      };
+    }
+
     console.log('\n======================================================');
     console.log('📨 [SMTP DEV MODE] FlowSync Email Verification Dispatch');
     console.log(`To:       ${to} (${name || 'New Member'})`);
@@ -275,7 +305,7 @@ export async function sendTeamInviteEmail({
   role,
   expiresInDays = 7,
 }: SendTeamInviteParams): Promise<MailResult> {
-  const from = process.env.SMTP_FROM || `"FlowSync" <${process.env.SMTP_USER || 'noreply@flowsync.app'}>`;
+  const from = getSenderAddress();
   const transporter = getSmtpTransporter();
 
   const html = `
@@ -415,6 +445,14 @@ export async function sendTeamInviteEmail({
   `.trim();
 
   if (!transporter) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[SMTP ERROR] SMTP server is not configured in Vercel environment variables (SMTP_HOST, SMTP_USER, SMTP_PASS).');
+      return {
+        success: false,
+        error: 'SMTP credentials (SMTP_HOST, SMTP_USER, SMTP_PASS) are not configured in Vercel environment variables.',
+      };
+    }
+
     console.log('\n======================================================');
     console.log('📨 [SMTP DEV MODE] FlowSync Team Invitation Dispatch');
     console.log(`To:        ${to}`);
@@ -503,7 +541,7 @@ export async function sendProjectInviteEmail({
   role,
   expiresInDays = 7,
 }: SendProjectInviteParams): Promise<MailResult> {
-  const from = process.env.SMTP_FROM || `"FlowSync" <${process.env.SMTP_USER || 'noreply@flowsync.app'}>`;
+  const from = getSenderAddress();
   const transporter = getSmtpTransporter();
 
   const formattedRole = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
@@ -683,6 +721,14 @@ export async function sendProjectInviteEmail({
   `.trim();
 
   if (!transporter) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[SMTP ERROR] SMTP server is not configured in Vercel environment variables (SMTP_HOST, SMTP_USER, SMTP_PASS).');
+      return {
+        success: false,
+        error: 'SMTP credentials (SMTP_HOST, SMTP_USER, SMTP_PASS) are not configured in Vercel environment variables.',
+      };
+    }
+
     console.log('\n======================================================');
     console.log('📨 [SMTP DEV MODE] FlowSync Project Invitation Dispatch');
     console.log(`To:          ${to}`);

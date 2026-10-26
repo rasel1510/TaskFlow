@@ -179,8 +179,13 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Derive invitation acceptance URL
-    const origin = req.nextUrl.origin || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    // Derive invitation acceptance URL (accurately resolved for Vercel)
+    const origin =
+      req.headers.get('origin') ||
+      req.nextUrl.origin ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+      process.env.NEXTAUTH_URL ||
+      'http://localhost:3000';
     const inviteUrl = `${origin}/invite/accept?token=${token}`;
 
     // Dispatch email
@@ -192,6 +197,28 @@ export async function POST(req: NextRequest) {
       role: role === 'PROJECT_MANAGER' ? 'Project Manager' : role === 'VIEWER' ? 'Viewer' : 'Member',
       expiresInDays,
     });
+
+    if (!mailResult.success && !mailResult.devMode) {
+      console.error('[POST /api/team/invite] Email dispatch failed:', mailResult.error);
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'EMAIL_DISPATCH_FAILED',
+            message: `Invitation created in database, but email failed to send: ${mailResult.error || 'SMTP delivery failed'}. Please configure SMTP environment variables in Vercel.`,
+          },
+          data: {
+            id: invitation.id,
+            email: invitation.email,
+            role: invitation.role,
+            status: invitation.status,
+            expiresAt: invitation.expiresAt.toISOString(),
+            inviteUrl,
+          },
+        },
+        { status: 502 }
+      );
+    }
 
     return NextResponse.json(
       {
