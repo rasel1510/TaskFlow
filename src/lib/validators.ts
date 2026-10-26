@@ -319,8 +319,14 @@ export const ProjectMemberUpdateSchema = z.object({
   role: z.enum(PROJECT_ROLES),
 });
 
+export const ProjectEmailInviteSchema = z.object({
+  email: z.string().email('Please enter a valid email address').trim().toLowerCase(),
+  role: z.enum(PROJECT_ROLES).default('CONTRIBUTOR'),
+});
+
 export type ProjectMemberInviteInput = z.infer<typeof ProjectMemberInviteSchema>;
 export type ProjectMemberUpdateInput = z.infer<typeof ProjectMemberUpdateSchema>;
+export type ProjectEmailInviteInput = z.infer<typeof ProjectEmailInviteSchema>;
 
 
 

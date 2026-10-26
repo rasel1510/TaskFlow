@@ -481,3 +481,246 @@ export async function verifySmtpConnection(): Promise<{ success: boolean; messag
   }
 }
 
+// ---------------------------------------------------------------------------
+// Project-Scoped Invitation Email Dispatcher
+// ---------------------------------------------------------------------------
+export interface SendProjectInviteParams {
+  to: string;
+  inviterName: string;
+  projectName: string;
+  projectColor?: string;
+  inviteUrl: string;
+  role: string;
+  expiresInDays?: number;
+}
+
+export async function sendProjectInviteEmail({
+  to,
+  inviterName,
+  projectName,
+  projectColor = '#2563EB',
+  inviteUrl,
+  role,
+  expiresInDays = 7,
+}: SendProjectInviteParams): Promise<MailResult> {
+  const from = process.env.SMTP_FROM || `"FlowSync" <${process.env.SMTP_USER || 'noreply@flowsync.app'}>`;
+  const transporter = getSmtpTransporter();
+
+  const formattedRole = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invitation to collaborate on ${projectName} on FlowSync</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #F9FAFB;
+      color: #111111;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrapper {
+      width: 100%;
+      background-color: #F9FAFB;
+      padding: 40px 16px;
+      box-sizing: border-box;
+    }
+    .container {
+      max-width: 520px;
+      margin: 0 auto;
+      background: #ffffff;
+      border: 1px solid #E5E7EB;
+      border-radius: 16px;
+      padding: 36px 32px;
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      background-color: #2563EB;
+      border-radius: 10px;
+      display: inline-block;
+      text-align: center;
+      line-height: 36px;
+      color: #ffffff;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    .brand-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: #111111;
+      letter-spacing: -0.5px;
+      display: inline-block;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #111111;
+      margin: 0 0 12px 0;
+      letter-spacing: -0.4px;
+    }
+    p {
+      font-size: 14px;
+      line-height: 22px;
+      color: #4B5563;
+      margin: 0 0 20px 0;
+    }
+    .project-card {
+      background-color: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 24px 0;
+      text-align: center;
+    }
+    .project-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #FFFFFF;
+      border: 1px solid #CBD5E1;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1E293B;
+      margin-bottom: 16px;
+    }
+    .color-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      background-color: ${projectColor};
+    }
+    .role-tag {
+      display: inline-block;
+      background: #EFF6FF;
+      color: #2563EB;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-left: 6px;
+    }
+    .btn {
+      display: inline-block;
+      background-color: #2563EB;
+      color: #ffffff !important;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 12px 28px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    }
+    .btn:hover {
+      background-color: #1D4ED8;
+    }
+    .footer {
+      border-top: 1px solid #F3F4F6;
+      padding-top: 20px;
+      margin-top: 28px;
+      font-size: 12px;
+      line-height: 18px;
+      color: #9CA3AF;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+      <div class="brand">
+        <div class="brand-icon">✓</div>
+        <span class="brand-name">FlowSync</span>
+      </div>
+
+      <h1>You're invited to collaborate</h1>
+      <p>Hello,</p>
+      <p><strong>${inviterName}</strong> (Project Manager) has invited you to join the project team for <strong>${projectName}</strong> as a <span class="role-tag">${formattedRole}</span>.</p>
+
+      <div class="project-card">
+        <div class="project-badge">
+          <span class="color-dot"></span>
+          <span>${projectName}</span>
+        </div>
+        <p style="margin-bottom: 16px; font-weight: 500; color: #1E3A8A; font-size: 13px;">
+          Accept your invitation below, create your password, and enter the project workspace:
+        </p>
+        <a href="${inviteUrl}" class="btn" target="_blank">Accept Invitation & Set Password</a>
+        <p style="margin-top: 14px; margin-bottom: 0; font-size: 11px; color: #64748B;">This secure invitation link will expire in ${expiresInDays} days.</p>
+      </div>
+
+      <p style="font-size: 12px; color: #9CA3AF; word-break: break-all;">
+        Button not working? Copy and paste this URL into your browser:<br>
+        <a href="${inviteUrl}" style="color: #2563EB;">${inviteUrl}</a>
+      </p>
+
+      <div class="footer">
+        © ${new Date().getFullYear()} FlowSync Technologies Inc. All rights reserved.<br>
+        High-Performance Task & Project Management Infrastructure.
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+
+  if (!transporter) {
+    console.log('\n======================================================');
+    console.log('📨 [SMTP DEV MODE] FlowSync Project Invitation Dispatch');
+    console.log(`To:          ${to}`);
+    console.log(`Inviter:     ${inviterName}`);
+    console.log(`Project:     ${projectName} (Role: ${role})`);
+    console.log(`Invite URL:  >>> [ ${inviteUrl} ] <<<`);
+    console.log(`Expires:     ${expiresInDays} days`);
+    console.log('======================================================\n');
+
+    return {
+      success: true,
+      devMode: true,
+      previewCode: inviteUrl,
+    };
+  }
+
+  try {
+    const info = await transporter.sendMail({
+      from,
+      to,
+      subject: `${inviterName} invited you to join ${projectName} on FlowSync`,
+      text: `${inviterName} has invited you to join ${projectName} as ${role} on FlowSync. Accept your invitation and set your password here: ${inviteUrl}`,
+      html,
+    });
+
+    return {
+      success: true,
+      messageId: info.messageId,
+      devMode: false,
+    };
+  } catch (error) {
+    console.error('[SMTP ERROR] Failed to send project invite email:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to send invite email',
+      previewCode: process.env.NODE_ENV !== 'production' ? inviteUrl : undefined,
+    };
+  }
+}
+
+

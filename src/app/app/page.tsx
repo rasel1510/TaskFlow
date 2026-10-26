@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import TaskDetail from '@/components/TaskDetail';
 import CreateTaskModal from '@/components/CreateTaskModal';
 import CommandPalette from '@/components/CommandPalette';
+import OnboardingModal from '@/components/OnboardingModal';
 import Dashboard from '@/views/Dashboard';
 import MyTasks from '@/views/MyTasks';
 import KanbanBoard from '@/views/KanbanBoard';
@@ -40,6 +41,7 @@ type View =
 export default function AppPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [view, setView] = useState<View>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -52,6 +54,23 @@ export default function AppPage() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [isPWAModalOpen, setIsPWAModalOpen] = useState(false);
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Handle post-invite onboarding and deep linking to project
+  useEffect(() => {
+    if (searchParams) {
+      const isOnboardingParam = searchParams.get('onboarding') === 'true';
+      const targetPid = searchParams.get('projectId');
+
+      if (isOnboardingParam || session?.user?.name === 'New Member') {
+        setShowOnboarding(true);
+      }
+      if (targetPid) {
+        setSelectedProjectId(targetPid);
+        setView('project-detail');
+      }
+    }
+  }, [searchParams, session?.user?.name]);
 
   // Redirect to home page if unauthenticated
   useEffect(() => {
@@ -409,6 +428,17 @@ export default function AppPage() {
 
         {/* Floating Draggable FlowAi Trigger Button */}
         <DraggableFlowAiButton onClick={() => setIsCopilotOpen(true)} />
+
+        {/* Post-Invitation Profile Setup / Onboarding Modal */}
+        <OnboardingModal
+          isOpen={showOnboarding}
+          onClose={() => setShowOnboarding(false)}
+          targetProjectId={selectedProjectId}
+          onCompleteProjectNav={id => {
+            setSelectedProjectId(id);
+            setView('project-detail');
+          }}
+        />
       </div>
     </TaskProvider>
   );

@@ -8,6 +8,7 @@ import { LIFECYCLE_STATE_CONFIG, validateLifecycleTransition, type ProjectLifecy
 import { ROLE_DESCRIPTIONS, type ProjectRole } from '@/lib/permissions';
 import type { MilestoneRecord } from '@/api/projects/[id]/milestones/route';
 import type { MemberRecord } from '@/api/projects/[id]/members/route';
+import type { ProjectInvitationRecord } from '@/api/projects/[id]/invitations/route';
 import type { BurndownResult } from '@/api/projects/[id]/burndown/route';
 import type { ProjectMessage } from '@/api/projects/[id]/messages/route';
 import DatePicker from '@/components/ui/DatePicker';
@@ -190,8 +191,17 @@ export default function ProjectDetail({
   const [joinRequestsLoading, setJoinRequestsLoading] = useState(false);
   const [requestApprovalRoles, setRequestApprovalRoles] = useState<Record<string, ProjectRole>>({});
 
-  // Add Member Modal state with Expertise Matrix needed
+  // Add / Invite Member Modal state
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [inviteTab, setInviteTab] = useState<'email' | 'directory'>('email');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<ProjectRole>('CONTRIBUTOR');
+  const [sendingInvite, setSendingInvite] = useState(false);
+  const [invitations, setInvitations] = useState<ProjectInvitationRecord[]>([]);
+  const [invitationsLoading, setInvitationsLoading] = useState(false);
+  const [revokingInviteId, setRevokingInviteId] = useState<string | null>(null);
+  const [resendingInviteId, setResendingInviteId] = useState<string | null>(null);
+
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   const [availableUsersLoading, setAvailableUsersLoading] = useState(false);
   const [userSearchTerm, setUserSearchTerm] = useState('');
@@ -309,6 +319,22 @@ export default function ProjectDetail({
     finally { setJoinRequestsLoading(false); }
   }, [projectId]);
 
+  const fetchInvitations = useCallback(async () => {
+    setInvitationsLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/invitations`);
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setInvitations(json.data);
+      }
+    } catch (e) {
+      console.warn('[ProjectDetail] Invitations fetch error:', e);
+    } finally {
+      setInvitationsLoading(false);
+    }
+  }, [projectId]);
+
+
   const fetchAvailableUsers = async () => {
     setAvailableUsersLoading(true);
     try {
@@ -362,6 +388,75 @@ export default function ProjectDetail({
       toast.error(err.message || 'Failed to add member');
     } finally {
       setAddingUserId(null);
+    }
+  };
+
+  const handleSendInvitation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail.trim()) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
+    setSendingInvite(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/invitations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.success === false) {
+        throw new Error(json.error?.message || json.message || 'Failed to send invitation');
+      }
+      toast.success(`Invitation email sent to ${inviteEmail.trim()}`);
+      setInviteEmail('');
+      fetchInvitations();
+      setShowAddMemberModal(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send invitation');
+    } finally {
+      setSendingInvite(false);
+    }
+  };
+
+  const handleRevokeInvitation = async (inviteId: string) => {
+    setRevokingInviteId(inviteId);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/invitations?inviteId=${inviteId}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json();
+      if (!res.ok || json.success === false) {
+        throw new Error(json.error?.message || 'Failed to revoke invitation');
+      }
+      toast.success('Invitation revoked successfully');
+      fetchInvitations();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to revoke invitation');
+    } finally {
+      setRevokingInviteId(null);
+    }
+  };
+
+  const handleResendInvitation = async (inv: ProjectInvitationRecord) => {
+    setResendingInviteId(inv.id);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/invitations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inv.email, role: inv.role }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.success === false) {
+        throw new Error(json.error?.message || 'Failed to resend invitation');
+      }
+      toast.success(`Invitation resent to ${inv.email}`);
+      fetchInvitations();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to resend invitation');
+    } finally {
+      setResendingInviteId(null);
     }
   };
 
@@ -453,13 +548,14 @@ export default function ProjectDetail({
     if (activeTab === 'members') {
       fetchMembers();
       fetchJoinRequests();
+      fetchInvitations();
     }
     if (activeTab === 'burndown') fetchBurndown();
     if (activeTab === 'messages') {
       fetchMessages();
       fetchMembers();
     }
-  }, [activeTab, fetchMilestones, fetchMembers, fetchJoinRequests, fetchBurndown]);
+  }, [activeTab, fetchMilestones, fetchMembers, fetchJoinRequests, fetchInvitations, fetchBurndown]);
 
   const fetchMessages = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -1260,7 +1356,7 @@ export default function ProjectDetail({
                       <line x1="12" y1="5" x2="12" y2="19" />
                       <line x1="5" y1="12" x2="19" y2="12" />
                     </svg>
-                    Add Member
+                    Invite Member
                   </button>
                 )}
               </div>
@@ -1340,6 +1436,82 @@ export default function ProjectDetail({
                 </div>
               )}
             </div>
+
+            {/* Pending Email Invitations Section */}
+            {isPMOrOwner && invitations.length > 0 && (
+              <div className="pt-6 border-t border-[#F3F4F6] space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-[13.5px] font-bold text-[#111111] flex items-center gap-2">
+                      <span>Pending Email Invitations</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                        {invitations.length}
+                      </span>
+                    </h4>
+                    <p className="text-[11.5px] text-[rgba(17,17,17,0.45)] mt-0.5">
+                      Invited members will receive a secure email to create their password and join this project
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {invitations.map(inv => {
+                    const roleConfig = ROLE_DESCRIPTIONS[inv.role] || ROLE_DESCRIPTIONS.CONTRIBUTOR;
+                    const isRevoking = revokingInviteId === inv.id;
+                    const isResending = resendingInviteId === inv.id;
+
+                    return (
+                      <div
+                        key={inv.id}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] hover:bg-white transition-all"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center shrink-0">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect width="20" height="16" x="2" y="4" rx="2" />
+                              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                            </svg>
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[13px] font-semibold text-[#111111] truncate">{inv.email}</span>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${roleConfig.badgeColor}`}>
+                                {roleConfig.label}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700">
+                                Pending Accept
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-[rgba(17,17,17,0.45)] mt-0.5">
+                              Invited by {inv.invitedByName} • Expires {new Date(inv.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                          <button
+                            type="button"
+                            disabled={isResending}
+                            onClick={() => handleResendInvitation(inv)}
+                            className="px-2.5 py-1 text-[11.5px] font-semibold text-[#2563EB] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                          >
+                            {isResending ? 'Sending...' : 'Resend Email'}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isRevoking}
+                            onClick={() => handleRevokeInvitation(inv.id)}
+                            className="px-2.5 py-1 text-[11.5px] font-semibold text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            {isRevoking ? 'Revoking...' : 'Revoke'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -2013,8 +2185,11 @@ export default function ProjectDetail({
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#F3F4F6] shrink-0">
               <div>
                 <h3 className="text-[17px] font-bold text-[#111111]">
-                  Add member by expertise matrix
+                  Invite Team Members
                 </h3>
+                <p className="text-[11.5px] text-gray-500 mt-0.5">
+                  Invite collaborators to {project.name}
+                </p>
               </div>
               <button
                 type="button"
@@ -2025,8 +2200,179 @@ export default function ProjectDetail({
               </button>
             </div>
 
-            {/* Expertise Matrix Filter & Requirements Toolbar */}
-            <div className="p-4 border-b border-[#F3F4F6] bg-[#FAFAFB] shrink-0 space-y-3">
+            {/* Segmented Mode Tabs: Email Invite vs Directory */}
+            <div className="px-6 pt-2 border-b border-[#F3F4F6] bg-[#FAFAFB] flex gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setInviteTab('email')}
+                className={`pb-2.5 px-3 text-[12.5px] font-semibold transition-all border-b-2 cursor-pointer flex items-center gap-1.5 ${
+                  inviteTab === 'email'
+                    ? 'border-[#2563EB] text-[#2563EB]'
+                    : 'border-transparent text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="20" height="16" x="2" y="4" rx="2" />
+                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                </svg>
+                <span>Invite via Email</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setInviteTab('directory');
+                  fetchAvailableUsers();
+                }}
+                className={`pb-2.5 px-3 text-[12.5px] font-semibold transition-all border-b-2 cursor-pointer flex items-center gap-1.5 ${
+                  inviteTab === 'directory'
+                    ? 'border-[#2563EB] text-[#2563EB]'
+                    : 'border-transparent text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+                <span>Select from Organization</span>
+              </button>
+            </div>
+
+            {/* TAB 1: EMAIL INVITATION FLOW */}
+            {inviteTab === 'email' ? (
+              <form onSubmit={handleSendInvitation} className="p-6 space-y-5 overflow-y-auto">
+                <div>
+                  <label className="block text-xs font-semibold text-[#111111] mb-1.5">
+                    Invitee Email Address <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#9CA3AF"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                    >
+                      <rect width="20" height="16" x="2" y="4" rx="2" />
+                      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                    </svg>
+                    <input
+                      type="email"
+                      required
+                      value={inviteEmail}
+                      onChange={e => setInviteEmail(e.target.value)}
+                      placeholder="e.g. colleague@company.com"
+                      className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all font-medium"
+                    />
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-1.5">
+                    An email invitation will be sent immediately with a secure link to accept and set their password.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#111111] mb-2">
+                    Project Role &amp; Access Level
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {[
+                      {
+                        role: 'CONTRIBUTOR' as ProjectRole,
+                        label: 'Contributor',
+                        badge: 'bg-blue-50 text-blue-700',
+                        desc: 'Can create tasks, update statuses, comment, and collaborate.',
+                      },
+                      {
+                        role: 'LEAD' as ProjectRole,
+                        label: 'Project Lead',
+                        badge: 'bg-purple-50 text-purple-700',
+                        desc: 'Can manage project roadmap, milestones, and invite members.',
+                      },
+                      {
+                        role: 'VIEWER' as ProjectRole,
+                        label: 'Viewer',
+                        badge: 'bg-gray-100 text-gray-700',
+                        desc: 'Read-only access to tasks, timeline, reports, and discussions.',
+                      },
+                    ].map(item => {
+                      const isSelected = inviteRole === item.role;
+                      return (
+                        <button
+                          key={item.role}
+                          type="button"
+                          onClick={() => setInviteRole(item.role)}
+                          className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                            isSelected
+                              ? 'border-[#2563EB] bg-[#EFF6FF] ring-2 ring-[#DBEAFE]'
+                              : 'border-[#E5E7EB] bg-white hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className={`text-[12.5px] font-bold ${isSelected ? 'text-[#2563EB]' : 'text-[#111111]'}`}>
+                              {item.label}
+                            </span>
+                            <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold ${item.badge}`}>
+                              {item.role}
+                            </span>
+                          </div>
+                          <p className="text-[10.5px] text-gray-500 leading-normal">
+                            {item.desc}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-[11.5px] text-gray-600 leading-relaxed flex items-start gap-2.5">
+                  <div className="w-5 h-5 rounded-md bg-blue-100 text-[#2563EB] flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold">
+                    i
+                  </div>
+                  <span>
+                    <strong>Invitation Process:</strong> The invited person receives an email with an invitation button. They will accept the invitation with a password. After logging in, they will configure their name and profile details.
+                  </span>
+                </div>
+
+                <div className="pt-3 border-t border-[#F3F4F6] flex items-center justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddMemberModal(false)}
+                    className="px-4 py-2.5 text-xs font-semibold text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={sendingInvite || !inviteEmail.trim()}
+                    className="px-5 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-xl shadow-md shadow-blue-500/20 active:scale-[0.99] transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                  >
+                    {sendingInvite ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Sending Invitation...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect width="20" height="16" x="2" y="4" rx="2" />
+                          <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                        </svg>
+                        <span>Send Project Invitation Email</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              /* TAB 2: DIRECTORY SELECTION FLOW */
+              <>
+                {/* Expertise Matrix Filter & Requirements Toolbar */}
+                <div className="p-4 border-b border-[#F3F4F6] bg-[#FAFAFB] shrink-0 space-y-3">
               <div>
                 {requiredSkills.length > 0 && (
                   <div className="flex items-center justify-end mb-1.5">
@@ -2260,6 +2606,8 @@ export default function ProjectDetail({
                 })()
               )}
             </div>
+              </>
+            )}
           </div>
         </div>
       )}

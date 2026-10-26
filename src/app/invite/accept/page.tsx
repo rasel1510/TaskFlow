@@ -5,25 +5,28 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useSession, signIn } from 'next-auth/react';
 import Link from 'next/link';
 import {
-  Users,
   CheckCircle2,
   AlertCircle,
   Loader2,
   Lock,
-  User as UserIcon,
   Eye,
   EyeOff,
   ArrowRight,
   ShieldCheck,
   Building2,
+  FolderGit2,
 } from 'lucide-react';
 
 interface InviteData {
+  type?: 'project' | 'team';
   token: string;
   email: string;
   role: string;
-  teamName: string;
-  teamId: string;
+  teamName?: string;
+  teamId?: string;
+  projectName?: string;
+  projectId?: string;
+  projectColor?: string;
   inviterName: string;
   userExists: boolean;
   alreadyInTeam: boolean;
@@ -41,9 +44,9 @@ function InviteAcceptContent() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Form fields for new or existing users
-  const [name, setName] = useState('');
+  // Form field: password for new or existing users
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   // 1. Verify token on mount
@@ -67,7 +70,8 @@ function InviteAcceptContent() {
         } else {
           setInviteData(json.data);
           if (json.data.alreadyInTeam) {
-            setSuccess(`You are already a member of ${json.data.teamName}!`);
+            const title = json.data.type === 'project' ? json.data.projectName : json.data.teamName;
+            setSuccess(`You are already a member of ${title}!`);
           }
         }
       } catch {
@@ -88,14 +92,24 @@ function InviteAcceptContent() {
     e.preventDefault();
     if (!token) return;
 
+    if (!session?.user && !inviteData?.userExists) {
+      if (password.length < 6) {
+        setError('Password must be at least 6 characters long.');
+        return;
+      }
+      if (confirmPassword && password !== confirmPassword) {
+        setError('Passwords do not match. Please verify.');
+        return;
+      }
+    }
+
     setError(null);
     setSubmitting(true);
 
     try {
       const payload: Record<string, string> = { token };
-      if (!session?.user) {
-        if (name.trim()) payload.name = name.trim();
-        if (password) payload.password = password;
+      if (!session?.user && password) {
+        payload.password = password;
       }
 
       const res = await fetch('/api/team/invite/accept', {
@@ -112,9 +126,16 @@ function InviteAcceptContent() {
         return;
       }
 
-      setSuccess(json.message || `Welcome to ${inviteData?.teamName}!`);
+      const isProject = inviteData?.type === 'project';
+      const entityName = isProject ? inviteData?.projectName : inviteData?.teamName;
+      setSuccess(json.message || `Welcome to ${entityName}!`);
 
-      // If user was not logged in and provided password, auto sign-in
+      // Determine post-acceptance redirect URL
+      const targetQuery = json.data?.onboardingNeeded
+        ? `/app?onboarding=true${isProject && json.data?.projectId ? `&projectId=${json.data.projectId}` : ''}`
+        : `/app${isProject && json.data?.projectId ? `?projectId=${json.data.projectId}` : ''}`;
+
+      // Auto sign-in if credentials provided
       if (!session?.user && password && inviteData?.email) {
         const signInRes = await signIn('credentials', {
           email: inviteData.email,
@@ -123,17 +144,17 @@ function InviteAcceptContent() {
         });
 
         if (!signInRes?.error) {
-          router.push('/app');
+          router.push(targetQuery);
           router.refresh();
           return;
         }
       }
 
-      // If already logged in, redirect straight to app
+      // If already logged in, redirect directly
       setTimeout(() => {
-        router.push('/app');
+        router.push(targetQuery);
         router.refresh();
-      }, 1200);
+      }, 1000);
     } catch {
       setError('An unexpected error occurred. Please try again.');
       setSubmitting(false);
@@ -146,24 +167,33 @@ function InviteAcceptContent() {
         <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center">
           <Loader2 className="w-5 h-5 animate-spin" />
         </div>
-        <p className="text-xs font-medium text-gray-500">Verifying team invitation...</p>
+        <p className="text-xs font-medium text-gray-500">Verifying invitation details...</p>
       </div>
     );
   }
+
+  const isProjectInvite = inviteData?.type === 'project';
+  const entityTitle = isProjectInvite ? inviteData?.projectName : inviteData?.teamName;
 
   return (
     <div className="w-full max-w-[440px] bg-white border border-[#E5E7EB] rounded-2xl p-6 sm:p-8 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06)] space-y-6">
       {/* Header */}
       <div className="flex flex-col items-center text-center">
-        <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#2563EB] flex items-center justify-center mb-3 shadow-xs">
-          <Building2 className="w-6 h-6" />
+        <div
+          className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3 shadow-xs"
+          style={{
+            backgroundColor: isProjectInvite ? `${inviteData?.projectColor || '#2563EB'}15` : '#EFF6FF',
+            color: inviteData?.projectColor || '#2563EB',
+          }}
+        >
+          {isProjectInvite ? <FolderGit2 className="w-6 h-6" /> : <Building2 className="w-6 h-6" />}
         </div>
         <h1 className="text-xl font-bold tracking-tight text-[#111111]">
-          Join {inviteData?.teamName || 'Workspace'}
+          Join {entityTitle || 'Workspace'}
         </h1>
-        <p className="text-xs text-gray-500 mt-1 max-w-xs">
-          {inviteData?.inviterName} has invited you to collaborate in their team as a{' '}
-          <span className="font-semibold text-[#2563EB]">{inviteData?.role || 'Member'}</span>.
+        <p className="text-xs text-gray-500 mt-1 max-w-xs leading-relaxed">
+          <strong>{inviteData?.inviterName}</strong> has invited you to collaborate as a{' '}
+          <span className="font-semibold text-[#2563EB]">{inviteData?.role || 'Contributor'}</span>.
         </p>
       </div>
 
@@ -191,8 +221,16 @@ function InviteAcceptContent() {
               <span className="font-semibold text-gray-800">{inviteData.email}</span>
             </div>
             <div className="flex items-center justify-between text-gray-500">
-              <span>Workspace:</span>
-              <span className="font-semibold text-gray-800">{inviteData.teamName}</span>
+              <span>{isProjectInvite ? 'Project:' : 'Workspace:'}</span>
+              <span className="font-semibold text-gray-800 flex items-center gap-1.5">
+                {isProjectInvite && (
+                  <span
+                    className="w-2 h-2 rounded-full inline-block"
+                    style={{ backgroundColor: inviteData.projectColor || '#2563EB' }}
+                  />
+                )}
+                {entityTitle}
+              </span>
             </div>
             <div className="flex items-center justify-between text-gray-500">
               <span>Assigned Role:</span>
@@ -202,24 +240,11 @@ function InviteAcceptContent() {
             </div>
           </div>
 
-          {/* If user is NOT logged in and needs account creation */}
+          {/* New User: Set password */}
           {!session?.user && !inviteData.userExists && (
             <div className="space-y-3 pt-1">
-              <div>
-                <label className="block text-xs font-semibold text-[#111111] mb-1.5">
-                  Your Full Name
-                </label>
-                <div className="relative">
-                  <UserIcon className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Sarah Connor"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all"
-                  />
-                </div>
+              <div className="p-2.5 bg-blue-50/60 border border-blue-100 rounded-xl text-[11.5px] text-blue-900 leading-relaxed">
+                Create a password to activate your account. You will configure your name and profile details right after logging in.
               </div>
 
               <div>
@@ -231,7 +256,8 @@ function InviteAcceptContent() {
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
-                    placeholder="Min. 6 characters"
+                    minLength={6}
+                    placeholder="Minimum 6 characters"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     className="w-full pl-10 pr-10 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all"
@@ -245,10 +271,28 @@ function InviteAcceptContent() {
                   </button>
                 </div>
               </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#111111] mb-1.5">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    placeholder="Re-enter password"
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all"
+                  />
+                </div>
+              </div>
             </div>
           )}
 
-          {/* If user is NOT logged in but already has account: ask for password to verify */}
+          {/* Existing User: Enter password */}
           {!session?.user && inviteData.userExists && (
             <div className="space-y-3 pt-1">
               <p className="text-xs text-gray-600">
@@ -280,10 +324,10 @@ function InviteAcceptContent() {
             </div>
           )}
 
-          {/* If user is ALREADY logged in */}
+          {/* Already logged in */}
           {session?.user && (
             <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900">
-              Logged in as <strong>{session.user.name || session.user.email}</strong>. Accepting will link your account to <strong>{inviteData.teamName}</strong>.
+              Logged in as <strong>{session.user.name || session.user.email}</strong>. Accepting will link your account to <strong>{entityTitle}</strong>.
             </div>
           )}
 
@@ -296,12 +340,12 @@ function InviteAcceptContent() {
             {submitting ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Joining workspace...</span>
+                <span>Joining {isProjectInvite ? 'project...' : 'workspace...'}</span>
               </>
             ) : (
               <>
                 <ShieldCheck className="w-4 h-4" />
-                <span>Accept Invitation & Enter Workspace</span>
+                <span>Accept Invitation & Continue</span>
               </>
             )}
           </button>
@@ -312,10 +356,15 @@ function InviteAcceptContent() {
       {success && (
         <button
           type="button"
-          onClick={() => router.push('/app')}
+          onClick={() => {
+            const redirectUrl = isProjectInvite && inviteData?.projectId
+              ? `/app?projectId=${inviteData.projectId}`
+              : '/app';
+            router.push(redirectUrl);
+          }}
           className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold text-xs rounded-xl shadow-md shadow-blue-500/20 transition-all cursor-pointer"
         >
-          <span>Go to Workspace Dashboard</span>
+          <span>Go to {isProjectInvite ? 'Project Workspace' : 'Dashboard'}</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
       )}

@@ -11,7 +11,7 @@ const AcceptInviteSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// GET /api/team/invite/accept?token=... — Verify token details
+// GET /api/team/invite/accept?token=... — Verify token details (Project or Team)
 // ---------------------------------------------------------------------------
 export async function GET(req: NextRequest) {
   try {
@@ -25,6 +25,83 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // 1. Check if token belongs to a Project Invitation
+    const projectInvitation = await prisma.projectInvitation.findUnique({
+      where: { token },
+      include: {
+        project: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+            teamId: true,
+          },
+        },
+        invitedBy: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (projectInvitation) {
+      if (projectInvitation.status !== 'pending') {
+        return NextResponse.json(
+          { success: false, error: { code: 'ALREADY_USED', message: `This invitation is already ${projectInvitation.status}` } },
+          { status: 400 }
+        );
+      }
+
+      if (new Date() > projectInvitation.expiresAt) {
+        await prisma.projectInvitation.update({
+          where: { id: projectInvitation.id },
+          data: { status: 'expired' },
+        });
+        return NextResponse.json(
+          { success: false, error: { code: 'EXPIRED', message: 'This invitation has expired. Please ask the project manager to resend.' } },
+          { status: 410 }
+        );
+      }
+
+      // Check if user already exists
+      const existingUser = await prisma.user.findUnique({
+        where: { email: projectInvitation.email },
+        select: { id: true, name: true, teamId: true },
+      });
+
+      let alreadyMember = false;
+      if (existingUser) {
+        const memberRecord = await prisma.projectMember.findUnique({
+          where: {
+            projectId_userId: {
+              projectId: projectInvitation.projectId,
+              userId: existingUser.id,
+            },
+          },
+        });
+        alreadyMember = !!memberRecord;
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          type: 'project',
+          token: projectInvitation.token,
+          email: projectInvitation.email,
+          role: projectInvitation.role,
+          projectId: projectInvitation.project.id,
+          projectName: projectInvitation.project.name,
+          projectColor: projectInvitation.project.color || '#2563EB',
+          inviterName: projectInvitation.invitedBy?.name || 'Project Manager',
+          userExists: !!existingUser,
+          alreadyInTeam: alreadyMember,
+        },
+      });
+    }
+
+    // 2. Fall back to Team Invitation
     const invitation = await prisma.teamInvitation.findUnique({
       where: { token },
       include: {
@@ -78,6 +155,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
+        type: 'team',
         token: invitation.token,
         email: invitation.email,
         role: invitation.role,
@@ -98,7 +176,7 @@ export async function GET(req: NextRequest) {
 }
 
 // ---------------------------------------------------------------------------
-// POST /api/team/invite/accept — Accept invitation & join team
+// POST /api/team/invite/accept — Accept invitation (Project or Team) & set password
 // ---------------------------------------------------------------------------
 export async function POST(req: NextRequest) {
   try {
@@ -122,7 +200,137 @@ export async function POST(req: NextRequest) {
 
     const { token, name, password } = parsed.data;
 
-    // Fetch invitation
+    // ─────────────────────────────────────────────────────────────────────────
+    // 1. Process Project Invitation
+    // ─────────────────────────────────────────────────────────────────────────
+    const projectInvitation = await prisma.projectInvitation.findUnique({
+      where: { token },
+      include: { project: true },
+    });
+
+    if (projectInvitation) {
+      if (projectInvitation.status !== 'pending' || new Date() > projectInvitation.expiresAt) {
+        return NextResponse.json(
+          { success: false, error: { code: 'INVALID_INVITE', message: 'This invitation is invalid or has expired' } },
+          { status: 400 }
+        );
+      }
+
+      const session = await auth();
+      let targetUserId = session?.user?.id;
+      let onboardingNeeded = false;
+
+      if (targetUserId) {
+        // Authenticated user accepting project invitation
+        await prisma.projectMember.upsert({
+          where: {
+            projectId_userId: {
+              projectId: projectInvitation.projectId,
+              userId: targetUserId,
+            },
+          },
+          create: {
+            projectId: projectInvitation.projectId,
+            userId: targetUserId,
+            role: projectInvitation.role,
+          },
+          update: {
+            role: projectInvitation.role,
+          },
+        });
+      } else {
+        // Unauthenticated user accepting invitation
+        const existingUser = await prisma.user.findUnique({
+          where: { email: projectInvitation.email },
+        });
+
+        if (existingUser) {
+          if (password && existingUser.password) {
+            const isValid = await bcrypt.compare(password, existingUser.password);
+            if (!isValid) {
+              return NextResponse.json(
+                { success: false, error: { code: 'INVALID_PASSWORD', message: 'Incorrect password for this account' } },
+                { status: 401 }
+              );
+            }
+          }
+          await prisma.projectMember.upsert({
+            where: {
+              projectId_userId: {
+                projectId: projectInvitation.projectId,
+                userId: existingUser.id,
+              },
+            },
+            create: {
+              projectId: projectInvitation.projectId,
+              userId: existingUser.id,
+              role: projectInvitation.role,
+            },
+            update: {
+              role: projectInvitation.role,
+            },
+          });
+          targetUserId = existingUser.id;
+        } else {
+          // Brand new user accepting with password!
+          if (!password) {
+            return NextResponse.json(
+              { success: false, error: { code: 'PASSWORD_REQUIRED', message: 'Please create a password to accept your invitation' } },
+              { status: 422 }
+            );
+          }
+
+          const hashedPassword = await bcrypt.hash(password, 10);
+          const userName = name?.trim() || 'New Member';
+          const initials = userName === 'New Member' ? 'MB' : userName.split(/\s+/).map(p => p[0]).join('').slice(0, 2).toUpperCase();
+
+          const newUser = await prisma.user.create({
+            data: {
+              name: userName,
+              email: projectInvitation.email,
+              password: hashedPassword,
+              role: projectInvitation.role === 'LEAD' ? 'Project Manager' : 'User',
+              avatar: initials || 'MB',
+              teamId: projectInvitation.project.teamId,
+              emailVerified: new Date(),
+            },
+          });
+
+          await prisma.projectMember.create({
+            data: {
+              projectId: projectInvitation.projectId,
+              userId: newUser.id,
+              role: projectInvitation.role,
+            },
+          });
+
+          targetUserId = newUser.id;
+          onboardingNeeded = true;
+        }
+      }
+
+      // Mark project invitation as accepted
+      await prisma.projectInvitation.update({
+        where: { id: projectInvitation.id },
+        data: { status: 'accepted' },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `You have successfully joined ${projectInvitation.project.name}!`,
+        data: {
+          type: 'project',
+          projectId: projectInvitation.projectId,
+          projectName: projectInvitation.project.name,
+          email: projectInvitation.email,
+          onboardingNeeded,
+        },
+      });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 2. Process Team Invitation
+    // ─────────────────────────────────────────────────────────────────────────
     const invitation = await prisma.teamInvitation.findUnique({
       where: { token },
       include: { team: true },
@@ -138,10 +346,9 @@ export async function POST(req: NextRequest) {
     const session = await auth();
     const sessionUserId = session?.user?.id;
     let targetUserId = sessionUserId;
+    let onboardingNeeded = false;
 
     if (targetUserId) {
-      // 1. Logged in user accepting invite:
-      // Single-team constraint: update user's teamId and role
       await prisma.user.update({
         where: { id: targetUserId },
         data: {
@@ -150,13 +357,11 @@ export async function POST(req: NextRequest) {
         },
       });
     } else {
-      // 2. Unauthenticated user accepting invite:
       const existingUser = await prisma.user.findUnique({
         where: { email: invitation.email },
       });
 
       if (existingUser) {
-        // User account already exists
         if (password) {
           if (existingUser.password) {
             const isValid = await bcrypt.compare(password, existingUser.password);
@@ -178,20 +383,20 @@ export async function POST(req: NextRequest) {
         });
         targetUserId = existingUser.id;
       } else {
-        // Create new user account with single team constraint
-        if (!name || !password) {
+        if (!password) {
           return NextResponse.json(
-            { success: false, error: { code: 'REGISTRATION_REQUIRED', message: 'Full name and password are required to create your account' } },
+            { success: false, error: { code: 'REGISTRATION_REQUIRED', message: 'A password is required to create your account' } },
             { status: 422 }
           );
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        const initials = name.trim().split(/\s+/).map(p => p[0]).join('').slice(0, 2).toUpperCase();
+        const userName = name?.trim() || 'New Member';
+        const initials = userName === 'New Member' ? 'MB' : userName.split(/\s+/).map(p => p[0]).join('').slice(0, 2).toUpperCase();
 
         const newUser = await prisma.user.create({
           data: {
-            name: name.trim(),
+            name: userName,
             email: invitation.email,
             password: hashedPassword,
             role: invitation.role === 'PROJECT_MANAGER' ? 'Project Manager' : 'User',
@@ -201,10 +406,10 @@ export async function POST(req: NextRequest) {
           },
         });
         targetUserId = newUser.id;
+        onboardingNeeded = true;
       }
     }
 
-    // Mark invitation as accepted
     await prisma.teamInvitation.update({
       where: { id: invitation.id },
       data: { status: 'accepted' },
@@ -214,9 +419,11 @@ export async function POST(req: NextRequest) {
       success: true,
       message: `You have successfully joined ${invitation.team.name}!`,
       data: {
+        type: 'team',
         teamId: invitation.team.id,
         teamName: invitation.team.name,
         email: invitation.email,
+        onboardingNeeded,
       },
     });
   } catch (error) {
