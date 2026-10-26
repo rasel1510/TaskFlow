@@ -2329,15 +2329,6 @@ export default function ProjectDetail({
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-[11.5px] text-gray-600 leading-relaxed flex items-start gap-2.5">
-                  <div className="w-5 h-5 rounded-md bg-blue-100 text-[#2563EB] flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold">
-                    i
-                  </div>
-                  <span>
-                    <strong>Invitation Process:</strong> The invited person receives an email with an invitation button. They will accept the invitation with a password. After logging in, they will configure their name and profile details.
-                  </span>
-                </div>
-
                 <div className="pt-3 border-t border-[#F3F4F6] flex items-center justify-end gap-2.5">
                   <button
                     type="button"
