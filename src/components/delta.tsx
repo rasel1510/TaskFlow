@@ -42,7 +42,9 @@ function Delta({
 						"gap-1 border-none tabular-nums [&_svg]:size-4 [&_svg]:shrink-0",
 						value > 0
 							? "bg-emerald-500/10 text-emerald-500"
-							: "bg-red-500/10 text-red-500",
+							: value < 0
+							? "bg-red-500/10 text-red-500"
+							: "bg-muted text-muted-foreground",
 						className
 					)}
 					data-slot="delta"
@@ -108,9 +110,7 @@ function DeltaIcon({
 	const slotProps = filled ? {} : { "data-slot": "delta-icon" as const };
 
 	if (!resolvedValue || resolvedValue === 0) {
-		return shell(
-			<MinusIcon {...slotProps} className={mergedClassName} {...props} />
-		);
+		return null;
 	}
 
 	if (resolvedValue > 0) {
@@ -161,9 +161,9 @@ function DeltaValue({
 }) {
 	const resolvedValue = useDeltaValue();
 
-	const formattedValue = (
-		absolute ? Math.abs(resolvedValue) : resolvedValue
-	).toFixed(precision);
+	const num = absolute ? Math.abs(resolvedValue) : resolvedValue;
+	const safeNum = Object.is(num, -0) || Math.abs(num) === 0 ? 0 : num;
+	const formattedValue = safeNum.toFixed(precision);
 
 	return (
 		<span

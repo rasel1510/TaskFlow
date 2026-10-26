@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTasks, type DBTask } from '@/context/TaskContext';
+import { cn } from '@/lib/utils';
 import { healthColors, priorityColors, statusColors, type ProjectHealth } from '../data/mockData';
 import {
   Card,
@@ -152,7 +153,9 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
   useEffect(() => {
     setMounted(true);
     const controller = new AbortController();
-    fetch('/api/reports/summary', { signal: controller.signal })
+    const userId = (session?.user as { id?: string })?.id;
+    const url = userId ? `/api/reports/summary?userId=${encodeURIComponent(userId)}` : '/api/reports/summary';
+    fetch(url, { signal: controller.signal })
       .then((r) => r.json())
       .then((d) => {
         if (d.success && d.data) {
@@ -168,7 +171,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
     return () => {
       controller.abort();
     };
-  }, []);
+  }, [session?.user]);
 
   const now = new Date();
   const hour = now.getHours();
@@ -469,10 +472,18 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
             <CardHeader className="space-y-1 pb-1">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold">Task Distribution</CardTitle>
-                <Delta value={completionRate} variant="badge">
-                  <DeltaIcon variant="trend" />
-                  <DeltaValue suffix="%" />
-                </Delta>
+                <Badge
+                  variant="secondary"
+                  className={cn(
+                    "text-xs font-medium border-none px-2.5 py-0.5 tabular-nums flex items-center gap-1",
+                    completionRate > 0
+                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {completionRate > 0 && <TrendingUp className="size-3" />}
+                  <span>{completionRate}%</span>
+                </Badge>
               </div>
             </CardHeader>
 

@@ -385,9 +385,6 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
         {/* Header */}
         <div className="flex items-center gap-3 px-4 sm:px-5 py-3.5 sm:py-4 border-b border-[#E5E7EB] shrink-0">
           <div className="flex items-center gap-2">
-            <span className="text-[11.5px] font-semibold text-[rgba(17,17,17,0.55)] font-mono bg-[#F3F4F6] px-2 py-0.5 rounded tracking-wide border border-[#E5E7EB]">
-              {task.taskNumber ?? task.id}
-            </span>
             <span className="text-[11.5px] font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: s.bg, color: s.text }}>{s.label}</span>
           </div>
           <div className="ml-auto flex items-center gap-1.5">

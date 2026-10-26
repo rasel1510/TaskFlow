@@ -608,11 +608,6 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
                                 className="w-1 h-3 rounded-full shrink-0"
                                 style={{ backgroundColor: priCfg.color }}
                               />
-                              {item.task.taskNumber && (
-                                <span className="font-mono text-[10px] text-[#6B7280] shrink-0">
-                                  {item.task.taskNumber}
-                                </span>
-                              )}
                               <span
                                 className={`text-[12px] truncate ${
                                   isDone
@@ -913,9 +908,6 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
                   className="p-3 bg-white rounded-xl border border-[#E5E7EB] hover:border-[#2563EB] hover:shadow-xs transition-all cursor-pointer space-y-2 group"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-[10px] text-[#6B7280]">
-                      {task.taskNumber || 'TASK'}
-                    </span>
                     <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-[#F3F4F6] text-[#374151]">
                       {task.status}
                     </span>
@@ -960,8 +952,7 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
             }}
             className="z-50 bg-[#111111] text-white p-3 rounded-xl shadow-2xl pointer-events-none w-60 space-y-1.5 border border-white/10 backdrop-blur-md"
           >
-            <div className="flex items-center justify-between text-[10px] text-gray-400">
-              <span className="font-mono">{hoveredTask.taskNumber || 'TASK'}</span>
+            <div className="flex items-center justify-end text-[10px] text-gray-400">
               <span className="capitalize">{hoveredTask.priority}</span>
             </div>
             <p className="text-[12px] font-bold text-white line-clamp-2">

@@ -1033,11 +1033,6 @@ export default function ProjectDetail({
                       className="flex items-center justify-between py-2.5 px-2 hover:bg-[#F9FAFB] rounded-lg cursor-pointer transition-colors"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        {task.taskNumber && (
-                          <span className="font-mono text-[11px] text-[#6B7280] bg-[#F3F4F6] px-1.5 py-0.5 rounded">
-                            {task.taskNumber}
-                          </span>
-                        )}
                         <span className="text-[13px] font-medium text-[#111111] truncate">
                           {task.title}
                         </span>
@@ -1490,11 +1485,6 @@ export default function ProjectDetail({
                       className="flex items-center justify-between p-3.5 hover:bg-[#F9FAFB] cursor-pointer transition-colors group"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        {task.taskNumber && (
-                          <span className="font-mono text-[11px] text-[#6B7280] bg-[#F3F4F6] px-1.5 py-0.5 rounded shrink-0">
-                            {task.taskNumber}
-                          </span>
-                        )}
                         <span className="text-[13.5px] font-medium text-[#111111] group-hover:text-[#2563EB] transition-colors truncate">
                           {task.title}
                         </span>

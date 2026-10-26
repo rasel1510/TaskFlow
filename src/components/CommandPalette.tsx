@@ -410,13 +410,7 @@ export default function CommandPalette({
                       }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        {t.taskNumber ? (
-                          <span className="font-mono text-[11px] text-[#6B7280] bg-[#F3F4F6] px-1.5 py-0.5 rounded shrink-0">
-                            {t.taskNumber}
-                          </span>
-                        ) : (
-                          <span className="w-2 h-2 rounded-full bg-[#3B82F6] shrink-0" />
-                        )}
+                        <span className="w-2 h-2 rounded-full bg-[#3B82F6] shrink-0" />
                         <span className="font-medium truncate">{t.title}</span>
                         {t.project && (
                           <span

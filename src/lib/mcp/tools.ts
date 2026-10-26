@@ -454,7 +454,7 @@ async function handleCreateTask(
     content: [
       {
         type: 'text',
-        text: `Task created successfully: [${createdTask.taskNumber}] "${createdTask.title}" (Status: ${createdTask.status}, Priority: ${createdTask.priority}${createdTask.dueDate ? `, Due: ${createdTask.dueDate.toISOString().split('T')[0]}` : ''})`,
+        text: `Task created successfully: "${createdTask.title}" (Status: ${createdTask.status}, Priority: ${createdTask.priority}${createdTask.dueDate ? `, Due: ${createdTask.dueDate.toISOString().split('T')[0]}` : ''})`,
         data: resultObj,
       },
     ],
@@ -528,7 +528,7 @@ async function handleListTasks(
       {
         type: 'text',
         text: `Found ${tasks.length} task(s):\n${formatted
-          .map(t => `- [${t.taskNumber || 'TASK'}] ${t.title} (${t.status} | ${t.priority}${t.dueDate ? ` | due ${t.dueDate}` : ''}${t.projectName ? ` | ${t.projectName}` : ''})`)
+          .map(t => `- ${t.title} (${t.status} | ${t.priority}${t.dueDate ? ` | due ${t.dueDate}` : ''}${t.projectName ? ` | ${t.projectName}` : ''})`)
           .join('\n')}`,
         data: formatted,
       },
@@ -611,7 +611,7 @@ async function handleUpdateTask(
     content: [
       {
         type: 'text',
-        text: `Updated task [${updated.taskNumber}] "${updated.title}": Status is now ${updated.status}, Priority is ${updated.priority}${updated.dueDate ? `, Due: ${updated.dueDate.toISOString().split('T')[0]}` : ''}.`,
+        text: `Updated task "${updated.title}": Status is now ${updated.status}, Priority is ${updated.priority}${updated.dueDate ? `, Due: ${updated.dueDate.toISOString().split('T')[0]}` : ''}.`,
         data: resultObj,
       },
     ],
@@ -685,7 +685,7 @@ async function handleAddSubtasks(
     content: [
       {
         type: 'text',
-        text: `Added ${subtaskTitles.length} subtask(s) to [${existing.taskNumber}] "${existing.title}".`,
+        text: `Added ${subtaskTitles.length} subtask(s) to "${existing.title}".`,
       },
     ],
   };

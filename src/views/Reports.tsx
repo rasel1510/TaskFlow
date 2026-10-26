@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import { healthColors, type ProjectHealth } from '../data/mockData';
 import { useToast } from '@/components/ui/Toast';
 
@@ -132,9 +133,13 @@ export default function Reports() {
   const [exporting, setExporting] = useState(false);
   const toast = useToast();
 
+  const { data: session } = useSession();
+
   useEffect(() => {
     const controller = new AbortController();
-    fetch('/api/reports/summary', { signal: controller.signal })
+    const userId = (session?.user as { id?: string })?.id;
+    const url = userId ? `/api/reports/summary?userId=${encodeURIComponent(userId)}` : '/api/reports/summary';
+    fetch(url, { signal: controller.signal })
       .then(r => r.json())
       .then(envelope => {
         if (envelope.success && envelope.data) {
@@ -144,7 +149,7 @@ export default function Reports() {
       .catch(err => { if (err.name !== 'AbortError') console.error('[Reports] Error loading report data:', err); })
       .finally(() => setLoading(false));
     return () => controller.abort();
-  }, []);
+  }, [session?.user]);
 
   const handleExportCSV = useCallback(async () => {
     setExporting(true);

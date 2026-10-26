@@ -229,9 +229,6 @@ export default function EditTaskModal({ task, onClose }: EditTaskModalProps) {
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[#E5E7EB] shrink-0">
           <div className="flex items-center gap-2.5">
-            <span className="text-[11.5px] font-semibold text-[rgba(17,17,17,0.45)] font-mono bg-[#F3F4F6] px-2 py-0.5 rounded">
-              {task.taskNumber ?? task.id}
-            </span>
             <h2 className="text-[16px] font-semibold text-[#111111]">Edit Task</h2>
           </div>
           <button

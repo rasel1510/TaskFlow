@@ -60,12 +60,57 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const cacheKey = `reports:summary:${targetUserId}`;
+    const user = targetUserId
+      ? await prisma.user.findUnique({
+          where: { id: targetUserId },
+          select: { id: true, role: true, teamId: true },
+        })
+      : null;
 
-    // Serve from Redis / L1 Memory cache if warm
-    const reportData = await redisCache.wrap(cacheKey, 60, async () => {
-      // Build user filter scope
-      const taskWhere = targetUserId ? { assigneeId: targetUserId } : {};
+    const isAdmin = user?.role === 'Admin' || user?.role === 'ADMIN';
+
+    const cacheKey = `reports:summary:${targetUserId || 'anon'}:${isAdmin ? 'admin' : 'user'}`;
+
+    // Serve from Redis / L1 Memory cache if warm (15s TTL so roadmap updates promptly)
+    const reportData = await redisCache.wrap(cacheKey, 15, async () => {
+      // Projects: Project Manager / user must strictly only see projects they own or are members of
+      const projectWhere = isAdmin
+        ? {}
+        : targetUserId
+        ? {
+            OR: [
+              { ownerId: targetUserId },
+              { members: { some: { userId: targetUserId } } },
+            ],
+          }
+        : { id: 'none' };
+
+      // Tasks: match user's assigned tasks OR tasks inside projects they own/manage or are a member of
+      const taskWhere = isAdmin
+        ? {}
+        : targetUserId
+        ? {
+            OR: [
+              { assigneeId: targetUserId },
+              { project: { ownerId: targetUserId } },
+              { project: { members: { some: { userId: targetUserId } } } },
+            ],
+          }
+        : { id: 'none' };
+
+      // Users for Team Workload: only team members or collaborators on their projects
+      const userWhere = isAdmin
+        ? {}
+        : targetUserId
+        ? {
+            OR: [
+              { id: targetUserId },
+              ...(user?.teamId ? [{ teamId: user.teamId }] : []),
+              { memberships: { some: { project: { ownerId: targetUserId } } } },
+              { tasksAssigned: { some: { project: { ownerId: targetUserId } } } },
+            ],
+          }
+        : { id: 'none' };
 
       // 1. KPI Counts & Distributions in parallel
       const now = new Date();
@@ -120,6 +165,7 @@ export async function GET(request: NextRequest) {
           },
         }),
         prisma.project.findMany({
+          where: projectWhere,
           take: 5,
           select: {
             id: true,
@@ -132,6 +178,7 @@ export async function GET(request: NextRequest) {
           orderBy: { createdAt: 'desc' },
         }),
         prisma.user.findMany({
+          where: userWhere,
           take: 6,
           select: {
             id: true,

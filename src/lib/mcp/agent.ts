@@ -53,7 +53,7 @@ OPERATIONAL RULES:
 2. Due Dates: ALWAYS specify due dates strictly in "YYYY-MM-DD" format (e.g. "${todayStr}"). NEVER append time or timezone text like "T00:00:00.000Z".
 3. Zero AI Slop / Zero Boilerplate:
    - Do NOT use filler: never say "Certainly!", "Sure thing!", "I would be happy to help", "Here are the details:", or "Let me know if there's anything else!".
-   - When a task is created or updated, output ONLY a single one-line crisp confirmation (e.g. "Created **[TF-005]** due ${todayStr}.").
+   - When a task is created or updated, output ONLY a single one-line crisp confirmation (e.g. "Created \"Task Title\" due ${todayStr}.").
    - Do NOT output repetitive lists or bullet points describing fields that already appear in the task card.
 4. If asked what tasks are overdue or need attention, call \`list_tasks\` or \`get_workspace_summary\` first to inspect real data.`;
 
@@ -184,7 +184,7 @@ OPERATIONAL RULES:
 
   if (!finalReply && createdTasks.length > 0) {
     finalReply = createdTasks.length === 1
-      ? `Created **[${createdTasks[0].taskNumber || 'TASK'}]** "${createdTasks[0].title}".`
+      ? `Created "${createdTasks[0].title}".`
       : `Created ${createdTasks.length} tasks.`;
   }
 

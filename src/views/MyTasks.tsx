@@ -621,11 +621,6 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
                       <span key={label} className="text-[10px] px-1.5 py-0.5 rounded bg-[#F3F4F6] text-[rgba(17,17,17,0.5)] shrink-0 hidden group-hover:inline-block">{label}</span>
                     ))}
                   </div>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[10.5px] font-mono font-semibold px-1.5 py-0.5 rounded bg-[#F3F4F6] text-[rgba(17,17,17,0.55)] border border-[#E5E7EB]">
-                      {task.taskNumber ?? task.id}
-                    </span>
-                  </div>
                 </div>
                 <span className="w-32 text-[12.5px] text-[rgba(17,17,17,0.6)] truncate">{task.project?.name ?? '—'}</span>
                 <div className="w-28">
@@ -688,10 +683,6 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
                       {task.title}
                     </p>
                     <div className="flex items-center gap-1.5 mt-1">
-                      <span className="text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded bg-[#F3F4F6] text-[rgba(17,17,17,0.55)] border border-[#E5E7EB]">
-                        {task.taskNumber ?? task.id}
-                      </span>
-                      <span className="text-[11px] text-[rgba(17,17,17,0.3)]">·</span>
                       <span className="text-[11px] text-[rgba(17,17,17,0.5)] truncate">{task.project?.name ?? '—'}</span>
                     </div>
                   </div>

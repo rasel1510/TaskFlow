@@ -949,18 +949,13 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
                                 ? 'bg-[#F9FAFB] border-[#E5E7EB] text-[#9CA3AF] line-through'
                                 : 'bg-white hover:bg-[#F8FAFC] border-[#E5E7EB] hover:border-[#93C5FD] text-[#111111] shadow-2xs'
                             }`}
-                            title={`${task.taskNumber ? task.taskNumber + ': ' : ''}${task.title}`}
+                            title={task.title}
                           >
                             <span
                               className="w-1.5 h-1.5 rounded-full shrink-0"
                               style={{ backgroundColor: priorityCfg.color }}
                             />
                             <span className="truncate">
-                              {task.taskNumber && (
-                                <span className="font-mono text-[9.5px] text-[#6B7280] mr-1">
-                                  {task.taskNumber}
-                                </span>
-                              )}
                               {task.title}
                             </span>
                           </div>
@@ -1084,11 +1079,6 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-1.5 truncate">
-                            {task.taskNumber && (
-                              <span className="font-mono text-[11px] font-semibold text-[#6B7280]">
-                                {task.taskNumber}
-                              </span>
-                            )}
                             {task.project && (
                               <span className="inline-flex items-center gap-1 text-[10px] font-medium text-[#4B5563] bg-[#F3F4F6] px-1.5 py-0.5 rounded truncate">
                                 <span
@@ -1226,14 +1216,7 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
                             onClick={() => onTaskClick(task.id)}
                             className="p-2.5 rounded-xl border border-[#E5E7EB] hover:border-[#93C5FD] hover:shadow-xs bg-white cursor-pointer transition-all space-y-1.5"
                           >
-                            <div className="flex items-center justify-between gap-1">
-                              {task.taskNumber ? (
-                                <span className="font-mono text-[10px] text-[#6B7280] font-semibold">
-                                  {task.taskNumber}
-                                </span>
-                              ) : (
-                                <span />
-                              )}
+                            <div className="flex items-center justify-end gap-1">
                               <span
                                 className="text-[9.5px] px-1.5 py-0.5 rounded font-semibold shrink-0"
                                 style={{ backgroundColor: statusCfg.bg, color: statusCfg.text }}
@@ -1385,11 +1368,6 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
 
                               <div className="space-y-1 min-w-0">
                                 <div className="flex items-center gap-2">
-                                  {task.taskNumber && (
-                                    <span className="font-mono text-[11px] font-semibold text-[#6B7280]">
-                                      {task.taskNumber}
-                                    </span>
-                                  )}
                                   <h4
                                     className={`text-[13px] font-semibold text-[#111111] truncate ${
                                       isDone ? 'line-through text-[#9CA3AF]' : ''
@@ -1507,11 +1485,6 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
                           className="w-2 h-2 rounded-full shrink-0"
                           style={{ backgroundColor: priorityCfg.color }}
                         />
-                        {task.taskNumber && (
-                          <span className="font-mono text-[10px] text-[#6B7280] font-semibold">
-                            {task.taskNumber}
-                          </span>
-                        )}
                         <h4
                           className={`text-[12px] font-semibold text-[#111111] truncate ${
                             isDone ? 'line-through text-[#9CA3AF]' : ''

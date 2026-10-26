@@ -285,10 +285,7 @@ export default function CopilotDrawer({
                             key={task.id}
                             className="bg-white rounded-xl p-3 border border-gray-200 shadow-sm hover:border-blue-300 transition-all flex flex-col gap-2"
                           >
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-blue-50 text-[#2563EB]">
-                                {task.taskNumber || 'TASK'}
-                              </span>
+                            <div className="flex items-center justify-end gap-2">
                               <span
                                 className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider ${
                                   task.priority === 'urgent'
