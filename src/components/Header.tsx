@@ -19,13 +19,14 @@ interface HeaderNotificationItem {
   meta?: string;
 }
 
-type View = 'dashboard' | 'tasks' | 'kanban' | 'projects' | 'calendar' | 'timeline' | 'reports' | 'settings' | 'inbox';
+type View = 'dashboard' | 'tasks' | 'kanban' | 'projects' | 'team' | 'calendar' | 'timeline' | 'reports' | 'settings' | 'inbox';
 
 const pageTitles: Record<View, string> = {
   dashboard: 'Dashboard',
   tasks: 'My Tasks',
   kanban: 'Board',
   projects: 'Projects',
+  team: 'Team',
   calendar: 'Calendar',
   timeline: 'Timeline',
   reports: 'Reports',

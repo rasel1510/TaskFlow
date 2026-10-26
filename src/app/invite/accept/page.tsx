@@ -221,7 +221,7 @@ function InviteAcceptContent() {
               <span className="font-semibold text-gray-800">{inviteData.email}</span>
             </div>
             <div className="flex items-center justify-between text-gray-500">
-              <span>{isProjectInvite ? 'Project:' : 'Workspace:'}</span>
+              <span>{isProjectInvite ? 'Project:' : 'Company Name:'}</span>
               <span className="font-semibold text-gray-800 flex items-center gap-1.5">
                 {isProjectInvite && (
                   <span
@@ -244,12 +244,12 @@ function InviteAcceptContent() {
           {!session?.user && !inviteData.userExists && (
             <div className="space-y-3 pt-1">
               <div className="p-2.5 bg-blue-50/60 border border-blue-100 rounded-xl text-[11.5px] text-blue-900 leading-relaxed">
-                Create a password to activate your account. You will configure your name and profile details right after logging in.
+                Enter the password provided in your invitation email (or create a new password) to activate your account.
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-[#111111] mb-1.5">
-                  Create Password
+                  Password
                 </label>
                 <div className="relative">
                   <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -257,7 +257,7 @@ function InviteAcceptContent() {
                     type={showPassword ? 'text' : 'password'}
                     required
                     minLength={6}
-                    placeholder="Minimum 6 characters"
+                    placeholder="Enter invitation password"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     className="w-full pl-10 pr-10 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all"
@@ -296,11 +296,11 @@ function InviteAcceptContent() {
           {!session?.user && inviteData.userExists && (
             <div className="space-y-3 pt-1">
               <p className="text-xs text-gray-600">
-                An account with this email already exists. Enter your password to accept this invitation:
+                Please enter the password provided in your invitation email (or your existing account password) to accept this invitation:
               </p>
               <div>
                 <label className="block text-xs font-semibold text-[#111111] mb-1.5">
-                  Your Account Password
+                  Invitation / Account Password
                 </label>
                 <div className="relative">
                   <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />

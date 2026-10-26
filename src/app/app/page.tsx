@@ -19,6 +19,7 @@ import TimelineView from '@/views/TimelineView';
 import Inbox from '@/views/Inbox';
 import Reports from '@/views/Reports';
 import Settings from '@/views/Settings';
+import TeamView from '@/views/TeamView';
 import { TaskProvider } from '@/context/TaskContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
@@ -32,6 +33,7 @@ type View =
   | 'kanban'
   | 'projects'
   | 'project-detail'
+  | 'team'
   | 'calendar'
   | 'timeline'
   | 'reports'
@@ -225,6 +227,8 @@ function AppContent() {
         );
       case 'reports':
         return <Reports />;
+      case 'team':
+        return <TeamView />;
       case 'settings':
         return <Settings />;
       default:

@@ -105,6 +105,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               email: storedUser.email,
               image: storedUser.avatar,
               role: storedUser.role,
+              teamId: storedUser.teamId,
+              teamName: storedUser.teamName,
             };
           }
         } catch (storeError) {

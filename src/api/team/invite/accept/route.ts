@@ -348,12 +348,19 @@ export async function POST(req: NextRequest) {
     let targetUserId = sessionUserId;
     let onboardingNeeded = false;
 
+    const assignedRole =
+      invitation.role === 'ADMIN'
+        ? 'Admin'
+        : invitation.role === 'PROJECT_MANAGER'
+        ? 'Project Manager'
+        : 'User';
+
     if (targetUserId) {
       await prisma.user.update({
         where: { id: targetUserId },
         data: {
           teamId: invitation.teamId,
-          role: invitation.role === 'PROJECT_MANAGER' ? 'Project Manager' : 'User',
+          role: assignedRole,
         },
       });
     } else {
@@ -377,7 +384,7 @@ export async function POST(req: NextRequest) {
           where: { id: existingUser.id },
           data: {
             teamId: invitation.teamId,
-            role: invitation.role === 'PROJECT_MANAGER' ? 'Project Manager' : 'User',
+            role: assignedRole,
             emailVerified: existingUser.emailVerified || new Date(),
           },
         });
@@ -399,7 +406,7 @@ export async function POST(req: NextRequest) {
             name: userName,
             email: invitation.email,
             password: hashedPassword,
-            role: invitation.role === 'PROJECT_MANAGER' ? 'Project Manager' : 'User',
+            role: assignedRole,
             avatar: initials || 'MB',
             teamId: invitation.teamId,
             emailVerified: new Date(),

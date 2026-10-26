@@ -182,11 +182,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Role check: Only Project Manager can create projects
-    const isPM = sessionUserRole === 'Project Manager' || sessionUserRole?.toLowerCase() === 'project manager';
-    if (!isPM) {
+    // Role check: Only Admin and Project Manager can create projects
+    const isPMOrAdmin =
+      sessionUserRole === 'Project Manager' ||
+      sessionUserRole === 'Admin' ||
+      sessionUserRole === 'ADMIN' ||
+      sessionUserRole === 'PROJECT_MANAGER' ||
+      sessionUserRole?.toLowerCase() === 'project manager' ||
+      sessionUserRole?.toLowerCase() === 'admin';
+    if (!isPMOrAdmin) {
       return NextResponse.json(
-        { success: false, error: { code: 'FORBIDDEN', message: 'Only Project Managers can create projects' } },
+        { success: false, error: { code: 'FORBIDDEN', message: 'Only Admins and Project Managers can create projects' } },
         { status: 403 }
       );
     }

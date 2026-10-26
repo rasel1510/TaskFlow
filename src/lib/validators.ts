@@ -247,6 +247,12 @@ export const SignupSchema = z.object({
     .toLowerCase()
     .trim(),
 
+  teamName: z
+    .string()
+    .min(2, 'Team name must be at least 2 characters')
+    .max(80, 'Team name must be 80 characters or fewer')
+    .trim(),
+
   password: z
     .string()
     .min(6, 'Password must be at least 6 characters')
@@ -255,7 +261,8 @@ export const SignupSchema = z.object({
   role: z
     .string()
     .max(50)
-    .default('User'),
+    .optional()
+    .default('Admin'),
 });
 
 export type SignupInput = z.infer<typeof SignupSchema>;

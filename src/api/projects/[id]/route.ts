@@ -254,11 +254,17 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const session = await auth();
     const sessionUserRole = (session?.user as { role?: string })?.role;
-    const isPM = sessionUserRole === 'Project Manager' || sessionUserRole?.toLowerCase() === 'project manager';
+    const isPMOrAdmin =
+      sessionUserRole === 'Project Manager' ||
+      sessionUserRole === 'Admin' ||
+      sessionUserRole === 'ADMIN' ||
+      sessionUserRole === 'PROJECT_MANAGER' ||
+      sessionUserRole?.toLowerCase() === 'project manager' ||
+      sessionUserRole?.toLowerCase() === 'admin';
 
-    if (!isPM) {
+    if (!isPMOrAdmin) {
       return NextResponse.json(
-        { success: false, error: { code: 'FORBIDDEN', message: 'Only Project Managers can delete projects' } },
+        { success: false, error: { code: 'FORBIDDEN', message: 'Only Admins and Project Managers can delete projects' } },
         { status: 403 }
       );
     }

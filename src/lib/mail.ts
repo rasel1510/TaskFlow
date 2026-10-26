@@ -294,6 +294,7 @@ export interface SendTeamInviteParams {
   teamName: string;
   inviteUrl: string;
   role: string;
+  password?: string;
   expiresInDays?: number;
 }
 
@@ -303,6 +304,7 @@ export async function sendTeamInviteEmail({
   teamName,
   inviteUrl,
   role,
+  password,
   expiresInDays = 7,
 }: SendTeamInviteParams): Promise<MailResult> {
   const from = getSenderAddress();
@@ -379,6 +381,14 @@ export async function sendTeamInviteEmail({
       color: #4B5563;
       margin: 0 0 20px 0;
     }
+    .credentials-box {
+      background-color: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 14px;
+      padding: 20px 22px;
+      margin: 22px 0;
+      text-align: left;
+    }
     .invite-box {
       background-color: #EFF6FF;
       border: 1px solid #DBEAFE;
@@ -423,6 +433,35 @@ export async function sendTeamInviteEmail({
       <p>Hello,</p>
       <p><strong>${inviterName}</strong> has invited you to collaborate in <strong>${teamName}</strong> as a <strong>${role}</strong> on FlowSync.</p>
 
+      <div class="credentials-box">
+        <p style="font-size: 13.5px; font-weight: 600; color: #0F172A; margin: 0 0 12px 0;">
+          Please sign up using the following credentials:
+        </p>
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+          <tr>
+            <td style="padding: 6px 0; color: #64748B; width: 140px; font-weight: 500;">company name:</td>
+            <td style="padding: 6px 0; color: #0F172A; font-weight: 700;">
+              <span style="background-color: #EEF2F6; color: #0284C7; padding: 3px 8px; border-radius: 6px; font-family: monospace; font-size: 13px;">${teamName}</span>
+            </td>
+          </tr>
+          ${
+            password
+              ? `
+          <tr>
+            <td style="padding: 6px 0; color: #64748B; width: 140px; font-weight: 500;">Password :</td>
+            <td style="padding: 6px 0; color: #0F172A; font-weight: 700;">
+              <span style="background-color: #EEF2F6; color: #0F172A; padding: 3px 8px; border-radius: 6px; font-family: monospace; font-size: 13px; letter-spacing: 0.5px;">${password}</span>
+            </td>
+          </tr>
+          `
+              : ''
+          }
+        </table>
+        <p style="font-size: 11.5px; color: #64748B; margin: 12px 0 0 0; line-height: 17px;">
+          You can use these details to sign up, or click the button below to accept and start working immediately.
+        </p>
+      </div>
+
       <div class="invite-box">
         <p style="margin-bottom: 16px; font-weight: 500; color: #1E3A8A;">You can accept this invitation and begin working across projects:</p>
         <a href="${inviteUrl}" class="btn" target="_blank">Accept Invitation & Join Team</a>
@@ -455,11 +494,14 @@ export async function sendTeamInviteEmail({
 
     console.log('\n======================================================');
     console.log('📨 [SMTP DEV MODE] FlowSync Team Invitation Dispatch');
-    console.log(`To:        ${to}`);
-    console.log(`Inviter:   ${inviterName}`);
-    console.log(`Team:      ${teamName} (Role: ${role})`);
-    console.log(`Invite URL: >>> [ ${inviteUrl} ] <<<`);
-    console.log(`Expires:   ${expiresInDays} days`);
+    console.log(`To:           ${to}`);
+    console.log(`Inviter:      ${inviterName}`);
+    console.log(`Team/Company: ${teamName} (Role: ${role})`);
+    if (password) {
+      console.log(`Password:     ${password}`);
+    }
+    console.log(`Invite URL:   >>> [ ${inviteUrl} ] <<<`);
+    console.log(`Expires:      ${expiresInDays} days`);
     console.log('======================================================\n');
 
     return {
@@ -470,11 +512,26 @@ export async function sendTeamInviteEmail({
   }
 
   try {
+    const plainText = `Hello,
+
+${inviterName} has invited you to join ${teamName} as a ${role} on FlowSync.
+
+Please sign up using:
+company name: ${teamName}
+Password : ${password || 'Provided by your administrator'}
+
+You can also click the link below to accept your invitation directly:
+${inviteUrl}
+
+This invitation link will expire in ${expiresInDays} days.
+
+© ${new Date().getFullYear()} FlowSync Technologies Inc.`;
+
     const info = await transporter.sendMail({
       from,
       to,
       subject: `${inviterName} invited you to join ${teamName} on FlowSync`,
-      text: `${inviterName} has invited you to join ${teamName} as ${role} on FlowSync. Click here to accept: ${inviteUrl}`,
+      text: plainText,
       html,
     });
 

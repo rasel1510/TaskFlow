@@ -183,8 +183,14 @@ export default function ProjectDetail({
   const { data: session } = useSession();
   const currentUserId = (session?.user as { id?: string })?.id;
   const currentUserRole = (session?.user as { role?: string })?.role;
-  const isPM = currentUserRole === 'Project Manager' || currentUserRole?.toLowerCase() === 'project manager';
-  const isPMOrOwner = project?.owner?.id === currentUserId || isPM || currentUserRole === 'Admin';
+  const isPM =
+    currentUserRole === 'Project Manager' ||
+    currentUserRole === 'Admin' ||
+    currentUserRole === 'ADMIN' ||
+    currentUserRole === 'PROJECT_MANAGER' ||
+    currentUserRole?.toLowerCase() === 'project manager' ||
+    currentUserRole?.toLowerCase() === 'admin';
+  const isPMOrOwner = project?.owner?.id === currentUserId || isPM;
 
   // Join Requests state
   const [joinRequests, setJoinRequests] = useState<any[]>([]);

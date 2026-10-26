@@ -64,7 +64,13 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
   const { data: session } = useSession();
   const toast = useToast();
   const userRole = (session?.user as { role?: string })?.role;
-  const canCreateProject = userRole === 'Project Manager' || userRole?.toLowerCase() === 'project manager';
+  const canCreateProject =
+    userRole === 'Project Manager' ||
+    userRole === 'Admin' ||
+    userRole === 'ADMIN' ||
+    userRole === 'PROJECT_MANAGER' ||
+    userRole?.toLowerCase() === 'project manager' ||
+    userRole?.toLowerCase() === 'admin';
 
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [search, setSearch] = useState('');

@@ -19,11 +19,8 @@ import {
   KeyRound,
   ShieldCheck,
   RotateCw,
-  Check,
-  ChevronDown,
+  Building2,
 } from 'lucide-react';
-
-const ROLES = ['User', 'Project manager', 'Admin'];
 
 export default function SignupPage() {
   const router = useRouter();
@@ -34,8 +31,8 @@ export default function SignupPage() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    teamName: '',
     password: '',
-    role: ROLES[0],
     agreeToTerms: false,
   });
 
@@ -52,25 +49,20 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Custom role dropdown state
-  const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
-  const roleDropdownRef = useRef<HTMLDivElement>(null);
-
+  // Auto-fill from query parameters if invited (e.g. ?email=...&company=...)
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (roleDropdownRef.current && !roleDropdownRef.current.contains(event.target as Node)) {
-        setRoleDropdownOpen(false);
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const emailParam = params.get('email');
+      const companyParam = params.get('company') || params.get('team') || params.get('companyName');
+      if (emailParam || companyParam) {
+        setFormData(prev => ({
+          ...prev,
+          ...(emailParam ? { email: emailParam } : {}),
+          ...(companyParam ? { teamName: companyParam } : {}),
+        }));
       }
     }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setRoleDropdownOpen(false);
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
   }, []);
 
   // Resend countdown timer
@@ -148,6 +140,10 @@ export default function SignupPage() {
       setError('Please provide a valid work email');
       return;
     }
+    if (!formData.teamName.trim()) {
+      setError('Please enter your team or company name');
+      return;
+    }
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters');
       return;
@@ -166,8 +162,8 @@ export default function SignupPage() {
         body: JSON.stringify({
           name: formData.name.trim(),
           email: formData.email.trim(),
+          teamName: formData.teamName.trim(),
           password: formData.password,
-          role: formData.role,
         }),
       });
 
@@ -452,54 +448,22 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              {/* Role Selection */}
-              <div className="relative" ref={roleDropdownRef}>
+              {/* Team Name Input */}
+              <div>
                 <label className="block text-xs font-semibold text-[#111111] mb-1.5">
-                  Your Role
+                  Company / Team Name
                 </label>
-                {/* Dropdown trigger button */}
-                <button
-                  type="button"
-                  onClick={() => setRoleDropdownOpen(prev => !prev)}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-white border rounded-xl text-xs text-[#111111] transition-all shadow-xs cursor-pointer ${roleDropdownOpen
-                    ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]'
-                    : 'border-[#E5E7EB] hover:border-gray-300'
-                    }`}
-                >
-                  <span className="font-medium text-[#111111]">{formData.role}</span>
-                  <ChevronDown
-                    className={`w-4 h-4 text-gray-400 transition-transform duration-150 shrink-0 ${roleDropdownOpen ? 'rotate-180 text-[#2563EB]' : ''
-                      }`}
+                <div className="relative">
+                  <Building2 className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Acme Innovations"
+                    value={formData.teamName}
+                    onChange={e => setFormData({ ...formData, teamName: e.target.value })}
+                    className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all shadow-xs"
                   />
-                </button>
-
-                {/* Dropdown box - rounded matching the input box */}
-                {roleDropdownOpen && (
-                  <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#E5E7EB] rounded-xl shadow-lg p-1.5 space-y-0.5 animate-in fade-in zoom-in-95 duration-100">
-                    {ROLES.map(role => {
-                      const isSelected = formData.role === role;
-                      return (
-                        <button
-                          key={role}
-                          type="button"
-                          onClick={() => {
-                            setFormData(prev => ({ ...prev, role }));
-                            setRoleDropdownOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-left transition-colors cursor-pointer ${isSelected
-                            ? 'bg-blue-50 text-[#2563EB] font-semibold'
-                            : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                            }`}
-                        >
-                          <span>{role}</span>
-                          {isSelected && (
-                            <Check className="w-3.5 h-3.5 text-[#2563EB] stroke-[2.5]" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+                </div>
               </div>
 
               {/* Password */}

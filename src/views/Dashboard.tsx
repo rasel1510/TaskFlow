@@ -143,6 +143,24 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
   const { data: session } = useSession();
   const [mounted, setMounted] = useState(false);
   const [velocityPeriod, setVelocityPeriod] = useState<'7' | '30'>('7');
+  const sessionTeamName = (session?.user as { teamName?: string })?.teamName;
+  const [companyName, setCompanyName] = useState<string>(sessionTeamName || '');
+
+  useEffect(() => {
+    const tName = (session?.user as { teamName?: string })?.teamName;
+    if (tName) {
+      setCompanyName(tName);
+    } else if (session?.user) {
+      fetch('/api/team/members', { cache: 'no-store' })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.success && d.data?.team?.name) {
+            setCompanyName(d.data.team.name);
+          }
+        })
+        .catch(() => { });
+    }
+  }, [session?.user]);
 
   const [summary, setSummary] = useState<{
     weeklyVelocity: VelocityItem[];
@@ -233,7 +251,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
   return (
     <div className="flex-1 overflow-y-auto bg-background text-foreground">
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-5 md:py-8 space-y-6">
-        
+
         {/* Panoramic Dashboard Banner with Overlay Text */}
         <div className="relative w-full h-36 sm:h-44 md:h-52 rounded-xl overflow-hidden border border-border/60 bg-gradient-to-r from-sky-100 via-indigo-50 to-blue-100 dark:from-slate-900 dark:to-slate-800">
           <img
@@ -251,10 +269,16 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 t-stagger-line drop-shadow-sm">
               Good {greeting}, {userName}
             </h1>
+            {companyName && (
+              <h2 className="text-md sm:text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 t-stagger-line drop-shadow-sm">
+                {companyName}
+              </h2>
+            )}
           </div>
         </div>
 
-        {/* 1. SaaS Founder KPI Cards Grid (@efferd/dashboard-3 Style) */}
+        {/* 1. SaaS Founder KPI 
+        Cards Grid (@efferd/dashboard-3 Style) */}
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCardSkeleton />
@@ -357,7 +381,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
 
         {/* 2. Charts Row: Velocity Area Chart + The Circular Donut Figure */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          
+
           {/* Main Velocity Area Chart (@efferd ConversationVolumeChart style) */}
           <Card className="lg:col-span-2 shadow-none border-border flex flex-col justify-between t-card-enter t-card-stagger-5 t-hover-lift">
             <CardHeader className="space-y-1 pb-3">
@@ -540,7 +564,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
 
         {/* 3. Secondary Grid: Active Projects & Team Workload (@efferd table format) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          
+
           {/* Project Progress Table */}
           <Card className="lg:col-span-2 shadow-none border-border t-card-enter t-card-stagger-6 t-hover-lift">
             <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -685,7 +709,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
 
         {/* 4. Bottom Grid: My Assigned Tasks & Team Workload */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 pb-6">
-          
+
           {/* My Tasks (@efferd recent conversations style) */}
           <Card className="lg:col-span-2 shadow-none border-border">
             <CardHeader className="flex flex-row items-center justify-between pb-3">
