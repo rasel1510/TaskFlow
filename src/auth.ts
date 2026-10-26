@@ -4,7 +4,16 @@ import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
 import { findStoredUserByEmail } from '@/data/userStore';
 
+// Prevent localhost NEXTAUTH_URL from corrupting Vercel serverless requests
+if (process.env.NODE_ENV === 'production' && process.env.NEXTAUTH_URL?.includes('localhost')) {
+  delete process.env.NEXTAUTH_URL;
+}
+if (process.env.VERCEL_URL && !process.env.AUTH_URL) {
+  process.env.AUTH_TRUST_HOST = 'true';
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  basePath: '/api/auth',
   trustHost: true,
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'flowsync-secure-nextauth-secret-key-32chars',
   session: {
@@ -18,17 +27,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   cookies: {
     sessionToken: {
       name:
-        process.env.NODE_ENV === 'production' &&
-        !process.env.NEXTAUTH_URL?.startsWith('http://localhost')
+        process.env.NODE_ENV === 'production'
           ? '__Secure-authjs.session-token'
           : 'authjs.session-token',
       options: {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure:
-          process.env.NODE_ENV === 'production' &&
-          !process.env.NEXTAUTH_URL?.startsWith('http://localhost'),
+        secure: process.env.NODE_ENV === 'production',
         maxAge: 30 * 24 * 60 * 60, // 30 days persistent cookie
       },
     },

@@ -72,10 +72,10 @@ function AppContent() {
     }
   }, [searchParams, session?.user?.name]);
 
-  // Redirect to home page if unauthenticated
+  // Redirect to login page if unauthenticated
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/');
+      router.replace('/auth/login');
     }
   }, [status, router]);
 
@@ -111,7 +111,7 @@ function AppContent() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  if (status === 'loading') {
+  if (status === 'loading' || status === 'unauthenticated') {
     return (
       <div className="flex h-[100dvh] w-screen items-center justify-center bg-[#F9FAFB]">
         <div className="flex flex-col items-center gap-3">
@@ -137,15 +137,11 @@ function AppContent() {
           </div>
           <div className="flex items-center gap-2 text-xs font-medium text-gray-500">
             <div className="w-3.5 h-3.5 border-2 border-[#2563EB] border-t-transparent rounded-full animate-spin" />
-            Loading FlowSync...
+            {status === 'unauthenticated' ? 'Redirecting to login...' : 'Loading FlowSync...'}
           </div>
         </div>
       </div>
     );
-  }
-
-  if (status === 'unauthenticated') {
-    return null;
   }
 
   const handleOpenProject = (

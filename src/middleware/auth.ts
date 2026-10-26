@@ -73,9 +73,11 @@ export function applyAuthMiddleware(request: NextRequest): NextResponse | null {
     return NextResponse.redirect(new URL('/app', request.url));
   }
 
-  // Rule 2: Unauthenticated user on protected route (like /app) → redirect to '/'
+  // Rule 2: Unauthenticated user on protected route (like /app) → redirect to login
   if (!sessionToken && !onAuthRoute && !isLandingRoute && !isInviteRoute && pathname !== '/') {
-    return NextResponse.redirect(new URL('/', request.url));
+    const loginUrl = new URL('/auth/login', request.url);
+    loginUrl.searchParams.set('callbackUrl', request.nextUrl.pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   // Rule 3: Allow request to continue
