@@ -33,9 +33,9 @@ if (isDev) {
   });
 } else {
 
-const CACHE_NAME = 'flowsync-v9';
-const STATIC_CACHE = 'flowsync-static-v9';
-const API_CACHE = 'flowsync-api-v9';
+const CACHE_NAME = 'flowsync-v10';
+const STATIC_CACHE = 'flowsync-static-v10';
+const API_CACHE = 'flowsync-api-v10';
 
 // Assets to precache on install (app shell)
 const PRECACHE_URLS = [

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
@@ -38,7 +38,7 @@ type View =
   | 'settings'
   | 'inbox';
 
-export default function AppPage() {
+function AppContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -441,5 +441,22 @@ export default function AppPage() {
         />
       </div>
     </TaskProvider>
+  );
+}
+
+export default function AppPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen w-full items-center justify-center bg-[#FAFAFA]">
+          <div className="flex flex-col items-center gap-3">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
+            <span className="text-xs font-medium text-gray-500">Loading FlowSync...</span>
+          </div>
+        </div>
+      }
+    >
+      <AppContent />
+    </Suspense>
   );
 }
