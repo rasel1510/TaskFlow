@@ -121,19 +121,48 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async signIn() {
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
+        token.name = user.name;
         token.role = (user as { role?: string }).role || 'User';
         token.avatar = (user as { avatar?: string }).avatar || user.image;
         token.teamId = (user as { teamId?: string }).teamId;
         token.teamName = (user as { teamName?: string }).teamName;
       }
+
+      if (trigger === 'update' && session) {
+        if (session.name) token.name = session.name;
+        if (session.avatar) token.avatar = session.avatar;
+        if (session.role) token.role = session.role;
+        if (session.teamName) token.teamName = session.teamName;
+      }
+
+      // Sync latest user details from DB so token stays fresh across reloads
+      if (token.id && !user && trigger !== 'update') {
+        try {
+          const freshUser = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { name: true, role: true, avatar: true, teamId: true, team: { select: { name: true } } },
+          });
+          if (freshUser) {
+            if (freshUser.name) token.name = freshUser.name;
+            if (freshUser.role) token.role = freshUser.role;
+            if (freshUser.avatar) token.avatar = freshUser.avatar;
+            if (freshUser.teamId) token.teamId = freshUser.teamId;
+            if (freshUser.team?.name) token.teamName = freshUser.team.name;
+          }
+        } catch {
+          // Fallback if DB query fails
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
+        if (token.name) session.user.name = token.name as string;
         (session.user as { role?: string }).role = (token.role as string) || 'User';
         (session.user as { avatar?: string }).avatar = (token.avatar as string) || '';
         (session.user as { teamId?: string }).teamId = (token.teamId as string) || '';

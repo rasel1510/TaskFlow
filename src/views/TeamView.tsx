@@ -24,6 +24,7 @@ import {
   Lock,
   Eye,
   EyeOff,
+  Send,
 } from 'lucide-react';
 
 interface TeamMember {
@@ -982,13 +983,6 @@ export default function TeamView() {
                     {showInvitePassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
                 </div>
-                <div className="mt-2 p-2.5 rounded-xl bg-blue-50/60 border border-blue-100 text-[11px] text-blue-900 leading-relaxed">
-                  The email will instruct the recipient to sign up using:
-                  <div className="mt-1 font-mono text-[10.5px] text-blue-950 font-medium">
-                    company name: <strong>{data?.team?.name || 'Your Company'}</strong><br />
-                    Password : <strong>{invitePassword || '••••••••'}</strong>
-                  </div>
-                </div>
               </div>
 
               {/* Actions */}
@@ -1012,8 +1006,8 @@ export default function TeamView() {
                     </>
                   ) : (
                     <>
-                      <Mail className="w-3.5 h-3.5" />
-                      <span>Send Invitation</span>
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Send</span>
                     </>
                   )}
                 </button>

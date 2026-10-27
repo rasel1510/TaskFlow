@@ -258,7 +258,7 @@ function SaveButton({ loading, onClick, label = 'Save Changes' }: { loading: boo
 
 export default function Settings() {
   const [section, setSection] = useState<Section>('profile');
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const toast = useToast();
   const userId = (session?.user as { id?: string })?.id ?? '';
 
@@ -268,6 +268,8 @@ export default function Settings() {
   const [profileFetching, setProfileFetching] = useState(false);
 
   const [pName, setPName]           = useState('');
+  const [secName, setSecName]       = useState('');
+  const [secNameLoading, setSecNameLoading] = useState(false);
   const [pRole, setPRole]           = useState('');
   const [pAvatar, setPAvatar]       = useState('');
   const [pExpertise, setPExpertise] = useState<string[]>([]);
@@ -312,6 +314,7 @@ export default function Settings() {
         const u: UserProfile = json.data;
         setProfile(u);
         setPName(u.name);
+        setSecName(u.name);
         setPRole(u.role);
         setPAvatar(u.avatar);
         setPExpertise(Array.isArray(u.expertise) ? u.expertise : []);
@@ -324,7 +327,7 @@ export default function Settings() {
   }, [userId]);
 
   useEffect(() => {
-    if (section !== 'profile' || !userId) return;
+    if ((section !== 'profile' && section !== 'security') || !userId) return;
     const ctrl = new AbortController();
     fetchProfile(ctrl.signal);
     return () => ctrl.abort();
@@ -381,6 +384,19 @@ export default function Settings() {
       const json = await res.json();
       if (res.ok && json.success) {
         setProfile(json.data);
+        if (json.data.name) {
+          setPName(json.data.name);
+          setSecName(json.data.name);
+        }
+        try {
+          await updateSession?.({
+            name: json.data.name,
+            role: json.data.role,
+            avatar: json.data.avatar,
+          });
+        } catch {
+          // ignore session update errors
+        }
         window.dispatchEvent(new CustomEvent('user-profile-updated', { detail: json.data }));
         toast.success('Profile and Expertise Matrix updated successfully');
       } else {
@@ -395,6 +411,44 @@ export default function Settings() {
       toast.error('Network error — please try again');
     } finally {
       setProfileLoading(false);
+    }
+  };
+
+  const handleUpdateName = async () => {
+    const targetName = (secName || pName).trim();
+    if (!targetName) {
+      toast.error('Please enter a valid name');
+      return;
+    }
+    if (!userId) return;
+    setSecNameLoading(true);
+    try {
+      const res = await fetch(`/api/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: targetName }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setProfile(json.data);
+        setPName(json.data.name);
+        setSecName(json.data.name);
+        try {
+          await updateSession?.({
+            name: json.data.name,
+          });
+        } catch {
+          // ignore session update errors
+        }
+        window.dispatchEvent(new CustomEvent('user-profile-updated', { detail: json.data }));
+        toast.success('Your name has been updated successfully');
+      } else {
+        toast.error(json.error?.message ?? 'Failed to update name');
+      }
+    } catch {
+      toast.error('Network error — please try again');
+    } finally {
+      setSecNameLoading(false);
     }
   };
 
@@ -837,10 +891,6 @@ export default function Settings() {
                       )}
                     </div>
 
-                    <p className="text-[13px] text-gray-500 -mt-1">
-                      Select all domains that match your skill set. All team members must configure their expertise matrix.
-                    </p>
-
                     {/* Prominent warning callout if unset */}
                     {pExpertise.length === 0 && (
                       <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-[12.5px]">
@@ -1006,8 +1056,32 @@ export default function Settings() {
           <div className="max-w-xl">
             <h2 className="text-[20px] font-bold text-[#111111] mb-1">Security</h2>
             <p className="text-[13px] text-[rgba(17,17,17,0.45)] mb-6">
-              Manage your account security settings.
+              Manage your account credentials and personal details.
             </p>
+
+            {/* Update Name (Similar to Password) */}
+            <div className="border border-[#E5E7EB] rounded-xl p-5 mb-5 bg-white">
+              <h3 className="text-[14px] font-semibold text-[#111111] mb-1">Update Name</h3>
+              <p className="text-[12.5px] text-[rgba(17,17,17,0.5)] mb-4">
+                Change your full name. This updates your dashboard greeting, assigned tasks, and workspace profile.
+              </p>
+              <div className="space-y-4">
+                <div>
+                  <FieldLabel>Full Name</FieldLabel>
+                  <TextInput
+                    value={secName || pName}
+                    onChange={(val) => {
+                      setSecName(val);
+                      setPName(val);
+                    }}
+                    placeholder="Enter your full name"
+                  />
+                </div>
+                <div className="flex justify-end pt-1">
+                  <SaveButton loading={secNameLoading} onClick={handleUpdateName} label="Update Name" />
+                </div>
+              </div>
+            </div>
 
             {/* Change Password */}
             <div className="border border-[#E5E7EB] rounded-xl p-5 mb-5">
@@ -1367,13 +1441,6 @@ export default function Settings() {
                             {showInvitePassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                           </button>
                         </div>
-                        <div className="mt-2 p-2.5 rounded-xl bg-blue-50/60 border border-blue-100 text-[11px] text-blue-900 leading-relaxed">
-                          The email will instruct the recipient to sign up using:
-                          <div className="mt-1 font-mono text-[10.5px] text-blue-950 font-medium">
-                            company name: <strong>{teamName || 'Your Workspace'}</strong><br />
-                            Password : <strong>{invitePassword || '••••••••'}</strong>
-                          </div>
-                        </div>
                       </div>
 
                       <div className="pt-2 flex items-center justify-end gap-2">
@@ -1397,7 +1464,7 @@ export default function Settings() {
                           ) : (
                             <>
                               <Send className="w-3.5 h-3.5" />
-                              <span>Send Invitation</span>
+                              <span>Send</span>
                             </>
                           )}
                         </button>

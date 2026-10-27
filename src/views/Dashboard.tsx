@@ -191,10 +191,42 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
     };
   }, [session?.user]);
 
+  const [customName, setCustomName] = useState<string>('');
+
+  useEffect(() => {
+    const userId = (session?.user as { id?: string })?.id;
+    if (!userId) return;
+    let isMounted = true;
+    fetch(`/api/users/${userId}`, { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((json) => {
+        if (isMounted && json.success && json.data?.name) {
+          setCustomName(json.data.name);
+        }
+      })
+      .catch(() => {});
+
+    const onProfileUpdate = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.name) {
+        setCustomName(detail.name);
+      }
+    };
+    window.addEventListener('user-profile-updated', onProfileUpdate);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('user-profile-updated', onProfileUpdate);
+    };
+  }, [session?.user]);
+
   const now = new Date();
   const hour = now.getHours();
   const greeting = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
-  const userName = session?.user?.name?.split(' ')[0] ?? 'Founder';
+  const effectiveName = customName || session?.user?.name || '';
+  const userName = effectiveName.trim()
+    ? (effectiveName.includes('@') ? effectiveName.split('@')[0] : effectiveName.split(' ')[0])
+    : 'Founder';
 
   // Live computed stats
   const totalTasks = tasks.length;

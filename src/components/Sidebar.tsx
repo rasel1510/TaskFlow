@@ -106,15 +106,20 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
 
   const { data: session } = useSession();
   const userId = (session?.user as { id?: string })?.id;
-  const userName = session?.user?.name || 'User';
-  const userRole = (session?.user as { role?: string })?.role || 'Member';
-  const userAvatar =
-    (session?.user as { avatar?: string })?.avatar ||
-    (session?.user?.name ? session.user.name.slice(0, 2).toUpperCase() : 'U');
-
+  const [customName, setCustomName] = useState('');
+  const [customAvatar, setCustomAvatar] = useState('');
+  const [customRole, setCustomRole] = useState('');
   const [expertiseRequired, setExpertiseRequired] = useState(false);
 
-  // Check expertise matrix status
+  const currentName = customName || session?.user?.name || 'User';
+  const userName = currentName;
+  const userRole = customRole || (session?.user as { role?: string })?.role || 'Member';
+  const userAvatar =
+    customAvatar ||
+    (session?.user as { avatar?: string })?.avatar ||
+    (currentName ? currentName.slice(0, 2).toUpperCase() : 'U');
+
+  // Check expertise matrix status and user profile
   useEffect(() => {
     if (!userId) return;
     let isMounted = true;
@@ -122,6 +127,9 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
       .then(res => res.json())
       .then(json => {
         if (isMounted && json.success && json.data) {
+          if (json.data.name) setCustomName(json.data.name);
+          if (json.data.avatar) setCustomAvatar(json.data.avatar);
+          if (json.data.role) setCustomRole(json.data.role);
           const exp = json.data.expertise;
           setExpertiseRequired(!Array.isArray(exp) || exp.length === 0);
         }
@@ -130,8 +138,13 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
 
     const onProfileUpdate = (e: Event) => {
       const customEvent = e as CustomEvent;
-      if (customEvent.detail && Array.isArray(customEvent.detail.expertise)) {
-        setExpertiseRequired(customEvent.detail.expertise.length === 0);
+      if (customEvent.detail) {
+        if (customEvent.detail.name) setCustomName(customEvent.detail.name);
+        if (customEvent.detail.avatar) setCustomAvatar(customEvent.detail.avatar);
+        if (customEvent.detail.role) setCustomRole(customEvent.detail.role);
+        if (Array.isArray(customEvent.detail.expertise)) {
+          setExpertiseRequired(customEvent.detail.expertise.length === 0);
+        }
       }
     };
     window.addEventListener('user-profile-updated', onProfileUpdate);
