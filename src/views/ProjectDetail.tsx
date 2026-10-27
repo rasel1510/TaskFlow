@@ -207,6 +207,7 @@ export default function ProjectDetail({
   const [invitationsLoading, setInvitationsLoading] = useState(false);
   const [revokingInviteId, setRevokingInviteId] = useState<string | null>(null);
   const [resendingInviteId, setResendingInviteId] = useState<string | null>(null);
+  const [copiedInviteToken, setCopiedInviteToken] = useState<string | null>(null);
 
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   const [availableUsersLoading, setAvailableUsersLoading] = useState(false);
@@ -464,6 +465,16 @@ export default function ProjectDetail({
     } finally {
       setResendingInviteId(null);
     }
+  };
+
+  const handleCopyProjectInvite = (token?: string) => {
+    if (!token) return;
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const link = `${origin}/invite/accept?token=${token}`;
+    navigator.clipboard.writeText(link);
+    setCopiedInviteToken(token);
+    toast.success('Invitation link copied to clipboard!');
+    setTimeout(() => setCopiedInviteToken(null), 2500);
   };
 
   const handleRemoveMember = (m: MemberRecord) => {
@@ -1495,6 +1506,15 @@ export default function ProjectDetail({
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                          {inv.token && (
+                            <button
+                              type="button"
+                              onClick={() => handleCopyProjectInvite(inv.token)}
+                              className="px-2.5 py-1 text-[11.5px] font-semibold text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                            >
+                              {copiedInviteToken === inv.token ? 'Copied!' : 'Copy Link'}
+                            </button>
+                          )}
                           <button
                             type="button"
                             disabled={isResending}

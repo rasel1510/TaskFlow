@@ -543,7 +543,7 @@ export default function Settings() {
         toast.error(json.error?.message || 'Failed to dispatch invitation');
       } else {
         toast.success(json.message || `Invitation dispatched to ${inviteEmail}`);
-        if (json.data?.devMode && json.data?.inviteUrl) {
+        if (json.data?.inviteUrl) {
           setDevInviteUrl(json.data.inviteUrl);
         } else {
           setShowInviteModal(false);

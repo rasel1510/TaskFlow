@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession, signIn, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import {
   CheckCircle2,
@@ -174,6 +174,11 @@ function InviteAcceptContent() {
 
   const isProjectInvite = inviteData?.type === 'project';
   const entityTitle = isProjectInvite ? inviteData?.projectName : inviteData?.teamName;
+  const isEmailMismatch = Boolean(
+    session?.user?.email &&
+    inviteData?.email &&
+    session.user.email.toLowerCase() !== inviteData.email.toLowerCase()
+  );
 
   return (
     <div className="w-full max-w-[440px] bg-white border border-[#E5E7EB] rounded-2xl p-6 sm:p-8 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06)] space-y-6">
@@ -326,9 +331,27 @@ function InviteAcceptContent() {
 
           {/* Already logged in */}
           {session?.user && (
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900">
-              Logged in as <strong>{session.user.name || session.user.email}</strong>. Accepting will link your account to <strong>{entityTitle}</strong>.
-            </div>
+            isEmailMismatch ? (
+              <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-2">
+                <div className="leading-relaxed">
+                  You are currently logged in as <strong>{session.user.email}</strong>, but this invitation was sent to <strong>{inviteData?.email}</strong>.
+                </div>
+                <div className="flex items-center gap-2 pt-1 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => signOut({ callbackUrl: window.location.href })}
+                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-semibold cursor-pointer shadow-xs transition-colors"
+                  >
+                    Sign Out & Switch Account
+                  </button>
+                  <span className="text-[11px] text-amber-700">or open link in an Incognito window</span>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900">
+                Logged in as <strong>{session.user.name || session.user.email}</strong>. Accepting will link your account to <strong>{entityTitle}</strong>.
+              </div>
+            )
           )}
 
           {/* Submit Button */}

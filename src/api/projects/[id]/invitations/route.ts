@@ -15,6 +15,7 @@ import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
 import { ProjectEmailInviteSchema, validationError } from '@/lib/validators';
 import { sendProjectInviteEmail } from '@/lib/mail';
+import { getAppOrigin } from '@/lib/origin';
 import { ROLE_DESCRIPTIONS, type ProjectRole } from '@/lib/permissions';
 
 interface RouteContext {
@@ -31,6 +32,7 @@ export interface ProjectInvitationRecord {
   invitedByEmail: string;
   expiresAt: string;
   createdAt: string;
+  token?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -64,6 +66,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       invitedByEmail: inv.invitedBy?.email || '',
       expiresAt: inv.expiresAt.toISOString(),
       createdAt: inv.createdAt.toISOString(),
+      token: inv.token,
     }));
 
     return NextResponse.json({
@@ -192,13 +195,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
       },
     });
 
-    // Construct invitation link (resolve origin accurately across Vercel deployments)
-    const origin =
-      request.headers.get('origin') ||
-      request.nextUrl.origin ||
-      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-      process.env.NEXTAUTH_URL ||
-      'http://localhost:3000';
+    // Construct invitation link (accurately resolved for tunnels, LAN IPs, and Vercel)
+    const origin = getAppOrigin(request);
     const inviteUrl = `${origin}/invite/accept?token=${token}`;
 
     const inviterName = session.user.name || session.user.email?.split('@')[0] || 'Project Manager';
@@ -245,6 +243,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           id: invitation.id,
           email: invitation.email,
           role: invitation.role,
+          inviteUrl,
           expiresAt: invitation.expiresAt.toISOString(),
           devPreviewUrl: mailResult.previewCode,
         },

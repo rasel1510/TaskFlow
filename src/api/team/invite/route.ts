@@ -6,6 +6,7 @@ import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
 import { getOrProvisionUserTeam } from '@/lib/tenant';
 import { sendTeamInviteEmail } from '@/lib/mail';
+import { getAppOrigin } from '@/lib/origin';
 
 const InviteMemberSchema = z.object({
   email: z.string().email('Please enter a valid work email address').toLowerCase().trim(),
@@ -229,13 +230,8 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Derive invitation acceptance URL (accurately resolved for Vercel)
-    const origin =
-      req.headers.get('origin') ||
-      req.nextUrl.origin ||
-      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-      process.env.NEXTAUTH_URL ||
-      'http://localhost:3000';
+    // Derive invitation acceptance URL (accurately resolved for tunnels, LAN IPs, and Vercel)
+    const origin = getAppOrigin(req);
     const inviteUrl = `${origin}/invite/accept?token=${token}`;
 
     // Dispatch email with Company Name and Given Password

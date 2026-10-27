@@ -309,6 +309,7 @@ export async function sendTeamInviteEmail({
 }: SendTeamInviteParams): Promise<MailResult> {
   const from = getSenderAddress();
   const transporter = getSmtpTransporter();
+  const isLocalhost = inviteUrl.includes('localhost') || inviteUrl.includes('127.0.0.1');
 
   const html = `
 <!DOCTYPE html>
@@ -462,11 +463,24 @@ export async function sendTeamInviteEmail({
         </p>
       </div>
 
-      <div class="invite-box">
-        <p style="margin-bottom: 16px; font-weight: 500; color: #1E3A8A;">You can accept this invitation and begin working across projects:</p>
-        <a href="${inviteUrl}" class="btn" target="_blank">Accept Invitation & Join Team</a>
-        <p style="margin-top: 12px; margin-bottom: 0; font-size: 11px; color: #64748B;">This invitation link will expire in ${expiresInDays} days.</p>
+      <div class="invite-box" style="background-color: #EFF6FF; border: 1px solid #DBEAFE; border-radius: 12px; padding: 22px; margin: 24px 0; text-align: center;">
+        <p style="margin-bottom: 18px; font-weight: 500; color: #1E3A8A; font-size: 13.5px;">You can accept this invitation and begin working across projects:</p>
+        <a href="${inviteUrl}" class="btn" target="_blank" rel="noopener noreferrer" style="display: inline-block; background-color: #2563EB; color: #ffffff !important; text-decoration: none; font-size: 14px; font-weight: 600; padding: 13px 32px; border-radius: 10px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">Accept Invitation & Join Team</a>
+        <p style="margin-top: 14px; margin-bottom: 0; font-size: 11px; color: #64748B;">This invitation link will expire in ${expiresInDays} days.</p>
       </div>
+
+      ${
+        isLocalhost
+          ? `
+      <div style="margin: 18px 0; padding: 12px 16px; background-color: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; text-align: left; font-size: 12px; color: #92400E; line-height: 18px;">
+        <strong style="color: #B45309;">⚠️ Testing on Localhost?</strong><br>
+        This invitation was dispatched from a local development server (<code>${inviteUrl.split('/invite')[0]}</code>).<br>
+        • If you open this email on a <strong>phone, tablet, or another computer</strong>, the button cannot reach your local PC.<br>
+        • <strong>To test:</strong> Open this link on the computer running the server, or set <code>APP_URL</code> in your <code>.env</code> file (e.g. using ngrok or your Wi-Fi LAN IP).
+      </div>
+      `
+          : ''
+      }
 
       <p style="font-size: 12px; color: #9CA3AF; word-break: break-all;">
         Or copy and paste this URL into your browser:<br>
@@ -600,6 +614,7 @@ export async function sendProjectInviteEmail({
 }: SendProjectInviteParams): Promise<MailResult> {
   const from = getSenderAddress();
   const transporter = getSmtpTransporter();
+  const isLocalhost = inviteUrl.includes('localhost') || inviteUrl.includes('127.0.0.1');
 
   const formattedRole = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
 
@@ -758,9 +773,22 @@ export async function sendProjectInviteEmail({
         <p style="margin-bottom: 16px; font-weight: 500; color: #1E3A8A; font-size: 13px;">
           Accept your invitation below, create your password, and enter the project workspace:
         </p>
-        <a href="${inviteUrl}" class="btn" target="_blank">Accept Invitation & Set Password</a>
+        <a href="${inviteUrl}" class="btn" target="_blank" rel="noopener noreferrer" style="display: inline-block; background-color: #2563EB; color: #ffffff !important; text-decoration: none; font-size: 14px; font-weight: 600; padding: 13px 32px; border-radius: 10px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">Accept Invitation & Set Password</a>
         <p style="margin-top: 14px; margin-bottom: 0; font-size: 11px; color: #64748B;">This secure invitation link will expire in ${expiresInDays} days.</p>
       </div>
+
+      ${
+        isLocalhost
+          ? `
+      <div style="margin: 18px 0; padding: 12px 16px; background-color: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; text-align: left; font-size: 12px; color: #92400E; line-height: 18px;">
+        <strong style="color: #B45309;">⚠️ Testing on Localhost?</strong><br>
+        This invitation was dispatched from a local development server (<code>${inviteUrl.split('/invite')[0]}</code>).<br>
+        • If you open this email on a <strong>phone, tablet, or another computer</strong>, the button cannot reach your local PC.<br>
+        • <strong>To test:</strong> Open this link on the computer running the server, or set <code>APP_URL</code> in your <code>.env</code> file (e.g. using ngrok or your Wi-Fi LAN IP).
+      </div>
+      `
+          : ''
+      }
 
       <p style="font-size: 12px; color: #9CA3AF; word-break: break-all;">
         Button not working? Copy and paste this URL into your browser:<br>
