@@ -43,6 +43,7 @@ import { StatCardSkeleton, TaskRowSkeleton } from '@/components/ui/Skeleton';
 import { Area, AreaChart, CartesianGrid, LabelList, Pie, PieChart, XAxis, YAxis } from 'recharts';
 import { NumberPopIn } from '@/components/NumberPopIn';
 import {
+  Building2,
   CalendarDays,
   CheckCircle2,
   Clock,
@@ -302,9 +303,12 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
               Good {greeting}, {userName}
             </h1>
             {companyName && (
-              <h2 className="text-md sm:text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 t-stagger-line drop-shadow-sm">
-                {companyName}
-              </h2>
+              <div className="mt-1.5 flex items-center t-stagger-line">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs sm:text-sm font-medium bg-white/80 dark:bg-slate-900/80 backdrop-blur-md text-slate-700 dark:text-slate-200 border border-slate-200/70 dark:border-slate-700/70 shadow-xs">
+                  <Building2 className="size-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
+                  <span>{companyName}</span>
+                </span>
+              </div>
             )}
           </div>
         </div>
