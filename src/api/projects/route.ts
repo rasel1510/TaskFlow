@@ -211,7 +211,7 @@ export async function POST(request: NextRequest) {
     const parsed = CreateProjectSchema.safeParse(body);
     if (!parsed.success) return validationError(parsed.error);
 
-    const { name, description, color, startDate, dueDate } = parsed.data;
+    const { name, description, color, startDate, dueDate, initialMembers } = parsed.data;
 
     let validOwnerId = sessionUserId;
     try {
@@ -250,6 +250,7 @@ export async function POST(request: NextRequest) {
     const teamContext = await getOrProvisionUserTeam(validOwnerId);
 
     let newProject;
+    let populatedMembers: any[] = [];
     try {
       newProject = await prisma.project.create({
         data: {
@@ -282,6 +283,71 @@ export async function POST(request: NextRequest) {
       } catch (memErr) {
         console.warn('[POST /api/projects] Member creation warning:', memErr);
       }
+
+      // Add selected initial team members (Users and Project Managers)
+      if (Array.isArray(initialMembers) && initialMembers.length > 0) {
+        const uniqueMembers = new Map<string, string>();
+        for (const item of initialMembers) {
+          if (item.userId && item.userId !== validOwnerId) {
+            uniqueMembers.set(item.userId, item.role || 'CONTRIBUTOR');
+          }
+        }
+
+        for (const [memberUserId, memberRole] of uniqueMembers.entries()) {
+          try {
+            await prisma.projectMember.upsert({
+              where: {
+                projectId_userId: {
+                  projectId: newProject.id,
+                  userId: memberUserId,
+                },
+              },
+              create: {
+                projectId: newProject.id,
+                userId: memberUserId,
+                role: memberRole,
+              },
+              update: {
+                role: memberRole,
+              },
+            });
+
+            // Dispatch in-app notification to the newly added member
+            try {
+              await prisma.notification.create({
+                data: {
+                  userId: memberUserId,
+                  type: 'member_added',
+                  title: 'Added to Project',
+                  body: `You have been added to "${newProject.name}" as a ${memberRole}.`,
+                },
+              });
+            } catch {}
+          } catch (initMemErr) {
+            console.warn(`[POST /api/projects] Failed to add initial member ${memberUserId}:`, initMemErr);
+          }
+        }
+      }
+
+      // Retrieve populated members list to return in API response
+      try {
+        const dbMembers = await prisma.projectMember.findMany({
+          where: { projectId: newProject.id },
+          include: {
+            user: {
+              select: { id: true, name: true, email: true, avatar: true, role: true, expertise: true },
+            },
+          },
+          orderBy: { joinedAt: 'asc' },
+        });
+        populatedMembers = dbMembers.map(m => ({
+          id: m.id,
+          userId: m.userId,
+          role: m.role,
+          joinedAt: m.joinedAt.toISOString(),
+          user: m.user,
+        }));
+      } catch {}
     } catch (dbErr) {
       console.error('[POST /api/projects] DB creation failed:', dbErr);
       return NextResponse.json(
@@ -303,7 +369,7 @@ export async function POST(request: NextRequest) {
         isMember: true,
         isOwner: true,
         canManage: true,
-        members: (newProject as any).members || [],
+        members: populatedMembers.length > 0 ? populatedMembers : ((newProject as any).members || []),
         pendingRequests: [],
         pendingRequestsCount: 0,
       },

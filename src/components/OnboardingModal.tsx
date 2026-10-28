@@ -11,6 +11,7 @@ import {
   X,
   Palette,
   Layers,
+  Lock,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 
@@ -56,10 +57,18 @@ export default function OnboardingModal({
   const { data: session, update } = useSession();
   const toast = useToast();
 
+  const userRole = (session?.user as { role?: string })?.role;
+  const isAdmin =
+    userRole === 'Admin' ||
+    userRole === 'ADMIN' ||
+    userRole?.toLowerCase() === 'admin';
+
   const [name, setName] = useState(
     session?.user?.name && session.user.name !== 'New Member' ? session.user.name : ''
   );
-  const [jobTitle, setJobTitle] = useState('');
+  const [jobTitle, setJobTitle] = useState(
+    userRole && userRole !== 'User' && userRole !== 'Contributor' ? userRole : ''
+  );
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [customSkill, setCustomSkill] = useState('');
   const [avatarColor, setAvatarColor] = useState('#2563EB');
@@ -108,15 +117,26 @@ export default function OnboardingModal({
         throw new Error('User session not found.');
       }
 
+      const payload: {
+        name: string;
+        avatar: string;
+        expertise: string[];
+        role?: string;
+      } = {
+        name: name.trim(),
+        avatar: initials,
+        expertise: selectedSkills,
+      };
+
+      // Only administrators can set or modify role / job title
+      if (isAdmin && jobTitle.trim()) {
+        payload.role = jobTitle.trim();
+      }
+
       const res = await fetch(`/api/users/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          role: jobTitle.trim() || 'Contributor',
-          avatar: initials,
-          expertise: selectedSkills,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const json = await res.json();
@@ -132,7 +152,7 @@ export default function OnboardingModal({
             user: {
               ...session?.user,
               name: name.trim(),
-              role: jobTitle.trim() || 'Contributor',
+              ...(isAdmin && payload.role ? { role: payload.role } : {}),
               image: initials,
             },
           });
@@ -220,19 +240,33 @@ export default function OnboardingModal({
 
           {/* Job Title / Role */}
           <div>
-            <label className="block text-xs font-semibold text-[#111111] mb-1.5">
-              Professional Title / Role
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-[#111111]">
+                Job Title / Role
+              </label>
+              {!isAdmin && (
+                <span className="text-[10.5px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Lock className="w-2.5 h-2.5 text-amber-600" />
+                  Admin Managed
+                </span>
+              )}
+            </div>
             <div className="relative">
               <Briefcase className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                value={jobTitle}
+                value={!isAdmin ? (userRole || 'Member') : jobTitle}
                 onChange={e => setJobTitle(e.target.value)}
-                placeholder="e.g. Senior Frontend Engineer or Product Designer"
-                className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all font-medium"
+                disabled={!isAdmin}
+                placeholder={isAdmin ? "e.g. Senior Frontend Engineer or Product Designer" : "Assigned by Administrator"}
+                className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all font-medium disabled:bg-gray-50 disabled:cursor-not-allowed"
               />
             </div>
+            {!isAdmin && (
+              <p className="text-[10.5px] text-gray-400 mt-1">
+                Your role and job title are managed by your workspace administrator.
+              </p>
+            )}
           </div>
 
           {/* Avatar Color Theme */}

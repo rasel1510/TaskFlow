@@ -278,6 +278,18 @@ export default function Settings() {
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
+  // Derived user roles with database-first priority
+  const effectiveUserRole = profile?.role || (session?.user as { role?: string })?.role || '';
+  const isAdmin =
+    effectiveUserRole === 'Admin' ||
+    effectiveUserRole === 'ADMIN' ||
+    effectiveUserRole.toLowerCase() === 'admin';
+  const isPM =
+    isAdmin ||
+    effectiveUserRole === 'Project Manager' ||
+    effectiveUserRole === 'PROJECT_MANAGER' ||
+    effectiveUserRole.toLowerCase() === 'project manager';
+
   // Close auto-suggest dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -370,8 +382,11 @@ export default function Settings() {
       const trimmedName = pName.trim() || session?.user?.name || profile?.name;
       if (trimmedName) payload.name = trimmedName;
 
-      const trimmedRole = pRole.trim() || (session?.user as { role?: string })?.role || profile?.role;
-      if (trimmedRole) payload.role = trimmedRole;
+      // Only administrators are permitted to update their Job Title / role
+      if (isAdmin) {
+        const trimmedRole = pRole.trim() || (session?.user as { role?: string })?.role || profile?.role;
+        if (trimmedRole) payload.role = trimmedRole;
+      }
 
       const trimmedAvatar = pAvatar.trim() || (session?.user as { avatar?: string })?.avatar || profile?.avatar;
       if (trimmedAvatar) payload.avatar = trimmedAvatar;
@@ -388,10 +403,13 @@ export default function Settings() {
           setPName(json.data.name);
           setSecName(json.data.name);
         }
+        if (isAdmin && json.data.role) {
+          setPRole(json.data.role);
+        }
         try {
           await updateSession?.({
             name: json.data.name,
-            role: json.data.role,
+            ...(isAdmin && json.data.role ? { role: json.data.role } : {}),
             avatar: json.data.avatar,
           });
         } catch {
@@ -516,6 +534,60 @@ export default function Settings() {
   const [devInviteUrl, setDevInviteUrl] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
 
+  // Admin Job Title Modification state
+  const [editingTitleMember, setEditingTitleMember] = useState<MemberRow | null>(null);
+  const [memberJobTitleInput, setMemberJobTitleInput] = useState('');
+  const [savingMemberTitle, setSavingMemberTitle] = useState(false);
+
+  const handleOpenEditMemberTitle = (member: MemberRow) => {
+    setEditingTitleMember(member);
+    setMemberJobTitleInput(member.role || '');
+  };
+
+  const handleSaveMemberTitle = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!editingTitleMember || !memberJobTitleInput.trim()) return;
+
+    const trimmedTitle = memberJobTitleInput.trim();
+    setSavingMemberTitle(true);
+    try {
+      const res = await fetch(`/api/users/${editingTitleMember.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: trimmedTitle }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        toast.error(json.error?.message || 'Failed to update job title');
+        return;
+      }
+
+      setMembers(prev =>
+        prev.map(m => (m.id === editingTitleMember.id ? { ...m, role: trimmedTitle } : m))
+      );
+
+      if (editingTitleMember.id === userId) {
+        setPRole(trimmedTitle);
+        setProfile(prev => (prev ? { ...prev, role: trimmedTitle } : null));
+        try {
+          await updateSession?.({ role: trimmedTitle });
+        } catch {}
+      }
+
+      window.dispatchEvent(
+        new CustomEvent('user-profile-updated', {
+          detail: { id: editingTitleMember.id, role: trimmedTitle },
+        })
+      );
+      toast.success(`Job title for ${editingTitleMember.name} updated to "${trimmedTitle}"`);
+      setEditingTitleMember(null);
+    } catch {
+      toast.error('Network error updating job title');
+    } finally {
+      setSavingMemberTitle(false);
+    }
+  };
+
   const generateRandomPassword = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
     const num = Math.floor(100 + Math.random() * 900);
@@ -529,13 +601,6 @@ export default function Settings() {
       setShowInvitePassword(false);
     }
   }, [showInviteModal]);
-
-  const currentUserRole = (session?.user as { role?: string })?.role;
-  const isPM =
-    currentUserRole === 'Project Manager' ||
-    currentUserRole === 'PROJECT_MANAGER' ||
-    currentUserRole?.toLowerCase() === 'project manager' ||
-    currentUserRole?.toLowerCase() === 'admin';
 
   const fetchMembersAndInvites = useCallback(async (signal?: AbortSignal) => {
     setMembersLoading(true);
@@ -855,8 +920,31 @@ export default function Settings() {
                     </p>
                   </div>
                   <div>
-                    <FieldLabel>Job Title</FieldLabel>
-                    <TextInput value={pRole} onChange={setPRole} placeholder="e.g. Software Engineer" />
+                    <div className="flex items-center justify-between mb-1">
+                      <FieldLabel>Job Title</FieldLabel>
+                      {!isAdmin && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                          <Lock size={11} className="text-amber-600" />
+                          <span>Admin managed</span>
+                        </span>
+                      )}
+                    </div>
+                    <TextInput
+                      value={pRole}
+                      onChange={setPRole}
+                      placeholder={isAdmin ? "e.g. Software Engineer" : "No job title set"}
+                      disabled={!isAdmin}
+                    />
+                    {!isAdmin ? (
+                      <p className="text-[11px] text-[rgba(17,17,17,0.45)] mt-1.5 flex items-center gap-1.5">
+                        <Lock size={12} className="text-gray-400 shrink-0" />
+                        Only workspace administrators can change the job title of project managers and users.
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-[rgba(17,17,17,0.35)] mt-1.5">
+                        As an administrator, you have permission to change your job title and workspace roles.
+                      </p>
+                    )}
                   </div>
 
                   {/* Expertise Matrix */}
@@ -1164,10 +1252,10 @@ export default function Settings() {
                 {/* Table header */}
                 <div className="flex items-center gap-4 px-5 py-3 bg-[#F9FAFB] border-b border-[#E5E7EB] text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)]">
                   <span className="flex-1">Member</span>
-                  <span className="w-28">Team Role</span>
+                  <span className="w-32">Job Title / Role</span>
                   <span className="w-20">Status</span>
-                  <span className="w-28">Joined</span>
-                  <span className="w-16" />
+                  <span className="w-24">Joined</span>
+                  <span className="w-24 text-right">Actions</span>
                 </div>
 
                 {/* Rows */}
@@ -1216,7 +1304,7 @@ export default function Settings() {
                       </div>
 
                       {/* Role label */}
-                      <span className="w-28 text-[12.5px] font-medium text-gray-700 truncate">
+                      <span className="w-32 text-[12.5px] font-medium text-gray-700 truncate" title={u.role || 'Member'}>
                         {u.role === 'PROJECT_MANAGER' || u.role === 'Project Manager' ? 'Project Manager' : u.role || 'Member'}
                       </span>
 
@@ -1228,16 +1316,25 @@ export default function Settings() {
                       </span>
 
                       {/* Member since */}
-                      <span className="w-28 text-[12px] text-[rgba(17,17,17,0.45)]">
+                      <span className="w-24 text-[12px] text-[rgba(17,17,17,0.45)]">
                         {new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                       </span>
 
                       {/* Actions */}
-                      <div className="w-16 flex items-center gap-1 text-[11.5px]">
-                        {u.id === userId ? (
-                          <span className="text-gray-400">Owner</span>
+                      <div className="w-24 flex items-center justify-end gap-1 text-[11.5px]">
+                        {isAdmin ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditMemberTitle(u)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-[#2563EB] bg-[#EFF6FF] hover:bg-[#DBEAFE] border border-[#BFDBFE] transition-colors cursor-pointer"
+                            title={`Change Job Title for ${u.name}`}
+                          >
+                            <span>Edit Title</span>
+                          </button>
                         ) : (
-                          <span className="text-gray-400">Member</span>
+                          <span className="text-gray-400">
+                            {u.id === userId ? 'You' : 'Member'}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -1734,9 +1831,108 @@ export default function Settings() {
           </div>
         )}
 
+        {/* ── Admin Edit Member Job Title Modal ── */}
+        {isAdmin && editingTitleMember && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+            <div className="bg-white rounded-2xl shadow-xl border border-[#E5E7EB] w-full max-w-md overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-[#F3F4F6]">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-600">
+                    <Shield size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-[15px] font-bold text-[#111111]">Update Member Job Title</h3>
+                    <p className="text-[11.5px] text-[rgba(17,17,17,0.45)]">Admin Role & Title Management</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingTitleMember(null)}
+                  className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
 
+              <form onSubmit={handleSaveMemberTitle} className="p-6 space-y-4">
+                <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl p-3 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#2563EB] flex items-center justify-center text-[13px] font-bold text-white shrink-0">
+                    {editingTitleMember.avatar || editingTitleMember.name?.slice(0, 2)?.toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-semibold text-[#111111] truncate">{editingTitleMember.name}</div>
+                    <div className="text-[11.5px] text-[rgba(17,17,17,0.45)] truncate">{editingTitleMember.email}</div>
+                  </div>
+                </div>
 
+                <div>
+                  <FieldLabel>Job Title / Role</FieldLabel>
+                  <TextInput
+                    value={memberJobTitleInput}
+                    onChange={setMemberJobTitleInput}
+                    placeholder="e.g. Senior Project Manager, Full Stack Engineer"
+                  />
+                </div>
 
+                {/* Quick Preset Badges */}
+                <div>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-[rgba(17,17,17,0.4)] block mb-1.5">
+                    Suggested Presets
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      'Project Manager',
+                      'Software Engineer',
+                      'Lead Developer',
+                      'UI/UX Designer',
+                      'QA Engineer',
+                      'DevOps Engineer',
+                      'Admin',
+                      'User',
+                    ].map(preset => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setMemberJobTitleInput(preset)}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
+                          memberJobTitleInput.toLowerCase() === preset.toLowerCase()
+                            ? 'bg-[#2563EB] text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-[#F3F4F6]">
+                  <button
+                    type="button"
+                    onClick={() => setEditingTitleMember(null)}
+                    className="px-4 py-2 border border-[#E5E7EB] rounded-lg text-[13px] font-medium text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingMemberTitle || !memberJobTitleInput.trim()}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg text-[13px] font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {savingMemberTitle ? (
+                      <>
+                        <Loader2 size={13} className="animate-spin" />
+                        Saving…
+                      </>
+                    ) : (
+                      'Save Job Title'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

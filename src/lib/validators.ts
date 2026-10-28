@@ -117,6 +117,8 @@ export type ProjectLifecycleTransitionInput = z.infer<
 // Project schemas
 // ---------------------------------------------------------------------------
 
+export const PROJECT_ROLES = ['OWNER', 'LEAD', 'CONTRIBUTOR', 'VIEWER'] as const;
+
 export const CreateProjectSchema = z.object({
   name: z
     .string()
@@ -140,6 +142,15 @@ export const CreateProjectSchema = z.object({
 
   startDate: z.string().optional(),
   dueDate:   z.string().optional(),
+
+  initialMembers: z
+    .array(
+      z.object({
+        userId: z.string().min(1, 'User ID is required'),
+        role: z.enum(PROJECT_ROLES).default('CONTRIBUTOR'),
+      })
+    )
+    .optional(),
 });
 
 export type CreateProjectInput = z.infer<typeof CreateProjectSchema>;
@@ -314,8 +325,6 @@ export type UpdateMilestoneInput = z.infer<typeof UpdateMilestoneSchema>;
 // ---------------------------------------------------------------------------
 // Project Member & RBAC Schemas (Step 4.10)
 // ---------------------------------------------------------------------------
-
-export const PROJECT_ROLES = ['OWNER', 'LEAD', 'CONTRIBUTOR', 'VIEWER'] as const;
 
 export const ProjectMemberInviteSchema = z.object({
   userId: z.string().min(1, 'User ID is required'),

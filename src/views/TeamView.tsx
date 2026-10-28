@@ -25,6 +25,7 @@ import {
   Eye,
   EyeOff,
   Send,
+  Edit2,
 } from 'lucide-react';
 
 interface TeamMember {
@@ -100,9 +101,12 @@ export default function TeamView() {
     return `FlowSync@${num}${suffix}`;
   };
 
-  // Role Change Modal / State
+  // Role & Job Title Change State
   const [updatingMemberId, setUpdatingMemberId] = useState<string | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [editingTitleMember, setEditingTitleMember] = useState<TeamMember | null>(null);
+  const [customTitleInput, setCustomTitleInput] = useState('');
+  const [savingCustomTitle, setSavingCustomTitle] = useState(false);
 
   // Remove confirmation modal
   const [memberToRemove, setMemberToRemove] = useState<TeamMember | null>(null);
@@ -156,8 +160,8 @@ export default function TeamView() {
     }
   }, [inviteModalOpen, isAdmin]);
 
-  // Handle Role Change (e.g. Promote PM to Admin, demote, etc.)
-  const handleUpdateRole = async (memberId: string, newRole: 'Admin' | 'Project Manager' | 'User') => {
+  // Handle Role or Job Title Change (Admin Only)
+  const handleUpdateRole = async (memberId: string, newRole: string) => {
     if (!isAdmin) return;
     setUpdatingMemberId(memberId);
     try {
@@ -168,15 +172,33 @@ export default function TeamView() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        alert(json.error?.message || 'Failed to update role');
+        alert(json.error?.message || 'Failed to update job title / role');
         return;
       }
       await fetchTeamData();
+      window.dispatchEvent(
+        new CustomEvent('user-profile-updated', {
+          detail: { id: memberId, role: newRole },
+        })
+      );
     } catch (err) {
       console.error('Failed to change role:', err);
       alert('Network error while updating member role');
     } finally {
       setUpdatingMemberId(null);
+    }
+  };
+
+  const handleSaveCustomTitle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTitleMember || !customTitleInput.trim()) return;
+
+    setSavingCustomTitle(true);
+    try {
+      await handleUpdateRole(editingTitleMember.id, customTitleInput.trim());
+      setEditingTitleMember(null);
+    } finally {
+      setSavingCustomTitle(false);
     }
   };
 
@@ -589,7 +611,7 @@ export default function TeamView() {
                               ) : (
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-700 border border-gray-200">
                                   <Users className="w-3 h-3 text-gray-500" />
-                                  <span>User / Member</span>
+                                  <span>{member.role || 'User / Member'}</span>
                                 </span>
                               )}
                             </div>
@@ -648,14 +670,30 @@ export default function TeamView() {
                                 {/* Role Dropdown Selector */}
                                 <select
                                   disabled={updatingMemberId === member.id || (isSelf && isMemberAdmin && data.stats.adminsCount <= 1)}
-                                  value={isMemberAdmin ? 'Admin' : isMemberPM ? 'Project Manager' : 'User'}
-                                  onChange={e => handleUpdateRole(member.id, e.target.value as 'Admin' | 'Project Manager' | 'User')}
+                                  value={isMemberAdmin ? 'Admin' : isMemberPM ? 'Project Manager' : member.role || 'User'}
+                                  onChange={e => handleUpdateRole(member.id, e.target.value)}
                                   className="text-[11px] bg-white border border-[#E5E7EB] hover:border-gray-400 text-gray-700 py-1 px-2 rounded-lg font-medium outline-none focus:border-[#2563EB] cursor-pointer"
                                 >
                                   <option value="Admin">Admin</option>
                                   <option value="Project Manager">Project Manager</option>
                                   <option value="User">User</option>
+                                  {!['Admin', 'Project Manager', 'User'].includes(member.role) && (
+                                    <option value={member.role}>{member.role}</option>
+                                  )}
                                 </select>
+
+                                {/* Edit Custom Job Title Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingTitleMember(member);
+                                    setCustomTitleInput(member.role || '');
+                                  }}
+                                  className="p-1.5 text-gray-400 hover:text-[#2563EB] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                                  title={`Edit Job Title for ${member.name}`}
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
 
                                 {/* Remove Member */}
                                 {!isSelf && (
@@ -1050,6 +1088,114 @@ export default function TeamView() {
                 <span>Remove</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* ============================================================ */}
+      {/* Edit Job Title Modal (Admin Only)                            */}
+      {/* ============================================================ */}
+      {isAdmin && editingTitleMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-white border border-[#E5E7EB] rounded-2xl shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#F3F4F6]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-600">
+                  <Shield className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900">Update Job Title / Role</h3>
+                  <p className="text-[11px] text-gray-500">Admin Governance</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingTitleMember(null)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCustomTitle} className="p-6 space-y-4">
+              <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl p-3 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-[#2563EB] flex items-center justify-center text-xs font-bold text-white shrink-0">
+                  {editingTitleMember.avatar || editingTitleMember.name.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-gray-900 truncate">{editingTitleMember.name}</div>
+                  <div className="text-[11px] text-gray-500 truncate">{editingTitleMember.email}</div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  Job Title / Professional Role
+                </label>
+                <input
+                  type="text"
+                  value={customTitleInput}
+                  onChange={e => setCustomTitleInput(e.target.value)}
+                  placeholder="e.g. Senior Project Manager or Staff Engineer"
+                  className="w-full px-3 py-2 bg-white border border-[#E5E7EB] rounded-xl text-xs text-gray-900 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all font-medium"
+                />
+              </div>
+
+              {/* Quick Preset Buttons */}
+              <div>
+                <label className="text-[10.5px] font-semibold uppercase tracking-wider text-gray-400 block mb-1.5">
+                  Presets
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    'Project Manager',
+                    'Software Engineer',
+                    'Lead Developer',
+                    'UI/UX Designer',
+                    'QA Engineer',
+                    'DevOps Engineer',
+                    'Admin',
+                    'User',
+                  ].map(preset => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setCustomTitleInput(preset)}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
+                        customTitleInput.toLowerCase() === preset.toLowerCase()
+                          ? 'bg-[#2563EB] text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#F3F4F6]">
+                <button
+                  type="button"
+                  onClick={() => setEditingTitleMember(null)}
+                  className="px-3.5 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingCustomTitle || !customTitleInput.trim()}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-xl transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  {savingCustomTitle ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <span>Save Job Title</span>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

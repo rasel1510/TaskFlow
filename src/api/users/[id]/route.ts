@@ -136,12 +136,61 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       );
     }
 
-    // Users can only update their own profile
-    if (session.user.id !== id) {
+    const currentUserId = session.user.id;
+    const sessionRole = (session.user as { role?: string })?.role;
+
+    // Check if requester is Admin (cross-check with DB to prevent session staleness)
+    let isRequesterAdmin =
+      sessionRole === 'Admin' ||
+      sessionRole === 'ADMIN' ||
+      sessionRole?.toLowerCase() === 'admin';
+
+    if (!isRequesterAdmin) {
+      try {
+        const dbRequester = await prisma.user.findUnique({
+          where: { id: currentUserId },
+          select: { role: true },
+        });
+        if (dbRequester?.role?.toLowerCase() === 'admin') {
+          isRequesterAdmin = true;
+        }
+      } catch (_) {}
+    }
+
+    // 1. Authorization: Only administrators can update another user's profile
+    if (currentUserId !== id && !isRequesterAdmin) {
       return NextResponse.json(
-        { success: false, error: { code: 'FORBIDDEN', message: 'Access denied' } },
+        { success: false, error: { code: 'FORBIDDEN', message: 'Access denied: Only administrators can modify other members' } },
         { status: 403 }
       );
+    }
+
+    // Tenant check if updating another user
+    if (currentUserId !== id) {
+      try {
+        const { getOrProvisionUserTeam } = await import('@/lib/tenant');
+        const teamContext = await getOrProvisionUserTeam(currentUserId);
+        if (teamContext?.teamId) {
+          const targetInTeam = await prisma.user.findFirst({
+            where: { id, teamId: teamContext.teamId },
+            select: { id: true },
+          });
+
+          if (!targetInTeam) {
+            const targetUserRecord = await prisma.user.findUnique({
+              where: { id },
+              select: { teamId: true },
+            });
+
+            if (targetUserRecord && targetUserRecord.teamId && targetUserRecord.teamId !== teamContext.teamId) {
+              return NextResponse.json(
+                { success: false, error: { code: 'FORBIDDEN', message: 'Cannot modify member from another workspace' } },
+                { status: 403 }
+              );
+            }
+          }
+        }
+      } catch (_) {}
     }
 
     let body: unknown;
@@ -157,9 +206,68 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const parsed = UpdateProfileSchema.safeParse(body);
     if (!parsed.success) return validationError(parsed.error);
 
+    // 2. Job Title (role) security: ONLY administrators can set or change Job Title
+    const newRole = parsed.data.role;
+    const isAttemptingRoleChange = newRole !== undefined && newRole !== null;
+    if (isAttemptingRoleChange && typeof newRole === 'string') {
+      if (!isRequesterAdmin) {
+        // Fetch target user's current role
+        let currentTargetRole = sessionRole;
+        try {
+          const existing = await prisma.user.findUnique({
+            where: { id },
+            select: { role: true },
+          });
+          if (existing?.role) currentTargetRole = existing.role;
+        } catch (_) {}
+
+        if (newRole.trim().toLowerCase() !== currentTargetRole?.trim().toLowerCase()) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: {
+                code: 'FORBIDDEN',
+                message: 'Only workspace administrators are authorized to change job titles.',
+              },
+            },
+            { status: 403 }
+          );
+        }
+      } else {
+        // Safety check: Cannot demote the last administrator in the team
+        try {
+          const target = await prisma.user.findUnique({
+            where: { id },
+            select: { role: true, teamId: true },
+          });
+
+          if (target?.role?.toLowerCase() === 'admin' && newRole.trim().toLowerCase() !== 'admin') {
+            if (target.teamId) {
+              const adminCount = await prisma.user.count({
+                where: {
+                  teamId: target.teamId,
+                  role: { in: ['Admin', 'ADMIN', 'admin'] },
+                },
+              });
+
+              if (adminCount <= 1) {
+                return NextResponse.json(
+                  { success: false, error: { code: 'LAST_ADMIN', message: 'Cannot demote the last Administrator in the workspace' } },
+                  { status: 400 }
+                );
+              }
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
     const updateData: { name?: string; role?: string; avatar?: string; expertise?: string[] } = {};
     if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
-    if (parsed.data.role !== undefined && parsed.data.role !== null) updateData.role = parsed.data.role;
+    // Strictly apply role update only if requester is an administrator!
+    if (isRequesterAdmin && parsed.data.role !== undefined && parsed.data.role !== null) {
+      updateData.role = parsed.data.role.trim();
+    }
     if (parsed.data.avatar !== undefined && parsed.data.avatar !== null) updateData.avatar = parsed.data.avatar;
     if (parsed.data.expertise !== undefined) updateData.expertise = parsed.data.expertise;
 
@@ -254,10 +362,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     const responseData = updatedPrismaUser || {
       id,
-      name: updateData.name ?? updatedStored?.name ?? session.user.name ?? 'User',
-      email: updatedStored?.email ?? session.user.email ?? '',
-      role: updateData.role ?? updatedStored?.role ?? (session.user as { role?: string })?.role ?? 'User',
-      avatar: updateData.avatar ?? updatedStored?.avatar ?? (session.user as { avatar?: string })?.avatar ?? 'U',
+      name: updateData.name ?? updatedStored?.name ?? (currentUserId === id ? session.user.name : 'User'),
+      email: updatedStored?.email ?? (currentUserId === id ? session.user.email ?? '' : ''),
+      role: updateData.role ?? updatedStored?.role ?? (currentUserId === id ? (session.user as { role?: string })?.role ?? 'User' : 'User'),
+      avatar: updateData.avatar ?? updatedStored?.avatar ?? (currentUserId === id ? (session.user as { avatar?: string })?.avatar ?? 'U' : 'U'),
       expertise: updateData.expertise ?? updatedStored?.expertise ?? [],
       createdAt: updatedStored?.createdAt ? new Date(updatedStored.createdAt) : new Date(),
     };

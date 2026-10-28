@@ -199,7 +199,7 @@ export default function ProjectDetail({
 
   // Add / Invite Member Modal state
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
-  const [inviteTab, setInviteTab] = useState<'email' | 'directory'>('email');
+  const [inviteTab, setInviteTab] = useState<'email' | 'directory'>('directory');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<ProjectRole>('CONTRIBUTOR');
   const [sendingInvite, setSendingInvite] = useState(false);
@@ -1355,26 +1355,41 @@ export default function ProjectDetail({
                   <h4 className="text-[14px] font-bold text-[#111111]">
                     Active Team Members ({members.length})
                   </h4>
-                  <p className="text-[11.5px] text-[rgba(17,17,17,0.45)] mt-0.5">
-                    Only assigned members can create tasks in this project
-                  </p>
                 </div>
 
                 {isPMOrOwner && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      fetchAvailableUsers();
-                      setShowAddMemberModal(true);
-                    }}
-                    className="flex items-center gap-2 px-3.5 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg text-[13px] font-semibold transition-colors shadow-2xs cursor-pointer shrink-0"
-                  >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                    Invite Member
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInviteTab('directory');
+                        fetchAvailableUsers();
+                        setShowAddMemberModal(true);
+                      }}
+                      className="flex items-center gap-2 px-3.5 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg text-[13px] font-semibold transition-colors shadow-2xs cursor-pointer shrink-0"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                      Add Team Member
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInviteTab('email');
+                        fetchAvailableUsers();
+                        setShowAddMemberModal(true);
+                      }}
+                      className="flex items-center gap-2 px-3 py-2 bg-white border border-[#E5E7EB] hover:bg-gray-50 text-gray-700 rounded-lg text-[13px] font-medium transition-colors cursor-pointer shrink-0"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect width="20" height="16" x="2" y="4" rx="2" />
+                        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                      </svg>
+                      Invite via Email
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -2211,10 +2226,10 @@ export default function ProjectDetail({
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#F3F4F6] shrink-0">
               <div>
                 <h3 className="text-[17px] font-bold text-[#111111]">
-                  Invite Team Members
+                  Add Project Members
                 </h3>
                 <p className="text-[11.5px] text-gray-500 mt-0.5">
-                  Invite collaborators to {project.name}
+                  Add existing organization members or invite new collaborators to {project.name}
                 </p>
               </div>
               <button
@@ -2226,23 +2241,8 @@ export default function ProjectDetail({
               </button>
             </div>
 
-            {/* Segmented Mode Tabs: Email Invite vs Directory */}
+            {/* Segmented Mode Tabs: Existing Team Members vs Email Invite */}
             <div className="px-6 pt-2 border-b border-[#F3F4F6] bg-[#FAFAFB] flex gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => setInviteTab('email')}
-                className={`pb-2.5 px-3 text-[12.5px] font-semibold transition-all border-b-2 cursor-pointer flex items-center gap-1.5 ${
-                  inviteTab === 'email'
-                    ? 'border-[#2563EB] text-[#2563EB]'
-                    : 'border-transparent text-gray-500 hover:text-gray-800'
-                }`}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect width="20" height="16" x="2" y="4" rx="2" />
-                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-                </svg>
-                <span>Invite via Email</span>
-              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -2261,7 +2261,22 @@ export default function ProjectDetail({
                   <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
                   <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                 </svg>
-                <span>Select from Organization</span>
+                <span>Existing Team Members</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setInviteTab('email')}
+                className={`pb-2.5 px-3 text-[12.5px] font-semibold transition-all border-b-2 cursor-pointer flex items-center gap-1.5 ${
+                  inviteTab === 'email'
+                    ? 'border-[#2563EB] text-[#2563EB]'
+                    : 'border-transparent text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="20" height="16" x="2" y="4" rx="2" />
+                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                </svg>
+                <span>Invite New via Email</span>
               </button>
             </div>
 
@@ -2297,8 +2312,42 @@ export default function ProjectDetail({
                     />
                   </div>
                   <p className="text-[11px] text-gray-500 mt-1.5">
-                    An email invitation will be sent immediately with a secure link to accept and set their password.
+                    An email invitation will be sent immediately with a secure link to accept and join this project.
                   </p>
+
+                  {/* Smart detection of existing member */}
+                  {(() => {
+                    const match = inviteEmail.trim()
+                      ? availableUsers.find(u => u.email?.toLowerCase() === inviteEmail.trim().toLowerCase())
+                      : null;
+                    if (!match) return null;
+                    return (
+                      <div className="mt-2.5 p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between gap-3 animate-in fade-in">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {renderUserAvatar(match.avatar, match.name, 'w-8 h-8')}
+                          <div className="min-w-0">
+                            <p className="text-[12px] font-bold text-blue-900 truncate">
+                              {match.name} is already an existing team member ({match.role || 'Member'})
+                            </p>
+                            <p className="text-[11px] text-blue-700">
+                              No need to send an email invitation! You can add them directly to this project.
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await handleAddMember(match.id, inviteRole);
+                            setInviteEmail('');
+                            setShowAddMemberModal(false);
+                          }}
+                          className="px-3 py-1.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[11.5px] font-semibold rounded-lg shadow-2xs shrink-0 cursor-pointer"
+                        >
+                          Add Directly
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div>

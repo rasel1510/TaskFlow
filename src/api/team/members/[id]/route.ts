@@ -10,11 +10,15 @@ interface RouteContext {
 }
 
 const UpdateRoleSchema = z.object({
-  role: z.enum(['Admin', 'Project Manager', 'User']),
+  role: z
+    .string()
+    .min(1, 'Role / Job title cannot be empty')
+    .max(100, 'Role / Job title must be 100 characters or fewer')
+    .trim(),
 });
 
 // ---------------------------------------------------------------------------
-// PATCH /api/team/members/:id — Admin updates a member's role (e.g. promote PM to Admin)
+// PATCH /api/team/members/:id — Admin updates a member's role or job title
 // ---------------------------------------------------------------------------
 export async function PATCH(req: NextRequest, context: RouteContext) {
   try {
@@ -31,15 +35,27 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     const { id: targetMemberId } = await context.params;
 
-    // Check if requester is Admin
-    const isAdmin =
+    // Check if requester is Admin (cross-check DB to prevent session staleness)
+    let isAdmin =
       currentUserRole === 'Admin' ||
       currentUserRole === 'ADMIN' ||
       currentUserRole?.toLowerCase() === 'admin';
 
     if (!isAdmin) {
+      try {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: currentUserId },
+          select: { role: true },
+        });
+        if (dbUser?.role?.toLowerCase() === 'admin') {
+          isAdmin = true;
+        }
+      } catch (_) {}
+    }
+
+    if (!isAdmin) {
       return NextResponse.json(
-        { success: false, error: { code: 'FORBIDDEN', message: 'Only Team Administrators can modify member roles' } },
+        { success: false, error: { code: 'FORBIDDEN', message: 'Only Team Administrators can modify member roles and job titles' } },
         { status: 403 }
       );
     }
@@ -88,11 +104,11 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     }
 
     // Safety check: Cannot demote the last admin
-    if (targetMember.role === 'Admin' && newRole !== 'Admin') {
+    if (targetMember.role.toLowerCase() === 'admin' && newRole.toLowerCase() !== 'admin') {
       const adminCount = await prisma.user.count({
         where: {
           teamId: teamContext.teamId,
-          role: 'Admin',
+          role: { in: ['Admin', 'ADMIN', 'admin'] },
         },
       });
 
