@@ -11,8 +11,14 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
-import { ProjectMemberInviteSchema, ProjectMemberUpdateSchema, validationError } from '@/lib/validators';
+import {
+  ProjectMemberInviteSchema,
+  BatchProjectMemberInviteSchema,
+  ProjectMemberUpdateSchema,
+  validationError,
+} from '@/lib/validators';
 import { ROLE_DESCRIPTIONS, type ProjectRole } from '@/lib/permissions';
 import { getAllStoredUsers } from '@/data/userStore';
 import redisCache from '@/lib/redis';
@@ -79,93 +85,309 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 }
 
 // ---------------------------------------------------------------------------
-// POST /api/projects/:id/members — Add member
+// POST /api/projects/:id/members — Add member(s) from existing users
 // ---------------------------------------------------------------------------
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
 
-    let body: unknown;
-    try { body = await request.json(); } catch {
-      return NextResponse.json(
-        { success: false, error: { code: 'BAD_REQUEST', message: 'Invalid JSON' } },
-        { status: 400 }
-      );
-    }
-
-    const parsed = ProjectMemberInviteSchema.safeParse(body);
-    if (!parsed.success) return validationError(parsed.error);
-
-    const { userId, role } = parsed.data;
-
-    // Look up user details from DB or stored users
-    let dbUser: { id: string; name: string; email: string; avatar?: string; role?: string; expertise?: string[] } | null = null;
+    // 1. Session verification & RBAC check
+    let sessionUserId: string | undefined;
+    let sessionUserRole: string | undefined;
     try {
-      dbUser = await prisma.user.findFirst({
-        where: { OR: [{ id: userId }, { email: userId }] },
-        select: { id: true, name: true, email: true, avatar: true, role: true, expertise: true },
+      const session = await auth();
+      sessionUserId = session?.user?.id;
+      sessionUserRole = (session?.user as { role?: string })?.role;
+    } catch (_) {}
+
+    // Verify project exists
+    let project: { id: string; name: string; ownerId: string; teamId: string | null } | null = null;
+    try {
+      project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { id: true, name: true, ownerId: true, teamId: true },
       });
-    } catch {}
+    } catch (_) {}
 
-    const storedUser = !dbUser ? getAllStoredUsers().find(u => u.id === userId || u.email.toLowerCase() === userId.toLowerCase()) : null;
-    const userInfo = dbUser || storedUser;
-
-    if (!userInfo) {
+    if (!project) {
       return NextResponse.json(
-        { success: false, error: { code: 'NOT_FOUND', message: 'User not found. Ensure the user ID or email is valid.' } },
+        { success: false, error: { code: 'NOT_FOUND', message: 'Project not found' } },
         { status: 404 }
       );
     }
 
-    const resolvedUserId = userInfo.id;
+    if (sessionUserId) {
+      const isAdmin =
+        sessionUserRole === 'Admin' ||
+        sessionUserRole === 'ADMIN' ||
+        sessionUserRole?.toLowerCase() === 'admin';
+      const isProjectManager =
+        sessionUserRole === 'Project Manager' ||
+        sessionUserRole === 'PROJECT_MANAGER' ||
+        sessionUserRole?.toLowerCase() === 'project manager';
+      const isOwner = project.ownerId === sessionUserId;
 
-    try {
-      await prisma.projectMember.upsert({
-        where: { projectId_userId: { projectId, userId: resolvedUserId } },
-        create: {
-          projectId,
-          userId: resolvedUserId,
-          role,
-        },
-        update: {
-          role,
-        },
-      });
+      let isProjectLead = false;
+      if (!isAdmin && !isProjectManager && !isOwner) {
+        try {
+          const memberRecord = await prisma.projectMember.findUnique({
+            where: { projectId_userId: { projectId, userId: sessionUserId } },
+            select: { role: true },
+          });
+          isProjectLead = memberRecord?.role === 'OWNER' || memberRecord?.role === 'LEAD';
+        } catch (_) {}
+      }
 
-      const project = await prisma.project.findUnique({ where: { id: projectId }, select: { name: true } });
-      try {
-        await prisma.notification.create({
-          data: {
-            userId: resolvedUserId,
-            type: 'member_added',
-            title: 'Added to Project',
-            body: `You have been added to "${project?.name || 'a project'}" as a ${role}.`,
+      if (!isAdmin && !isProjectManager && !isOwner && !isProjectLead) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Only workspace administrators, project managers, or project leads can add members to this project.',
+            },
           },
-        });
-      } catch {}
-
-      await redisCache.delPattern('projects:*');
-    } catch (dbErr) {
-      console.warn('[POST /api/projects/:id/members] DB warning:', dbErr);
+          { status: 403 }
+        );
+      }
     }
 
-    const newMember: MemberRecord = {
-      userId: resolvedUserId,
-      projectId,
-      role,
-      joinedAt: new Date().toISOString(),
-      name: userInfo.name,
-      email: userInfo.email || '',
-      avatar: userInfo.avatar || userInfo.name.slice(0, 2).toUpperCase(),
-      userRole: userInfo.role || 'Member',
-      expertise: userInfo.expertise || [],
-    };
+    // 2. Parse request body (supports single { userId, role } OR batch { members: [...] })
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { success: false, error: { code: 'BAD_REQUEST', message: 'Invalid JSON request body' } },
+        { status: 400 }
+      );
+    }
 
-    return NextResponse.json({ success: true, data: { ...newMember, roleConfig: ROLE_DESCRIPTIONS[role] } }, { status: 201 });
+    let isBatch = false;
+    let membersToAdd: Array<{ userId: string; role: ProjectRole }> = [];
+
+    if (body && typeof body === 'object' && 'members' in body && Array.isArray((body as any).members)) {
+      isBatch = true;
+      const parsedBatch = BatchProjectMemberInviteSchema.safeParse(body);
+      if (!parsedBatch.success) return validationError(parsedBatch.error);
+      membersToAdd = parsedBatch.data.members as Array<{ userId: string; role: ProjectRole }>;
+    } else {
+      const parsedSingle = ProjectMemberInviteSchema.safeParse(body);
+      if (!parsedSingle.success) return validationError(parsedSingle.error);
+      membersToAdd = [parsedSingle.data as { userId: string; role: ProjectRole }];
+    }
+
+    if (membersToAdd.length === 0) {
+      return NextResponse.json(
+        { success: false, error: { code: 'BAD_REQUEST', message: 'At least one team member must be provided' } },
+        { status: 400 }
+      );
+    }
+
+    // Deduplicate member inputs by userId
+    const uniqueInputs = new Map<string, ProjectRole>();
+    for (const item of membersToAdd) {
+      uniqueInputs.set(item.userId.trim(), item.role);
+    }
+
+    const requestedUserIds = Array.from(uniqueInputs.keys());
+
+    // 3. Batch resolve candidate users from DB & local store (O(N) lookup)
+    let dbUsers: Array<{
+      id: string;
+      name: string;
+      email: string;
+      avatar?: string | null;
+      role?: string | null;
+      expertise?: string[] | null;
+    }> = [];
+
+    try {
+      dbUsers = await prisma.user.findMany({
+        where: {
+          OR: [
+            { id: { in: requestedUserIds } },
+            { email: { in: requestedUserIds } },
+          ],
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          avatar: true,
+          role: true,
+          expertise: true,
+        },
+      });
+    } catch (err) {
+      console.warn('[POST /api/projects/:id/members] User lookup warning:', err);
+    }
+
+    const resolvedUserMap = new Map<string, {
+      id: string;
+      name: string;
+      email: string;
+      avatar: string;
+      role: string;
+      expertise: string[];
+    }>();
+
+    for (const u of dbUsers) {
+      resolvedUserMap.set(u.id, {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        avatar: u.avatar || u.name.slice(0, 2).toUpperCase(),
+        role: u.role || 'Member',
+        expertise: u.expertise || [],
+      });
+      resolvedUserMap.set(u.email.toLowerCase(), {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        avatar: u.avatar || u.name.slice(0, 2).toUpperCase(),
+        role: u.role || 'Member',
+        expertise: u.expertise || [],
+      });
+    }
+
+    // Check stored fallback users for any missing entries
+    const allStored = getAllStoredUsers();
+    for (const rawId of requestedUserIds) {
+      if (!resolvedUserMap.has(rawId) && !resolvedUserMap.has(rawId.toLowerCase())) {
+        const found = allStored.find(
+          (u) => u.id === rawId || u.email.toLowerCase() === rawId.toLowerCase()
+        );
+        if (found) {
+          // Ensure user exists in Prisma DB so foreign key constraint holds
+          try {
+            const upserted = await prisma.user.upsert({
+              where: { id: found.id },
+              create: {
+                id: found.id,
+                name: found.name,
+                email: found.email,
+                role: found.role || 'User',
+                avatar: found.avatar || found.name.slice(0, 2).toUpperCase(),
+                expertise: (found as any).expertise || [],
+              },
+              update: {},
+              select: { id: true, name: true, email: true, avatar: true, role: true, expertise: true },
+            });
+            resolvedUserMap.set(found.id, {
+              id: upserted.id,
+              name: upserted.name,
+              email: upserted.email,
+              avatar: upserted.avatar || upserted.name.slice(0, 2).toUpperCase(),
+              role: upserted.role || 'Member',
+              expertise: upserted.expertise || [],
+            });
+          } catch (_) {
+            resolvedUserMap.set(found.id, {
+              id: found.id,
+              name: found.name,
+              email: found.email,
+              avatar: found.avatar || found.name.slice(0, 2).toUpperCase(),
+              role: found.role || 'Member',
+              expertise: (found as any).expertise || [],
+            });
+          }
+        }
+      }
+    }
+
+    // 4. Enroll each valid member into project
+    const addedMembers: MemberRecord[] = [];
+
+    for (const [rawId, memberRole] of uniqueInputs.entries()) {
+      const userInfo = resolvedUserMap.get(rawId) || resolvedUserMap.get(rawId.toLowerCase());
+      if (!userInfo) {
+        continue;
+      }
+
+      const targetUserId = userInfo.id;
+
+      try {
+        await prisma.projectMember.upsert({
+          where: { projectId_userId: { projectId, userId: targetUserId } },
+          create: {
+            projectId,
+            userId: targetUserId,
+            role: memberRole,
+          },
+          update: {
+            role: memberRole,
+          },
+        });
+
+        // Dispatch in-app notification to member (no email sending needed)
+        try {
+          await prisma.notification.create({
+            data: {
+              userId: targetUserId,
+              type: 'member_added',
+              title: 'Added to Project',
+              body: `You have been added directly to "${project.name}" as a ${ROLE_DESCRIPTIONS[memberRole]?.label || memberRole}.`,
+            },
+          });
+        } catch (_) {}
+
+        addedMembers.push({
+          userId: targetUserId,
+          projectId,
+          role: memberRole,
+          joinedAt: new Date().toISOString(),
+          name: userInfo.name,
+          email: userInfo.email,
+          avatar: userInfo.avatar,
+          userRole: userInfo.role,
+          expertise: userInfo.expertise,
+        });
+      } catch (upsertErr) {
+        console.warn(`[POST /api/projects/:id/members] Upsert error for user ${targetUserId}:`, upsertErr);
+      }
+    }
+
+    // Invalidate Redis cache
+    try {
+      await redisCache.delPattern('projects:*');
+    } catch (_) {}
+
+    if (addedMembers.length === 0) {
+      return NextResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'None of the provided users could be found or enrolled.' } },
+        { status: 404 }
+      );
+    }
+
+    if (isBatch) {
+      return NextResponse.json(
+        {
+          success: true,
+          data: {
+            count: addedMembers.length,
+            members: addedMembers.map((m) => ({ ...m, roleConfig: ROLE_DESCRIPTIONS[m.role] })),
+          },
+        },
+        { status: 201 }
+      );
+    }
+
+    const singleMember = addedMembers[0];
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          ...singleMember,
+          roleConfig: ROLE_DESCRIPTIONS[singleMember.role],
+        },
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('[POST /api/projects/:id/members] Error:', error);
     return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to add member' } },
+      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to add member(s) to project' } },
       { status: 500 }
     );
   }

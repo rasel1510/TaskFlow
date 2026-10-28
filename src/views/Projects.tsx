@@ -4,9 +4,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { healthColors, type ProjectHealth, type User } from '../data/mockData';
 import CreateProjectModal from '@/components/CreateProjectModal';
+import AddProjectMembersModal from '@/components/AddProjectMembersModal';
 import { ProjectCardSkeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/EmptyState';
 import { useToast } from '@/components/ui/Toast';
+import { UserPlus } from 'lucide-react';
 
 interface ProjectsProps {
   onViewChange?: (view: 'kanban') => void;
@@ -86,6 +88,9 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
   // Project deletion state (Project Managers only)
   const [projectToDelete, setProjectToDelete] = useState<UIProject | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Add team members modal state
+  const [addMembersProject, setAddMembersProject] = useState<UIProject | null>(null);
 
   const fetchProjects = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -411,20 +416,35 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
 
                 {/* Footer */}
                 <div className="flex items-center justify-between pt-1">
-                  <div className="flex -space-x-1.5">
-                    {p.members.slice(0, 4).map((m, i) => (
-                      <div
-                        key={i}
-                        className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-bold text-white"
-                        style={{ backgroundColor: ['#2563EB', '#7C3AED', '#0891B2', '#16A34A'][i % 4] }}
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex -space-x-1.5">
+                      {p.members.slice(0, 4).map((m, i) => (
+                        <div
+                          key={i}
+                          className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-bold text-white"
+                          style={{ backgroundColor: ['#2563EB', '#7C3AED', '#0891B2', '#16A34A'][i % 4] }}
+                        >
+                          {m.avatar}
+                        </div>
+                      ))}
+                      {p.members.length > 4 && (
+                        <div className="w-6 h-6 rounded-full border-2 border-white bg-[#F3F4F6] flex items-center justify-center text-[8px] font-semibold text-[#555]">
+                          +{p.members.length - 4}
+                        </div>
+                      )}
+                    </div>
+                    {(p.isOwner || canCreateProject || p.canManage) && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAddMembersProject(p);
+                        }}
+                        title="Add team members directly from existing users"
+                        className="w-6 h-6 rounded-full border border-dashed border-gray-300 hover:border-[#2563EB] hover:bg-blue-50 text-gray-400 hover:text-[#2563EB] flex items-center justify-center transition-colors cursor-pointer"
                       >
-                        {m.avatar}
-                      </div>
-                    ))}
-                    {p.members.length > 4 && (
-                      <div className="w-6 h-6 rounded-full border-2 border-white bg-[#F3F4F6] flex items-center justify-center text-[8px] font-semibold text-[#555]">
-                        +{p.members.length - 4}
-                      </div>
+                        <UserPlus className="w-3 h-3" />
+                      </button>
                     )}
                   </div>
                   <div className="text-right">
@@ -501,16 +521,31 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
                     <span className="text-[11.5px] text-[rgba(17,17,17,0.5)] shrink-0">{p.progress}%</span>
                   </div>
                   <div className="w-20 text-[12.5px] text-[rgba(17,17,17,0.6)]">{p.completedTasks}/{p.taskCount}</div>
-                  <div className="w-24 flex -space-x-1.5">
-                    {p.members.slice(0, 3).map((m, mi) => (
-                      <div
-                        key={mi}
-                        className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-bold text-white"
-                        style={{ backgroundColor: ['#2563EB', '#7C3AED', '#0891B2'][mi % 3] }}
+                  <div className="w-24 flex items-center gap-1.5">
+                    <div className="flex -space-x-1.5">
+                      {p.members.slice(0, 3).map((m, mi) => (
+                        <div
+                          key={mi}
+                          className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-bold text-white"
+                          style={{ backgroundColor: ['#2563EB', '#7C3AED', '#0891B2'][mi % 3] }}
+                        >
+                          {m.avatar}
+                        </div>
+                      ))}
+                    </div>
+                    {(p.isOwner || canCreateProject || p.canManage) && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAddMembersProject(p);
+                        }}
+                        title="Add team members directly"
+                        className="w-5 h-5 rounded-full border border-dashed border-gray-300 hover:border-[#2563EB] hover:bg-blue-50 text-gray-400 hover:text-[#2563EB] flex items-center justify-center transition-colors cursor-pointer shrink-0"
                       >
-                        {m.avatar}
-                      </div>
-                    ))}
+                        <UserPlus className="w-2.5 h-2.5" />
+                      </button>
+                    )}
                   </div>
                   <span className="w-24 text-[12.5px] text-[rgba(17,17,17,0.6)]">{p.dueDate}</span>
                   <div className="w-28 text-right flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
@@ -683,6 +718,20 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
         <CreateProjectModal
           onClose={() => setShowCreateModal(false)}
           onSuccess={fetchProjects}
+        />
+      )}
+
+      {/* Add Team Members Direct Modal */}
+      {addMembersProject && (
+        <AddProjectMembersModal
+          projectId={addMembersProject.id}
+          projectName={addMembersProject.name}
+          existingMemberIds={addMembersProject.members.map(m => m.id)}
+          isOpen={Boolean(addMembersProject)}
+          onClose={() => setAddMembersProject(null)}
+          onSuccess={() => {
+            fetchProjects();
+          }}
         />
       )}
     </div>

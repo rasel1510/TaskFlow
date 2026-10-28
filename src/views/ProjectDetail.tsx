@@ -12,6 +12,8 @@ import type { ProjectInvitationRecord } from '@/api/projects/[id]/invitations/ro
 import type { BurndownResult } from '@/api/projects/[id]/burndown/route';
 import type { ProjectMessage } from '@/api/projects/[id]/messages/route';
 import DatePicker from '@/components/ui/DatePicker';
+import AddProjectMembersModal from '@/components/AddProjectMembersModal';
+import { UserPlus, Users, X } from 'lucide-react';
 
 interface ProjectTask {
   id: string;
@@ -199,7 +201,7 @@ export default function ProjectDetail({
 
   // Add / Invite Member Modal state
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
-  const [inviteTab, setInviteTab] = useState<'email' | 'directory'>('directory');
+  const [showEmailInviteModal, setShowEmailInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<ProjectRole>('CONTRIBUTOR');
   const [sendingInvite, setSendingInvite] = useState(false);
@@ -260,12 +262,14 @@ export default function ProjectDetail({
           setShowDeleteModal(false);
         } else if (showAddMemberModal) {
           setShowAddMemberModal(false);
+        } else if (showEmailInviteModal) {
+          setShowEmailInviteModal(false);
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [lightboxImage, memberToRemove, isRemovingMember, showDeleteModal, isDeletingProject, showAddMemberModal]);
+  }, [lightboxImage, memberToRemove, isRemovingMember, showDeleteModal, isDeletingProject, showAddMemberModal, showEmailInviteModal]);
 
   const fetchProject = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -419,7 +423,7 @@ export default function ProjectDetail({
       toast.success(`Invitation email sent to ${inviteEmail.trim()}`);
       setInviteEmail('');
       fetchInvitations();
-      setShowAddMemberModal(false);
+      setShowEmailInviteModal(false);
     } catch (err: any) {
       toast.error(err.message || 'Failed to send invitation');
     } finally {
@@ -961,6 +965,17 @@ export default function ProjectDetail({
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0">
+            {isPMOrOwner && (
+              <button
+                type="button"
+                onClick={() => setShowAddMemberModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E5E7EB] hover:bg-[#F9FAFB] hover:border-gray-300 text-[13px] font-medium text-[#111111] transition-colors cursor-pointer"
+                title="Add existing team members directly to project"
+              >
+                <UserPlus className="w-3.5 h-3.5 text-[#2563EB]" />
+                <span>Add Members</span>
+              </button>
+            )}
             {onCreateTask && (
               <button
                 onClick={() => onCreateTask(project.id)}
@@ -1104,23 +1119,73 @@ export default function ProjectDetail({
                 </div>
               </div>
 
-              {/* Owner card */}
-              <div className="p-5 rounded-2xl border border-[#E5E7EB] bg-white space-y-3">
-                <h3 className="text-[15px] font-semibold text-[#111111]">Project Lead</h3>
-                {project.owner ? (
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#E5E7EB] flex items-center justify-center font-bold text-[12px] text-[#111111]">
-                      {project.owner.avatar}
+              {/* Owner & Team Members card */}
+              <div className="p-5 rounded-2xl border border-[#E5E7EB] bg-white space-y-4">
+                <div>
+                  <h3 className="text-[15px] font-semibold text-[#111111] mb-3">Project Lead</h3>
+                  {project.owner ? (
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-[#E5E7EB] flex items-center justify-center font-bold text-[12px] text-[#111111]">
+                        {project.owner.avatar}
+                      </div>
+                      <div>
+                        <div className="text-[13.5px] font-semibold text-[#111111]">{project.owner.name}</div>
+                        <div className="text-[12px] text-[rgba(17,17,17,0.5)]">{project.owner.role}</div>
+                        <div className="text-[11px] text-[rgba(17,17,17,0.4)]">{project.owner.email}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-[13.5px] font-semibold text-[#111111]">{project.owner.name}</div>
-                      <div className="text-[12px] text-[rgba(17,17,17,0.5)]">{project.owner.role}</div>
-                      <div className="text-[11px] text-[rgba(17,17,17,0.4)]">{project.owner.email}</div>
-                    </div>
+                  ) : (
+                    <div className="text-[13px] text-[rgba(17,17,17,0.4)]">No owner assigned</div>
+                  )}
+                </div>
+
+                {/* Team Members Overview Widget */}
+                <div className="pt-3 border-t border-[#F3F4F6] space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[12.5px] font-semibold text-gray-800">
+                      Team Members ({members.length})
+                    </span>
+                    {isPMOrOwner && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAddMemberModal(true)}
+                        className="text-[11.5px] font-semibold text-[#2563EB] hover:text-[#1D4ED8] hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <UserPlus className="w-3 h-3" />
+                        <span>Add Member</span>
+                      </button>
+                    )}
                   </div>
-                ) : (
-                  <div className="text-[13px] text-[rgba(17,17,17,0.4)]">No owner assigned</div>
-                )}
+
+                  {members.length > 0 ? (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {members.slice(0, 6).map((m) => (
+                        <div
+                          key={m.userId}
+                          title={`${m.name} (${m.role})`}
+                          className="w-7 h-7 rounded-full bg-blue-100 text-[#2563EB] text-[10px] font-bold flex items-center justify-center border border-white shadow-2xs shrink-0"
+                        >
+                          {m.avatar && (m.avatar.startsWith('http') || m.avatar.startsWith('/')) ? (
+                            <img src={m.avatar} alt={m.name} className="w-full h-full rounded-full object-cover" />
+                          ) : (
+                            m.avatar || m.name.slice(0, 2).toUpperCase()
+                          )}
+                        </div>
+                      ))}
+                      {members.length > 6 && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('members')}
+                          className="text-[11px] font-semibold text-gray-500 hover:text-gray-800 px-1"
+                        >
+                          +{members.length - 6} more
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-[11.5px] text-gray-400">No members added yet</p>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1361,26 +1426,15 @@ export default function ProjectDetail({
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        setInviteTab('directory');
-                        fetchAvailableUsers();
-                        setShowAddMemberModal(true);
-                      }}
+                      onClick={() => setShowAddMemberModal(true)}
                       className="flex items-center gap-2 px-3.5 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg text-[13px] font-semibold transition-colors shadow-2xs cursor-pointer shrink-0"
                     >
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                      </svg>
+                      <UserPlus className="w-4 h-4" />
                       Add Team Member
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        setInviteTab('email');
-                        fetchAvailableUsers();
-                        setShowAddMemberModal(true);
-                      }}
+                      onClick={() => setShowEmailInviteModal(true)}
                       className="flex items-center gap-2 px-3 py-2 bg-white border border-[#E5E7EB] hover:bg-gray-50 text-gray-700 rounded-lg text-[13px] font-medium transition-colors cursor-pointer shrink-0"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2212,468 +2266,90 @@ export default function ProjectDetail({
         )}
       </div>
 
-      {/* Add Member Modal */}
-      {showAddMemberModal && (
+      {/* Dedicated Professional Add Project Members Modal (Direct Enrollment, No Email) */}
+      <AddProjectMembersModal
+        projectId={project.id}
+        projectName={project.name}
+        existingMemberIds={members.map(m => m.userId)}
+        isOpen={showAddMemberModal}
+        onClose={() => setShowAddMemberModal(false)}
+        onSuccess={() => {
+          fetchMembers();
+          fetchJoinRequests();
+        }}
+      />
+
+      {/* Optional External Email Invitation Modal */}
+      {showEmailInviteModal && (
         <div
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150"
-          onClick={() => setShowAddMemberModal(false)}
+          onClick={() => setShowEmailInviteModal(false)}
         >
           <div
-            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-150 overflow-hidden"
+            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-lg p-6 animate-in zoom-in-95 duration-150"
             onClick={e => e.stopPropagation()}
           >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#F3F4F6] shrink-0">
+            <div className="flex items-center justify-between pb-4 border-b border-[#F3F4F6]">
               <div>
-                <h3 className="text-[17px] font-bold text-[#111111]">
-                  Add Project Members
-                </h3>
-                <p className="text-[11.5px] text-gray-500 mt-0.5">
-                  Add existing organization members or invite new collaborators to {project.name}
-                </p>
+                <h3 className="text-base font-bold text-[#111111]">Invite External Collaborator</h3>
+                <p className="text-xs text-gray-500 mt-0.5">Send an email invitation link to someone outside your organization.</p>
               </div>
               <button
                 type="button"
-                onClick={() => setShowAddMemberModal(false)}
+                onClick={() => setShowEmailInviteModal(false)}
                 className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[#F3F4F6] text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Segmented Mode Tabs: Existing Team Members vs Email Invite */}
-            <div className="px-6 pt-2 border-b border-[#F3F4F6] bg-[#FAFAFB] flex gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setInviteTab('directory');
-                  fetchAvailableUsers();
-                }}
-                className={`pb-2.5 px-3 text-[12.5px] font-semibold transition-all border-b-2 cursor-pointer flex items-center gap-1.5 ${
-                  inviteTab === 'directory'
-                    ? 'border-[#2563EB] text-[#2563EB]'
-                    : 'border-transparent text-gray-500 hover:text-gray-800'
-                }`}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                  <circle cx="9" cy="7" r="4"/>
-                  <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                </svg>
-                <span>Existing Team Members</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setInviteTab('email')}
-                className={`pb-2.5 px-3 text-[12.5px] font-semibold transition-all border-b-2 cursor-pointer flex items-center gap-1.5 ${
-                  inviteTab === 'email'
-                    ? 'border-[#2563EB] text-[#2563EB]'
-                    : 'border-transparent text-gray-500 hover:text-gray-800'
-                }`}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect width="20" height="16" x="2" y="4" rx="2" />
-                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-                </svg>
-                <span>Invite New via Email</span>
-              </button>
-            </div>
-
-            {/* TAB 1: EMAIL INVITATION FLOW */}
-            {inviteTab === 'email' ? (
-              <form onSubmit={handleSendInvitation} className="p-6 space-y-5 overflow-y-auto">
-                <div>
-                  <label className="block text-xs font-semibold text-[#111111] mb-1.5">
-                    Invitee Email Address <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <svg
-                      width="15"
-                      height="15"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="#9CA3AF"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-                    >
-                      <rect width="20" height="16" x="2" y="4" rx="2" />
-                      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-                    </svg>
-                    <input
-                      type="email"
-                      required
-                      value={inviteEmail}
-                      onChange={e => setInviteEmail(e.target.value)}
-                      placeholder="e.g. colleague@company.com"
-                      className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all font-medium"
-                    />
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-1.5">
-                    An email invitation will be sent immediately with a secure link to accept and join this project.
-                  </p>
-
-                  {/* Smart detection of existing member */}
-                  {(() => {
-                    const match = inviteEmail.trim()
-                      ? availableUsers.find(u => u.email?.toLowerCase() === inviteEmail.trim().toLowerCase())
-                      : null;
-                    if (!match) return null;
-                    return (
-                      <div className="mt-2.5 p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between gap-3 animate-in fade-in">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          {renderUserAvatar(match.avatar, match.name, 'w-8 h-8')}
-                          <div className="min-w-0">
-                            <p className="text-[12px] font-bold text-blue-900 truncate">
-                              {match.name} is already an existing team member ({match.role || 'Member'})
-                            </p>
-                            <p className="text-[11px] text-blue-700">
-                              No need to send an email invitation! You can add them directly to this project.
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            await handleAddMember(match.id, inviteRole);
-                            setInviteEmail('');
-                            setShowAddMemberModal(false);
-                          }}
-                          className="px-3 py-1.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[11.5px] font-semibold rounded-lg shadow-2xs shrink-0 cursor-pointer"
-                        >
-                          Add Directly
-                        </button>
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-[#111111] mb-2">
-                    Project Role &amp; Access Level
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                    {[
-                      {
-                        role: 'CONTRIBUTOR' as ProjectRole,
-                        label: 'Contributor',
-                        badge: 'bg-blue-50 text-blue-700',
-                        desc: 'Can create tasks, update statuses, comment, and collaborate.',
-                      },
-                      {
-                        role: 'LEAD' as ProjectRole,
-                        label: 'Project Lead',
-                        badge: 'bg-purple-50 text-purple-700',
-                        desc: 'Can manage project roadmap, milestones, and invite members.',
-                      },
-                      {
-                        role: 'VIEWER' as ProjectRole,
-                        label: 'Viewer',
-                        badge: 'bg-gray-100 text-gray-700',
-                        desc: 'Read-only access to tasks, timeline, reports, and discussions.',
-                      },
-                    ].map(item => {
-                      const isSelected = inviteRole === item.role;
-                      return (
-                        <button
-                          key={item.role}
-                          type="button"
-                          onClick={() => setInviteRole(item.role)}
-                          className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                            isSelected
-                              ? 'border-[#2563EB] bg-[#EFF6FF] ring-2 ring-[#DBEAFE]'
-                              : 'border-[#E5E7EB] bg-white hover:border-gray-300'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className={`text-[12.5px] font-bold ${isSelected ? 'text-[#2563EB]' : 'text-[#111111]'}`}>
-                              {item.label}
-                            </span>
-                            <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold ${item.badge}`}>
-                              {item.role}
-                            </span>
-                          </div>
-                          <p className="text-[10.5px] text-gray-500 leading-normal">
-                            {item.desc}
-                          </p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t border-[#F3F4F6] flex items-center justify-end gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddMemberModal(false)}
-                    className="px-4 py-2.5 text-xs font-semibold text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={sendingInvite || !inviteEmail.trim()}
-                    className="px-5 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-xl shadow-md shadow-blue-500/20 active:scale-[0.99] transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
-                  >
-                    {sendingInvite ? (
-                      <>
-                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>Sending Invitation...</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect width="20" height="16" x="2" y="4" rx="2" />
-                          <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-                        </svg>
-                        <span>Send Project Invitation Email</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-            ) : (
-              /* TAB 2: DIRECTORY SELECTION FLOW */
-              <>
-                {/* Expertise Matrix Filter & Requirements Toolbar */}
-                <div className="p-4 border-b border-[#F3F4F6] bg-[#FAFAFB] shrink-0 space-y-3">
+            <form onSubmit={handleSendInvitation} className="mt-4 space-y-4">
               <div>
-                {requiredSkills.length > 0 && (
-                  <div className="flex items-center justify-end mb-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setRequiredSkills([])}
-                      className="text-[11px] font-medium text-[#2563EB] hover:underline cursor-pointer"
-                    >
-                      Clear skills ({requiredSkills.length})
-                    </button>
-                  </div>
-                )}
-
-                {/* Expertise Matrix Selector Chips */}
-                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
-                  {[
-                    'UI Design',
-                    'Frontend',
-                    'Backend',
-                    'ML',
-                    'AI',
-                    'Distributed Learning',
-                    'DevOps',
-                    'QA Engineering',
-                    'Cloud Architecture',
-                    'Full Stack Engineering',
-                    'Cybersecurity',
-                    'Mobile Development',
-                  ].map(skill => {
-                    const isSelected = requiredSkills.includes(skill);
-                    return (
-                      <button
-                        key={skill}
-                        type="button"
-                        onClick={() => {
-                          setRequiredSkills(prev =>
-                            prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill]
-                          );
-                        }}
-                        className={`px-2.5 py-1 rounded-lg text-[11.5px] font-medium transition-all cursor-pointer flex items-center gap-1 ${
-                          isSelected
-                            ? 'bg-[#2563EB] text-white border border-[#2563EB] shadow-xs'
-                            : 'bg-white text-gray-700 border border-[#E5E7EB] hover:border-[#2563EB] hover:text-[#2563EB]'
-                        }`}
-                      >
-                        {isSelected && (
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        )}
-                        {skill}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Text Search input */}
-              <div className="relative">
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#9CA3AF"
-                  strokeWidth="2"
-                  className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                >
-                  <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
+                <label className="block text-xs font-semibold text-[#111111] mb-1.5">
+                  Invitee Email Address <span className="text-red-500">*</span>
+                </label>
                 <input
-                  type="text"
-                  value={userSearchTerm}
-                  onChange={e => setUserSearchTerm(e.target.value)}
-                  placeholder="Search candidates by name, email, or other custom skills..."
-                  className="w-full pl-9 pr-4 py-2 text-[12.5px] border border-[#E5E7EB] rounded-lg bg-white outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all"
+                  type="email"
+                  required
+                  value={inviteEmail}
+                  onChange={e => setInviteEmail(e.target.value)}
+                  placeholder="colleague@example.com"
+                  className="w-full px-3 py-2 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all font-medium"
                 />
               </div>
 
-              {requiredSkills.length > 0 && (
-                <div className="flex items-center gap-1.5 text-[11.5px] text-[#2563EB] bg-[#EFF6FF] px-2.5 py-1 rounded-md border border-[#BFDBFE]">
-                  <span className="font-semibold">Matching needed skills:</span>
-                  <span>{requiredSkills.join(', ')}</span>
-                </div>
-              )}
-            </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#111111] mb-1.5">
+                  Initial Project Role
+                </label>
+                <select
+                  value={inviteRole}
+                  onChange={e => setInviteRole(e.target.value as ProjectRole)}
+                  className="w-full px-3 py-2 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] focus:outline-none focus:border-[#2563EB] font-medium"
+                >
+                  <option value="CONTRIBUTOR">Contributor (Default)</option>
+                  <option value="LEAD">Project Lead</option>
+                  <option value="VIEWER">Viewer</option>
+                </select>
+              </div>
 
-            {/* Candidates List with Real-time Expertise Match */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {availableUsersLoading ? (
-                <div className="py-12 text-center text-[13px] text-gray-400">Loading organization users...</div>
-              ) : (
-                (() => {
-                  const currentMemberIds = new Set(members.map(m => m.userId));
-                  const candidates = availableUsers
-                    .filter(u => !currentMemberIds.has(u.id))
-                    .map(user => {
-                      const userSkills: string[] = Array.isArray(user.expertise) ? user.expertise : [];
-                      const matchedSkills = userSkills.filter(skill =>
-                        requiredSkills.some(
-                          req =>
-                            req.toLowerCase() === skill.toLowerCase() ||
-                            skill.toLowerCase().includes(req.toLowerCase()) ||
-                            req.toLowerCase().includes(skill.toLowerCase())
-                        )
-                      );
-                      const matchCount = matchedSkills.length;
-                      const matchPct = requiredSkills.length > 0 ? Math.round((matchCount / requiredSkills.length) * 100) : 0;
-                      return { user, userSkills, matchedSkills, matchCount, matchPct };
-                    })
-                    .filter(({ user, userSkills }) => {
-                      if (!userSearchTerm.trim()) return true;
-                      const term = userSearchTerm.toLowerCase();
-                      const matchName = user.name?.toLowerCase().includes(term);
-                      const matchEmail = user.email?.toLowerCase().includes(term);
-                      const matchRole = user.role?.toLowerCase().includes(term);
-                      const matchExpertise = userSkills.some((s: string) => s.toLowerCase().includes(term));
-                      return matchName || matchEmail || matchRole || matchExpertise;
-                    })
-                    .sort((a, b) => {
-                      // Rank candidates with more matched required skills first
-                      if (requiredSkills.length > 0) {
-                        if (b.matchCount !== a.matchCount) return b.matchCount - a.matchCount;
-                      }
-                      return (a.user.name || '').localeCompare(b.user.name || '');
-                    });
-
-                  if (candidates.length === 0) {
-                    return (
-                      <div className="py-12 text-center text-[13px] text-gray-400">
-                        {userSearchTerm || requiredSkills.length > 0
-                          ? 'No available candidates matching the selected skills or search query.'
-                          : 'All registered organization users are already members of this project.'}
-                      </div>
-                    );
-                  }
-
-                  return candidates.map(({ user, userSkills, matchedSkills, matchCount, matchPct }) => {
-                    const candidateRole = selectedUserRoles[user.id] || 'CONTRIBUTOR';
-                    const isAdding = addingUserId === user.id;
-
-                    return (
-                      <div
-                        key={user.id}
-                        className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border transition-all ${
-                          matchCount > 0 && requiredSkills.length > 0
-                            ? 'border-[#BFDBFE] bg-[#F8FAFF]'
-                            : 'border-[#E5E7EB] bg-white hover:border-[#CBD5E1]'
-                        }`}
-                      >
-                        <div className="flex items-start gap-3 min-w-0">
-                          {renderUserAvatar(user.avatar, user.name, 'w-10 h-10')}
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-[13.5px] font-semibold text-[#111111]">{user.name}</span>
-                              <span className="text-[11px] text-gray-500 font-medium">({user.role || 'Member'})</span>
-
-                              {/* Match indicator badge */}
-                              {requiredSkills.length > 0 && (
-                                matchCount === requiredSkills.length ? (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-[#ECFDF5] text-[#16A34A] border border-[#BBF7D0]">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                                    100% Match ({matchCount}/{requiredSkills.length} skills)
-                                  </span>
-                                ) : matchCount > 0 ? (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]">
-                                    ✓ {matchPct}% Match ({matchCount}/{requiredSkills.length} skills)
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-[#F3F4F6] text-[#6B7280]">
-                                    0/{requiredSkills.length} skills matched
-                                  </span>
-                                )
-                              )}
-                            </div>
-                            <div className="text-[12px] text-gray-400">{user.email}</div>
-
-                            {/* Expertise tags */}
-                            <div className="flex flex-wrap gap-1 mt-1.5">
-                              {userSkills.length > 0 ? (
-                                userSkills.map((skill, si) => {
-                                  const isMatched = matchedSkills.includes(skill);
-                                  return (
-                                    <span
-                                      key={si}
-                                      className={`px-2 py-0.5 rounded text-[10.5px] font-medium transition-colors ${
-                                        isMatched
-                                          ? 'bg-[#2563EB] text-white font-semibold shadow-2xs'
-                                          : 'bg-[#F3F4F6] text-[#374151] border border-[#E5E7EB]'
-                                      }`}
-                                    >
-                                      {isMatched && '✓ '}{skill}
-                                    </span>
-                                  );
-                                })
-                              ) : (
-                                <span className="text-[11px] text-gray-400 italic">No expertise tags</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Add controls */}
-                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                          <select
-                            value={candidateRole}
-                            onChange={e =>
-                              setSelectedUserRoles(prev => ({
-                                ...prev,
-                                [user.id]: e.target.value as ProjectRole,
-                              }))
-                            }
-                            className="text-[12px] border border-[#E5E7EB] rounded-lg px-2.5 py-1.5 bg-white font-medium text-gray-700 outline-none"
-                          >
-                            <option value="CONTRIBUTOR">Contributor</option>
-                            <option value="LEAD">Project Lead</option>
-                            <option value="VIEWER">Viewer</option>
-                          </select>
-                          <button
-                            type="button"
-                            disabled={isAdding}
-                            onClick={() => handleAddMember(user.id, candidateRole)}
-                            className="px-3.5 py-1.5 text-[12.5px] font-semibold bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg shadow-2xs transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
-                          >
-                            {isAdding ? 'Adding...' : 'Add to Project'}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  });
-                })()
-              )}
-            </div>
-              </>
-            )}
+              <div className="pt-3 border-t border-[#F3F4F6] flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEmailInviteModal(false)}
+                  className="px-3.5 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={sendingInvite || !inviteEmail.trim()}
+                  className="px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-xl shadow-md transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                >
+                  {sendingInvite ? 'Sending...' : 'Send Invitation Email'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -331,6 +331,17 @@ export const ProjectMemberInviteSchema = z.object({
   role: z.enum(PROJECT_ROLES).default('CONTRIBUTOR'),
 });
 
+export const BatchProjectMemberInviteSchema = z.object({
+  members: z
+    .array(
+      z.object({
+        userId: z.string().min(1, 'User ID is required'),
+        role: z.enum(PROJECT_ROLES).default('CONTRIBUTOR'),
+      })
+    )
+    .min(1, 'At least one member must be selected'),
+});
+
 export const ProjectMemberUpdateSchema = z.object({
   role: z.enum(PROJECT_ROLES),
 });
@@ -341,6 +352,7 @@ export const ProjectEmailInviteSchema = z.object({
 });
 
 export type ProjectMemberInviteInput = z.infer<typeof ProjectMemberInviteSchema>;
+export type BatchProjectMemberInviteInput = z.infer<typeof BatchProjectMemberInviteSchema>;
 export type ProjectMemberUpdateInput = z.infer<typeof ProjectMemberUpdateSchema>;
 export type ProjectEmailInviteInput = z.infer<typeof ProjectEmailInviteSchema>;
 
