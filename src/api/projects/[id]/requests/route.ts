@@ -269,7 +269,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       });
 
       // 2. Add to ProjectMember
-      const memberRole = role || 'CONTRIBUTOR';
+      const memberRole = role || 'Member';
       await prisma.projectMember.upsert({
         where: { projectId_userId: { projectId, userId: targetUserId } },
         create: {

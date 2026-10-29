@@ -83,7 +83,7 @@ export async function POST(req: Request) {
         // Invited or unverified pre-provisioned user completing signup!
         const targetTeamId = pendingInvite?.teamId || existingUser.teamId;
         const targetRole = pendingInvite
-          ? (pendingInvite.role === 'ADMIN' ? 'Admin' : pendingInvite.role === 'PROJECT_MANAGER' ? 'Project Manager' : 'User')
+          ? (pendingInvite.role === 'ADMIN' ? 'Admin' : pendingInvite.role === 'PROJECT_MANAGER' ? 'Project Manager' : 'Member')
           : existingUser.role;
 
         const updatedUser = await prisma.user.update({
@@ -119,7 +119,7 @@ export async function POST(req: Request) {
       } else if (pendingInvite) {
         // Brand new user accepting team invitation via signup
         const targetRole =
-          pendingInvite.role === 'ADMIN' ? 'Admin' : pendingInvite.role === 'PROJECT_MANAGER' ? 'Project Manager' : 'User';
+          pendingInvite.role === 'ADMIN' ? 'Admin' : pendingInvite.role === 'PROJECT_MANAGER' ? 'Project Manager' : 'Member';
 
         const newUser = await prisma.user.create({
           data: {

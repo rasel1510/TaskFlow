@@ -10,7 +10,7 @@ import { getAppOrigin } from '@/lib/origin';
 
 const InviteMemberSchema = z.object({
   email: z.string().email('Please enter a valid work email address').toLowerCase().trim(),
-  role: z.enum(['ADMIN', 'PROJECT_MANAGER', 'MEMBER', 'VIEWER']).default('MEMBER'),
+  role: z.enum(['ADMIN', 'PROJECT_MANAGER', 'MEMBER']).default('MEMBER'),
   password: z.string().min(6, 'Password must be at least 6 characters').optional(),
 });
 
@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
     });
 
     const assignedRole =
-      role === 'ADMIN' ? 'Admin' : role === 'PROJECT_MANAGER' ? 'Project Manager' : 'User';
+      role === 'ADMIN' ? 'Admin' : role === 'PROJECT_MANAGER' ? 'Project Manager' : 'Member';
 
     if (!existingUser) {
       const initials = email.substring(0, 2).toUpperCase();
@@ -240,7 +240,7 @@ export async function POST(req: NextRequest) {
       inviterName: teamContext.userName || (isAdmin ? 'Team Administrator' : 'Project Manager'),
       teamName: teamContext.teamName,
       inviteUrl,
-      role: role === 'ADMIN' ? 'Admin' : role === 'PROJECT_MANAGER' ? 'Project Manager' : role === 'VIEWER' ? 'Viewer' : 'Member',
+      role: role === 'ADMIN' ? 'Admin' : role === 'PROJECT_MANAGER' ? 'Project Manager' : 'Member',
       password: givenPassword,
       expiresInDays,
     });

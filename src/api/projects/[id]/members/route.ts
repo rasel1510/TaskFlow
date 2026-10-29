@@ -313,7 +313,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
                 id: found.id,
                 name: found.name,
                 email: found.email,
-                role: found.role || 'User',
+                role: found.role || 'Member',
                 teamId: projectTeamId || undefined,
                 avatar: found.avatar || found.name.slice(0, 2).toUpperCase(),
                 expertise: (found as any).expertise || [],

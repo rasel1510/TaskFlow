@@ -85,7 +85,7 @@ export default function TeamView() {
   // Invite Modal State
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<'PROJECT_MANAGER' | 'MEMBER'>('MEMBER');
+  const [inviteRole, setInviteRole] = useState<'ADMIN' | 'PROJECT_MANAGER' | 'MEMBER'>('MEMBER');
   const [invitePassword, setInvitePassword] = useState('');
   const [showInvitePassword, setShowInvitePassword] = useState(false);
   const [lastSentCredentials, setLastSentCredentials] = useState<{ company: string; password: string } | null>(null);
@@ -443,14 +443,14 @@ export default function TeamView() {
             <div className="text-[11px] text-gray-400 mt-0.5">Project creation & lead</div>
           </div>
 
-          {/* Users / Members */}
+          {/* Members */}
           <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 shadow-xs">
             <div className="flex items-center justify-between text-emerald-600 mb-2">
-              <span className="text-xs font-medium">Users / Members</span>
+              <span className="text-xs font-medium">Members</span>
               <UserCheck className="w-4 h-4 text-emerald-500" />
             </div>
             <div className="text-2xl font-bold text-emerald-700">{data.stats.usersCount}</div>
-            <div className="text-[11px] text-gray-400 mt-0.5">Task contributors</div>
+            <div className="text-[11px] text-gray-400 mt-0.5">Task execution & collaboration</div>
           </div>
         </div>
 
@@ -500,7 +500,7 @@ export default function TeamView() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              Users ({data.stats.usersCount})
+              Members ({data.stats.usersCount})
             </button>
             <button
               type="button"
@@ -670,14 +670,14 @@ export default function TeamView() {
                                 {/* Role Dropdown Selector */}
                                 <select
                                   disabled={updatingMemberId === member.id || (isSelf && isMemberAdmin && data.stats.adminsCount <= 1)}
-                                  value={isMemberAdmin ? 'Admin' : isMemberPM ? 'Project Manager' : member.role || 'User'}
+                                  value={isMemberAdmin ? 'Admin' : isMemberPM ? 'Project Manager' : member.role === 'User' ? 'Member' : member.role || 'Member'}
                                   onChange={e => handleUpdateRole(member.id, e.target.value)}
                                   className="text-[11px] bg-white border border-[#E5E7EB] hover:border-gray-400 text-gray-700 py-1 px-2 rounded-lg font-medium outline-none focus:border-[#2563EB] cursor-pointer"
                                 >
                                   <option value="Admin">Admin</option>
                                   <option value="Project Manager">Project Manager</option>
-                                  <option value="User">User</option>
-                                  {!['Admin', 'Project Manager', 'User'].includes(member.role) && (
+                                  <option value="Member">Member</option>
+                                  {!['Admin', 'Project Manager', 'Member'].includes(member.role) && (
                                     <option value={member.role}>{member.role}</option>
                                   )}
                                 </select>
@@ -929,6 +929,35 @@ export default function TeamView() {
                   Select Role
                 </label>
                 <div className="space-y-2">
+                  {/* Admin option (Admin only) */}
+                  {isAdmin && (
+                    <label
+                      className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
+                        inviteRole === 'ADMIN'
+                          ? 'border-[#2563EB] bg-blue-50/40 ring-1 ring-[#2563EB]'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="inviteRole"
+                        value="ADMIN"
+                        checked={inviteRole === 'ADMIN'}
+                        onChange={() => setInviteRole('ADMIN')}
+                        className="mt-0.5 text-[#2563EB] focus:ring-[#2563EB]"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                          <span className="text-xs font-semibold text-[#111111]">Admin</span>
+                        </div>
+                        <p className="text-[11px] text-gray-500 mt-0.5">
+                          Full administrative governance, security settings, and team management.
+                        </p>
+                      </div>
+                    </label>
+                  )}
+
                   {/* Project Manager option (Admin only) */}
                   {isAdmin && (
                     <label
@@ -958,7 +987,7 @@ export default function TeamView() {
                     </label>
                   )}
 
-                  {/* Standard Member option */}
+                  {/* Member option */}
                   <label
                     className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
                       inviteRole === 'MEMBER'
@@ -977,7 +1006,7 @@ export default function TeamView() {
                     <div className="flex-1">
                       <div className="flex items-center gap-1.5">
                         <Users className="w-3.5 h-3.5 text-emerald-600" />
-                        <span className="text-xs font-semibold text-[#111111]">User / Member</span>
+                        <span className="text-xs font-semibold text-[#111111]">Member</span>
                       </div>
                       <p className="text-[11px] text-gray-500 mt-0.5">
                         Can participate in projects, work on assigned tasks, and submit updates.
@@ -1147,14 +1176,9 @@ export default function TeamView() {
                 </label>
                 <div className="flex flex-wrap gap-1.5">
                   {[
-                    'Project Manager',
-                    'Software Engineer',
-                    'Lead Developer',
-                    'UI/UX Designer',
-                    'QA Engineer',
-                    'DevOps Engineer',
                     'Admin',
-                    'User',
+                    'Project Manager',
+                    'Member',
                   ].map(preset => (
                     <button
                       key={preset}

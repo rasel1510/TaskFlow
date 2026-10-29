@@ -8,7 +8,7 @@
  * - Direct enrollment (NO invitation emails sent to users; instant project access).
  * - Multi-select candidate users with batch enrollment.
  * - Single-click individual enrollment with instant feedback.
- * - Fine-grained project role selection (Contributor, Project Lead, Viewer).
+ * - Fine-grained project designation selection (Member, Project Manager, Admin).
  * - Real-time candidate filtering by name, email, job title, and expertise/skills.
  * - Linear/Supabase minimalist aesthetic with sub-150ms micro-interactions.
  */
@@ -91,12 +91,12 @@ export default function AddProjectMembersModal({
   const [users, setUsers] = useState<AvailableUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'ALL' | 'PM' | 'DEV' | 'DESIGN' | 'ADMIN'>('ALL');
+  const [roleFilter, setRoleFilter] = useState<'ALL' | 'ADMIN' | 'PM' | 'MEMBER'>('ALL');
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   
   // Multi-selection state
   const [selectedMap, setSelectedMap] = useState<Record<string, ProjectRole>>({});
-  const [bulkRole, setBulkRole] = useState<ProjectRole>('CONTRIBUTOR');
+  const [bulkRole, setBulkRole] = useState<ProjectRole>('Member');
   
   // Submission state
   const [submitting, setSubmitting] = useState(false);
@@ -168,10 +168,11 @@ export default function AddProjectMembersModal({
       // Role filter matching
       if (roleFilter !== 'ALL') {
         const r = (u.role || '').toLowerCase();
-        if (roleFilter === 'PM' && !r.includes('manager') && !r.includes('lead') && !r.includes('pm')) continue;
-        if (roleFilter === 'DEV' && !r.includes('engineer') && !r.includes('developer') && !r.includes('backend') && !r.includes('frontend')) continue;
-        if (roleFilter === 'DESIGN' && !r.includes('designer') && !r.includes('ui') && !r.includes('ux')) continue;
-        if (roleFilter === 'ADMIN' && !r.includes('admin')) continue;
+        const isAdm = r.includes('admin');
+        const isPM = r.includes('manager') || r.includes('pm') || r.includes('lead');
+        if (roleFilter === 'ADMIN' && !isAdm) continue;
+        if (roleFilter === 'PM' && !isPM) continue;
+        if (roleFilter === 'MEMBER' && (isAdm || isPM)) continue;
       }
 
       // Skill filter matching
@@ -379,10 +380,9 @@ export default function AddProjectMembersModal({
             </span>
             {[
               { id: 'ALL', label: 'All' },
-              { id: 'PM', label: 'Project Managers' },
-              { id: 'DEV', label: 'Engineers' },
-              { id: 'DESIGN', label: 'Designers' },
               { id: 'ADMIN', label: 'Admins' },
+              { id: 'PM', label: 'Project Managers' },
+              { id: 'MEMBER', label: 'Members' },
             ].map(f => (
               <button
                 key={f.id}
@@ -464,9 +464,9 @@ export default function AddProjectMembersModal({
                   onChange={e => handleApplyBulkRole(e.target.value as ProjectRole)}
                   className="text-[11.5px] font-semibold border border-[#E5E7EB] rounded-lg px-2 py-1 bg-white text-gray-700 outline-none focus:border-[#2563EB]"
                 >
-                  <option value="CONTRIBUTOR">Contributor</option>
-                  <option value="LEAD">Project Lead</option>
-                  <option value="VIEWER">Viewer</option>
+                  <option value="Member">Member</option>
+                  <option value="Project Manager">Project Manager</option>
+                  <option value="Admin">Admin</option>
                 </select>
               </div>
             )}
@@ -564,9 +564,9 @@ export default function AddProjectMembersModal({
                       }}
                       className="text-xs border border-[#E5E7EB] rounded-lg px-2.5 py-1.5 bg-white font-medium text-gray-700 outline-none focus:border-[#2563EB]"
                     >
-                      <option value="CONTRIBUTOR">Contributor</option>
-                      <option value="LEAD">Project Lead</option>
-                      <option value="VIEWER">Viewer</option>
+                      <option value="Member">Member</option>
+                      <option value="Project Manager">Project Manager</option>
+                      <option value="Admin">Admin</option>
                     </select>
 
                     <button

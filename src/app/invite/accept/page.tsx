@@ -198,7 +198,7 @@ function InviteAcceptContent() {
         </h1>
         <p className="text-xs text-gray-500 mt-1 max-w-xs leading-relaxed">
           <strong>{inviteData?.inviterName}</strong> has invited you to collaborate as a{' '}
-          <span className="font-semibold text-[#2563EB]">{inviteData?.role || 'Contributor'}</span>.
+          <span className="font-semibold text-[#2563EB]">{inviteData?.role || 'Member'}</span>.
         </p>
       </div>
 

@@ -203,7 +203,7 @@ export default function ProjectDetail({
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showEmailInviteModal, setShowEmailInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<ProjectRole>('CONTRIBUTOR');
+  const [inviteRole, setInviteRole] = useState<ProjectRole>('Member');
   const [sendingInvite, setSendingInvite] = useState(false);
   const [invitations, setInvitations] = useState<ProjectInvitationRecord[]>([]);
   const [invitationsLoading, setInvitationsLoading] = useState(false);
@@ -222,7 +222,7 @@ export default function ProjectDetail({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeletingProject, setIsDeletingProject] = useState(false);
 
-  // Remove Contributor modal state
+  // Remove Member modal state
   const [memberToRemove, setMemberToRemove] = useState<{
     id: string;
     name: string;
@@ -365,7 +365,7 @@ export default function ProjectDetail({
         body: JSON.stringify({
           requestId,
           action,
-          role: role || requestApprovalRoles[requestId] || 'CONTRIBUTOR',
+          role: role || requestApprovalRoles[requestId] || 'Member',
         }),
       });
       const json = await res.json();
@@ -1331,7 +1331,7 @@ export default function ProjectDetail({
                     {joinRequests.filter(r => r.status === 'pending').map(req => {
                       const applicant = req.user || {};
                       const expertiseList: string[] = applicant.expertise || [];
-                      const selectedRole = requestApprovalRoles[req.id] || 'CONTRIBUTOR';
+                      const selectedRole = requestApprovalRoles[req.id] || 'Member';
 
                       return (
                         <div key={req.id} className="p-4 rounded-xl border border-[#FDE68A] bg-[#FFFDF5] shadow-2xs space-y-3">
@@ -1382,9 +1382,9 @@ export default function ProjectDetail({
                                 onChange={e => setRequestApprovalRoles(prev => ({ ...prev, [req.id]: e.target.value as ProjectRole }))}
                                 className="text-[11.5px] border border-[#E5E7EB] rounded-md px-2 py-1 bg-white outline-none font-medium text-gray-700"
                               >
-                                <option value="CONTRIBUTOR">Contributor</option>
-                                <option value="LEAD">Project Lead</option>
-                                <option value="VIEWER">Viewer</option>
+                                <option value="Member">Member</option>
+                                <option value="Project Manager">Project Manager</option>
+                                <option value="Admin">Admin</option>
                               </select>
                             </div>
 
@@ -1454,7 +1454,7 @@ export default function ProjectDetail({
               ) : (
                 <div className="space-y-2">
                   {members.map(m => {
-                    const roleConfig = ROLE_DESCRIPTIONS[(m.role as ProjectRole)] || ROLE_DESCRIPTIONS['VIEWER'];
+                    const roleConfig = ROLE_DESCRIPTIONS[(m.role as ProjectRole)] || ROLE_DESCRIPTIONS.Member;
                     const memberExpertise: string[] = (m as any).expertise || [];
 
                     return (
@@ -1490,9 +1490,9 @@ export default function ProjectDetail({
                                 onChange={e => handleUpdateMemberRole(m.userId, e.target.value as ProjectRole)}
                                 className="text-[12px] border border-[#E5E7EB] rounded-lg px-2.5 py-1.5 bg-white font-medium text-gray-700 outline-none"
                               >
-                                <option value="CONTRIBUTOR">Contributor</option>
-                                <option value="LEAD">Project Lead</option>
-                                <option value="VIEWER">Viewer</option>
+                                <option value="Member">Member</option>
+                                <option value="Project Manager">Project Manager</option>
+                                <option value="Admin">Admin</option>
                               </select>
                               <button
                                 type="button"
@@ -1542,7 +1542,7 @@ export default function ProjectDetail({
 
                 <div className="space-y-2">
                   {invitations.map(inv => {
-                    const roleConfig = ROLE_DESCRIPTIONS[inv.role] || ROLE_DESCRIPTIONS.CONTRIBUTOR;
+                    const roleConfig = ROLE_DESCRIPTIONS[inv.role] || ROLE_DESCRIPTIONS.Member;
                     const isRevoking = revokingInviteId === inv.id;
                     const isResending = resendingInviteId === inv.id;
 
@@ -1925,7 +1925,7 @@ export default function ProjectDetail({
                 <div className="min-w-0">
                   <h3 className="text-[15px] font-bold text-[#111111] truncate">#{project.name}</h3>
                   <p className="text-[12px] text-slate-500 truncate">
-                    Direct communication &amp; image sharing for all project contributors
+                    Direct communication &amp; image sharing for all project team members
                   </p>
                 </div>
               </div>
@@ -2327,9 +2327,9 @@ export default function ProjectDetail({
                   onChange={e => setInviteRole(e.target.value as ProjectRole)}
                   className="w-full px-3 py-2 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] focus:outline-none focus:border-[#2563EB] font-medium"
                 >
-                  <option value="CONTRIBUTOR">Contributor (Default)</option>
-                  <option value="LEAD">Project Lead</option>
-                  <option value="VIEWER">Viewer</option>
+                  <option value="Member">Member (Default)</option>
+                  <option value="Project Manager">Project Manager</option>
+                  <option value="Admin">Admin</option>
                 </select>
               </div>
 
@@ -2408,7 +2408,7 @@ export default function ProjectDetail({
         </div>
       )}
 
-      {/* Remove Member / Contributor Confirmation Modal */}
+      {/* Remove Member Confirmation Modal */}
       {memberToRemove && (
         <div
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150"
@@ -2442,7 +2442,7 @@ export default function ProjectDetail({
                 </svg>
               </div>
               <div className="flex-1 min-w-0 pr-6">
-                <h3 className="text-[16px] font-bold text-[#111111]">Remove Contributor</h3>
+                <h3 className="text-[16px] font-bold text-[#111111]">Remove Member</h3>
                 <p className="text-[12.5px] text-[rgba(17,17,17,0.6)] mt-1 leading-relaxed">
                   Are you sure you want to remove <strong className="text-[#111111] font-semibold">{memberToRemove.name}</strong> from this project?
                 </p>
@@ -2489,7 +2489,7 @@ export default function ProjectDetail({
                     <span>Removing...</span>
                   </>
                 ) : (
-                  'Remove Contributor'
+                  'Remove Member'
                 )}
               </button>
             </div>

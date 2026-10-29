@@ -527,7 +527,7 @@ export default function Settings() {
   const [invites, setInvites] = useState<PendingInvite[]>([]);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<'MEMBER' | 'PROJECT_MANAGER' | 'VIEWER'>('MEMBER');
+  const [inviteRole, setInviteRole] = useState<'ADMIN' | 'PROJECT_MANAGER' | 'MEMBER'>('MEMBER');
   const [invitePassword, setInvitePassword] = useState('');
   const [showInvitePassword, setShowInvitePassword] = useState(false);
   const [sendingInvite, setSendingInvite] = useState(false);
@@ -933,13 +933,13 @@ export default function Settings() {
                     <TextInput
                       value={pRole}
                       onChange={setPRole}
-                      placeholder={isAdmin ? "e.g. Software Engineer" : "No job title set"}
+                      placeholder={isAdmin ? "e.g. Admin, Project Manager, or Member" : "No designation set"}
                       disabled={!isAdmin}
                     />
                     {!isAdmin ? (
                       <p className="text-[11px] text-[rgba(17,17,17,0.45)] mt-1.5 flex items-center gap-1.5">
                         <Lock size={12} className="text-gray-400 shrink-0" />
-                        Only workspace administrators can change the job title of project managers and users.
+                        Only workspace administrators can change the designation of project managers and members.
                       </p>
                     ) : (
                       <p className="text-[11px] text-[rgba(17,17,17,0.35)] mt-1.5">
@@ -1379,7 +1379,7 @@ export default function Settings() {
 
                       <div className="w-28 text-[12px] font-medium text-gray-700">
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-[#2563EB]">
-                          {inv.role === 'PROJECT_MANAGER' ? 'Project Manager' : inv.role === 'VIEWER' ? 'Viewer' : 'Member'}
+                          {inv.role === 'ADMIN' ? 'Admin' : inv.role === 'PROJECT_MANAGER' ? 'Project Manager' : 'Member'}
                         </span>
                       </div>
 
@@ -1484,9 +1484,9 @@ export default function Settings() {
                         </label>
                         <div className="grid grid-cols-3 gap-2">
                           {[
-                            { id: 'MEMBER', label: 'Member', desc: 'Can work on tasks' },
-                            { id: 'PROJECT_MANAGER', label: 'PM / Co-Lead', desc: 'Can manage projects' },
-                            { id: 'VIEWER', label: 'Viewer', desc: 'Read-only access' },
+                            { id: 'MEMBER', label: 'Member', desc: 'Can work on tasks and collaborate' },
+                            { id: 'PROJECT_MANAGER', label: 'Project Manager', desc: 'Can manage projects' },
+                            { id: 'ADMIN', label: 'Admin', desc: 'Full workspace administrative access' },
                           ].map(r => (
                             <button
                               key={r.id}
@@ -1882,14 +1882,9 @@ export default function Settings() {
                   </label>
                   <div className="flex flex-wrap gap-1.5">
                     {[
-                      'Project Manager',
-                      'Software Engineer',
-                      'Lead Developer',
-                      'UI/UX Designer',
-                      'QA Engineer',
-                      'DevOps Engineer',
                       'Admin',
-                      'User',
+                      'Project Manager',
+                      'Member',
                     ].map(preset => (
                       <button
                         key={preset}

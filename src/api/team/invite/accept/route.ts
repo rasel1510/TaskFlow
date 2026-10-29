@@ -289,7 +289,12 @@ export async function POST(req: NextRequest) {
               name: userName,
               email: projectInvitation.email,
               password: hashedPassword,
-              role: projectInvitation.role === 'LEAD' ? 'Project Manager' : 'User',
+              role:
+                projectInvitation.role === 'Admin'
+                  ? 'Admin'
+                  : projectInvitation.role === 'Project Manager' || projectInvitation.role === 'LEAD'
+                  ? 'Project Manager'
+                  : 'Member',
               avatar: initials || 'MB',
               teamId: projectInvitation.project.teamId,
               emailVerified: new Date(),
@@ -353,7 +358,7 @@ export async function POST(req: NextRequest) {
         ? 'Admin'
         : invitation.role === 'PROJECT_MANAGER'
         ? 'Project Manager'
-        : 'User';
+        : 'Member';
 
     if (targetUserId) {
       await prisma.user.update({

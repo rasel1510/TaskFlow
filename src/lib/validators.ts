@@ -117,7 +117,15 @@ export type ProjectLifecycleTransitionInput = z.infer<
 // Project schemas
 // ---------------------------------------------------------------------------
 
-export const PROJECT_ROLES = ['OWNER', 'LEAD', 'CONTRIBUTOR', 'VIEWER'] as const;
+export const PROJECT_ROLES = [
+  'Admin',
+  'Project Manager',
+  'Member',
+  'OWNER',
+  'LEAD',
+  'CONTRIBUTOR',
+  'VIEWER',
+] as const;
 
 export const CreateProjectSchema = z.object({
   name: z
@@ -147,7 +155,7 @@ export const CreateProjectSchema = z.object({
     .array(
       z.object({
         userId: z.string().min(1, 'User ID is required'),
-        role: z.enum(PROJECT_ROLES).default('CONTRIBUTOR'),
+        role: z.enum(PROJECT_ROLES).default('Member'),
       })
     )
     .optional(),
@@ -328,7 +336,7 @@ export type UpdateMilestoneInput = z.infer<typeof UpdateMilestoneSchema>;
 
 export const ProjectMemberInviteSchema = z.object({
   userId: z.string().min(1, 'User ID is required'),
-  role: z.enum(PROJECT_ROLES).default('CONTRIBUTOR'),
+  role: z.enum(PROJECT_ROLES).default('Member'),
 });
 
 export const BatchProjectMemberInviteSchema = z.object({
@@ -336,7 +344,7 @@ export const BatchProjectMemberInviteSchema = z.object({
     .array(
       z.object({
         userId: z.string().min(1, 'User ID is required'),
-        role: z.enum(PROJECT_ROLES).default('CONTRIBUTOR'),
+        role: z.enum(PROJECT_ROLES).default('Member'),
       })
     )
     .min(1, 'At least one member must be selected'),
@@ -348,7 +356,7 @@ export const ProjectMemberUpdateSchema = z.object({
 
 export const ProjectEmailInviteSchema = z.object({
   email: z.string().email('Please enter a valid email address').trim().toLowerCase(),
-  role: z.enum(PROJECT_ROLES).default('CONTRIBUTOR'),
+  role: z.enum(PROJECT_ROLES).default('Member'),
 });
 
 export type ProjectMemberInviteInput = z.infer<typeof ProjectMemberInviteSchema>;

@@ -434,7 +434,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
       number: '006',
       question: 'How do I invite teammates to my workspace?',
       answer:
-        'You can invite collaborators directly by email or share a workspace invite link. Team members can be assigned Owner, Lead, Contributor, or Viewer roles with granular project permissions.',
+        'You can invite collaborators directly by email or share a workspace invite link. Team members can be assigned Admin, Project Manager, or Member designations with granular permissions.',
     },
   ];
 

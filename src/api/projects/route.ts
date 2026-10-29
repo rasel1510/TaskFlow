@@ -289,7 +289,7 @@ export async function POST(request: NextRequest) {
         const uniqueMembers = new Map<string, string>();
         for (const item of initialMembers) {
           if (item.userId && item.userId !== validOwnerId) {
-            uniqueMembers.set(item.userId, item.role || 'CONTRIBUTOR');
+            uniqueMembers.set(item.userId, item.role || 'Member');
           }
         }
 

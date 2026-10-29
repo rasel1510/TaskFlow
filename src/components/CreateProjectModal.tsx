@@ -33,7 +33,7 @@ interface AvailableUser {
 
 interface SelectedMember {
   userId: string;
-  role: 'CONTRIBUTOR' | 'LEAD' | 'VIEWER';
+  role: 'Admin' | 'Project Manager' | 'Member';
 }
 
 const COLOR_PRESETS = [
@@ -115,12 +115,12 @@ export default function CreateProjectModal({ onClose, onSuccess }: CreateProject
       if (exists) {
         return prev.filter(m => m.userId !== userId);
       } else {
-        return [...prev, { userId, role: 'CONTRIBUTOR' }];
+        return [...prev, { userId, role: 'Member' }];
       }
     });
   };
 
-  const updateMemberRole = (userId: string, role: 'CONTRIBUTOR' | 'LEAD' | 'VIEWER') => {
+  const updateMemberRole = (userId: string, role: 'Admin' | 'Project Manager' | 'Member') => {
     setSelectedMembers(prev =>
       prev.map(m => (m.userId === userId ? { ...m, role } : m))
     );
@@ -130,7 +130,7 @@ export default function CreateProjectModal({ onClose, onSuccess }: CreateProject
     setSelectedMembers(
       availableUsers.map(u => {
         const existing = selectedMembers.find(m => m.userId === u.id);
-        return { userId: u.id, role: existing ? existing.role : 'CONTRIBUTOR' };
+        return { userId: u.id, role: existing ? existing.role : 'Member' };
       })
     );
   };
@@ -362,7 +362,7 @@ export default function CreateProjectModal({ onClose, onSuccess }: CreateProject
                       {renderAvatar(u.avatar, u.name)}
                       <span className="font-semibold text-[#111111] max-w-[120px] truncate">{u.name}</span>
                       <span className="text-[10px] font-semibold px-1 py-0.2 bg-[#EFF6FF] text-[#2563EB] rounded">
-                        {item.role === 'LEAD' ? 'Lead' : item.role === 'VIEWER' ? 'Viewer' : 'Contributor'}
+                        {item.role === 'Admin' ? 'Admin' : item.role === 'Project Manager' ? 'Project Manager' : 'Member'}
                       </span>
                       <button
                         type="button"
@@ -420,7 +420,7 @@ export default function CreateProjectModal({ onClose, onSuccess }: CreateProject
                 {filteredUsers.map(user => {
                   const selected = selectedMembers.find(m => m.userId === user.id);
                   const isSelected = !!selected;
-                  const currentRole = selected ? selected.role : 'CONTRIBUTOR';
+                  const currentRole = selected ? selected.role : 'Member';
 
                   return (
                     <div
@@ -459,9 +459,9 @@ export default function CreateProjectModal({ onClose, onSuccess }: CreateProject
                             onChange={e => updateMemberRole(user.id, e.target.value as any)}
                             className="text-[11.5px] font-semibold text-[#1E40AF] bg-white border border-[#BFDBFE] rounded-md px-2 py-1 outline-none focus:ring-1 focus:ring-[#2563EB] cursor-pointer"
                           >
-                            <option value="CONTRIBUTOR">Contributor</option>
-                            <option value="LEAD">Project Lead</option>
-                            <option value="VIEWER">Viewer</option>
+                            <option value="Member">Member</option>
+                            <option value="Project Manager">Project Manager</option>
+                            <option value="Admin">Admin</option>
                           </select>
                         </div>
                       ) : (
