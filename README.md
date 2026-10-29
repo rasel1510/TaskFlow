@@ -67,7 +67,7 @@ All business logic strictly lives in `src/api/` — decoupled from HTTP routing.
 ### 2. Enterprise Project Intelligence & Analytics
 - [x] **Automated Project Health & SLA Risk Engine**: Heuristic calculating deadline risk, velocity forecast, and SLA breach warnings.
 - [x] **Sprint Milestones & Roadmaps**: Relational milestone partitioning (`ProjectMilestone`) with completion tracking.
-- [x] **Project Burndown & Velocity Engine**: Ideal burn slope calculation vs actual historical completion trajectories.
+- [x] **Velocity & Milestone Engine**: Track progress against sprint milestones and completion trajectories.
 - [x] **Project Lifecycle State Machine**: Deterministic progression (`PLANNING` → `ACTIVE` → `PAUSED` → `COMPLETED` → `ARCHIVED`) with audited archival.
 - [x] **Project-Scoped RBAC**: Enterprise access controls (`OWNER`, `LEAD`, `CONTRIBUTOR`, `VIEWER`).
 

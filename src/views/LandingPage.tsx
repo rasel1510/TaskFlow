@@ -370,7 +370,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
       icon: Compass,
       accent: 'text-blue-500 dark:text-blue-400',
       description:
-        'Get deep insights into your team velocity with powerful analytics tools. Track sprint metrics, cycle times, burn-down rates, and make data-driven decisions with ease.',
+        'Get deep insights into your team velocity with powerful analytics tools. Track sprint metrics, cycle times, throughput rates, and make data-driven decisions with ease.',
     },
     {
       id: 'automation',
@@ -649,280 +649,278 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
                 </div>
 
                 <div className="grid w-full items-center gap-12 lg:grid-cols-2 lg:gap-16 my-auto">
-            {/* Left Column: Interactive Liquid Glass Preview Card */}
-            <div ref={featureShowcaseRef} className="relative h-[320px] w-full sm:h-[380px] lg:h-[420px]">
-              <LiquidGlassCard
-                scale={30}
-                className="relative h-full w-full overflow-hidden rounded-2xl border border-black/10 bg-gradient-to-br from-neutral-100 via-neutral-50 to-neutral-200 shadow-2xl p-6 dark:border-white/10 dark:from-neutral-900 dark:via-black dark:to-neutral-950 flex flex-col justify-between"
-              >
-                {/* Background Ambient Radial Glows */}
-                <div className="absolute top-8 right-8 h-28 w-28 animate-pulse rounded-full bg-blue-500/20 blur-3xl pointer-events-none" />
-                <div className="absolute bottom-10 left-10 h-32 w-32 animate-pulse rounded-full bg-purple-500/20 blur-3xl pointer-events-none" />
-
-                {/* Active Feature Showcase View */}
-                {activeFeatureIndex === 0 && (
-                  <div className="relative z-10 h-full flex flex-col justify-between">
-                    <div className="flex items-center justify-between pb-3 border-b border-black/5 dark:border-white/10">
-                      <div>
-                        <span className="text-xs uppercase font-mono tracking-widest text-blue-600 dark:text-blue-400 font-semibold">
-                          Analytics Engine
-                        </span>
-                        <h4 className="text-lg font-bold text-black dark:text-white">Team Velocity & Throughput</h4>
-                      </div>
-                      <span className="text-xs font-mono px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold">
-                        +28% this sprint
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-3 my-auto">
-                      <div className="p-3 rounded-xl bg-white/70 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-sm">
-                        <span className="text-[11px] text-black/50 dark:text-white/50">Completion</span>
-                        <p className="text-xl font-bold text-black dark:text-white">94.2%</p>
-                      </div>
-                      <div className="p-3 rounded-xl bg-white/70 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-sm">
-                        <span className="text-[11px] text-black/50 dark:text-white/50">Cycle Time</span>
-                        <p className="text-xl font-bold text-black dark:text-white">2.1d</p>
-                      </div>
-                      <div className="p-3 rounded-xl bg-white/70 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-sm">
-                        <span className="text-[11px] text-black/50 dark:text-white/50">Tasks Shipped</span>
-                        <p className="text-xl font-bold text-black dark:text-white">128</p>
-                      </div>
-                    </div>
-
-                    <div className="p-3 rounded-xl bg-white/80 dark:bg-white/[0.04] border border-black/5 dark:border-white/10 flex items-center justify-between text-xs">
-                      <span className="text-black/60 dark:text-white/60">Automated Burndown calculation</span>
-                      <span className="font-mono text-black dark:text-white font-medium">Zero bottleneck detected</span>
-                    </div>
-                  </div>
-                )}
-
-                {activeFeatureIndex === 1 && (
-                  <div className="relative z-10 h-full flex flex-col justify-between">
-                    <div className="flex items-center justify-between pb-3 border-b border-black/5 dark:border-white/10">
-                      <div>
-                        <span className="text-xs uppercase font-mono tracking-widest text-purple-600 dark:text-purple-400 font-semibold">
-                          Workflow Automation
-                        </span>
-                        <h4 className="text-lg font-bold text-black dark:text-white">Trigger & Event Matrix</h4>
-                      </div>
-                      <Zap className="h-5 w-5 text-purple-500" />
-                    </div>
-
-                    <div className="space-y-2 my-auto">
-                      <div className="p-3 rounded-xl bg-white/70 dark:bg-white/5 border border-black/5 dark:border-white/10 flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2">
-                          <GitBranch className="h-4 w-4 text-purple-500" />
-                          <span>PR Merged in GitHub</span>
-                        </div>
-                        <ArrowRight className="h-3.5 w-3.5 text-black/40 dark:text-white/40" />
-                        <span className="font-semibold text-emerald-600 dark:text-emerald-400">Move Task to Done</span>
-                      </div>
-                      <div className="p-3 rounded-xl bg-white/70 dark:bg-white/5 border border-black/5 dark:border-white/10 flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-amber-500" />
-                          <span>Sprint Due in 24h</span>
-                        </div>
-                        <ArrowRight className="h-3.5 w-3.5 text-black/40 dark:text-white/40" />
-                        <span className="font-semibold text-blue-600 dark:text-blue-400">Alert Discord & Slack</span>
-                      </div>
-                    </div>
-
-                    <div className="text-xs text-black/50 dark:text-white/50">
-                      12 active background automations running without server configuration
-                    </div>
-                  </div>
-                )}
-
-                {activeFeatureIndex === 2 && (
-                  <div className="relative z-10 h-full flex flex-col justify-between">
-                    <div className="flex items-center justify-between pb-3 border-b border-black/5 dark:border-white/10">
-                      <div>
-                        <span className="text-xs uppercase font-mono tracking-widest text-emerald-600 dark:text-emerald-400 font-semibold">
-                          Live Collaboration
-                        </span>
-                        <h4 className="text-lg font-bold text-black dark:text-white">Real-Time Team Presence</h4>
-                      </div>
-                      <Users className="h-5 w-5 text-emerald-500" />
-                    </div>
-
-                    <div className="space-y-2.5 my-auto">
-                      <div className="p-3 rounded-xl bg-white/70 dark:bg-white/5 border border-black/5 dark:border-white/10 flex items-start gap-3">
-                        <div className="h-7 w-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
-                          S
-                        </div>
-                        <div className="text-xs">
-                          <p className="font-semibold text-black dark:text-white">Sarah Jenkins commented on #TK-108</p>
-                          <p className="text-black/60 dark:text-white/60 mt-0.5">
-                            "Updated the JWT rotation cookie. Ready for staging deploy."
-                          </p>
-                        </div>
-                      </div>
-                      <div className="p-3 rounded-xl bg-white/70 dark:bg-white/5 border border-black/5 dark:border-white/10 flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                          <span>4 team members viewing board</span>
-                        </div>
-                        <span className="font-mono text-black/40 dark:text-white/40">Sub-10ms sync</span>
-                      </div>
-                    </div>
-
-                    <div className="text-xs text-black/50 dark:text-white/50">
-                      Zero lock-in, WebSocket synchronized board states
-                    </div>
-                  </div>
-                )}
-
-                {activeFeatureIndex === 3 && (
-                  <div className="relative z-10 h-full flex flex-col justify-between">
-                    <div className="flex items-center justify-between pb-3 border-b border-black/5 dark:border-white/10">
-                      <div>
-                        <span className="text-xs uppercase font-mono tracking-widest text-amber-600 dark:text-amber-400 font-semibold">
-                          AI Context Engine
-                        </span>
-                        <h4 className="text-lg font-bold text-black dark:text-white">Intelligent Issue Summaries</h4>
-                      </div>
-                      <Sparkles className="h-5 w-5 text-amber-500" />
-                    </div>
-
-                    <div className="p-3.5 rounded-xl bg-white/70 dark:bg-white/5 border border-black/5 dark:border-white/10 text-xs space-y-2 my-auto">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-black dark:text-white">Auto-Generated Release Notes</span>
-                        <span className="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded font-mono">
-                          Gemini 1.5
-                        </span>
-                      </div>
-                      <p className="text-black/70 dark:text-white/70 leading-relaxed">
-                        • Replaced legacy transitions with KokonutUI Apple liquid glass card effects.
-                        <br />• Enhanced hero with anime.js timeline sequencing.
-                        <br />• Reduced cumulative layout shift to absolute zero.
-                      </p>
-                    </div>
-
-                    <div className="text-xs text-black/50 dark:text-white/50">
-                      Context understanding across all project threads and commits
-                    </div>
-                  </div>
-                )}
-              </LiquidGlassCard>
-            </div>
-
-            {/* Right Column: Accordion Items Matching Lume Design */}
-            <div className="flex flex-col justify-center">
-              <div className="flex flex-col gap-4">
-                {features.map((item, idx) => {
-                  const Icon = item.icon;
-                  const isActive = activeFeatureIndex === idx;
-
-                  return (
-                    <div
-                      key={item.id}
-                      className="group border-neutral-200 border-b dark:border-neutral-800 transition-colors"
+                  {/* Left Column: Interactive Liquid Glass Preview Card */}
+                  <div ref={featureShowcaseRef} className="relative h-[320px] w-full sm:h-[380px] lg:h-[420px]">
+                    <LiquidGlassCard
+                      scale={30}
+                      className="relative h-full w-full overflow-hidden rounded-2xl border border-black/10 bg-gradient-to-br from-neutral-100 via-neutral-50 to-neutral-200 shadow-2xl p-6 dark:border-white/10 dark:from-neutral-900 dark:via-black dark:to-neutral-950 flex flex-col justify-between"
                     >
-                      <button
-                        type="button"
-                        onClick={() => handleFeatureChange(idx)}
-                        className="flex w-full items-center justify-between py-4 text-left transition-colors cursor-pointer"
-                      >
-                        <div className="flex items-center gap-4">
-                          <Icon className={`h-6 w-6 transition-all duration-200 ${item.accent}`} />
-                          <span
-                            className={`font-semibold text-xl tracking-tight transition-colors duration-200 sm:text-2xl ${
-                              isActive
-                                ? 'text-black dark:text-white'
-                                : 'text-black/60 group-hover:text-black dark:text-white/60 dark:group-hover:text-white'
-                            }`}
-                          >
-                            {item.title}
-                          </span>
-                        </div>
-                        <ChevronDown
-                          className={`h-5 w-5 text-black/40 transition-transform duration-300 dark:text-white/40 ${
-                            isActive ? 'rotate-180 text-black dark:text-white' : ''
-                          }`}
-                        />
-                      </button>
+                      {/* Background Ambient Radial Glows */}
+                      <div className="absolute top-8 right-8 h-28 w-28 animate-pulse rounded-full bg-blue-500/20 blur-3xl pointer-events-none" />
+                      <div className="absolute bottom-10 left-10 h-32 w-32 animate-pulse rounded-full bg-purple-500/20 blur-3xl pointer-events-none" />
 
-                      {isActive && (
-                        <div className="pb-6 pl-10 animate-in fade-in slide-in-from-top-2 duration-300">
-                          <p className="text-base text-black/60 leading-relaxed tracking-tight dark:text-white/60">
-                            {item.description}
-                          </p>
+                      {/* Active Feature Showcase View */}
+                      {activeFeatureIndex === 0 && (
+                        <div className="relative z-10 h-full flex flex-col justify-between">
+                          <div className="flex items-center justify-between pb-3 border-b border-black/5 dark:border-white/10">
+                            <div>
+                              <span className="text-xs uppercase font-mono tracking-widest text-blue-600 dark:text-blue-400 font-semibold">
+                                Analytics Engine
+                              </span>
+                              <h4 className="text-lg font-bold text-black dark:text-white">Team Velocity & Throughput</h4>
+                            </div>
+                            <span className="text-xs font-mono px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold">
+                              +28% this sprint
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-3 my-auto">
+                            <div className="p-3 rounded-xl bg-white/70 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-sm">
+                              <span className="text-[11px] text-black/50 dark:text-white/50">Completion</span>
+                              <p className="text-xl font-bold text-black dark:text-white">94.2%</p>
+                            </div>
+                            <div className="p-3 rounded-xl bg-white/70 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-sm">
+                              <span className="text-[11px] text-black/50 dark:text-white/50">Cycle Time</span>
+                              <p className="text-xl font-bold text-black dark:text-white">2.1d</p>
+                            </div>
+                            <div className="p-3 rounded-xl bg-white/70 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-sm">
+                              <span className="text-[11px] text-black/50 dark:text-white/50">Tasks Shipped</span>
+                              <p className="text-xl font-bold text-black dark:text-white">128</p>
+                            </div>
+                          </div>
+
+                          <div className="p-3 rounded-xl bg-white/80 dark:bg-white/[0.04] border border-black/5 dark:border-white/10 flex items-center justify-between text-xs">
+                            <span className="text-black/60 dark:text-white/60">Automated velocity calculation</span>
+                            <span className="font-mono text-black dark:text-white font-medium">Zero bottleneck detected</span>
+                          </div>
                         </div>
                       )}
+
+                      {activeFeatureIndex === 1 && (
+                        <div className="relative z-10 h-full flex flex-col justify-between">
+                          <div className="flex items-center justify-between pb-3 border-b border-black/5 dark:border-white/10">
+                            <div>
+                              <span className="text-xs uppercase font-mono tracking-widest text-purple-600 dark:text-purple-400 font-semibold">
+                                Workflow Automation
+                              </span>
+                              <h4 className="text-lg font-bold text-black dark:text-white">Trigger & Event Matrix</h4>
+                            </div>
+                            <Zap className="h-5 w-5 text-purple-500" />
+                          </div>
+
+                          <div className="space-y-2 my-auto">
+                            <div className="p-3 rounded-xl bg-white/70 dark:bg-white/5 border border-black/5 dark:border-white/10 flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-2">
+                                <GitBranch className="h-4 w-4 text-purple-500" />
+                                <span>PR Merged in GitHub</span>
+                              </div>
+                              <ArrowRight className="h-3.5 w-3.5 text-black/40 dark:text-white/40" />
+                              <span className="font-semibold text-emerald-600 dark:text-emerald-400">Move Task to Done</span>
+                            </div>
+                            <div className="p-3 rounded-xl bg-white/70 dark:bg-white/5 border border-black/5 dark:border-white/10 flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-4 w-4 text-amber-500" />
+                                <span>Sprint Due in 24h</span>
+                              </div>
+                              <ArrowRight className="h-3.5 w-3.5 text-black/40 dark:text-white/40" />
+                              <span className="font-semibold text-blue-600 dark:text-blue-400">Alert Discord & Slack</span>
+                            </div>
+                          </div>
+
+                          <div className="text-xs text-black/50 dark:text-white/50">
+                            12 active background automations running without server configuration
+                          </div>
+                        </div>
+                      )}
+
+                      {activeFeatureIndex === 2 && (
+                        <div className="relative z-10 h-full flex flex-col justify-between">
+                          <div className="flex items-center justify-between pb-3 border-b border-black/5 dark:border-white/10">
+                            <div>
+                              <span className="text-xs uppercase font-mono tracking-widest text-emerald-600 dark:text-emerald-400 font-semibold">
+                                Live Collaboration
+                              </span>
+                              <h4 className="text-lg font-bold text-black dark:text-white">Real-Time Team Presence</h4>
+                            </div>
+                            <Users className="h-5 w-5 text-emerald-500" />
+                          </div>
+
+                          <div className="space-y-2.5 my-auto">
+                            <div className="p-3 rounded-xl bg-white/70 dark:bg-white/5 border border-black/5 dark:border-white/10 flex items-start gap-3">
+                              <div className="h-7 w-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                                S
+                              </div>
+                              <div className="text-xs">
+                                <p className="font-semibold text-black dark:text-white">Sarah Jenkins commented on #TK-108</p>
+                                <p className="text-black/60 dark:text-white/60 mt-0.5">
+                                  "Updated the JWT rotation cookie. Ready for staging deploy."
+                                </p>
+                              </div>
+                            </div>
+                            <div className="p-3 rounded-xl bg-white/70 dark:bg-white/5 border border-black/5 dark:border-white/10 flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-2">
+                                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                                <span>4 team members viewing board</span>
+                              </div>
+                              <span className="font-mono text-black/40 dark:text-white/40">Sub-10ms sync</span>
+                            </div>
+                          </div>
+
+                          <div className="text-xs text-black/50 dark:text-white/50">
+                            Zero lock-in, WebSocket synchronized board states
+                          </div>
+                        </div>
+                      )}
+
+                      {activeFeatureIndex === 3 && (
+                        <div className="relative z-10 h-full flex flex-col justify-between">
+                          <div className="flex items-center justify-between pb-3 border-b border-black/5 dark:border-white/10">
+                            <div>
+                              <span className="text-xs uppercase font-mono tracking-widest text-amber-600 dark:text-amber-400 font-semibold">
+                                AI Context Engine
+                              </span>
+                              <h4 className="text-lg font-bold text-black dark:text-white">Intelligent Issue Summaries</h4>
+                            </div>
+                            <Sparkles className="h-5 w-5 text-amber-500" />
+                          </div>
+
+                          <div className="p-3.5 rounded-xl bg-white/70 dark:bg-white/5 border border-black/5 dark:border-white/10 text-xs space-y-2 my-auto">
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-black dark:text-white">Auto-Generated Release Notes</span>
+                              <span className="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded font-mono">
+                                Gemini 1.5
+                              </span>
+                            </div>
+                            <p className="text-black/70 dark:text-white/70 leading-relaxed">
+                              • Replaced legacy transitions with KokonutUI Apple liquid glass card effects.
+                              <br />• Enhanced hero with anime.js timeline sequencing.
+                              <br />• Reduced cumulative layout shift to absolute zero.
+                            </p>
+                          </div>
+
+                          <div className="text-xs text-black/50 dark:text-white/50">
+                            Context understanding across all project threads and commits
+                          </div>
+                        </div>
+                      )}
+                    </LiquidGlassCard>
+                  </div>
+
+                  {/* Right Column: Accordion Items Matching Lume Design */}
+                  <div className="flex flex-col justify-center">
+                    <div className="flex flex-col gap-4">
+                      {features.map((item, idx) => {
+                        const Icon = item.icon;
+                        const isActive = activeFeatureIndex === idx;
+
+                        return (
+                          <div
+                            key={item.id}
+                            className="group border-neutral-200 border-b dark:border-neutral-800 transition-colors"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => handleFeatureChange(idx)}
+                              className="flex w-full items-center justify-between py-4 text-left transition-colors cursor-pointer"
+                            >
+                              <div className="flex items-center gap-4">
+                                <Icon className={`h-6 w-6 transition-all duration-200 ${item.accent}`} />
+                                <span
+                                  className={`font-semibold text-xl tracking-tight transition-colors duration-200 sm:text-2xl ${isActive
+                                    ? 'text-black dark:text-white'
+                                    : 'text-black/60 group-hover:text-black dark:text-white/60 dark:group-hover:text-white'
+                                    }`}
+                                >
+                                  {item.title}
+                                </span>
+                              </div>
+                              <ChevronDown
+                                className={`h-5 w-5 text-black/40 transition-transform duration-300 dark:text-white/40 ${isActive ? 'rotate-180 text-black dark:text-white' : ''
+                                  }`}
+                              />
+                            </button>
+
+                            {isActive && (
+                              <div className="pb-6 pl-10 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <p className="text-base text-black/60 leading-relaxed tracking-tight dark:text-white/60">
+                                  {item.description}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </section>
+          </section>
 
-      {/* 4. FAQ SECTION (Matching KokonutUI Lume (001) Numbered Style) */}
-      <section
-        id="faq"
-        className="section section-2 section-faq w-full h-[calc(100vh-64px)] relative flex justify-center box-border overflow-hidden rounded-2xl sm:rounded-3xl border border-neutral-200/90 dark:border-neutral-800/80 bg-white dark:bg-[#111215] shadow-2xl backdrop-blur-sm"
-      >
-        <div className="section-content w-full h-full flex justify-center overflow-hidden">
-          <div className="section-inner w-full max-w-3xl px-6 pt-12 pb-[20vh] sm:pt-16 md:pt-20 flex flex-col items-center">
-            <div className="mb-12 text-center">
-              <h2 className="font-semibold text-2xl text-black tracking-tight sm:text-3xl dark:text-white">
-                Frequently asked questions
-              </h2>
-            </div>
-
-            <div className="w-full space-y-2">
-            {faqs.map((faq, index) => {
-              const isOpen = openFaqIndex === index;
-
-              return (
-                <div
-                  key={faq.number}
-                  className="group relative border-neutral-200 border-t dark:border-neutral-800 transition-colors"
-                >
-                  <button
-                    type="button"
-                    onClick={() => setOpenFaqIndex(isOpen ? null : index)}
-                    className="relative flex w-full items-center justify-between py-4 text-left cursor-pointer"
-                    aria-expanded={isOpen}
-                  >
-                    <div className="flex items-center gap-4">
-                      <span className="font-mono text-neutral-400 text-xs transition-colors duration-200 group-hover:text-neutral-600 dark:text-neutral-500 dark:group-hover:text-neutral-400">
-                        ({faq.number})
-                      </span>
-                      <h3 className="font-medium text-sm tracking-tight transition-colors duration-200 group-hover:text-neutral-700 dark:group-hover:text-neutral-200 text-black dark:text-white">
-                        {faq.question}
-                      </h3>
-                    </div>
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center">
-                      {isOpen ? (
-                        <Minus className="h-4 w-4 text-neutral-400 transition-colors duration-200 group-hover:text-neutral-600 dark:text-neutral-500 dark:group-hover:text-neutral-400" />
-                      ) : (
-                        <Plus className="h-4 w-4 text-neutral-400 transition-colors duration-200 group-hover:text-neutral-600 dark:text-neutral-500 dark:group-hover:text-neutral-400" />
-                      )}
-                    </div>
-                  </button>
-
-                  {isOpen && (
-                    <div className="pb-4 pl-8 animate-in fade-in slide-in-from-top-1 duration-200">
-                      <p className="text-neutral-600 text-sm leading-relaxed tracking-tight dark:text-neutral-400">
-                        {faq.answer}
-                      </p>
-                    </div>
-                  )}
+          {/* 4. FAQ SECTION (Matching KokonutUI Lume (001) Numbered Style) */}
+          <section
+            id="faq"
+            className="section section-2 section-faq w-full h-[calc(100vh-64px)] relative flex justify-center box-border overflow-hidden rounded-2xl sm:rounded-3xl border border-neutral-200/90 dark:border-neutral-800/80 bg-white dark:bg-[#111215] shadow-2xl backdrop-blur-sm"
+          >
+            <div className="section-content w-full h-full flex justify-center overflow-hidden">
+              <div className="section-inner w-full max-w-3xl px-6 pt-12 pb-[20vh] sm:pt-16 md:pt-20 flex flex-col items-center">
+                <div className="mb-12 text-center">
+                  <h2 className="font-semibold text-2xl text-black tracking-tight sm:text-3xl dark:text-white">
+                    Frequently asked questions
+                  </h2>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </section>
 
-    {/* Dummy / Anchor element so panels.pop() pops this end-marker leaving section-1 & section-2 as active overscrolling panels */}
-    <div className="section section-end h-px w-full pointer-events-none opacity-0" />
-  </div>
-</main>
+                <div className="w-full space-y-2">
+                  {faqs.map((faq, index) => {
+                    const isOpen = openFaqIndex === index;
+
+                    return (
+                      <div
+                        key={faq.number}
+                        className="group relative border-neutral-200 border-t dark:border-neutral-800 transition-colors"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setOpenFaqIndex(isOpen ? null : index)}
+                          className="relative flex w-full items-center justify-between py-4 text-left cursor-pointer"
+                          aria-expanded={isOpen}
+                        >
+                          <div className="flex items-center gap-4">
+                            <span className="font-mono text-neutral-400 text-xs transition-colors duration-200 group-hover:text-neutral-600 dark:text-neutral-500 dark:group-hover:text-neutral-400">
+                              ({faq.number})
+                            </span>
+                            <h3 className="font-medium text-sm tracking-tight transition-colors duration-200 group-hover:text-neutral-700 dark:group-hover:text-neutral-200 text-black dark:text-white">
+                              {faq.question}
+                            </h3>
+                          </div>
+                          <div className="flex h-6 w-6 shrink-0 items-center justify-center">
+                            {isOpen ? (
+                              <Minus className="h-4 w-4 text-neutral-400 transition-colors duration-200 group-hover:text-neutral-600 dark:text-neutral-500 dark:group-hover:text-neutral-400" />
+                            ) : (
+                              <Plus className="h-4 w-4 text-neutral-400 transition-colors duration-200 group-hover:text-neutral-600 dark:text-neutral-500 dark:group-hover:text-neutral-400" />
+                            )}
+                          </div>
+                        </button>
+
+                        {isOpen && (
+                          <div className="pb-4 pl-8 animate-in fade-in slide-in-from-top-1 duration-200">
+                            <p className="text-neutral-600 text-sm leading-relaxed tracking-tight dark:text-neutral-400">
+                              {faq.answer}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Dummy / Anchor element so panels.pop() pops this end-marker leaving section-1 & section-2 as active overscrolling panels */}
+          <div className="section section-end h-px w-full pointer-events-none opacity-0" />
+        </div>
+      </main>
 
       {/* ─────────────────────────────────────────────────────────────────────────
           6. FOOTER (Minimalist 5-Column Grid with Alpine Landscape Artwork)

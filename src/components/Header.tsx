@@ -173,7 +173,7 @@ interface HeaderProps {
   onNavigate?: (view: View) => void;
   onOpenPWA?: () => void;
   onTaskClick?: (taskId: string) => void;
-  onProjectClick?: (projectId: string, tab?: 'overview' | 'tasks' | 'milestones' | 'members' | 'burndown' | 'settings') => void;
+  onProjectClick?: (projectId: string, tab?: 'overview' | 'tasks' | 'milestones' | 'members' | 'messages' | 'settings') => void;
 }
 
 export default function Header({

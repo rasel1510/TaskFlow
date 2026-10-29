@@ -47,7 +47,7 @@ const mockMilestonesStore: Map<string, MilestoneRecord[]> = new Map([
         id: 'ms-102',
         projectId: 'proj-1',
         title: 'v1.1 Advanced Analytics & SLA',
-        description: 'Predictive health engine, Burndown curves, and CSV export streaming.',
+        description: 'Predictive health engine, velocity analytics, and CSV export streaming.',
         targetDate: '2026-10-15',
         completed: false,
         tasksCount: 8,

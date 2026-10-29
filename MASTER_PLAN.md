@@ -566,7 +566,7 @@ model ProjectMilestone {
 - `OWNER`: Full project destruction, settings modification, transfer ownership.
 - `LEAD`: Milestone management, project settings editing, member role modification.
 - `CONTRIBUTOR`: Task creation, assignment, status progression, comment authoring.
-- `VIEWER`: Read-only access to Kanban, lists, and burndown analytics.
+- `VIEWER`: Read-only access to Kanban, lists, and project analytics.
 **Add to `prisma/schema.prisma`:**
 ```prisma
 enum ProjectRole {
@@ -607,14 +607,8 @@ model ProjectMember {
 
 ---
 
-### Step 4.12 — Project Burndown & Velocity Analytics Engine
-**Goal**: Real-time project completion trajectory comparing ideal burn line vs actual remaining work.
-**Create:** `src/api/projects/[id]/burndown/route.ts`
-- Computes daily task resolution points over project duration `[startDate, dueDate]`.
-- Calculates ideal daily resolution slope: `slope = totalTasks / totalDays`.
-- Returns actual remaining tasks per day using `Task` `createdAt` and `Activity` completion events.
-**Modify:** `src/views/ProjectDetail.tsx` — render SVG Burndown Chart with projected completion target date based on team velocity.
-**Recruiter Signal**: Mathematical visualization, historical event aggregation, enterprise sprint velocity tracking.
+### Step 4.12 — Project Analytics & Milestone Engine
+*(Burndown feature removed)*
 
 ---
 
@@ -796,7 +790,7 @@ src/
 - [x] 4.9 Project Milestones & Release Sprint Roadmaps
 - [x] 4.10 Project-scoped Role-Based Access Control (RBAC)
 - [x] 4.11 Project Lifecycle state machine (ACTIVE / ARCHIVED)
-- [x] 4.12 Project Burndown & Velocity Analytics engine
+- [x] 4.12 Project Analytics & Milestone engine (burndown removed)
 - [x] 4.13 AbortController cleanup in useEffects
 
 ### Phase 5: Polish & Production Readiness (5/5 Completed - 100%)

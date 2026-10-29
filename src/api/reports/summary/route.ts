@@ -51,7 +51,6 @@ export async function GET(request: NextRequest) {
         priorityDistribution: { low: 0, medium: 0, high: 0, urgent: 0 },
         projectDistribution: {},
         userPerformance: [],
-        burndown: [],
         leadTimeDays: 0,
         cycleTimeDays: 0,
         throughputPerWeek: 0,

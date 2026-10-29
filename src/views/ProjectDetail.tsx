@@ -9,7 +9,6 @@ import { ROLE_DESCRIPTIONS, type ProjectRole, normalizeDesignation } from '@/lib
 import type { MilestoneRecord } from '@/api/projects/[id]/milestones/route';
 import type { MemberRecord } from '@/api/projects/[id]/members/route';
 import type { ProjectInvitationRecord } from '@/api/projects/[id]/invitations/route';
-import type { BurndownResult } from '@/api/projects/[id]/burndown/route';
 import type { ProjectMessage } from '@/api/projects/[id]/messages/route';
 import DatePicker from '@/components/ui/DatePicker';
 import AddProjectMembersModal from '@/components/AddProjectMembersModal';
@@ -64,7 +63,7 @@ interface ProjectDetailProps {
   onBack: () => void;
   onTaskClick: (taskId: string) => void;
   onCreateTask?: (projectId: string) => void;
-  initialTab?: 'overview' | 'tasks' | 'milestones' | 'members' | 'messages' | 'burndown' | 'settings';
+  initialTab?: 'overview' | 'tasks' | 'milestones' | 'members' | 'messages' | 'settings';
 }
 
 function getTwoLetterCapital(name?: string | null, fallbackAvatar?: string | null): string {
@@ -155,7 +154,7 @@ export default function ProjectDetail({
 }: ProjectDetailProps) {
   const [project, setProject] = useState<ProjectData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'milestones' | 'members' | 'messages' | 'burndown' | 'settings'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'milestones' | 'members' | 'messages' | 'settings'>(initialTab);
   const [taskSearch, setTaskSearch] = useState('');
   const [taskStatusFilter, setTaskStatusFilter] = useState('all');
 
@@ -233,10 +232,6 @@ export default function ProjectDetail({
     avatar?: string;
   } | null>(null);
   const [isRemovingMember, setIsRemovingMember] = useState(false);
-
-  // Burndown state
-  const [burndown, setBurndown] = useState<BurndownResult | null>(null);
-  const [burndownLoading, setBurndownLoading] = useState(false);
 
   // Lifecycle state
   const [lifecycleState, setLifecycleState] = useState<ProjectLifecycleState>('ACTIVE');
@@ -532,16 +527,6 @@ export default function ProjectDetail({
     }
   };
 
-  const fetchBurndown = useCallback(async () => {
-    setBurndownLoading(true);
-    try {
-      const res = await fetch(`/api/projects/${projectId}/burndown`);
-      const json = await res.json();
-      if (json.success) setBurndown(json.data);
-    } catch (e) { console.warn('[ProjectDetail] Burndown fetch error:', e); }
-    finally { setBurndownLoading(false); }
-  }, [projectId]);
-
   useEffect(() => {
     const controller = new AbortController();
     fetchProject(controller.signal);
@@ -573,12 +558,11 @@ export default function ProjectDetail({
       fetchJoinRequests();
       fetchInvitations();
     }
-    if (activeTab === 'burndown') fetchBurndown();
     if (activeTab === 'messages') {
       fetchMessages();
       fetchMembers();
     }
-  }, [activeTab, fetchMilestones, fetchMembers, fetchJoinRequests, fetchInvitations, fetchBurndown]);
+  }, [activeTab, fetchMilestones, fetchMembers, fetchJoinRequests, fetchInvitations]);
 
   const fetchMessages = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -1030,7 +1014,6 @@ export default function ProjectDetail({
             { key: 'milestones', label: 'Roadmap' },
             { key: 'members', label: 'Team' },
             { key: 'messages', label: `Messages${messages.length > 0 ? ` (${messages.length})` : ''}` },
-            { key: 'burndown', label: 'Burndown' },
           ] as { key: typeof activeTab; label: string }[]).map(({ key, label }) => (
             <button
               key={key}
@@ -1609,98 +1592,6 @@ export default function ProjectDetail({
                   })}
                 </div>
               </div>
-            )}
-          </div>
-        )}
-
-        {/* Tab 5: Burndown & Velocity (Step 4.12) */}
-        {activeTab === 'burndown' && (
-          <div className="space-y-5">
-            <h3 className="text-[16px] font-semibold text-[#111111]">Burndown &amp; Velocity Analytics</h3>
-            {burndownLoading ? (
-              <div className="py-10 text-center text-[13px] text-[rgba(17,17,17,0.4)]">Computing burndown chart...</div>
-            ) : !burndown ? (
-              <div className="py-10 text-center text-[13px] text-[rgba(17,17,17,0.4)]">Burndown data unavailable for this project.</div>
-            ) : (
-              <>
-                {/* KPI strip */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {[
-                    { label: 'Total Tasks', value: String(burndown.totalTasks), color: '#2563EB' },
-                    { label: 'Completed', value: String(burndown.completedTasks), color: '#16A34A' },
-                    { label: 'Velocity (7d)', value: `${burndown.velocityLast7Days} tasks`, color: '#7C3AED' },
-                    { label: 'Forecast', value: burndown.forecastedCompletionDate || 'N/A', color: burndown.isOnTrack ? '#16A34A' : '#DC2626' },
-                  ].map(k => (
-                    <div key={k.label} className="p-4 rounded-xl border border-[#E5E7EB] bg-white">
-                      <div className="text-[11.5px] text-[rgba(17,17,17,0.45)]">{k.label}</div>
-                      <div className="text-[18px] font-bold mt-1" style={{ color: k.color }}>{k.value}</div>
-                    </div>
-                  ))}
-                </div>
-
-
-                {/* SVG Burndown Chart */}
-                {burndown.series.length > 1 && (
-                  <div className="p-5 rounded-xl border border-[#E5E7EB] bg-white">
-                    <div className="flex items-center gap-5 text-[12px] mb-4 text-[rgba(17,17,17,0.6)]">
-                      <span className="flex items-center gap-1.5">
-                        <span className="inline-block w-6 border-b-2 border-dashed border-[#9CA3AF]"></span>Ideal Burndown
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="inline-block w-6 border-b-2 border-[#2563EB]"></span>Actual Remaining
-                      </span>
-                    </div>
-                    <svg width="100%" viewBox="0 0 640 220" style={{ overflow: 'visible' }}>
-                      {/* Grid lines */}
-                      {[0, 0.25, 0.5, 0.75, 1].map(t => {
-                        const maxY = Math.max(burndown.totalTasks, 1);
-                        const y = 10 + 180 - (t * 180);
-                        return (
-                          <g key={t}>
-                            <line x1={40} x2={620} y1={y} y2={y} stroke="#F3F4F6" strokeWidth="1" />
-                            <text x={36} y={y + 4} textAnchor="end" fontSize="9" fill="#9CA3AF">{Math.round(maxY * t)}</text>
-                          </g>
-                        );
-                      })}
-                      {/* Ideal line (dashed grey) */}
-                      <path
-                        d={burndown.series.map((p, i) => {
-                          const maxY = Math.max(burndown.totalTasks, 1);
-                          const x = 40 + (i / (burndown.series.length - 1)) * 580;
-                          const y = 10 + 180 - (p.ideal / maxY) * 180;
-                          return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
-                        }).join(' ')}
-                        fill="none" stroke="#9CA3AF" strokeWidth="1.5" strokeDasharray="4 3"
-                      />
-                      {/* Actual line (solid blue) */}
-                      <path
-                        d={burndown.series
-                          .map((p, i) => ({ p, i }))
-                          .filter(({ p }) => p.actual !== null)
-                          .map(({ p, i }, idx) => {
-                            const maxY = Math.max(burndown.totalTasks, 1);
-                            const x = 40 + (i / (burndown.series.length - 1)) * 580;
-                            const y = 10 + 180 - ((p.actual as number) / maxY) * 180;
-                            return `${idx === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
-                          }).join(' ')}
-                        fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round"
-                      />
-                      {/* X-axis date labels */}
-                      {burndown.series
-                        .filter((_, i) => i % Math.max(1, Math.floor(burndown.series.length / 6)) === 0)
-                        .map((p, idx) => {
-                          const origIdx = burndown.series.indexOf(p);
-                          const x = 40 + (origIdx / (burndown.series.length - 1)) * 580;
-                          return (
-                            <text key={idx} x={x} y={215} textAnchor="middle" fontSize="9" fill="#9CA3AF">
-                              {p.date.slice(5)}
-                            </text>
-                          );
-                        })}
-                    </svg>
-                  </div>
-                )}
-              </>
             )}
           </div>
         )}
