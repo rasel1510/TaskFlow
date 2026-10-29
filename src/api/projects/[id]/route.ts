@@ -17,6 +17,7 @@ import { UpdateProjectSchema, validationError } from '@/lib/validators';
 import { computeProjectHealth } from '@/lib/projectHealthEngine';
 import { validateLifecycleTransition, type ProjectLifecycleState } from '@/lib/projectLifecycle';
 import redisCache from '@/lib/redis';
+import { getOrProvisionUserTeam } from '@/lib/tenant';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -69,6 +70,27 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       });
 
       if (dbProject) {
+        // Enforce company team boundary
+        try {
+          const session = await auth();
+          const sessionUserId = session?.user?.id;
+          if (sessionUserId) {
+            const teamContext = await getOrProvisionUserTeam(sessionUserId);
+            if (dbProject.teamId && teamContext?.teamId && dbProject.teamId !== teamContext.teamId) {
+              const isMember = await prisma.projectMember.findUnique({
+                where: { projectId_userId: { projectId, userId: sessionUserId } },
+                select: { role: true },
+              });
+              if (!isMember && dbProject.ownerId !== sessionUserId) {
+                return NextResponse.json(
+                  { success: false, error: { code: 'FORBIDDEN', message: 'Access denied: Project belongs to another organization' } },
+                  { status: 403 }
+                );
+              }
+            }
+          }
+        } catch (_) {}
+
         const totalTasks = dbProject.tasks.length;
         const completedTasks = dbProject.tasks.filter((t) => t.status === 'done').length;
         const inProgressTasks = dbProject.tasks.filter(

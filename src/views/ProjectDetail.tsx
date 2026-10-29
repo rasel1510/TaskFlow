@@ -349,7 +349,7 @@ export default function ProjectDetail({
   const fetchAvailableUsers = async () => {
     setAvailableUsersLoading(true);
     try {
-      const res = await fetch('/api/users');
+      const res = await fetch(`/api/users?projectId=${encodeURIComponent(projectId)}`);
       const json = await res.json();
       const usersList = Array.isArray(json) ? json : (json?.data || []);
       setAvailableUsers(usersList);

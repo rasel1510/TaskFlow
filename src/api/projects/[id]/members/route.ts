@@ -22,6 +22,7 @@ import {
 import { ROLE_DESCRIPTIONS, type ProjectRole } from '@/lib/permissions';
 import { getAllStoredUsers } from '@/data/userStore';
 import redisCache from '@/lib/redis';
+import { getOrProvisionUserTeam } from '@/lib/tenant';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -45,6 +46,33 @@ export interface MemberRecord {
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
+
+    // Multi-tenant check: ensure caller belongs to project's company
+    try {
+      const session = await auth();
+      const sessionUserId = session?.user?.id;
+      if (sessionUserId) {
+        const project = await prisma.project.findUnique({
+          where: { id: projectId },
+          select: { teamId: true, ownerId: true },
+        });
+        if (project?.teamId) {
+          const callerTeam = await getOrProvisionUserTeam(sessionUserId);
+          if (callerTeam?.teamId && callerTeam.teamId !== project.teamId) {
+            const isMember = await prisma.projectMember.findUnique({
+              where: { projectId_userId: { projectId, userId: sessionUserId } },
+              select: { role: true },
+            });
+            if (!isMember && project.ownerId !== sessionUserId) {
+              return NextResponse.json(
+                { success: false, error: { code: 'FORBIDDEN', message: 'Access denied: Project belongs to another organization' } },
+                { status: 403 }
+              );
+            }
+          }
+        }
+      }
+    } catch (_) {}
 
     try {
       const dbMembers = await prisma.projectMember.findMany({
@@ -113,6 +141,17 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Project not found' } },
         { status: 404 }
+      );
+    }
+
+    // Resolve caller's team context
+    const callerTeam = sessionUserId ? await getOrProvisionUserTeam(sessionUserId) : null;
+    const projectTeamId = project.teamId || callerTeam?.teamId;
+
+    if (project.teamId && callerTeam?.teamId && project.teamId !== callerTeam.teamId) {
+      return NextResponse.json(
+        { success: false, error: { code: 'FORBIDDEN', message: 'Cannot modify project belonging to another organization' } },
+        { status: 403 }
       );
     }
 
@@ -192,7 +231,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const requestedUserIds = Array.from(uniqueInputs.keys());
 
-    // 3. Batch resolve candidate users from DB & local store (O(N) lookup)
+    // 3. Batch resolve candidate users strictly belonging to this company's team (O(N) lookup)
     let dbUsers: Array<{
       id: string;
       name: string;
@@ -205,9 +244,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
     try {
       dbUsers = await prisma.user.findMany({
         where: {
-          OR: [
-            { id: { in: requestedUserIds } },
-            { email: { in: requestedUserIds } },
+          AND: [
+            ...(projectTeamId ? [{ teamId: projectTeamId }] : []),
+            {
+              OR: [
+                { id: { in: requestedUserIds } },
+                { email: { in: requestedUserIds } },
+              ],
+            },
           ],
         },
         select: {
@@ -251,15 +295,17 @@ export async function POST(request: NextRequest, context: RouteContext) {
       });
     }
 
-    // Check stored fallback users for any missing entries
+    // Check stored fallback users strictly matching this company's teamId
     const allStored = getAllStoredUsers();
     for (const rawId of requestedUserIds) {
       if (!resolvedUserMap.has(rawId) && !resolvedUserMap.has(rawId.toLowerCase())) {
         const found = allStored.find(
-          (u) => u.id === rawId || u.email.toLowerCase() === rawId.toLowerCase()
+          (u) =>
+            (u.id === rawId || u.email.toLowerCase() === rawId.toLowerCase()) &&
+            (!projectTeamId || u.teamId === projectTeamId)
         );
         if (found) {
-          // Ensure user exists in Prisma DB so foreign key constraint holds
+          // Ensure user exists in Prisma DB with project's teamId
           try {
             const upserted = await prisma.user.upsert({
               where: { id: found.id },
@@ -268,10 +314,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
                 name: found.name,
                 email: found.email,
                 role: found.role || 'User',
+                teamId: projectTeamId || undefined,
                 avatar: found.avatar || found.name.slice(0, 2).toUpperCase(),
                 expertise: (found as any).expertise || [],
               },
-              update: {},
+              update: {
+                ...(projectTeamId ? { teamId: projectTeamId } : {}),
+              },
               select: { id: true, name: true, email: true, avatar: true, role: true, expertise: true },
             });
             resolvedUserMap.set(found.id, {
@@ -400,6 +449,27 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
 
+    // Multi-tenant authorization check
+    try {
+      const session = await auth();
+      const sessionUserId = session?.user?.id;
+      if (sessionUserId) {
+        const project = await prisma.project.findUnique({
+          where: { id: projectId },
+          select: { teamId: true, ownerId: true },
+        });
+        if (project?.teamId) {
+          const callerTeam = await getOrProvisionUserTeam(sessionUserId);
+          if (callerTeam?.teamId && callerTeam.teamId !== project.teamId) {
+            return NextResponse.json(
+              { success: false, error: { code: 'FORBIDDEN', message: 'Cannot modify project belonging to another organization' } },
+              { status: 403 }
+            );
+          }
+        }
+      }
+    } catch (_) {}
+
     let body: Record<string, unknown>;
     try { body = await request.json(); } catch {
       return NextResponse.json(
@@ -451,6 +521,28 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
+
+    // Multi-tenant authorization check
+    try {
+      const session = await auth();
+      const sessionUserId = session?.user?.id;
+      if (sessionUserId) {
+        const project = await prisma.project.findUnique({
+          where: { id: projectId },
+          select: { teamId: true, ownerId: true },
+        });
+        if (project?.teamId) {
+          const callerTeam = await getOrProvisionUserTeam(sessionUserId);
+          if (callerTeam?.teamId && callerTeam.teamId !== project.teamId) {
+            return NextResponse.json(
+              { success: false, error: { code: 'FORBIDDEN', message: 'Cannot modify project belonging to another organization' } },
+              { status: 403 }
+            );
+          }
+        }
+      }
+    } catch (_) {}
+
     const { searchParams } = new URL(request.url);
     const targetUserId = searchParams.get('uid');
 

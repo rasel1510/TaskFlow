@@ -295,6 +295,18 @@ export async function POST(request: NextRequest) {
 
         for (const [memberUserId, memberRole] of uniqueMembers.entries()) {
           try {
+            // Strictly enforce multi-tenant isolation: verify user belongs to this company's team
+            if (teamContext?.teamId) {
+              const isCompanyMember = await prisma.user.findFirst({
+                where: { id: memberUserId, teamId: teamContext.teamId },
+                select: { id: true },
+              });
+              if (!isCompanyMember) {
+                console.warn(`[POST /api/projects] Blocked cross-tenant initial member ${memberUserId}`);
+                continue;
+              }
+            }
+
             await prisma.projectMember.upsert({
               where: {
                 projectId_userId: {

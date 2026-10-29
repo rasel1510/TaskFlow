@@ -614,7 +614,8 @@ export default function Settings() {
 
       if (usersRes?.ok) {
         const json = await usersRes.json();
-        setMembers(json.data ?? []);
+        const userList = Array.isArray(json) ? json : (json?.data ?? []);
+        setMembers(userList);
       }
 
       if (invitesRes?.ok) {

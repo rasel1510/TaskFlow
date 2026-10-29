@@ -111,7 +111,7 @@ export default function AddProjectMembersModal({
     const fetchUsers = async () => {
       setLoadingUsers(true);
       try {
-        const res = await fetch('/api/users');
+        const res = await fetch(`/api/users?projectId=${encodeURIComponent(projectId)}`);
         const json = await res.json();
         const list: AvailableUser[] = Array.isArray(json) ? json : (json?.data || []);
         if (isMounted) {
@@ -127,7 +127,7 @@ export default function AddProjectMembersModal({
 
     fetchUsers();
     return () => { isMounted = false; };
-  }, [isOpen, toast]);
+  }, [isOpen, projectId, toast]);
 
   // Keyboard dismiss (Escape)
   useEffect(() => {
@@ -675,3 +675,4 @@ export default function AddProjectMembersModal({
     </div>
   );
 }
+
