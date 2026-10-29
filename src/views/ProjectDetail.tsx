@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { healthColors, statusColors, priorityColors, type ProjectHealth, type Status, type Priority } from '@/data/mockData';
 import { useToast } from '@/components/ui/Toast';
 import { LIFECYCLE_STATE_CONFIG, validateLifecycleTransition, type ProjectLifecycleState } from '@/lib/projectLifecycle';
-import { ROLE_DESCRIPTIONS, type ProjectRole } from '@/lib/permissions';
+import { ROLE_DESCRIPTIONS, type ProjectRole, normalizeDesignation } from '@/lib/permissions';
 import type { MilestoneRecord } from '@/api/projects/[id]/milestones/route';
 import type { MemberRecord } from '@/api/projects/[id]/members/route';
 import type { ProjectInvitationRecord } from '@/api/projects/[id]/invitations/route';
@@ -185,13 +185,15 @@ export default function ProjectDetail({
   const { data: session } = useSession();
   const currentUserId = (session?.user as { id?: string })?.id;
   const currentUserRole = (session?.user as { role?: string })?.role;
-  const isPM =
-    currentUserRole === 'Project Manager' ||
+  const isAdmin =
     currentUserRole === 'Admin' ||
     currentUserRole === 'ADMIN' ||
-    currentUserRole === 'PROJECT_MANAGER' ||
-    currentUserRole?.toLowerCase() === 'project manager' ||
     currentUserRole?.toLowerCase() === 'admin';
+  const isPM =
+    isAdmin ||
+    currentUserRole === 'Project Manager' ||
+    currentUserRole === 'PROJECT_MANAGER' ||
+    currentUserRole?.toLowerCase() === 'project manager';
   const isPMOrOwner = project?.owner?.id === currentUserId || isPM;
 
   // Join Requests state
@@ -1377,15 +1379,19 @@ export default function ProjectDetail({
                           <div className="flex items-center justify-between gap-2 pt-1 border-t border-[#FEEFC3]">
                             <div className="flex items-center gap-1.5">
                               <span className="text-[11px] font-medium text-gray-500">Role:</span>
-                              <select
-                                value={selectedRole}
-                                onChange={e => setRequestApprovalRoles(prev => ({ ...prev, [req.id]: e.target.value as ProjectRole }))}
-                                className="text-[11.5px] border border-[#E5E7EB] rounded-md px-2 py-1 bg-white outline-none font-medium text-gray-700"
-                              >
-                                <option value="Member">Member</option>
-                                <option value="Project Manager">Project Manager</option>
-                                <option value="Admin">Admin</option>
-                              </select>
+                              {isAdmin ? (
+                                <select
+                                  value={selectedRole}
+                                  onChange={e => setRequestApprovalRoles(prev => ({ ...prev, [req.id]: e.target.value as ProjectRole }))}
+                                  className="text-[11.5px] border border-[#E5E7EB] rounded-md px-2 py-1 bg-white outline-none font-medium text-gray-700"
+                                >
+                                  <option value="Member">Member</option>
+                                  <option value="Project Manager">Project Manager</option>
+                                  <option value="Admin">Admin</option>
+                                </select>
+                              ) : (
+                                <span className="text-[11.5px] font-semibold text-gray-700">Member</span>
+                              )}
                             </div>
 
                             <div className="flex items-center gap-2">
@@ -1464,7 +1470,7 @@ export default function ProjectDetail({
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-[13.5px] font-semibold text-[#111111]">{m.name}</span>
-                              <span className="text-[11px] text-[rgba(17,17,17,0.4)] font-medium">({m.userRole || 'Member'})</span>
+                              <span className="text-[11px] text-[rgba(17,17,17,0.4)] font-medium">({normalizeDesignation(m.userRole)})</span>
                             </div>
                             <div className="text-[12px] text-[rgba(17,17,17,0.45)]">{m.email}</div>
 
@@ -1483,12 +1489,12 @@ export default function ProjectDetail({
 
                         {/* Role & Permissions controls */}
                         <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
-                          {isPMOrOwner && m.role !== 'OWNER' ? (
+                          {isAdmin ? (
                             <div className="flex items-center gap-2">
                               <select
                                 value={m.role}
                                 onChange={e => handleUpdateMemberRole(m.userId, e.target.value as ProjectRole)}
-                                className="text-[12px] border border-[#E5E7EB] rounded-lg px-2.5 py-1.5 bg-white font-medium text-gray-700 outline-none"
+                                className="text-[12px] border border-[#E5E7EB] rounded-lg px-2.5 py-1.5 bg-white font-medium text-gray-700 outline-none focus:border-[#2563EB] cursor-pointer"
                               >
                                 <option value="Member">Member</option>
                                 <option value="Project Manager">Project Manager</option>

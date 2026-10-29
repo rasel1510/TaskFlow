@@ -31,8 +31,9 @@ import {
   AlertCircle,
   Filter,
 } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { useToast } from '@/components/ui/Toast';
-import type { ProjectRole } from '@/lib/permissions';
+import { type ProjectRole, normalizeDesignation } from '@/lib/permissions';
 
 export interface AvailableUser {
   id: string;
@@ -87,6 +88,12 @@ export default function AddProjectMembersModal({
   onSuccess,
 }: AddProjectMembersModalProps) {
   const toast = useToast();
+  const { data: session } = useSession();
+  const userRole = (session?.user as { role?: string })?.role;
+  const isAdmin =
+    userRole === 'Admin' ||
+    userRole === 'ADMIN' ||
+    userRole?.toLowerCase() === 'admin';
 
   const [users, setUsers] = useState<AvailableUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -247,11 +254,12 @@ export default function AddProjectMembersModal({
   // Single-user instant addition
   const handleAddSingle = async (userId: string, role: ProjectRole) => {
     setSingleAddingId(userId);
+    const assignedRole = isAdmin ? role : 'Member';
     try {
       const res = await fetch(`/api/projects/${projectId}/members`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, role }),
+        body: JSON.stringify({ userId, role: assignedRole }),
       });
 
       const json = await res.json();
@@ -287,7 +295,7 @@ export default function AddProjectMembersModal({
 
     setSubmitting(true);
     try {
-      const membersPayload = entries.map(([userId, role]) => ({ userId, role }));
+      const membersPayload = entries.map(([userId, role]) => ({ userId, role: isAdmin ? role : 'Member' }));
 
       const res = await fetch(`/api/projects/${projectId}/members`, {
         method: 'POST',
@@ -459,15 +467,19 @@ export default function AddProjectMembersModal({
             {selectedCount > 0 && (
               <div className="flex items-center gap-2">
                 <span className="text-gray-500 text-[11px] font-medium">Default Role:</span>
-                <select
-                  value={bulkRole}
-                  onChange={e => handleApplyBulkRole(e.target.value as ProjectRole)}
-                  className="text-[11.5px] font-semibold border border-[#E5E7EB] rounded-lg px-2 py-1 bg-white text-gray-700 outline-none focus:border-[#2563EB]"
-                >
-                  <option value="Member">Member</option>
-                  <option value="Project Manager">Project Manager</option>
-                  <option value="Admin">Admin</option>
-                </select>
+                {isAdmin ? (
+                  <select
+                    value={bulkRole}
+                    onChange={e => handleApplyBulkRole(e.target.value as ProjectRole)}
+                    className="text-[11.5px] font-semibold border border-[#E5E7EB] rounded-lg px-2 py-1 bg-white text-gray-700 outline-none focus:border-[#2563EB]"
+                  >
+                    <option value="Member">Member</option>
+                    <option value="Project Manager">Project Manager</option>
+                    <option value="Admin">Admin</option>
+                  </select>
+                ) : (
+                  <span className="text-[11.5px] font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded">Member</span>
+                )}
               </div>
             )}
           </div>
@@ -528,7 +540,7 @@ export default function AddProjectMembersModal({
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs font-bold text-gray-900 truncate">{user.name}</span>
                         <span className="text-[10.5px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">
-                          {user.role || 'Member'}
+                          {normalizeDesignation(user.role)}
                         </span>
                       </div>
                       <div className="text-[11px] text-gray-400 truncate">{user.email}</div>
@@ -556,18 +568,22 @@ export default function AddProjectMembersModal({
 
                   {/* Right: Role selection & Action */}
                   <div className="flex items-center gap-2 shrink-0 self-end sm:self-center pl-7 sm:pl-0">
-                    <select
-                      value={userRoleInProject}
-                      onChange={e => {
-                        const newRole = e.target.value as ProjectRole;
-                        setRoleForUser(user.id, newRole);
-                      }}
-                      className="text-xs border border-[#E5E7EB] rounded-lg px-2.5 py-1.5 bg-white font-medium text-gray-700 outline-none focus:border-[#2563EB]"
-                    >
-                      <option value="Member">Member</option>
-                      <option value="Project Manager">Project Manager</option>
-                      <option value="Admin">Admin</option>
-                    </select>
+                    {isAdmin ? (
+                      <select
+                        value={userRoleInProject}
+                        onChange={e => {
+                          const newRole = e.target.value as ProjectRole;
+                          setRoleForUser(user.id, newRole);
+                        }}
+                        className="text-xs border border-[#E5E7EB] rounded-lg px-2.5 py-1.5 bg-white font-medium text-gray-700 outline-none focus:border-[#2563EB]"
+                      >
+                        <option value="Member">Member</option>
+                        <option value="Project Manager">Project Manager</option>
+                        <option value="Admin">Admin</option>
+                      </select>
+                    ) : (
+                      <span className="text-xs font-semibold text-gray-700 bg-gray-100 px-2.5 py-1 rounded-lg">Member</span>
+                    )}
 
                     <button
                       type="button"

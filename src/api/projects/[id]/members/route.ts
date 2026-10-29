@@ -19,7 +19,7 @@ import {
   ProjectMemberUpdateSchema,
   validationError,
 } from '@/lib/validators';
-import { ROLE_DESCRIPTIONS, type ProjectRole } from '@/lib/permissions';
+import { ROLE_DESCRIPTIONS, type ProjectRole, normalizeDesignation } from '@/lib/permissions';
 import { getAllStoredUsers } from '@/data/userStore';
 import redisCache from '@/lib/redis';
 import { getOrProvisionUserTeam } from '@/lib/tenant';
@@ -91,7 +91,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         name: m.user?.name || 'Unknown',
         email: m.user?.email || '',
         avatar: m.user?.avatar || (m.user?.name?.slice(0, 2).toUpperCase() || '?'),
-        userRole: m.user?.role || 'Member',
+        userRole: normalizeDesignation(m.user?.role),
         expertise: m.user?.expertise || [],
       }));
 
@@ -449,26 +449,52 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
 
-    // Multi-tenant authorization check
+    // Multi-tenant & Admin authorization check
+    const session = await auth();
+    const sessionUserId = session?.user?.id;
+    const sessionUserRole = (session?.user as { role?: string })?.role;
+
+    if (!sessionUserId) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
+        { status: 401 }
+      );
+    }
+
+    let project = null;
     try {
-      const session = await auth();
-      const sessionUserId = session?.user?.id;
-      if (sessionUserId) {
-        const project = await prisma.project.findUnique({
-          where: { id: projectId },
-          select: { teamId: true, ownerId: true },
-        });
-        if (project?.teamId) {
-          const callerTeam = await getOrProvisionUserTeam(sessionUserId);
-          if (callerTeam?.teamId && callerTeam.teamId !== project.teamId) {
-            return NextResponse.json(
-              { success: false, error: { code: 'FORBIDDEN', message: 'Cannot modify project belonging to another organization' } },
-              { status: 403 }
-            );
-          }
+      project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { teamId: true, ownerId: true },
+      });
+      if (project?.teamId) {
+        const callerTeam = await getOrProvisionUserTeam(sessionUserId);
+        if (callerTeam?.teamId && callerTeam.teamId !== project.teamId) {
+          return NextResponse.json(
+            { success: false, error: { code: 'FORBIDDEN', message: 'Cannot modify project belonging to another organization' } },
+            { status: 403 }
+          );
         }
       }
     } catch (_) {}
+
+    const isAdmin =
+      sessionUserRole === 'Admin' ||
+      sessionUserRole === 'ADMIN' ||
+      sessionUserRole?.toLowerCase() === 'admin';
+
+    if (!isAdmin) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Only workspace administrators have the power to change member roles.',
+          },
+        },
+        { status: 403 }
+      );
+    }
 
     let body: Record<string, unknown>;
     try { body = await request.json(); } catch {
@@ -522,26 +548,59 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
 
-    // Multi-tenant authorization check
+    // Multi-tenant & Admin authorization check
+    const session = await auth();
+    const sessionUserId = session?.user?.id;
+    const sessionUserRole = (session?.user as { role?: string })?.role;
+
+    if (!sessionUserId) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
+        { status: 401 }
+      );
+    }
+
+    let project = null;
     try {
-      const session = await auth();
-      const sessionUserId = session?.user?.id;
-      if (sessionUserId) {
-        const project = await prisma.project.findUnique({
-          where: { id: projectId },
-          select: { teamId: true, ownerId: true },
-        });
-        if (project?.teamId) {
-          const callerTeam = await getOrProvisionUserTeam(sessionUserId);
-          if (callerTeam?.teamId && callerTeam.teamId !== project.teamId) {
-            return NextResponse.json(
-              { success: false, error: { code: 'FORBIDDEN', message: 'Cannot modify project belonging to another organization' } },
-              { status: 403 }
-            );
-          }
+      project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { teamId: true, ownerId: true },
+      });
+      if (project?.teamId) {
+        const callerTeam = await getOrProvisionUserTeam(sessionUserId);
+        if (callerTeam?.teamId && callerTeam.teamId !== project.teamId) {
+          return NextResponse.json(
+            { success: false, error: { code: 'FORBIDDEN', message: 'Cannot modify project belonging to another organization' } },
+            { status: 403 }
+          );
         }
       }
     } catch (_) {}
+
+    const isAdmin =
+      sessionUserRole === 'Admin' ||
+      sessionUserRole === 'ADMIN' ||
+      sessionUserRole?.toLowerCase() === 'admin';
+
+    const isAuthorized =
+      isAdmin ||
+      project?.ownerId === sessionUserId ||
+      sessionUserRole === 'Project Manager' ||
+      sessionUserRole === 'PROJECT_MANAGER' ||
+      sessionUserRole?.toLowerCase() === 'project manager';
+
+    if (!isAuthorized) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Only workspace administrators or project managers can remove members from a project.',
+          },
+        },
+        { status: 403 }
+      );
+    }
 
     const { searchParams } = new URL(request.url);
     const targetUserId = searchParams.get('uid');

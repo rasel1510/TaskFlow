@@ -16,6 +16,7 @@ import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useToast } from '@/components/ui/Toast';
 import DatePicker from '@/components/ui/DatePicker';
+import { normalizeDesignation } from '@/lib/permissions';
 
 interface CreateProjectModalProps {
   onClose: () => void;
@@ -60,6 +61,12 @@ function renderAvatar(avatar?: string, name?: string) {
 export default function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalProps) {
   const { data: session } = useSession();
   const toast = useToast();
+
+  const userRole = (session?.user as { role?: string })?.role;
+  const isAdmin =
+    userRole === 'Admin' ||
+    userRole === 'ADMIN' ||
+    userRole?.toLowerCase() === 'admin';
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -444,7 +451,7 @@ export default function CreateProjectModal({ onClose, onSuccess }: CreateProject
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-[12.5px] font-semibold text-[#111111] truncate">{user.name}</span>
                             <span className="text-[10px] px-1.5 py-0.2 bg-gray-100 text-gray-600 rounded font-medium">
-                              {user.role || 'Member'}
+                              {normalizeDesignation(user.role)}
                             </span>
                           </div>
                           <p className="text-[11px] text-gray-400 truncate">{user.email}</p>
@@ -454,15 +461,21 @@ export default function CreateProjectModal({ onClose, onSuccess }: CreateProject
                       {/* Project Role selector for selected members */}
                       {isSelected ? (
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <select
-                            value={currentRole}
-                            onChange={e => updateMemberRole(user.id, e.target.value as any)}
-                            className="text-[11.5px] font-semibold text-[#1E40AF] bg-white border border-[#BFDBFE] rounded-md px-2 py-1 outline-none focus:ring-1 focus:ring-[#2563EB] cursor-pointer"
-                          >
-                            <option value="Member">Member</option>
-                            <option value="Project Manager">Project Manager</option>
-                            <option value="Admin">Admin</option>
-                          </select>
+                          {isAdmin ? (
+                            <select
+                              value={currentRole}
+                              onChange={e => updateMemberRole(user.id, e.target.value as any)}
+                              className="text-[11.5px] font-semibold text-[#1E40AF] bg-white border border-[#BFDBFE] rounded-md px-2 py-1 outline-none focus:ring-1 focus:ring-[#2563EB] cursor-pointer"
+                            >
+                              <option value="Member">Member</option>
+                              <option value="Project Manager">Project Manager</option>
+                              <option value="Admin">Admin</option>
+                            </select>
+                          ) : (
+                            <span className="text-[11px] font-semibold px-2 py-1 rounded bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0]">
+                              Member
+                            </span>
+                          )}
                         </div>
                       ) : (
                         <button
