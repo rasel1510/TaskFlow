@@ -1468,10 +1468,7 @@ export default function ProjectDetail({
                         <div className="flex items-start gap-3 min-w-0">
                           {renderUserAvatar(m.avatar, m.name, 'w-10 h-10')}
                           <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-[13.5px] font-semibold text-[#111111]">{m.name}</span>
-                              <span className="text-[11px] text-[rgba(17,17,17,0.4)] font-medium">({normalizeDesignation(m.userRole)})</span>
-                            </div>
+                            <span className="text-[13.5px] font-semibold text-[#111111]">{m.name}</span>
                             <div className="text-[12px] text-[rgba(17,17,17,0.45)]">{m.email}</div>
 
                             {/* Expertise tags */}
