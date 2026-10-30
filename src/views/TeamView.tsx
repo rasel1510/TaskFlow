@@ -376,14 +376,11 @@ export default function TeamView() {
                 Team Workspace
               </span>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Manage your project managers, team members, and permissions.
-              {isAdmin && (
-                <span className="text-[#2563EB] font-medium ml-1">
-                  You are the Team Administrator.
-                </span>
-              )}
-            </p>
+            {isAdmin && (
+              <p className="text-xs text-[#2563EB] font-medium mt-1">
+                You are the Team Administrator.
+              </p>
+            )}
           </div>
 
           <div className="flex items-center gap-2.5">
