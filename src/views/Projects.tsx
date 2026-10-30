@@ -66,13 +66,22 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
   const { data: session } = useSession();
   const toast = useToast();
   const userRole = (session?.user as { role?: string })?.role;
-  const canCreateProject =
-    userRole === 'Project Manager' ||
+  const isAdmin =
     userRole === 'Admin' ||
     userRole === 'ADMIN' ||
-    userRole === 'PROJECT_MANAGER' ||
-    userRole?.toLowerCase() === 'project manager' ||
     userRole?.toLowerCase() === 'admin';
+  const canCreateProject =
+    isAdmin ||
+    userRole === 'Project Manager' ||
+    userRole === 'PROJECT_MANAGER' ||
+    userRole?.toLowerCase() === 'project manager';
+
+  const getCreatorName = (p: UIProject): string => {
+    if (p.owner?.name) return p.owner.name;
+    if (p.owner?.email) return p.owner.email.split('@')[0];
+    if (p.members && p.members.length > 0 && p.members[0]?.name) return p.members[0].name;
+    return 'Project Manager';
+  };
 
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [search, setSearch] = useState('');
@@ -358,6 +367,13 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]">
                           Owner
                         </span>
+                      ) : isAdmin ? (
+                        <span
+                          title={`Created by ${getCreatorName(p)}`}
+                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-medium bg-gray-100 text-gray-700 border border-gray-200 max-w-[130px] truncate"
+                        >
+                          {getCreatorName(p)}
+                        </span>
                       ) : p.isMember ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#ECFDF5] text-[#16A34A] border border-[#BBF7D0]">
                           ✓ Member
@@ -488,7 +504,7 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
                 <span className="w-20">Tasks</span>
                 <span className="w-24">Members</span>
                 <span className="w-24">Deadline</span>
-                <span className="w-28 text-right">Status / Access</span>
+                <span className="w-36 text-right">Status / Access</span>
               </div>
               {filtered.map((p, i) => (
                 <div
@@ -552,10 +568,17 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
                     )}
                   </div>
                   <span className="w-24 text-[12.5px] text-[rgba(17,17,17,0.6)]">{p.dueDate}</span>
-                  <div className="w-28 text-right flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
+                  <div className="w-36 text-right flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
                     {p.isOwner ? (
                       <span className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]">
                         Owner
+                      </span>
+                    ) : isAdmin ? (
+                      <span
+                        title={`Created by ${getCreatorName(p)}`}
+                        className="px-2.5 py-0.5 rounded-full text-[10.5px] font-medium bg-gray-100 text-gray-700 border border-gray-200 max-w-[130px] truncate inline-block"
+                      >
+                        {getCreatorName(p)}
                       </span>
                     ) : p.isMember ? (
                       <span className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#ECFDF5] text-[#16A34A] border border-[#BBF7D0]">
