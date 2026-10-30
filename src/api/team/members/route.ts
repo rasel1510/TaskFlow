@@ -97,7 +97,15 @@ export async function GET() {
           usersCount,
           pendingInvitesCount: invitations.length,
         },
-        members,
+        members: members.map(m => {
+          const r = m.role?.toLowerCase() || '';
+          const role = r === 'admin'
+            ? 'Admin'
+            : (r === 'project manager' || r === 'project_manager')
+              ? 'Project Manager'
+              : 'Member';
+          return { ...m, role };
+        }),
         invitations,
         currentUserRole,
         currentUserId: userId,

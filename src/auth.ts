@@ -125,7 +125,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.id = user.id;
         token.name = user.name;
-        token.role = (user as { role?: string }).role || 'User';
+        const rawUserRole = (user as { role?: string }).role;
+        token.role = (!rawUserRole || rawUserRole === 'User') ? 'Member' : rawUserRole;
         token.avatar = (user as { avatar?: string }).avatar || user.image;
         token.teamId = (user as { teamId?: string }).teamId;
         token.teamName = (user as { teamName?: string }).teamName;
@@ -163,7 +164,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         if (token.name) session.user.name = token.name as string;
-        (session.user as { role?: string }).role = (token.role as string) || 'User';
+        const rawTokenRole = token.role as string;
+        (session.user as { role?: string }).role = (!rawTokenRole || rawTokenRole === 'User') ? 'Member' : rawTokenRole;
         (session.user as { avatar?: string }).avatar = (token.avatar as string) || '';
         (session.user as { teamId?: string }).teamId = (token.teamId as string) || '';
         (session.user as { teamName?: string }).teamName = (token.teamName as string) || '';

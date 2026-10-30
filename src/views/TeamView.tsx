@@ -376,7 +376,7 @@ export default function TeamView() {
             </div>
             {isAdmin && (
               <p className="text-xs text-[#2563EB] font-medium mt-1">
-                You are the Team Administrator.
+                You are the Team Admin.
               </p>
             )}
           </div>
@@ -421,7 +421,7 @@ export default function TeamView() {
           {/* Admins */}
           <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 shadow-xs">
             <div className="flex items-center justify-between text-purple-600 mb-2">
-              <span className="text-xs font-medium">Administrators</span>
+              <span className="text-xs font-medium">Admins</span>
               <Shield className="w-4 h-4 text-purple-500" />
             </div>
             <div className="text-2xl font-bold text-purple-700">{data.stats.adminsCount}</div>
@@ -531,7 +531,7 @@ export default function TeamView() {
                 <thead>
                   <tr className="border-b border-[#E5E7EB] bg-[#F9FAFB]/75 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                     <th className="py-3 px-5">Member</th>
-                    <th className="py-3 px-5">Role & Permission</th>
+                    <th className="py-3 px-5">Role</th>
                     <th className="py-3 px-5">Expertise</th>
                     <th className="py-3 px-5">Joined</th>
                     {isAdmin && <th className="py-3 px-5 text-right">Actions</th>}
@@ -584,25 +584,16 @@ export default function TeamView() {
                             </div>
                           </td>
 
-                          {/* Role Badge & Promotion */}
+                          {/* Role Badge */}
                           <td className="py-3.5 px-5">
                             <div className="flex items-center gap-2">
-                              {isMemberAdmin ? (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
-                                  <Shield className="w-3 h-3 text-purple-600" />
-                                  <span>Administrator</span>
-                                </span>
-                              ) : isMemberPM ? (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-50 text-[#2563EB] border border-blue-200">
-                                  <Briefcase className="w-3 h-3 text-[#2563EB]" />
-                                  <span>Project Manager</span>
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-700 border border-gray-200">
-                                  <Users className="w-3 h-3 text-gray-500" />
-                                  <span>{member.role || 'User / Member'}</span>
-                                </span>
-                              )}
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+                                {isMemberAdmin
+                                  ? 'Admin'
+                                  : isMemberPM
+                                    ? 'Project Manager'
+                                    : 'Member'}
+                              </span>
                             </div>
                           </td>
 
@@ -659,7 +650,7 @@ export default function TeamView() {
                                 {/* Role Dropdown Selector */}
                                 <select
                                   disabled={updatingMemberId === member.id || (isSelf && isMemberAdmin && data.stats.adminsCount <= 1)}
-                                  value={isMemberAdmin ? 'Admin' : isMemberPM ? 'Project Manager' : member.role === 'User' ? 'Member' : member.role || 'Member'}
+                                  value={isMemberAdmin ? 'Admin' : isMemberPM ? 'Project Manager' : 'Member'}
                                   onChange={e => handleUpdateRole(member.id, e.target.value)}
                                   className="text-[11px] bg-white border border-[#E5E7EB] hover:border-gray-400 text-gray-700 py-1 px-2 rounded-lg font-medium outline-none focus:border-[#2563EB] cursor-pointer"
                                 >
@@ -744,19 +735,12 @@ export default function TeamView() {
                             </div>
                           </td>
                           <td className="py-3.5 px-5">
-                            <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold ${inv.role === 'PROJECT_MANAGER'
-                                ? 'bg-blue-50 text-[#2563EB] border border-blue-200'
-                                : inv.role === 'ADMIN'
-                                  ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                                  : 'bg-gray-100 text-gray-700 border border-gray-200'
-                                }`}
-                            >
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-gray-100 text-gray-700 border border-gray-200">
                               {inv.role === 'PROJECT_MANAGER'
                                 ? 'Project Manager'
                                 : inv.role === 'ADMIN'
                                   ? 'Admin'
-                                  : 'User / Member'}
+                                  : 'Member'}
                             </span>
                           </td>
                           <td className="py-3.5 px-5 text-gray-500">
@@ -966,7 +950,7 @@ export default function TeamView() {
                           <span className="text-xs font-semibold text-[#111111]">Project Manager</span>
                         </div>
                         <p className="text-[11px] text-gray-500 mt-0.5">
-                          Can create projects, manage roadmaps, assign tasks, and invite users.
+                          Can create projects, manage roadmaps, assign tasks, and invite members.
                         </p>
                       </div>
                     </label>
