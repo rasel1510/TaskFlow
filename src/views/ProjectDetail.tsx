@@ -145,6 +145,79 @@ function renderUserAvatar(
   );
 }
 
+// Module-level in-memory cache for instantaneous 0ms perceived project detail switching
+const cachedProjectDetails = new Map<string, ProjectData>();
+
+function ProjectDetailSkeleton({ onBack }: { onBack: () => void }) {
+  return (
+    <div className="flex-1 flex flex-col h-full overflow-y-auto bg-white animate-pulse">
+      {/* Top Banner Navigation Skeleton */}
+      <div className="border-b border-[#E5E7EB] bg-white px-4 sm:px-6 py-3.5 sm:py-4">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-[12.5px] font-medium text-[rgba(17,17,17,0.5)] hover:text-[#111111] transition-colors mb-3"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          Back to Projects
+        </button>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gray-200 shrink-0" />
+            <div className="space-y-2">
+              <div className="flex items-center gap-2.5">
+                <div className="h-6 w-48 bg-gray-200 rounded-md" />
+                <div className="h-5 w-16 bg-gray-100 rounded-full" />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div className="h-8 w-24 bg-gray-100 rounded-lg" />
+            <div className="h-8 w-24 bg-gray-200 rounded-lg" />
+            <div className="h-8 w-20 bg-gray-100 rounded-lg" />
+          </div>
+        </div>
+
+        {/* Tabs switcher skeleton */}
+        <div className="flex items-center gap-4 sm:gap-5 mt-5 sm:mt-6 border-b border-[#F3F4F6]">
+          {['Overview', 'Tasks', 'Roadmap', 'Team', 'Messages'].map((tab, idx) => (
+            <div key={idx} className="pb-2.5">
+              <div className="h-4 w-16 bg-gray-200 rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Content Area Skeleton */}
+      <div className="flex-1 p-4 sm:p-6 space-y-6 max-w-[1280px]">
+        {/* Metric Cards Skeleton */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="bg-white border border-[#E5E7EB] rounded-xl p-4 shadow-xs space-y-2">
+              <div className="h-3 w-20 bg-gray-200 rounded" />
+              <div className="h-7 w-12 bg-gray-200 rounded" />
+              <div className="h-2.5 w-24 bg-gray-100 rounded" />
+            </div>
+          ))}
+        </div>
+
+        {/* Tasks / Overview Body Skeleton */}
+        <div className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden shadow-xs p-5 space-y-4">
+          <div className="h-4 w-32 bg-gray-200 rounded" />
+          <div className="space-y-3">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-12 w-full bg-gray-50 rounded-xl border border-gray-100" />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ProjectDetail({
   projectId,
   onBack,
@@ -152,8 +225,8 @@ export default function ProjectDetail({
   onCreateTask,
   initialTab = 'overview',
 }: ProjectDetailProps) {
-  const [project, setProject] = useState<ProjectData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [project, setProject] = useState<ProjectData | null>(() => cachedProjectDetails.get(projectId) || null);
+  const [loading, setLoading] = useState(() => !cachedProjectDetails.has(projectId));
   const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'milestones' | 'members' | 'messages' | 'settings'>(initialTab);
   const [taskSearch, setTaskSearch] = useState('');
   const [taskStatusFilter, setTaskStatusFilter] = useState('all');
@@ -270,10 +343,13 @@ export default function ProjectDetail({
 
   const fetchProject = useCallback(async (signal?: AbortSignal) => {
     try {
-      setLoading(true);
+      if (!cachedProjectDetails.has(projectId)) {
+        setLoading(true);
+      }
       const res = await fetch(`/api/projects/${projectId}`, { signal });
       const json = await res.json();
       if (json.success && json.data) {
+        cachedProjectDetails.set(projectId, json.data);
         setProject(json.data);
         setEditName(json.data.name || '');
         setEditDesc(json.data.description || '');
@@ -903,16 +979,11 @@ export default function ProjectDetail({
     }
   };
 
-  if (loading || !project) {
-    return (
-      <div className="flex-1 flex items-center justify-center bg-white p-12">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-[#2563EB] border-t-transparent rounded-full animate-spin" />
-          <span className="text-[13px] text-[#6B7280]">Loading project details...</span>
-        </div>
-      </div>
-    );
+  if (loading && !project) {
+    return <ProjectDetailSkeleton onBack={onBack} />;
   }
+
+  if (!project) return null;
 
   const healthConfig = healthColors[project.health] || {
     bg: '#F0FDF4',

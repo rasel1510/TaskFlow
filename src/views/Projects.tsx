@@ -62,6 +62,9 @@ const healthIcons: Record<ProjectHealth, React.ReactNode> = {
   completed: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>,
 };
 
+// Module-level in-memory cache for instantaneous 0ms perceived project list loads
+let cachedProjects: UIProject[] | null = null;
+
 export default function Projects({ onViewChange, onSelectProject }: ProjectsProps) {
   const { data: session } = useSession();
   const toast = useToast();
@@ -85,8 +88,8 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
 
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [search, setSearch] = useState('');
-  const [projects, setProjects] = useState<UIProject[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [projects, setProjects] = useState<UIProject[]>(cachedProjects || []);
+  const [loading, setLoading] = useState(!cachedProjects);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Request to join modal state
@@ -126,6 +129,7 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
         canManage: Boolean(p.canManage),
         pendingRequestsCount: p.pendingRequestsCount ?? 0,
       }));
+      cachedProjects = normalized;
       setProjects(normalized);
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') return;
@@ -137,6 +141,7 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
 
   useEffect(() => {
     const controller = new AbortController();
+    if (!cachedProjects) setLoading(true);
     fetchProjects(controller.signal);
     return () => {
       controller.abort();
@@ -158,9 +163,11 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
         throw new Error(json.error?.message || json.message || 'Failed to submit join request');
       }
       toast.success('Join request sent to Project Manager!');
-      setProjects(prev =>
-        prev.map(p => (p.id === requestModalProject.id ? { ...p, hasPendingRequest: true } : p))
-      );
+      setProjects(prev => {
+        const updated = prev.map(p => (p.id === requestModalProject.id ? { ...p, hasPendingRequest: true } : p));
+        cachedProjects = updated;
+        return updated;
+      });
       setRequestModalProject(null);
       setRequestMessage('');
     } catch (err) {
@@ -178,7 +185,11 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
 
     // Instant optimistic removal (0ms perceived latency)
     setProjectToDelete(null);
-    setProjects(prev => prev.filter(p => p.id !== target.id));
+    setProjects(prev => {
+      const updated = prev.filter(p => p.id !== target.id);
+      cachedProjects = updated;
+      return updated;
+    });
     toast.success(`Project "${target.name}" deleted successfully`);
 
     try {
@@ -207,7 +218,7 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
           <div>
             <h1 className="text-[20px] md:text-[24px] font-bold text-[#111111]">Projects</h1>
             <p className="text-[12px] md:text-[13px] text-[rgba(17,17,17,0.45)] mt-0.5">
-              {loading ? 'Loading projects...' : `${projects.length} active projects`}
+              {loading && projects.length === 0 ? 'Loading projects...' : `${projects.length} active projects`}
             </p>
           </div>
           {canCreateProject && (
@@ -284,7 +295,7 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
         </div>
 
         {/* Skeleton Loaders */}
-        {loading ? (
+        {loading && projects.length === 0 ? (
           view === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <ProjectCardSkeleton />

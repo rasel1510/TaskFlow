@@ -40,56 +40,38 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     const { id: projectId } = await context.params;
 
     try {
-      const dbProject = await prisma.project.findUnique({
-        where: { id: projectId },
-        include: {
-          owner: {
-            select: { id: true, name: true, email: true, avatar: true, role: true },
-          },
-          tasks: {
-            select: {
-              id: true,
-              taskNumber: true,
-              title: true,
-              status: true,
-              priority: true,
-              dueDate: true,
-              estimate: true,
-              createdAt: true,
-              updatedAt: true,
-              assignee: {
-                select: { id: true, name: true, avatar: true, role: true, email: true },
-              },
-              _count: {
-                select: { subtasks: true, comments: true },
-              },
+      const cacheKey = `project:detail:${projectId}`;
+      const payload = await redisCache.wrap(cacheKey, 15, async () => {
+        const dbProject = await prisma.project.findUnique({
+          where: { id: projectId },
+          include: {
+            owner: {
+              select: { id: true, name: true, email: true, avatar: true, role: true },
             },
-            orderBy: { createdAt: 'desc' },
+            tasks: {
+              select: {
+                id: true,
+                taskNumber: true,
+                title: true,
+                status: true,
+                priority: true,
+                dueDate: true,
+                estimate: true,
+                createdAt: true,
+                updatedAt: true,
+                assignee: {
+                  select: { id: true, name: true, avatar: true, role: true, email: true },
+                },
+                _count: {
+                  select: { subtasks: true, comments: true },
+                },
+              },
+              orderBy: { createdAt: 'desc' },
+            },
           },
-        },
-      });
+        });
 
-      if (dbProject) {
-        // Enforce company team boundary
-        try {
-          const session = await auth();
-          const sessionUserId = session?.user?.id;
-          if (sessionUserId) {
-            const teamContext = await getOrProvisionUserTeam(sessionUserId);
-            if (dbProject.teamId && teamContext?.teamId && dbProject.teamId !== teamContext.teamId) {
-              const isMember = await prisma.projectMember.findUnique({
-                where: { projectId_userId: { projectId, userId: sessionUserId } },
-                select: { role: true },
-              });
-              if (!isMember && dbProject.ownerId !== sessionUserId) {
-                return NextResponse.json(
-                  { success: false, error: { code: 'FORBIDDEN', message: 'Access denied: Project belongs to another organization' } },
-                  { status: 403 }
-                );
-              }
-            }
-          }
-        } catch (_) {}
+        if (!dbProject) return null;
 
         const totalTasks = dbProject.tasks.length;
         const completedTasks = dbProject.tasks.filter((t) => t.status === 'done').length;
@@ -122,27 +104,28 @@ export async function GET(_request: NextRequest, context: RouteContext) {
           referenceDate: now,
         });
 
-        // Step 4.11 Lifecycle state fallback
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const lifecycleState: ProjectLifecycleState = (dbProject as any).lifecycleState || 'ACTIVE';
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const archivedAt: Date | null = (dbProject as any).archivedAt || null;
 
+        return {
+          ...dbProject,
+          health: slaAnalysis.health,
+          totalTasks,
+          completedTasks,
+          inProgressTasks,
+          overdueTasks,
+          completionRate,
+          slaAnalysis,
+          lifecycleState,
+          archivedAt,
+        };
+      });
+
+      if (payload) {
         return NextResponse.json(
           {
             success: true,
-            data: {
-              ...dbProject,
-              health: slaAnalysis.health, // Dynamically computed
-              totalTasks,
-              completedTasks,
-              inProgressTasks,
-              overdueTasks,
-              completionRate,
-              slaAnalysis,
-              lifecycleState,
-              archivedAt,
-            },
+            data: payload,
           },
           {
             status: 200,

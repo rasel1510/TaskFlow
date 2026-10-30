@@ -314,7 +314,7 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
           <div>
             <h1 className="text-[20px] md:text-[24px] font-bold text-[#111111]">My Tasks</h1>
             <p className="text-[12px] md:text-[13px] text-[rgba(17,17,17,0.45)] mt-0.5">
-              {isLoading ? 'Loading...' : `${tasks.length} total tasks`}
+              {isLoading && tasks.length === 0 ? 'Loading tasks...' : `${tasks.length} total tasks`}
             </p>
           </div>
           <button
@@ -591,7 +591,7 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
           </div>
 
           {/* Desktop Rows */}
-          {isLoading ? (
+          {isLoading && tasks.length === 0 ? (
             <div>
               <TaskRowSkeleton />
               <TaskRowSkeleton />

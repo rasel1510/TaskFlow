@@ -51,7 +51,7 @@ function parseSafeDate(raw: unknown): Date | undefined {
 }
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
-import { getAllStoredUsers } from '@/data/userStore';
+import { getAllStoredUsers, findStoredUserByEmail } from '@/data/userStore';
 import { auth } from '@/auth';
 import { CreateTaskSchema, TaskQuerySchema, validationError } from '@/lib/validators';
 import { logActivity } from '@/lib/activity';
@@ -89,33 +89,34 @@ export async function GET(request: NextRequest) {
     const targetUserId    = sessionUserId    || requestedUserId;
     const targetUserEmail = sessionUserEmail || requestedUserEmail;
 
-    // Resolve the canonical DB user ID from email when the ID is not available
-    // or when we want to catch tasks assigned via a fallback ID
+    // Fast resolution: prefer provided targetUserId without querying DB
+    const userIdSet = new Set<string>();
     let resolvedDbUserId: string | undefined = targetUserId;
-    if (targetUserEmail && !resolvedDbUserId) {
-      try {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: targetUserEmail.toLowerCase().trim() },
-          select: { id: true },
-        });
-        resolvedDbUserId = dbUser?.id;
-      } catch { /* non-critical */ }
+
+    if (resolvedDbUserId) {
+      userIdSet.add(resolvedDbUserId);
     }
 
-    // Collect ALL user IDs that could own tasks for this person
-    // This handles the case where tasks were created with a fallback/wrong assigneeId
-    const userIdSet = new Set<string>();
-    if (resolvedDbUserId) userIdSet.add(resolvedDbUserId);
-    if (targetUserId && targetUserId !== resolvedDbUserId) userIdSet.add(targetUserId);
-
-    // If we have an email, also find assignee by email match for legacy data
+    // If we have an email, check memory store first (0ms)
     if (targetUserEmail) {
+      const stored = findStoredUserByEmail(targetUserEmail.toLowerCase().trim());
+      if (stored?.id) {
+        userIdSet.add(stored.id);
+        if (!resolvedDbUserId) resolvedDbUserId = stored.id;
+      }
+    }
+
+    // Fallback: only if userIdSet is still empty, do a single DB lookup
+    if (userIdSet.size === 0 && targetUserEmail) {
       try {
         const dbUser = await prisma.user.findUnique({
           where: { email: targetUserEmail.toLowerCase().trim() },
           select: { id: true },
         });
-        if (dbUser) userIdSet.add(dbUser.id);
+        if (dbUser?.id) {
+          userIdSet.add(dbUser.id);
+          resolvedDbUserId = dbUser.id;
+        }
       } catch { /* non-critical */ }
     }
 

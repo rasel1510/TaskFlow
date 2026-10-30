@@ -92,6 +92,10 @@ function cleanDueDate(d: unknown): string | null {
   return str.includes('T') ? str.split('T')[0] : str;
 }
 
+// Module-level in-memory cache for 0ms instantaneous task/user retrieval
+let cachedTasks: DBTask[] | null = null;
+let cachedUsers: DBUser[] | null = null;
+
 const TaskContext = createContext<TaskContextValue | null>(null);
 
 export function TaskProvider({ children }: { children: React.ReactNode }) {
@@ -99,9 +103,9 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   const sessionUserId    = (session?.user as { id?: string })?.id;
   const sessionUserEmail = session?.user?.email ?? undefined;
   const toast = useToast();
-  const [tasks, setTasks] = useState<DBTask[]>([]);
-  const [users, setUsers] = useState<DBUser[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [tasks, setTasks] = useState<DBTask[]>(cachedTasks || []);
+  const [users, setUsers] = useState<DBUser[]>(cachedUsers || []);
+  const [isLoading, setIsLoading] = useState(!cachedTasks);
   const [error, setError] = useState<string | null>(null);
 
   const fetchTasks = useCallback(async (signal?: AbortSignal) => {
@@ -113,7 +117,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       if (sessionUserEmail) params.set('userEmail', sessionUserEmail);
       const qs = params.toString() ? `?${params.toString()}` : '';
 
-      const res = await fetch(`/api/tasks${qs}`, { cache: 'no-store', signal });
+      const res = await fetch(`/api/tasks${qs}`, { signal });
       if (!res.ok) throw new Error(`Failed to fetch tasks: ${res.status}`);
       const envelope = await res.json();
       // Handle both old raw-array and new { success, data } envelope shapes
@@ -122,6 +126,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         ...t,
         dueDate: cleanDueDate(t.dueDate),
       }));
+      cachedTasks = data;
       setTasks(data);
       setError(null);
     } catch (err) {
@@ -133,9 +138,10 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUsers = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch('/api/users', { cache: 'no-store', signal });
+      const res = await fetch('/api/users', { signal });
       if (!res.ok) throw new Error(`Failed to fetch users: ${res.status}`);
       const data: DBUser[] = await res.json();
+      cachedUsers = data;
       setUsers(data);
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return;
@@ -147,7 +153,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (status === 'loading') return;
     const controller = new AbortController();
-    setIsLoading(true);
+    if (!cachedTasks) setIsLoading(true);
     Promise.all([fetchTasks(controller.signal), fetchUsers(controller.signal)])
       .finally(() => setIsLoading(false));
     return () => controller.abort();
@@ -185,7 +191,11 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     };
 
     // Instant UI — prepend temp task
-    setTasks(prev => [optimisticTask, ...prev]);
+    setTasks(prev => {
+      const updated = [optimisticTask, ...prev];
+      cachedTasks = updated;
+      return updated;
+    });
     const snapshot = tasks; // capture for rollback
 
     const finalPayload = { ...payload, assigneeId: activeUserId || payload.assigneeId };
@@ -316,7 +326,11 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   // ── deleteTask — snapshot rollback ───────────────────────────────────────
   const deleteTask = useCallback(async (taskId: string): Promise<void> => {
     const snapshot = tasks;
-    setTasks(prev => prev.filter(t => t.id !== taskId));
+    setTasks(prev => {
+      const updated = prev.filter(t => t.id !== taskId);
+      cachedTasks = updated;
+      return updated;
+    });
 
     try {
       const params = new URLSearchParams();
