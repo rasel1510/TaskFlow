@@ -1,3 +1,4 @@
+import redisCache from '@/lib/redis';
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
@@ -269,6 +270,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    redisCache.delPattern('team:*').catch(() => {});
     return NextResponse.json(
       {
         success: true,
@@ -320,6 +322,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'No team found' }, { status: 404 });
     }
 
+    redisCache.delPattern('team:*').catch(() => {});
     await prisma.teamInvitation.deleteMany({
       where: {
         id: inviteId,

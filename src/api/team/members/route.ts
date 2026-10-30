@@ -1,3 +1,4 @@
+import redisCache from '@/lib/redis';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
@@ -25,66 +26,60 @@ export async function GET() {
       );
     }
 
-    // 1. Fetch all active members in the team (indexed by teamId)
-    const members = await prisma.user.findMany({
-      where: { teamId: teamContext.teamId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        avatar: true,
-        expertise: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    // 2. Fetch pending invitations for this team
-    const invitations = await prisma.teamInvitation.findMany({
-      where: {
-        teamId: teamContext.teamId,
-        status: 'pending',
-      },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        status: true,
-        token: true,
-        expiresAt: true,
-        createdAt: true,
-        invitedBy: {
+    const cacheKey = `team:members:${teamContext.teamId}`;
+    const payload = await redisCache.wrap(cacheKey, 15, async () => {
+      // Parallel DB queries — cuts Neon round-trip latency in half
+      const [members, invitations] = await Promise.all([
+        prisma.user.findMany({
+          where: { teamId: teamContext.teamId },
           select: {
             id: true,
             name: true,
             email: true,
+            role: true,
+            avatar: true,
+            expertise: true,
+            createdAt: true,
           },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+          orderBy: { createdAt: 'asc' },
+        }),
+        prisma.teamInvitation.findMany({
+          where: {
+            teamId: teamContext.teamId,
+            status: 'pending',
+          },
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            status: true,
+            token: true,
+            expiresAt: true,
+            createdAt: true,
+            invitedBy: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]);
 
-    // 3. Compute stats
-    let adminsCount = 0;
-    let pmCount = 0;
-    let usersCount = 0;
+      let adminsCount = 0;
+      let pmCount = 0;
+      let usersCount = 0;
 
-    for (const m of members) {
-      const r = m.role?.toLowerCase() || '';
-      if (r === 'admin') adminsCount++;
-      else if (r === 'project manager' || r === 'project_manager') pmCount++;
-      else usersCount++;
-    }
+      for (const m of members) {
+        const r = m.role?.toLowerCase() || '';
+        if (r === 'admin') adminsCount++;
+        else if (r === 'project manager' || r === 'project_manager') pmCount++;
+        else usersCount++;
+      }
 
-    const currentUserRole =
-      (session.user as { role?: string })?.role ||
-      members.find(m => m.id === userId)?.role ||
-      'Member';
-
-    return NextResponse.json({
-      success: true,
-      data: {
+      return {
         team: {
           id: teamContext.teamId,
           name: teamContext.teamName,
@@ -107,10 +102,30 @@ export async function GET() {
           return { ...m, role };
         }),
         invitations,
-        currentUserRole,
-        currentUserId: userId,
-      },
+      };
     });
+
+    const currentUserRole =
+      (session.user as { role?: string })?.role ||
+      payload.members.find(m => m.id === userId)?.role ||
+      'Member';
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          ...payload,
+          currentUserRole,
+          currentUserId: userId,
+        },
+      },
+      {
+        status: 200,
+        headers: {
+          'Cache-Control': 'private, max-age=10, stale-while-revalidate=30',
+        },
+      }
+    );
   } catch (error) {
     console.error('[GET /api/team/members] Error:', error);
     return NextResponse.json(

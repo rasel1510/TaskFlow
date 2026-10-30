@@ -1,3 +1,4 @@
+import redisCache from '@/lib/redis';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
@@ -138,6 +139,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     try {
       updateStoredUser(targetMemberId, { role: newRole });
     } catch (_) {}
+    redisCache.delPattern('team:*').catch(() => {});
 
     return NextResponse.json({
       success: true,
@@ -218,6 +220,7 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
         teamId: null,
       },
     });
+    redisCache.delPattern('team:*').catch(() => {});
 
     return NextResponse.json({
       success: true,

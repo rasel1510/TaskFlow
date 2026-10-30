@@ -73,10 +73,81 @@ interface TeamData {
   currentUserId: string;
 }
 
+function TeamSkeleton() {
+  return (
+    <div className="flex-1 h-full overflow-y-auto bg-[#F9FAFB] animate-pulse">
+      <div className="max-w-[1240px] mx-auto px-4 md:px-8 py-6 space-y-6">
+        {/* Workspace Brand & Header Skeleton */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-[#E5E7EB] rounded-2xl p-5 md:p-6 shadow-xs">
+          <div className="space-y-2">
+            <div className="h-7 w-48 bg-gray-200 rounded-lg" />
+            <div className="h-3 w-32 bg-gray-100 rounded" />
+          </div>
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-28 bg-gray-200 rounded-xl" />
+            <div className="h-8 w-8 bg-gray-200 rounded-xl" />
+          </div>
+        </div>
+
+        {/* Stats Grid Skeleton */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="bg-white border border-[#E5E7EB] rounded-xl p-4 shadow-xs space-y-2">
+              <div className="flex items-center justify-between mb-2">
+                <div className="h-3 w-20 bg-gray-200 rounded" />
+                <div className="w-4 h-4 bg-gray-100 rounded" />
+              </div>
+              <div className="h-7 w-12 bg-gray-200 rounded" />
+              <div className="h-2.5 w-28 bg-gray-100 rounded" />
+            </div>
+          ))}
+        </div>
+
+        {/* Toolbar & Filter Tabs Skeleton */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="h-9 w-80 bg-gray-200/70 rounded-xl" />
+          <div className="h-9 w-full sm:w-64 bg-gray-200/70 rounded-xl" />
+        </div>
+
+        {/* Table Skeleton */}
+        <div className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden shadow-xs">
+          <div className="p-4 border-b border-[#E5E7EB] bg-[#F9FAFB]/75 flex justify-between">
+            <div className="h-3 w-24 bg-gray-200 rounded" />
+            <div className="h-3 w-16 bg-gray-200 rounded" />
+            <div className="h-3 w-20 bg-gray-200 rounded" />
+            <div className="h-3 w-16 bg-gray-200 rounded" />
+          </div>
+          <div className="divide-y divide-gray-100">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div key={i} className="p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-gray-200" />
+                  <div className="space-y-1.5">
+                    <div className="h-3.5 w-28 bg-gray-200 rounded" />
+                    <div className="h-2.5 w-36 bg-gray-100 rounded" />
+                  </div>
+                </div>
+                <div className="h-5 w-20 bg-gray-100 rounded-full" />
+                <div className="h-3 w-24 bg-gray-100 rounded hidden sm:block" />
+                <div className="h-3 w-16 bg-gray-100 rounded hidden sm:block" />
+                <div className="h-7 w-20 bg-gray-100 rounded-lg" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Module-level memory cache for instantaneous 0ms perceived SWR transitions
+let cachedTeamData: TeamData | null = null;
+
 export default function TeamView() {
   const { data: session } = useSession();
-  const [data, setData] = useState<TeamData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<TeamData | null>(cachedTeamData);
+  const [loading, setLoading] = useState(!cachedTeamData);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Filter & Search
@@ -114,20 +185,26 @@ export default function TeamView() {
   const [removingMember, setRemovingMember] = useState(false);
 
   // Fetch Team Data
-  const fetchTeamData = useCallback(async () => {
+  const fetchTeamData = useCallback(async (isManualRefresh = false) => {
+    if (isManualRefresh) setIsRefreshing(true);
     try {
-      const res = await fetch('/api/team/members', { cache: 'no-store' });
+      const res = await fetch('/api/team/members');
       const json = await res.json();
       if (json.success && json.data) {
+        cachedTeamData = json.data;
         setData(json.data);
-      } else {
+        setError(null);
+      } else if (!cachedTeamData) {
         setError(json.error?.message || 'Failed to load team data');
       }
     } catch (err) {
       console.error('Error fetching team:', err);
-      setError('Unable to load team workspace. Please refresh.');
+      if (!cachedTeamData) {
+        setError('Unable to load team workspace. Please refresh.');
+      }
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
@@ -183,17 +260,23 @@ export default function TeamView() {
     else if (newRoleLower === 'project manager' || newRoleLower === 'project_manager') pmCount++;
     else usersCount++;
 
-    setData(prev => prev ? {
-      ...prev,
-      stats: { ...prev.stats, adminsCount, pmCount, usersCount },
-      members: prev.members.map(m => m.id === memberId ? { ...m, role: newRole } : m),
-    } : null);
+    setData(prev => {
+      if (!prev) return null;
+      const updated = {
+        ...prev,
+        stats: { ...prev.stats, adminsCount, pmCount, usersCount },
+        members: prev.members.map(m => m.id === memberId ? { ...m, role: newRole } : m),
+      };
+      cachedTeamData = updated;
+      return updated;
+    });
 
     window.dispatchEvent(
       new CustomEvent('user-profile-updated', {
         detail: { id: memberId, role: newRole },
       })
     );
+
 
     try {
       const res = await fetch(`/api/team/members/${memberId}`, {
@@ -212,6 +295,7 @@ export default function TeamView() {
       alert('Network error while updating member role');
     }
   };
+
 
   const handleSaveCustomTitle = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -234,17 +318,22 @@ export default function TeamView() {
 
     // Instant optimistic dismissal and removal
     setMemberToRemove(null);
-    setData(prev => prev ? {
-      ...prev,
-      stats: {
-        ...prev.stats,
-        totalMembers: Math.max(0, prev.stats.totalMembers - 1),
-        usersCount: target.role?.toLowerCase() === 'admin' || target.role?.toLowerCase() === 'project manager'
-          ? prev.stats.usersCount
-          : Math.max(0, prev.stats.usersCount - 1),
-      },
-      members: prev.members.filter(m => m.id !== target.id),
-    } : null);
+    setData(prev => {
+      if (!prev) return null;
+      const updated = {
+        ...prev,
+        stats: {
+          ...prev.stats,
+          totalMembers: Math.max(0, prev.stats.totalMembers - 1),
+          usersCount: target.role?.toLowerCase() === 'admin' || target.role?.toLowerCase() === 'project manager'
+            ? prev.stats.usersCount
+            : Math.max(0, prev.stats.usersCount - 1),
+        },
+        members: prev.members.filter(m => m.id !== target.id),
+      };
+      cachedTeamData = updated;
+      return updated;
+    });
 
     try {
       const res = await fetch(`/api/team/members/${target.id}`, {
@@ -308,19 +397,36 @@ export default function TeamView() {
     }
   };
 
-  // Revoke Invitation
+  // Revoke Invitation — Optimistic UI
   const handleRevokeInvite = async (inviteId: string) => {
+    const snapshot = data;
+    setData(prev => {
+      if (!prev) return null;
+      const updated = {
+        ...prev,
+        invitations: prev.invitations.filter(i => i.id !== inviteId),
+        stats: {
+          ...prev.stats,
+          pendingInvitesCount: Math.max(0, prev.stats.pendingInvitesCount - 1),
+        },
+      };
+      cachedTeamData = updated;
+      return updated;
+    });
+
     try {
       const res = await fetch(`/api/team/invite?id=${inviteId}`, {
         method: 'DELETE',
       });
       const json = await res.json();
-      if (json.success) {
-        await fetchTeamData();
-      } else {
+      if (!json.success) {
+        setData(snapshot);
+        cachedTeamData = snapshot;
         alert(json.error || 'Failed to cancel invitation');
       }
     } catch {
+      setData(snapshot);
+      cachedTeamData = snapshot;
       alert('Network error cancelling invitation');
     }
   };
@@ -363,15 +469,8 @@ export default function TeamView() {
     return data.invitations.filter(i => i.email.toLowerCase().includes(q));
   }, [data?.invitations, searchQuery]);
 
-  if (loading) {
-    return (
-      <div className="flex-1 h-full overflow-y-auto bg-[#F9FAFB] p-6 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3 text-gray-500">
-          <Loader2 className="w-6 h-6 animate-spin text-[#2563EB]" />
-          <span className="text-xs font-medium">Loading team members...</span>
-        </div>
-      </div>
-    );
+  if (loading && !data) {
+    return <TeamSkeleton />;
   }
 
   if (error || !data) {
@@ -431,13 +530,12 @@ export default function TeamView() {
             <button
               type="button"
               onClick={() => {
-                setLoading(true);
-                fetchTeamData();
+                fetchTeamData(true);
               }}
               title="Refresh team"
               className="h-8 w-8 inline-flex items-center justify-center bg-white border border-gray-200 hover:border-gray-300 rounded-xl text-gray-600 hover:text-gray-900 transition-all shadow-2xs active:scale-[0.98] cursor-pointer"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-[#2563EB]' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-[#2563EB]' : ''}`} />
             </button>
           </div>
         </div>
