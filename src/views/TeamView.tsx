@@ -53,6 +53,7 @@ interface TeamInvitation {
   };
 }
 
+
 interface TeamData {
   team: {
     id: string;
@@ -458,55 +459,50 @@ export default function TeamView() {
             <button
               type="button"
               onClick={() => setActiveTab('all')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                activeTab === 'all'
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeTab === 'all'
                   ? 'bg-white text-[#111111] font-semibold shadow-xs'
                   : 'text-gray-600 hover:text-gray-900'
-              }`}
+                }`}
             >
               All Members ({data.stats.totalMembers})
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('admins')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                activeTab === 'admins'
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeTab === 'admins'
                   ? 'bg-white text-purple-700 font-semibold shadow-xs'
                   : 'text-gray-600 hover:text-gray-900'
-              }`}
+                }`}
             >
               Admins ({data.stats.adminsCount})
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('managers')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                activeTab === 'managers'
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeTab === 'managers'
                   ? 'bg-white text-[#2563EB] font-semibold shadow-xs'
                   : 'text-gray-600 hover:text-gray-900'
-              }`}
+                }`}
             >
               Project Managers ({data.stats.pmCount})
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('members')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                activeTab === 'members'
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeTab === 'members'
                   ? 'bg-white text-emerald-700 font-semibold shadow-xs'
                   : 'text-gray-600 hover:text-gray-900'
-              }`}
+                }`}
             >
               Members ({data.stats.usersCount})
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('invites')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'invites'
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'invites'
                   ? 'bg-white text-amber-700 font-semibold shadow-xs'
                   : 'text-gray-600 hover:text-gray-900'
-              }`}
+                }`}
             >
               <span>Pending Invites</span>
               {data.stats.pendingInvitesCount > 0 && (
@@ -566,13 +562,12 @@ export default function TeamView() {
                           <td className="py-3.5 px-5">
                             <div className="flex items-center gap-3">
                               <div
-                                className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${
-                                  isMemberAdmin
+                                className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${isMemberAdmin
                                     ? 'bg-purple-600'
                                     : isMemberPM
-                                    ? 'bg-[#2563EB]'
-                                    : 'bg-emerald-600'
-                                }`}
+                                      ? 'bg-[#2563EB]'
+                                      : 'bg-emerald-600'
+                                  }`}
                               >
                                 {member.avatar || member.name.slice(0, 2).toUpperCase()}
                               </div>
@@ -753,19 +748,18 @@ export default function TeamView() {
                           </td>
                           <td className="py-3.5 px-5">
                             <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold ${
-                                inv.role === 'PROJECT_MANAGER'
+                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold ${inv.role === 'PROJECT_MANAGER'
                                   ? 'bg-blue-50 text-[#2563EB] border border-blue-200'
                                   : inv.role === 'ADMIN'
-                                  ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                                  : 'bg-gray-100 text-gray-700 border border-gray-200'
-                              }`}
+                                    ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                    : 'bg-gray-100 text-gray-700 border border-gray-200'
+                                }`}
                             >
                               {inv.role === 'PROJECT_MANAGER'
                                 ? 'Project Manager'
                                 : inv.role === 'ADMIN'
-                                ? 'Admin'
-                                : 'User / Member'}
+                                  ? 'Admin'
+                                  : 'User / Member'}
                             </span>
                           </td>
                           <td className="py-3.5 px-5 text-gray-500">
@@ -779,11 +773,10 @@ export default function TeamView() {
                               <button
                                 type="button"
                                 onClick={() => handleCopyLink(fullLink, inv.token)}
-                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${
-                                  isCopied
+                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${isCopied
                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
                                     : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-300 shadow-2xs'
-                                }`}
+                                  }`}
                               >
                                 {isCopied ? (
                                   <>
@@ -929,11 +922,10 @@ export default function TeamView() {
                   {/* Admin option (Admin only) */}
                   {isAdmin && (
                     <label
-                      className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
-                        inviteRole === 'ADMIN'
+                      className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${inviteRole === 'ADMIN'
                           ? 'border-[#2563EB] bg-blue-50/40 ring-1 ring-[#2563EB]'
                           : 'border-gray-200 hover:border-gray-300'
-                      }`}
+                        }`}
                     >
                       <input
                         type="radio"
@@ -958,11 +950,10 @@ export default function TeamView() {
                   {/* Project Manager option (Admin only) */}
                   {isAdmin && (
                     <label
-                      className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
-                        inviteRole === 'PROJECT_MANAGER'
+                      className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${inviteRole === 'PROJECT_MANAGER'
                           ? 'border-[#2563EB] bg-blue-50/40 ring-1 ring-[#2563EB]'
                           : 'border-gray-200 hover:border-gray-300'
-                      }`}
+                        }`}
                     >
                       <input
                         type="radio"
@@ -986,11 +977,10 @@ export default function TeamView() {
 
                   {/* Member option */}
                   <label
-                    className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
-                      inviteRole === 'MEMBER'
+                    className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${inviteRole === 'MEMBER'
                         ? 'border-[#2563EB] bg-blue-50/40 ring-1 ring-[#2563EB]'
                         : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                      }`}
                   >
                     <input
                       type="radio"
@@ -1181,11 +1171,10 @@ export default function TeamView() {
                       key={preset}
                       type="button"
                       onClick={() => setCustomTitleInput(preset)}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
-                        customTitleInput.toLowerCase() === preset.toLowerCase()
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${customTitleInput.toLowerCase() === preset.toLowerCase()
                           ? 'bg-[#2563EB] text-white'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
+                        }`}
                     >
                       {preset}
                     </button>
