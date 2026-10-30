@@ -161,10 +161,40 @@ export default function TeamView() {
     }
   }, [inviteModalOpen, isAdmin]);
 
-  // Handle Role or Job Title Change (Admin Only)
+  // Handle Role or Job Title Change (Admin Only) — Optimistic UI
   const handleUpdateRole = async (memberId: string, newRole: string) => {
-    if (!isAdmin) return;
-    setUpdatingMemberId(memberId);
+    if (!isAdmin || !data) return;
+    const snapshot = data;
+
+    // Instant optimistic update in memory
+    const oldMember = data.members.find(m => m.id === memberId);
+    const oldRoleLower = oldMember?.role?.toLowerCase() || '';
+    const newRoleLower = newRole.toLowerCase();
+
+    let adminsCount = data.stats.adminsCount;
+    let pmCount = data.stats.pmCount;
+    let usersCount = data.stats.usersCount;
+
+    if (oldRoleLower === 'admin') adminsCount = Math.max(0, adminsCount - 1);
+    else if (oldRoleLower === 'project manager' || oldRoleLower === 'project_manager') pmCount = Math.max(0, pmCount - 1);
+    else usersCount = Math.max(0, usersCount - 1);
+
+    if (newRoleLower === 'admin') adminsCount++;
+    else if (newRoleLower === 'project manager' || newRoleLower === 'project_manager') pmCount++;
+    else usersCount++;
+
+    setData(prev => prev ? {
+      ...prev,
+      stats: { ...prev.stats, adminsCount, pmCount, usersCount },
+      members: prev.members.map(m => m.id === memberId ? { ...m, role: newRole } : m),
+    } : null);
+
+    window.dispatchEvent(
+      new CustomEvent('user-profile-updated', {
+        detail: { id: memberId, role: newRole },
+      })
+    );
+
     try {
       const res = await fetch(`/api/team/members/${memberId}`, {
         method: 'PATCH',
@@ -173,20 +203,13 @@ export default function TeamView() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        alert(json.error?.message || 'Failed to update job title / role');
-        return;
+        setData(snapshot);
+        alert(json.error?.message || 'Failed to update role');
       }
-      await fetchTeamData();
-      window.dispatchEvent(
-        new CustomEvent('user-profile-updated', {
-          detail: { id: memberId, role: newRole },
-        })
-      );
     } catch (err) {
+      setData(snapshot);
       console.error('Failed to change role:', err);
       alert('Network error while updating member role');
-    } finally {
-      setUpdatingMemberId(null);
     }
   };
 
@@ -203,26 +226,39 @@ export default function TeamView() {
     }
   };
 
-  // Handle Remove Member
+  // Handle Remove Member — Optimistic UI
   const handleRemoveMember = async () => {
-    if (!memberToRemove || !isAdmin) return;
-    setRemovingMember(true);
+    if (!memberToRemove || !isAdmin || !data) return;
+    const target = memberToRemove;
+    const snapshot = data;
+
+    // Instant optimistic dismissal and removal
+    setMemberToRemove(null);
+    setData(prev => prev ? {
+      ...prev,
+      stats: {
+        ...prev.stats,
+        totalMembers: Math.max(0, prev.stats.totalMembers - 1),
+        usersCount: target.role?.toLowerCase() === 'admin' || target.role?.toLowerCase() === 'project manager'
+          ? prev.stats.usersCount
+          : Math.max(0, prev.stats.usersCount - 1),
+      },
+      members: prev.members.filter(m => m.id !== target.id),
+    } : null);
+
     try {
-      const res = await fetch(`/api/team/members/${memberToRemove.id}`, {
+      const res = await fetch(`/api/team/members/${target.id}`, {
         method: 'DELETE',
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
+        setData(snapshot);
         alert(json.error?.message || 'Failed to remove member');
-        return;
       }
-      setMemberToRemove(null);
-      await fetchTeamData();
     } catch (err) {
+      setData(snapshot);
       console.error('Error removing member:', err);
       alert('Network error while removing member');
-    } finally {
-      setRemovingMember(false);
     }
   };
 

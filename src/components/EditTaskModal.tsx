@@ -193,23 +193,20 @@ export default function EditTaskModal({ task, onClose }: EditTaskModalProps) {
     setSubmitting(true);
     setErrorMsg('');
 
-    try {
-      await updateTask(task.id, {
-        title: title.trim(),
-        description: description.trim() || undefined,
-        projectId: projectId || undefined,
-        assigneeId: assigneeId || null,
-        status,
-        priority,
-        dueDate: dueDate || undefined,
-        estimate: estimate.trim() || undefined,
-      });
-      onClose();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to update task. Please try again.';
-      setErrorMsg(msg);
-      setSubmitting(false);
-    }
+    // Instant optimistic close (updateTask in TaskContext handles optimistic memory update)
+    onClose();
+    updateTask(task.id, {
+      title: title.trim(),
+      description: description.trim() || undefined,
+      projectId: projectId || undefined,
+      assigneeId: assigneeId || null,
+      status,
+      priority,
+      dueDate: dueDate || undefined,
+      estimate: estimate.trim() || undefined,
+    }).catch(err => {
+      console.error('[EditTaskModal] background update failed:', err);
+    });
   };
 
   return (

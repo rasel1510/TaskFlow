@@ -237,19 +237,17 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
   };
 
   const handleDeleteTask = async () => {
-    if (!task || isDeleting) return;
-    setIsDeleting(true);
-    try {
-      await deleteTask(task.id);
-      toast.success('Task deleted successfully');
-      setShowDeleteConfirm(false);
-      onClose();
-    } catch (err) {
-      console.error('[TaskDetail] Failed to delete task:', err);
-      toast.error('Failed to delete task');
-    } finally {
-      setIsDeleting(false);
-    }
+    if (!task) return;
+    const targetId = task.id;
+
+    // Instant optimistic drawer & modal dismissal
+    setShowDeleteConfirm(false);
+    onClose();
+
+    // Trigger TaskContext optimistic deletion & rollback handling
+    deleteTask(targetId).catch(err => {
+      console.error('[TaskDetail] Failed to delete task in background:', err);
+    });
   };
 
   const [comments, setComments] = useState<DBComment[]>([]);
@@ -341,9 +339,28 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
   };
 
   const handleAddComment = async () => {
-    if (!commentText.trim() || !taskId || submittingComment) return;
+    if (!commentText.trim() || !taskId) return;
     const textToSend = commentText.trim();
-    setSubmittingComment(true);
+    const tempId = `temp_comment_${Date.now()}`;
+
+    // Instant optimistic comment UI
+    const optimisticComment: DBComment = {
+      id: tempId,
+      text: textToSend,
+      reactions: [],
+      createdAt: new Date().toISOString(),
+      timeAgo: 'Just now',
+      user: {
+        id: (session?.user as { id?: string })?.id || 'me',
+        name: session?.user?.name || 'Member',
+        email: session?.user?.email || '',
+        avatar: (session?.user as { avatar?: string })?.avatar || session?.user?.name?.slice(0, 2).toUpperCase() || 'ME',
+      },
+    };
+
+    setComments(prev => [...prev, optimisticComment]);
+    setCommentText('');
+    toast.success('Comment added');
 
     try {
       const res = await fetch(`/api/tasks/${taskId}/comments`, {
@@ -356,13 +373,12 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
         throw new Error(envelope?.error?.message || 'Failed to post comment');
       }
       const newComment = envelope.data ?? envelope;
-      setComments(prev => [...prev, newComment]);
-      setCommentText('');
-      toast.success('Comment added');
+      setComments(prev => prev.map(c => c.id === tempId ? newComment : c));
     } catch (err) {
+      // Rollback on network failure
+      setComments(prev => prev.filter(c => c.id !== tempId));
+      setCommentText(textToSend);
       toast.error(err instanceof Error ? err.message : 'Failed to post comment');
-    } finally {
-      setSubmittingComment(false);
     }
   };
 

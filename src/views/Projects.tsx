@@ -164,23 +164,27 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
 
   const handleDeleteProject = async () => {
     if (!projectToDelete) return;
-    setIsDeleting(true);
+    const target = projectToDelete;
+    const snapshot = projects;
+
+    // Instant optimistic removal (0ms perceived latency)
+    setProjectToDelete(null);
+    setProjects(prev => prev.filter(p => p.id !== target.id));
+    toast.success(`Project "${target.name}" deleted successfully`);
+
     try {
-      const res = await fetch(`/api/projects/${projectToDelete.id}`, {
+      const res = await fetch(`/api/projects/${target.id}`, {
         method: 'DELETE',
       });
       const json = await res.json();
       if (!res.ok || json.success === false) {
         throw new Error(json.error?.message || json.message || 'Failed to delete project');
       }
-      toast.success(`Project "${projectToDelete.name}" deleted successfully`);
-      setProjects(prev => prev.filter(p => p.id !== projectToDelete.id));
-      setProjectToDelete(null);
     } catch (err: unknown) {
+      // Rollback on network failure
+      setProjects(snapshot);
       const msg = err instanceof Error ? err.message : 'Failed to delete project';
       toast.error(msg);
-    } finally {
-      setIsDeleting(false);
     }
   };
 

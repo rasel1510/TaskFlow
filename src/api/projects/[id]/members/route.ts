@@ -38,6 +38,7 @@ export interface MemberRecord {
   avatar: string;
   userRole: string;
   expertise?: string[];
+  roleConfig?: any;
 }
 
 // ---------------------------------------------------------------------------

@@ -201,24 +201,27 @@ class TieredCache {
       }
     }
 
-    // Pattern deletion in Redis
+    // Pattern deletion in Redis — non-blocking background sweep
     if (this.isRedisReady && this.redis) {
-      try {
-        let cursor = '0';
-        do {
-          const [nextCursor, matchedKeys] = await this.redis.scan(
-            cursor,
-            'MATCH',
-            pattern,
-            'COUNT',
-            100
-          );
-          cursor = nextCursor;
-          if (matchedKeys.length > 0) {
-            await this.redis.del(...matchedKeys);
-          }
-        } while (cursor !== '0');
-      } catch {}
+      const client = this.redis;
+      (async () => {
+        try {
+          let cursor = '0';
+          do {
+            const [nextCursor, matchedKeys] = await client.scan(
+              cursor,
+              'MATCH',
+              pattern,
+              'COUNT',
+              100
+            );
+            cursor = nextCursor;
+            if (matchedKeys.length > 0) {
+              await client.del(...matchedKeys);
+            }
+          } while (cursor !== '0');
+        } catch {}
+      })().catch(() => {});
     }
   }
 

@@ -254,7 +254,7 @@ export async function POST(request: NextRequest) {
     // Resolve PM's team
     const teamContext = await getOrProvisionUserTeam(validOwnerId);
 
-    let newProject;
+    let newProject: any;
     let populatedMembers: any[] = [];
     try {
       newProject = await prisma.project.create({
@@ -289,7 +289,7 @@ export async function POST(request: NextRequest) {
         console.warn('[POST /api/projects] Member creation warning:', memErr);
       }
 
-      // Add selected initial team members (Users and Project Managers)
+      // Add selected initial team members — Optimized batch insertion O(1) roundtrip
       if (Array.isArray(initialMembers) && initialMembers.length > 0) {
         const uniqueMembers = new Map<string, string>();
         for (const item of initialMembers) {
@@ -298,50 +298,50 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        for (const [memberUserId, memberRole] of uniqueMembers.entries()) {
+        const candidateIds = Array.from(uniqueMembers.keys());
+        if (candidateIds.length > 0) {
           try {
-            // Strictly enforce multi-tenant isolation: verify user belongs to this company's team
-            if (teamContext?.teamId) {
-              const isCompanyMember = await prisma.user.findFirst({
-                where: { id: memberUserId, teamId: teamContext.teamId },
-                select: { id: true },
-              });
-              if (!isCompanyMember) {
-                console.warn(`[POST /api/projects] Blocked cross-tenant initial member ${memberUserId}`);
-                continue;
-              }
-            }
-
-            await prisma.projectMember.upsert({
+            // Single batch query: verify all members belong to the tenant in 1 round trip
+            const validUsers = await prisma.user.findMany({
               where: {
-                projectId_userId: {
-                  projectId: newProject.id,
-                  userId: memberUserId,
-                },
+                id: { in: candidateIds },
+                ...(teamContext?.teamId ? { teamId: teamContext.teamId } : {}),
               },
-              create: {
-                projectId: newProject.id,
-                userId: memberUserId,
-                role: memberRole,
-              },
-              update: {
-                role: memberRole,
-              },
+              select: { id: true },
             });
+            const validUserSet = new Set(validUsers.map(u => u.id));
 
-            // Dispatch in-app notification to the newly added member
-            try {
-              await prisma.notification.create({
-                data: {
-                  userId: memberUserId,
-                  type: 'member_added',
-                  title: 'Added to Project',
-                  body: `You have been added to "${newProject.name}" as a ${memberRole}.`,
-                },
+            const membersToInsert = candidateIds
+              .filter(id => validUserSet.has(id))
+              .map(id => ({
+                projectId: newProject.id,
+                userId: id,
+                role: uniqueMembers.get(id) || 'Member',
+              }));
+
+            if (membersToInsert.length > 0) {
+              await prisma.projectMember.createMany({
+                data: membersToInsert,
+                skipDuplicates: true,
               });
-            } catch {}
+
+              // Fire notifications asynchronously without delaying HTTP response
+              (async () => {
+                try {
+                  await prisma.notification.createMany({
+                    data: membersToInsert.map(m => ({
+                      userId: m.userId,
+                      type: 'member_added',
+                      title: 'Added to Project',
+                      body: `You have been added to "${newProject.name}" as a ${m.role}.`,
+                    })),
+                    skipDuplicates: true,
+                  });
+                } catch {}
+              })().catch(() => {});
+            }
           } catch (initMemErr) {
-            console.warn(`[POST /api/projects] Failed to add initial member ${memberUserId}:`, initMemErr);
+            console.warn('[POST /api/projects] Failed batch initial members:', initMemErr);
           }
         }
       }

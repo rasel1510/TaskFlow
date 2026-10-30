@@ -178,23 +178,20 @@ export default function CreateTaskModal({ onClose, prefillDate }: CreateTaskModa
     setSubmitting(true);
     setErrorMsg('');
 
-    try {
-      await createTask({
-        title: title.trim(),
-        description: description.trim() || undefined,
-        projectId: projectId || undefined,
-        assigneeId: (session?.user as { id?: string })?.id || undefined,
-        status,
-        priority,
-        dueDate: dueDate || undefined,
-        estimate: estimate.trim() || undefined,
-      });
-      onClose();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to create task. Please try again.';
-      setErrorMsg(msg);
-      setSubmitting(false);
-    }
+    // Instant optimistic close (createTask in TaskContext handles optimistic insert & rollback)
+    onClose();
+    createTask({
+      title: title.trim(),
+      description: description.trim() || undefined,
+      projectId: projectId || undefined,
+      assigneeId: (session?.user as { id?: string })?.id || undefined,
+      status,
+      priority,
+      dueDate: dueDate || undefined,
+      estimate: estimate.trim() || undefined,
+    }).catch(err => {
+      console.error('[CreateTaskModal] background create failed:', err);
+    });
   };
 
   return (

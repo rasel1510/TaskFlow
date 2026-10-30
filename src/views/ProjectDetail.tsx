@@ -490,26 +490,42 @@ export default function ProjectDetail({
 
   const handleConfirmRemoveMember = async () => {
     if (!memberToRemove) return;
-    setIsRemovingMember(true);
+    const target = memberToRemove;
+    const snapshot = members;
+
+    // Instant optimistic removal from UI
+    setMemberToRemove(null);
+    setMembers(prev => prev.filter(m => m.userId !== target.id));
+    toast.success(`${target.name} removed from project`);
+
     try {
-      const res = await fetch(`/api/projects/${projectId}/members?uid=${memberToRemove.id}`, {
+      const res = await fetch(`/api/projects/${projectId}/members?uid=${target.id}`, {
         method: 'DELETE',
       });
       const json = await res.json();
       if (!res.ok || json.success === false) {
         throw new Error(json.error?.message || 'Failed to remove member');
       }
-      toast.success(`${memberToRemove.name} removed from project`);
-      setMemberToRemove(null);
-      fetchMembers();
     } catch (err: any) {
+      // Rollback
+      setMembers(snapshot);
       toast.error(err.message || 'Failed to remove member');
-    } finally {
-      setIsRemovingMember(false);
     }
   };
 
   const handleUpdateMemberRole = async (userId: string, role: ProjectRole) => {
+    const snapshot = members;
+
+    // Instant optimistic update in memory
+    setMembers(prev =>
+      prev.map(m =>
+        m.userId === userId
+          ? { ...m, role, roleConfig: ROLE_DESCRIPTIONS[role] }
+          : m
+      )
+    );
+    toast.success('Member role updated');
+
     try {
       const res = await fetch(`/api/projects/${projectId}/members`, {
         method: 'PATCH',
@@ -520,9 +536,9 @@ export default function ProjectDetail({
       if (!res.ok || json.success === false) {
         throw new Error(json.error?.message || 'Failed to update member role');
       }
-      toast.success('Member role updated');
-      fetchMembers();
     } catch (err: any) {
+      // Rollback
+      setMembers(snapshot);
       toast.error(err.message || 'Failed to update member role');
     }
   };
@@ -759,7 +775,24 @@ export default function ProjectDetail({
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!project) return;
-    setIsSaving(true);
+    const snapshot = project;
+
+    // Instant optimistic UI update (0ms perceived latency)
+    setProject(prev =>
+      prev
+        ? {
+            ...prev,
+            name: editName,
+            description: editDesc,
+            color: editColor,
+            health: editHealth,
+            dueDate: editDueDate,
+          }
+        : null
+    );
+    setActiveTab('overview');
+    toast.success('Project settings updated');
+
     try {
       const res = await fetch(`/api/projects/${project.id}`, {
         method: 'PATCH',
@@ -773,50 +806,37 @@ export default function ProjectDetail({
         }),
       });
       const json = await res.json();
-      if (json.success) {
-        toast.success('Project settings updated');
-        setProject(prev =>
-          prev
-            ? {
-                ...prev,
-                name: editName,
-                description: editDesc,
-                color: editColor,
-                health: editHealth,
-                dueDate: editDueDate,
-              }
-            : null
-        );
-        setActiveTab('overview');
-      } else {
+      if (!json.success) {
+        // Rollback
+        setProject(snapshot);
         toast.error(json.error?.message || 'Failed to update project');
       }
     } catch (err) {
       console.error('[ProjectDetail] Update error:', err);
+      setProject(snapshot);
       toast.error('Failed to update project');
-    } finally {
-      setIsSaving(false);
     }
   };
 
   const handleConfirmDeleteProject = async () => {
     if (!project) return;
-    setIsDeletingProject(true);
+    const targetName = project.name;
+    const targetId = project.id;
+
+    // Instant optimistic dismissal
+    setShowDeleteModal(false);
+    toast.success(`Project "${targetName}" deleted successfully`);
+    onBack();
+
     try {
-      const res = await fetch(`/api/projects/${project.id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/projects/${targetId}`, { method: 'DELETE' });
       const json = await res.json();
-      if (res.ok && json.success) {
-        toast.success(`Project "${project.name}" deleted successfully`);
-        setShowDeleteModal(false);
-        onBack();
-      } else {
-        throw new Error(json.error?.message || json.message || 'Failed to delete project');
+      if (!res.ok || !json.success) {
+        throw new Error(json?.error?.message || 'Failed to delete project');
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to delete project';
       toast.error(msg);
-    } finally {
-      setIsDeletingProject(false);
     }
   };
 
