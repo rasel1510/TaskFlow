@@ -373,9 +373,6 @@ export default function TeamView() {
               <h1 className="text-xl md:text-2xl font-bold tracking-tight text-[#111111]">
                 {data.team.name}
               </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-[#2563EB] border border-blue-200">
-                Team Workspace
-              </span>
             </div>
             {isAdmin && (
               <p className="text-xs text-[#2563EB] font-medium mt-1">
