@@ -389,7 +389,7 @@ export default function TeamView() {
               <button
                 type="button"
                 onClick={() => setInviteModalOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+                className="h-8 inline-flex items-center gap-2 px-3.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-xl shadow-xs transition-all active:scale-[0.98] cursor-pointer"
               >
                 <UserPlus className="w-4 h-4" />
                 <span>Invite Member</span>
@@ -402,9 +402,9 @@ export default function TeamView() {
                 fetchTeamData();
               }}
               title="Refresh team"
-              className="p-2.5 bg-white border border-gray-200 hover:border-gray-300 rounded-xl text-gray-600 hover:text-gray-900 transition-colors shadow-2xs"
+              className="h-8 w-8 inline-flex items-center justify-center bg-white border border-gray-200 hover:border-gray-300 rounded-xl text-gray-600 hover:text-gray-900 transition-all shadow-2xs active:scale-[0.98] cursor-pointer"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-[#2563EB]' : ''}`} />
             </button>
           </div>
         </div>
@@ -460,8 +460,8 @@ export default function TeamView() {
               type="button"
               onClick={() => setActiveTab('all')}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeTab === 'all'
-                  ? 'bg-white text-[#111111] font-semibold shadow-xs'
-                  : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-white text-[#111111] font-semibold shadow-xs'
+                : 'text-gray-600 hover:text-gray-900'
                 }`}
             >
               All Members ({data.stats.totalMembers})
@@ -470,8 +470,8 @@ export default function TeamView() {
               type="button"
               onClick={() => setActiveTab('admins')}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeTab === 'admins'
-                  ? 'bg-white text-purple-700 font-semibold shadow-xs'
-                  : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-white text-purple-700 font-semibold shadow-xs'
+                : 'text-gray-600 hover:text-gray-900'
                 }`}
             >
               Admins ({data.stats.adminsCount})
@@ -480,8 +480,8 @@ export default function TeamView() {
               type="button"
               onClick={() => setActiveTab('managers')}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeTab === 'managers'
-                  ? 'bg-white text-[#2563EB] font-semibold shadow-xs'
-                  : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-white text-[#2563EB] font-semibold shadow-xs'
+                : 'text-gray-600 hover:text-gray-900'
                 }`}
             >
               Project Managers ({data.stats.pmCount})
@@ -490,8 +490,8 @@ export default function TeamView() {
               type="button"
               onClick={() => setActiveTab('members')}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeTab === 'members'
-                  ? 'bg-white text-emerald-700 font-semibold shadow-xs'
-                  : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-white text-emerald-700 font-semibold shadow-xs'
+                : 'text-gray-600 hover:text-gray-900'
                 }`}
             >
               Members ({data.stats.usersCount})
@@ -500,8 +500,8 @@ export default function TeamView() {
               type="button"
               onClick={() => setActiveTab('invites')}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'invites'
-                  ? 'bg-white text-amber-700 font-semibold shadow-xs'
-                  : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-white text-amber-700 font-semibold shadow-xs'
+                : 'text-gray-600 hover:text-gray-900'
                 }`}
             >
               <span>Pending Invites</span>
@@ -563,10 +563,10 @@ export default function TeamView() {
                             <div className="flex items-center gap-3">
                               <div
                                 className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${isMemberAdmin
-                                    ? 'bg-purple-600'
-                                    : isMemberPM
-                                      ? 'bg-[#2563EB]'
-                                      : 'bg-emerald-600'
+                                  ? 'bg-purple-600'
+                                  : isMemberPM
+                                    ? 'bg-[#2563EB]'
+                                    : 'bg-emerald-600'
                                   }`}
                               >
                                 {member.avatar || member.name.slice(0, 2).toUpperCase()}
@@ -749,10 +749,10 @@ export default function TeamView() {
                           <td className="py-3.5 px-5">
                             <span
                               className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold ${inv.role === 'PROJECT_MANAGER'
-                                  ? 'bg-blue-50 text-[#2563EB] border border-blue-200'
-                                  : inv.role === 'ADMIN'
-                                    ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                                    : 'bg-gray-100 text-gray-700 border border-gray-200'
+                                ? 'bg-blue-50 text-[#2563EB] border border-blue-200'
+                                : inv.role === 'ADMIN'
+                                  ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                  : 'bg-gray-100 text-gray-700 border border-gray-200'
                                 }`}
                             >
                               {inv.role === 'PROJECT_MANAGER'
@@ -774,8 +774,8 @@ export default function TeamView() {
                                 type="button"
                                 onClick={() => handleCopyLink(fullLink, inv.token)}
                                 className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${isCopied
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                                    : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-300 shadow-2xs'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                  : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-300 shadow-2xs'
                                   }`}
                               >
                                 {isCopied ? (
@@ -923,8 +923,8 @@ export default function TeamView() {
                   {isAdmin && (
                     <label
                       className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${inviteRole === 'ADMIN'
-                          ? 'border-[#2563EB] bg-blue-50/40 ring-1 ring-[#2563EB]'
-                          : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-[#2563EB] bg-blue-50/40 ring-1 ring-[#2563EB]'
+                        : 'border-gray-200 hover:border-gray-300'
                         }`}
                     >
                       <input
@@ -951,8 +951,8 @@ export default function TeamView() {
                   {isAdmin && (
                     <label
                       className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${inviteRole === 'PROJECT_MANAGER'
-                          ? 'border-[#2563EB] bg-blue-50/40 ring-1 ring-[#2563EB]'
-                          : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-[#2563EB] bg-blue-50/40 ring-1 ring-[#2563EB]'
+                        : 'border-gray-200 hover:border-gray-300'
                         }`}
                     >
                       <input
@@ -978,8 +978,8 @@ export default function TeamView() {
                   {/* Member option */}
                   <label
                     className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${inviteRole === 'MEMBER'
-                        ? 'border-[#2563EB] bg-blue-50/40 ring-1 ring-[#2563EB]'
-                        : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-[#2563EB] bg-blue-50/40 ring-1 ring-[#2563EB]'
+                      : 'border-gray-200 hover:border-gray-300'
                       }`}
                   >
                     <input
@@ -1172,8 +1172,8 @@ export default function TeamView() {
                       type="button"
                       onClick={() => setCustomTitleInput(preset)}
                       className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${customTitleInput.toLowerCase() === preset.toLowerCase()
-                          ? 'bg-[#2563EB] text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-[#2563EB] text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                     >
                       {preset}
