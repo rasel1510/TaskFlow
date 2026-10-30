@@ -97,7 +97,12 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
       return NextResponse.json(
         { success: true, data: formatted.map(m => ({ ...m, roleConfig: ROLE_DESCRIPTIONS[m.role] })) },
-        { status: 200 }
+        {
+          status: 200,
+          headers: {
+            'Cache-Control': 'private, max-age=15, stale-while-revalidate=45',
+          },
+        }
       );
     } catch (dbErr) {
       console.warn('[GET /api/projects/:id/members] DB warning:', dbErr);

@@ -69,96 +69,101 @@ export async function GET() {
           ],
         };
 
-    const dbProjects = await prisma.project.findMany({
-      where: teamFilter,
-      include: {
-        owner: {
-          select: { id: true, name: true, email: true, avatar: true, role: true, expertise: true },
-        },
-        members: {
-          include: {
-            user: {
-              select: { id: true, name: true, email: true, avatar: true, role: true, expertise: true },
-            },
+    const cacheKey = `projects:list:${currentUserId}:${teamContext?.teamId || 'no-team'}`;
+    const formatted = await redisCache.wrap(cacheKey, 15, async () => {
+      const dbProjects = await prisma.project.findMany({
+        where: teamFilter,
+        include: {
+          owner: {
+            select: { id: true, name: true, email: true, avatar: true, role: true, expertise: true },
           },
-          orderBy: { joinedAt: 'asc' },
-        },
-        joinRequests: {
-          include: {
-            user: {
-              select: { id: true, name: true, email: true, avatar: true, role: true, expertise: true },
+          members: {
+            include: {
+              user: {
+                select: { id: true, name: true, email: true, avatar: true, role: true, expertise: true },
+              },
             },
+            orderBy: { joinedAt: 'asc' },
           },
-          orderBy: { createdAt: 'desc' },
+          joinRequests: {
+            include: {
+              user: {
+                select: { id: true, name: true, email: true, avatar: true, role: true, expertise: true },
+              },
+            },
+            orderBy: { createdAt: 'desc' },
+          },
+          _count: {
+            select: { tasks: true },
+          },
         },
-        _count: {
-          select: { tasks: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      });
 
-    const formatted = dbProjects.map(p => {
-      const isOwner = currentUserId ? p.ownerId === currentUserId : false;
-      const memberList = (p.members || []).map(m => ({
-        id: m.id,
-        userId: m.userId,
-        role: m.role,
-        joinedAt: m.joinedAt.toISOString(),
-        user: m.user,
-      }));
+      return dbProjects.map(p => {
+        const isOwner = currentUserId ? p.ownerId === currentUserId : false;
+        const memberList = (p.members || []).map(m => ({
+          id: m.id,
+          userId: m.userId,
+          role: m.role,
+          joinedAt: m.joinedAt.toISOString(),
+          user: m.user,
+        }));
 
-      const isMember = currentUserId
-        ? (isOwner || memberList.some(m => m.userId === currentUserId))
-        : false;
+        const isMember = currentUserId
+          ? (isOwner || memberList.some(m => m.userId === currentUserId))
+          : false;
 
-      const userJoinRequest = currentUserId
-        ? p.joinRequests?.find(r => r.userId === currentUserId && r.status === 'pending')
-        : undefined;
+        const userJoinRequest = currentUserId
+          ? p.joinRequests?.find(r => r.userId === currentUserId && r.status === 'pending')
+          : undefined;
 
-      const hasPendingRequest = !!userJoinRequest;
+        const hasPendingRequest = !!userJoinRequest;
 
-      // Only project owner / PM or Admin can see all pending requests
-      const canManage = isOwner || currentUserRole === 'Project Manager' || currentUserRole === 'Admin';
-      const pendingRequests = canManage
-        ? (p.joinRequests?.filter(r => r.status === 'pending') || []).map(r => ({
-            id: r.id,
-            userId: r.userId,
-            status: r.status,
-            message: r.message,
-            createdAt: r.createdAt.toISOString(),
-            user: r.user,
-          }))
-        : [];
+        // Only project owner / PM or Admin can see all pending requests
+        const canManage = isOwner || currentUserRole === 'Project Manager' || currentUserRole === 'Admin';
+        const pendingRequests = canManage
+          ? (p.joinRequests?.filter(r => r.status === 'pending') || []).map(r => ({
+              id: r.id,
+              userId: r.userId,
+              status: r.status,
+              message: r.message,
+              createdAt: r.createdAt.toISOString(),
+              user: r.user,
+            }))
+          : [];
 
-      return {
-        id: p.id,
-        name: p.name,
-        description: p.description,
-        color: p.color,
-        health: p.health,
-        progress: p.progress,
-        startDate: p.startDate ? p.startDate.toISOString() : null,
-        dueDate: p.dueDate ? p.dueDate.toISOString() : null,
-        createdAt: p.createdAt.toISOString(),
-        ownerId: p.ownerId,
-        owner: p.owner,
-        taskCount: p._count.tasks,
-        members: memberList,
-        isMember,
-        hasPendingRequest,
-        isOwner,
-        canManage,
-        pendingRequests,
-        pendingRequestsCount: pendingRequests.length,
-        lifecycleState: (p as any).lifecycleState || 'ACTIVE',
-        archivedAt: (p as any).archivedAt ? (p as any).archivedAt.toISOString() : null,
-      };
+        return {
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          color: p.color,
+          health: p.health,
+          progress: p.progress,
+          startDate: p.startDate ? p.startDate.toISOString() : null,
+          dueDate: p.dueDate ? p.dueDate.toISOString() : null,
+          createdAt: p.createdAt.toISOString(),
+          ownerId: p.ownerId,
+          owner: p.owner,
+          taskCount: p._count.tasks,
+          members: memberList,
+          isMember,
+          hasPendingRequest,
+          isOwner,
+          canManage,
+          pendingRequests,
+          pendingRequestsCount: pendingRequests.length,
+          lifecycleState: (p as any).lifecycleState || 'ACTIVE',
+          archivedAt: (p as any).archivedAt ? (p as any).archivedAt.toISOString() : null,
+        };
+      });
     });
 
     return NextResponse.json({ success: true, data: formatted }, {
       status: 200,
-      headers: { 'Cache-Control': 'no-store' },
+      headers: {
+        'Cache-Control': 'private, max-age=10, stale-while-revalidate=30',
+      },
     });
   } catch (error) {
     console.error('[GET /api/projects] DB warning, returning empty list:', error);

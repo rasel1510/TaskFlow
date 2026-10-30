@@ -1437,7 +1437,20 @@ export default function ProjectDetail({
               </div>
 
               {membersLoading ? (
-                <div className="py-10 text-center text-[13px] text-[rgba(17,17,17,0.4)]">Loading team members...</div>
+                <div className="space-y-2.5">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center justify-between p-4 rounded-xl border border-[#E5E7EB] bg-white animate-pulse">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-[#F3F4F6]" />
+                        <div className="space-y-1.5">
+                          <div className="h-4 bg-[#E5E7EB] rounded w-32" />
+                          <div className="h-3 bg-[#F3F4F6] rounded w-44" />
+                        </div>
+                      </div>
+                      <div className="h-6 w-20 bg-[#F3F4F6] rounded-full" />
+                    </div>
+                  ))}
+                </div>
               ) : members.length === 0 ? (
                 <div className="py-10 text-center text-[13px] text-[rgba(17,17,17,0.4)]">No members assigned to this project.</div>
               ) : (

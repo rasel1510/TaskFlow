@@ -87,16 +87,6 @@ interface TeamMemberWorkload {
   remaining: number;
 }
 
-const DEFAULT_VELOCITY: VelocityItem[] = [
-  { day: 'Mon', completed: 4, created: 3 },
-  { day: 'Tue', completed: 6, created: 5 },
-  { day: 'Wed', completed: 8, created: 4 },
-  { day: 'Thu', completed: 5, created: 7 },
-  { day: 'Fri', completed: 9, created: 6 },
-  { day: 'Sat', completed: 3, created: 2 },
-  { day: 'Sun', completed: 4, created: 1 },
-];
-
 const circularChartConfig = {
   count: {
     label: 'Tasks',
@@ -245,12 +235,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
   // Circular Donut Chart Data (Status Breakdown)
   const circularData = useMemo(() => {
     if (totalTasks === 0) {
-      return [
-        { status: 'done', count: 4, share: 40, fill: '#16A34A' },
-        { status: 'in_progress', count: 3, share: 30, fill: '#2563EB' },
-        { status: 'in_review', count: 2, share: 20, fill: '#F59E0B' },
-        { status: 'todo', count: 1, share: 10, fill: '#94A3B8' },
-      ];
+      return [];
     }
     const safeTotal = Math.max(1, totalTasks);
     return [
@@ -258,15 +243,16 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
       { status: 'in_progress', count: inProgress, share: Math.round((inProgress / safeTotal) * 100), fill: '#2563EB' },
       { status: 'in_review', count: inReview, share: Math.round((inReview / safeTotal) * 100), fill: '#F59E0B' },
       { status: 'todo', count: todo, share: Math.round((todo / safeTotal) * 100), fill: '#94A3B8' },
-    ].filter((item) => item.count > 0 || totalTasks === 0);
+    ].filter((item) => item.count > 0);
   }, [totalTasks, done, inProgress, inReview, todo]);
 
-  // Velocity chart data
+  // Velocity chart data - strictly reflects real aggregated telemetry
   const velocityData = useMemo(() => {
-    const raw = summary?.weeklyVelocity && summary.weeklyVelocity.length > 0
-      ? summary.weeklyVelocity
-      : DEFAULT_VELOCITY;
-    return raw;
+    if (summary?.weeklyVelocity && summary.weeklyVelocity.length > 0) {
+      return summary.weeklyVelocity;
+    }
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return dayNames.map((day) => ({ day, completed: 0, created: 0 }));
   }, [summary]);
 
   const totalCompletedVelocity = velocityData.reduce((acc, v) => acc + v.completed, 0);
@@ -337,10 +323,9 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
                   <NumberPopIn value={totalTasks} />
                 </div>
                 <div className="flex items-center gap-2 text-xs">
-                  <Delta value={8.5} variant="badge">
-                    <DeltaIcon variant="trend" />
-                    <DeltaValue />
-                  </Delta>
+                  <span className="font-medium text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded text-[11px]">
+                    Total tracked
+                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -378,10 +363,9 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
                   <NumberPopIn value={done} />
                 </div>
                 <div className="flex items-center gap-2 text-xs">
-                  <Delta value={12.4} variant="badge">
-                    <DeltaIcon variant="trend" />
-                    <DeltaValue />
-                  </Delta>
+                  <span className="font-medium text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded text-[11px]">
+                    {completionRate}% finished
+                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -425,10 +409,11 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <CardTitle className="text-base font-semibold">Sprint Velocity</CardTitle>
-                    <Delta value={9.4} variant="badge">
-                      <DeltaIcon variant="trend" />
-                      <DeltaValue />
-                    </Delta>
+                    {totalCompletedVelocity > 0 && (
+                      <span className="text-[11px] font-medium text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                        Active
+                      </span>
+                    )}
                   </div>
                 </div>
                 <Select
@@ -549,35 +534,42 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
 
             <CardContent className="my-auto py-2">
               {mounted ? (
-                <ChartContainer
-                  className="mx-auto aspect-square max-h-[260px] w-full"
-                  config={circularChartConfig}
-                >
-                  <PieChart accessibilityLayer>
-                    <Pie
-                      cornerRadius={8}
-                      data={circularData}
-                      dataKey="share"
-                      innerRadius={46}
-                      nameKey="status"
-                      outerRadius="86%"
-                      stroke="var(--card)"
-                      strokeWidth={3}
-                    >
-                      <LabelList
-                        className="fill-white font-medium text-[11px]"
+                circularData.length > 0 ? (
+                  <ChartContainer
+                    className="mx-auto aspect-square max-h-[260px] w-full"
+                    config={circularChartConfig}
+                  >
+                    <PieChart accessibilityLayer>
+                      <Pie
+                        cornerRadius={8}
+                        data={circularData}
                         dataKey="share"
-                        formatter={(label: any) => {
-                          const n = Number(label);
-                          return Number.isFinite(n) && n > 9 ? `${n}%` : '';
-                        }}
-                        position="inside"
-                        stroke="none"
-                      />
-                    </Pie>
-                    <ChartLegend content={<ChartLegendContent nameKey="status" />} />
-                  </PieChart>
-                </ChartContainer>
+                        innerRadius={46}
+                        nameKey="status"
+                        outerRadius="86%"
+                        stroke="var(--card)"
+                        strokeWidth={3}
+                      >
+                        <LabelList
+                          className="fill-white font-medium text-[11px]"
+                          dataKey="share"
+                          formatter={(label: any) => {
+                            const n = Number(label);
+                            return Number.isFinite(n) && n > 9 ? `${n}%` : '';
+                          }}
+                          position="inside"
+                          stroke="none"
+                        />
+                      </Pie>
+                      <ChartLegend content={<ChartLegendContent nameKey="status" />} />
+                    </PieChart>
+                  </ChartContainer>
+                ) : (
+                  <div className="h-[240px] flex flex-col items-center justify-center text-xs text-muted-foreground gap-1.5">
+                    <span className="font-medium text-slate-600 dark:text-slate-400">No tasks tracked yet</span>
+                    <span className="text-[11px] text-muted-foreground">Create tasks to view distribution breakdown</span>
+                  </div>
+                )
               ) : (
                 <div className="h-[240px] flex items-center justify-center text-xs text-muted-foreground">
                   Loading circular chart...
