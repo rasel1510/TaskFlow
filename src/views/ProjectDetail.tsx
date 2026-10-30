@@ -1124,73 +1124,23 @@ export default function ProjectDetail({
                 </div>
               </div>
 
-              {/* Owner & Team Members card */}
-              <div className="p-5 rounded-2xl border border-[#E5E7EB] bg-white space-y-4">
-                <div>
-                  <h3 className="text-[15px] font-semibold text-[#111111] mb-3">Project Lead</h3>
-                  {project.owner ? (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-[#E5E7EB] flex items-center justify-center font-bold text-[12px] text-[#111111]">
-                        {project.owner.avatar}
-                      </div>
-                      <div>
-                        <div className="text-[13.5px] font-semibold text-[#111111]">{project.owner.name}</div>
-                        <div className="text-[12px] text-[rgba(17,17,17,0.5)]">{project.owner.role}</div>
-                        <div className="text-[11px] text-[rgba(17,17,17,0.4)]">{project.owner.email}</div>
-                      </div>
+              {/* Project Lead card */}
+              <div className="p-5 rounded-2xl border border-[#E5E7EB] bg-white">
+                <h3 className="text-[15px] font-semibold text-[#111111] mb-3">Project Lead</h3>
+                {project.owner ? (
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#E5E7EB] flex items-center justify-center font-bold text-[12px] text-[#111111]">
+                      {project.owner.avatar}
                     </div>
-                  ) : (
-                    <div className="text-[13px] text-[rgba(17,17,17,0.4)]">No owner assigned</div>
-                  )}
-                </div>
-
-                {/* Team Members Overview Widget */}
-                <div className="pt-3 border-t border-[#F3F4F6] space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[12.5px] font-semibold text-gray-800">
-                      Team Members ({members.length})
-                    </span>
-                    {isPMOrOwner && (
-                      <button
-                        type="button"
-                        onClick={() => setShowAddMemberModal(true)}
-                        className="text-[11.5px] font-semibold text-[#2563EB] hover:text-[#1D4ED8] hover:underline flex items-center gap-1 cursor-pointer"
-                      >
-                        <UserPlus className="w-3 h-3" />
-                        <span>Add Member</span>
-                      </button>
-                    )}
+                    <div>
+                      <div className="text-[13.5px] font-semibold text-[#111111]">{project.owner.name}</div>
+                      <div className="text-[12px] text-[rgba(17,17,17,0.5)]">{project.owner.role}</div>
+                      <div className="text-[11px] text-[rgba(17,17,17,0.4)]">{project.owner.email}</div>
+                    </div>
                   </div>
-
-                  {members.length > 0 ? (
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {members.slice(0, 6).map((m) => (
-                        <div
-                          key={m.userId}
-                          title={`${m.name} (${m.role})`}
-                          className="w-7 h-7 rounded-full bg-blue-100 text-[#2563EB] text-[10px] font-bold flex items-center justify-center border border-white shadow-2xs shrink-0"
-                        >
-                          {m.avatar && (m.avatar.startsWith('http') || m.avatar.startsWith('/')) ? (
-                            <img src={m.avatar} alt={m.name} className="w-full h-full rounded-full object-cover" />
-                          ) : (
-                            m.avatar || m.name.slice(0, 2).toUpperCase()
-                          )}
-                        </div>
-                      ))}
-                      {members.length > 6 && (
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab('members')}
-                          className="text-[11px] font-semibold text-gray-500 hover:text-gray-800 px-1"
-                        >
-                          +{members.length - 6} more
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-[11.5px] text-gray-400">No members added yet</p>
-                  )}
-                </div>
+                ) : (
+                  <div className="text-[13px] text-[rgba(17,17,17,0.4)]">No owner assigned</div>
+                )}
               </div>
             </div>
 
