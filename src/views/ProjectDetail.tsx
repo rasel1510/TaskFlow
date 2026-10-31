@@ -1222,7 +1222,7 @@ export default function ProjectDetail({
                   onClick={() => setActiveTab('tasks')}
                   className="text-[12px] font-medium text-[#2563EB] hover:underline"
                 >
-                  View all ({project.totalTasks}) →
+                  View all ({project.totalTasks})
                 </button>
               </div>
 
