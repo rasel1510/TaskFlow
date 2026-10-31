@@ -135,7 +135,7 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
   const [editing, setEditing] = useState(false);
   const task = ctxTasks.find(t => t.id === taskId);
   const [commentText, setCommentText] = useState('');
-  const [activeTab, setActiveTab] = useState<'details' | 'comments' | 'activity'>('details');
+  const [activeTab, setActiveTab] = useState<'comments' | 'activity'>('comments');
 
   type NotificationPref = 'all' | 'mentions' | 'muted';
   const [notifPref, setNotifPref] = useState<NotificationPref>('all');
@@ -609,7 +609,7 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
             {/* Tabs */}
             <div className="border-b border-[#E5E7EB] mb-4">
               <div className="flex gap-1">
-                {(['details', 'comments', 'activity'] as const).map(tab => (
+                {(['comments', 'activity'] as const).map(tab => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -713,47 +713,7 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
               </div>
             )}
 
-            {activeTab === 'details' && (
-              <div className="space-y-4">
-                <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.35)] mb-2">Time Tracking</div>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[['Estimated', task.estimate || 'Not set'], ['Tracked', '3h 20m'], ['Remaining', '4h 40m']].map(([label, val]) => (
-                      <div key={label} className="bg-[#F9FAFB] rounded-lg p-3 text-center">
-                        <div className="text-[14px] font-semibold text-[#111111]">{val}</div>
-                        <div className="text-[10.5px] text-[rgba(17,17,17,0.4)] mt-0.5">{label}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <button className="flex items-center gap-1.5 mt-2.5 w-full justify-center px-3 py-2 border border-[#E5E7EB] rounded-lg text-[12.5px] font-medium text-[rgba(17,17,17,0.6)] hover:bg-[#F9FAFB] transition-colors">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3" /></svg>
-                    Start Timer
-                  </button>
-                </div>
-
-                <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.35)] mb-2">Attachments ({task.attachmentsCount})</div>
-                  {task.attachmentsCount > 0 ? (
-                    <div className="grid grid-cols-2 gap-2">
-                      {Array.from({ length: Math.min(task.attachmentsCount, 2) }).map((_, i) => (
-                        <div key={i} className="flex items-center gap-2 p-2.5 border border-[#E5E7EB] rounded-lg hover:bg-[#F9FAFB] cursor-pointer transition-colors">
-                          <div className="w-8 h-8 rounded bg-[#DBEAFE] flex items-center justify-center shrink-0">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-[11.5px] font-medium text-[#111111] truncate">design-brief-{i + 1}.pdf</div>
-                            <div className="text-[10px] text-[rgba(17,17,17,0.4)]">2.4 MB</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-[12.5px] text-[rgba(17,17,17,0.35)]">No attachments yet</p>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+            </div>
         </div>
 
         {/* Comment input — always visible when on comments tab */}
