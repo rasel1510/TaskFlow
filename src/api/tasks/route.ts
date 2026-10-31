@@ -176,6 +176,9 @@ export async function GET(request: NextRequest) {
           assignee: {
             select: { id: true, name: true, email: true, avatar: true, role: true },
           },
+          creator: {
+            select: { id: true, name: true, email: true, avatar: true, role: true },
+          },
           project: true,
         },
         orderBy: [
@@ -350,6 +353,7 @@ export async function POST(request: NextRequest) {
         title: (title as string).trim(),
         projectId: targetProjectId,
         assigneeId: targetAssigneeId,
+        creatorId: dbUser.id,
         status: ((status as string | undefined) ?? 'todo') as PrismaStatus,
         priority: ((priority as string | undefined) ?? 'medium') as PrismaPriority,
         description: typeof description === 'string' ? description.trim() : undefined,

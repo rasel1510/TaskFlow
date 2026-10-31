@@ -46,6 +46,8 @@ export interface DBTask {
   projectId: string | null;
   assigneeId: string | null;
   assignee: DBUser | null;
+  creatorId?: string | null;
+  creator?: DBUser | null;
   project: DBProject | null;
 }
 

@@ -88,6 +88,7 @@ model User {
   team          Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
 
   tasksAssigned Task[]               @relation("TaskAssignee")
+  tasksCreated  Task[]               @relation("TaskCreator")
   projectsOwned Project[]            @relation("ProjectOwner")
   memberships   ProjectMember[]
   joinRequests  ProjectJoinRequest[]
@@ -199,11 +200,15 @@ model Task {
   assigneeId       String?
   assignee         User?     @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
 
+  creatorId        String?
+  creator          User?     @relation("TaskCreator", fields: [creatorId], references: [id], onDelete: SetNull)
+
   comments         Comment[]
   activities       Activity[]
 
   // Performance indexes — required for scalable queries
   @@index([assigneeId])                // GET /api/tasks?userId=...
+  @@index([creatorId])
   @@index([projectId, status])         // GET /api/tasks?projectId=...&status=...
   @@index([assigneeId, dueDate])       // upcoming deadlines, overdue checks
   @@index([status])                    // filter by status alone
@@ -212,19 +217,26 @@ model Task {
 
 
 model Comment {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   text      String
-  reactions String[] @default([])
-  createdAt DateTime @default(now())
+  reactions String[]  @default([])
+  isEdited  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
 
   taskId    String
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  replyToId String?
+  replyTo   Comment?  @relation("CommentReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies   Comment[] @relation("CommentReplies")
 
   @@index([taskId])   // load all comments for a task
   @@index([userId])   // load all comments by a user
+  @@index([replyToId])
 }
 
 model Activity {
