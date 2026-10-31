@@ -562,7 +562,7 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
           <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
           <div className="fixed inset-y-0 right-0 w-full sm:w-[520px] max-w-full bg-white sm:border-l border-[#E5E7EB] z-50 flex flex-col shadow-2xl pt-safe pb-safe animate-fadeIn">
             <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-[#E5E7EB]">
-              <div className="h-5 w-20 bg-gray-200 animate-pulse rounded-full" />
+              <div className="h-5 w-48 bg-gray-200 animate-pulse rounded" />
               <button
                 type="button"
                 onClick={onClose}
@@ -575,7 +575,6 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
               </button>
             </div>
             <div className="p-5 space-y-4">
-              <div className="h-7 w-3/4 bg-gray-200 animate-pulse rounded" />
               <div className="grid grid-cols-2 gap-4">
                 <div className="h-10 bg-gray-100 animate-pulse rounded" />
                 <div className="h-10 bg-gray-100 animate-pulse rounded" />
@@ -603,11 +602,13 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
       {/* Drawer */}
       <div className="fixed inset-y-0 right-0 w-full sm:w-[520px] max-w-full bg-white sm:border-l border-[#E5E7EB] z-50 flex flex-col shadow-2xl pt-safe pb-safe">
         {/* Header */}
-        <div className="flex items-center gap-3 px-4 sm:px-5 py-3.5 sm:py-4 border-b border-[#E5E7EB] shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="text-[11.5px] font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: s.bg, color: s.text }}>{s.label}</span>
+        <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3.5 sm:py-4 border-b border-[#E5E7EB] shrink-0">
+          <div className="min-w-0 flex-1 pr-2">
+            <h2 className="text-[15px] sm:text-[16px] font-semibold text-[#111111] truncate leading-tight" title={task.title}>
+              {task.title}
+            </h2>
           </div>
-          <div className="ml-auto flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={() => setEditing(true)}
               type="button"
@@ -700,8 +701,6 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto">
           <div className="px-5 py-5">
-            {/* Title */}
-            <h2 className="text-[18px] font-semibold text-[#111111] leading-snug mb-4">{task.title}</h2>
 
             {/* Metadata grid */}
             <div className="grid grid-cols-2 gap-x-6 gap-y-3 mb-5">
