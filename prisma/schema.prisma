@@ -199,7 +199,6 @@ model Task {
   assigneeId       String?
   assignee         User?     @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
 
-  subtasks         SubTask[]
   comments         Comment[]
   activities       Activity[]
 
@@ -211,14 +210,6 @@ model Task {
   @@index([createdAt])                 // ordering
 }
 
-model SubTask {
-  id        String   @id @default(cuid())
-  title     String
-  done      Boolean  @default(false)
-  taskId    String
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-}
 
 model Comment {
   id        String   @id @default(cuid())

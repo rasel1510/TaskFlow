@@ -70,13 +70,7 @@ async function main() {
       progress: 75,
       projectId: project.id,
       assigneeId: sarah.id,
-      subtasks: {
-        create: [
-          { title: 'Create button, input, dialog primitives', done: true },
-          { title: 'Sync Tailwind v4 theme variables', done: true },
-          { title: 'Review component accessibility', done: false },
-        ],
-      },
+
     },
   });
 
@@ -87,7 +81,7 @@ async function main() {
       id: 'task-2',
       taskNumber: 'TF-002',
       title: 'Database Schema & Prisma ORM setup',
-      description: 'Setup PostgreSQL models for users, projects, tasks, and subtasks.',
+      description: 'Setup PostgreSQL models for users, projects, and tasks.',
       status: Status.done,
       priority: Priority.urgent,
       estimate: '4h',

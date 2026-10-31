@@ -20,7 +20,6 @@ async function main() {
       include: {
         assignee: true,
         project: true,
-        subtasks: true,
       },
     });
     console.log("Success:", newTask);
