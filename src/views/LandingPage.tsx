@@ -36,6 +36,7 @@ import { LiquidGlassCard, LiquidButton } from '@/components/kokonutui/liquid-gla
 import PWAModal from '@/components/PWAModal';
 import TrustedBySection from '@/components/TrustedBySection';
 import StreamlineVelocitySection from '@/components/StreamlineVelocitySection';
+import DeveloperPlatformSection from '@/components/DeveloperPlatformSection';
 import Footer from '@/components/Footer';
 import CloudSky from '@/components/CloudSky';
 
@@ -630,6 +631,11 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
             2.7. STREAMLINE SPRINTS & VELOCITY SECTION
             ───────────────────────────────────────────────────────────────────────── */}
         <StreamlineVelocitySection />
+
+        {/* ─────────────────────────────────────────────────────────────────────────
+            2.8. DEVELOPER & AI PLATFORM SECTION (MCP + REST API)
+            ───────────────────────────────────────────────────────────────────────── */}
+        <DeveloperPlatformSection />
 
         {/* ─────────────────────────────────────────────────────────────────────────
             PINNED PANELS WITH OVERSCROLL: FEATURES & FAQ SECTIONS
