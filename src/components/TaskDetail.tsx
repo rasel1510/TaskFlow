@@ -24,11 +24,6 @@ import {
   FileText,
   Share2,
   Trash2,
-  Bell,
-  BellRing,
-  BellOff,
-  AtSign,
-  Check,
 } from 'lucide-react';
 
 interface TaskDetailProps {
@@ -136,46 +131,9 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
   const task = ctxTasks.find(t => t.id === taskId);
   const [commentText, setCommentText] = useState('');
   const [activeTab, setActiveTab] = useState<'comments' | 'activity'>('comments');
-
-  type NotificationPref = 'all' | 'mentions' | 'muted';
-  const [notifPref, setNotifPref] = useState<NotificationPref>('all');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState(false);
-
-  useEffect(() => {
-    if (!taskId) return;
-    try {
-      const saved = localStorage.getItem(`flowsync_notif_pref_${taskId}`) as NotificationPref | null;
-      if (saved === 'all' || saved === 'mentions' || saved === 'muted') {
-        setNotifPref(saved);
-      } else {
-        setNotifPref('all');
-      }
-    } catch {
-      setNotifPref('all');
-    }
-  }, [taskId]);
-
-  const handleSetNotifPref = (pref: NotificationPref) => {
-    setNotifPref(pref);
-    try {
-      if (taskId) {
-        localStorage.setItem(`flowsync_notif_pref_${taskId}`, pref);
-      }
-    } catch {}
-
-    if (pref === 'all') {
-      toast.success('Subscribed to all task updates');
-      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission();
-      }
-    } else if (pref === 'mentions') {
-      toast.info('Notifications set to mentions & assignments');
-    } else {
-      toast.info('Task notifications muted');
-    }
-  };
 
   const handleCopyLink = () => {
     if (!task) return;
@@ -446,87 +404,6 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Notification Subscription Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className={`w-7 h-7 flex items-center justify-center rounded transition-colors cursor-pointer ${
-                    notifPref === 'all'
-                      ? 'text-[#2563EB] bg-[#EFF6FF] hover:bg-[#DBEAFE]'
-                      : notifPref === 'muted'
-                      ? 'text-[rgba(17,17,17,0.3)] hover:text-[#111111] hover:bg-[#F3F4F6]'
-                      : 'text-[rgba(17,17,17,0.55)] hover:bg-[#F3F4F6] hover:text-[#111111]'
-                  }`}
-                  title={`Notifications: ${
-                    notifPref === 'all' ? 'All Activity' : notifPref === 'mentions' ? 'Mentions Only' : 'Muted'
-                  }`}
-                  aria-label="Task notification preferences"
-                >
-                  {notifPref === 'muted' ? (
-                    <BellOff size={14} />
-                  ) : notifPref === 'all' ? (
-                    <BellRing size={14} />
-                  ) : (
-                    <Bell size={14} />
-                  )}
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64 p-1.5 shadow-lg border border-[#E5E7EB]">
-                <div className="px-2.5 py-1.5 border-b border-[#F1F3F5] mb-1">
-                  <p className="text-[12px] font-semibold text-[#111111]">Notifications</p>
-                  <p className="text-[11px] text-[rgba(17,17,17,0.45)]">Configure updates for this task</p>
-                </div>
-
-                <DropdownMenuItem
-                  onClick={() => handleSetNotifPref('all')}
-                  className="flex items-start gap-2.5 py-2 px-2.5 rounded-lg cursor-pointer"
-                >
-                  <BellRing size={14} className="mt-0.5 text-[#2563EB] shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[12.5px] font-medium text-[#111111]">All Activity</span>
-                      {notifPref === 'all' && <Check size={13} className="text-[#2563EB]" />}
-                    </div>
-                    <p className="text-[10.5px] text-[rgba(17,17,17,0.45)] mt-0.5 leading-snug">
-                      Status changes & comments
-                    </p>
-                  </div>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem
-                  onClick={() => handleSetNotifPref('mentions')}
-                  className="flex items-start gap-2.5 py-2 px-2.5 rounded-lg cursor-pointer"
-                >
-                  <AtSign size={14} className="mt-0.5 text-[rgba(17,17,17,0.6)] shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[12.5px] font-medium text-[#111111]">Mentions Only</span>
-                      {notifPref === 'mentions' && <Check size={13} className="text-[#2563EB]" />}
-                    </div>
-                    <p className="text-[10.5px] text-[rgba(17,17,17,0.45)] mt-0.5 leading-snug">
-                      Only when assigned or tagged
-                    </p>
-                  </div>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem
-                  onClick={() => handleSetNotifPref('muted')}
-                  className="flex items-start gap-2.5 py-2 px-2.5 rounded-lg cursor-pointer"
-                >
-                  <BellOff size={14} className="mt-0.5 text-[rgba(17,17,17,0.4)] shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[12.5px] font-medium text-[#111111]">Muted</span>
-                      {notifPref === 'muted' && <Check size={13} className="text-[#2563EB]" />}
-                    </div>
-                    <p className="text-[10.5px] text-[rgba(17,17,17,0.45)] mt-0.5 leading-snug">
-                      Never notify for this task
-                    </p>
-                  </div>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
             <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#F3F4F6] text-[rgba(17,17,17,0.4)] transition-colors">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
             </button>
