@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
@@ -49,6 +49,21 @@ function AppContent() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
+
+  // Synchronize selected task with browser URL query parameter without triggering page reload
+  const handleSelectTask = useCallback((id: string | null) => {
+    setSelectedTask(id);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (id) {
+        url.searchParams.set('task', id);
+      } else {
+        url.searchParams.delete('task');
+        url.searchParams.delete('taskId');
+      }
+      window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+    }
+  }, []);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [projectDetailTab, setProjectDetailTab] = useState<'overview' | 'tasks' | 'milestones' | 'members' | 'messages' | 'settings'>('overview');
   const [showCreateTask, setShowCreateTask] = useState(false);
@@ -58,11 +73,12 @@ function AppContent() {
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  // Handle post-invite onboarding and deep linking to project
+  // Handle post-invite onboarding and deep linking to project or task
   useEffect(() => {
     if (searchParams) {
       const isOnboardingParam = searchParams.get('onboarding') === 'true';
       const targetPid = searchParams.get('projectId');
+      const targetTaskId = searchParams.get('task') || searchParams.get('taskId');
 
       if (isOnboardingParam || session?.user?.name === 'New Member') {
         setShowOnboarding(true);
@@ -70,6 +86,9 @@ function AppContent() {
       if (targetPid) {
         setSelectedProjectId(targetPid);
         setView('project-detail');
+      }
+      if (targetTaskId) {
+        setSelectedTask(targetTaskId);
       }
     }
   }, [searchParams, session?.user?.name]);
@@ -166,11 +185,11 @@ function AppContent() {
   const renderView = () => {
     switch (view) {
       case 'dashboard':
-        return <Dashboard onTaskClick={setSelectedTask} onViewChange={v => setView(v)} />;
+        return <Dashboard onTaskClick={handleSelectTask} onViewChange={v => setView(v)} />;
       case 'tasks':
-        return <MyTasks onTaskClick={setSelectedTask} onCreateTask={() => setShowCreateTask(true)} />;
+        return <MyTasks onTaskClick={handleSelectTask} onCreateTask={() => setShowCreateTask(true)} />;
       case 'kanban':
-        return <KanbanBoard onTaskClick={setSelectedTask} onCreateTask={() => setShowCreateTask(true)} />;
+        return <KanbanBoard onTaskClick={handleSelectTask} onCreateTask={() => setShowCreateTask(true)} />;
       case 'projects':
         return (
           <Projects
@@ -188,7 +207,7 @@ function AppContent() {
               setProjectDetailTab('overview');
               setView('projects');
             }}
-            onTaskClick={setSelectedTask}
+            onTaskClick={handleSelectTask}
             onCreateTask={() => setShowCreateTask(true)}
           />
         ) : (
@@ -200,7 +219,7 @@ function AppContent() {
       case 'calendar':
         return (
           <CalendarView
-            onTaskClick={setSelectedTask}
+            onTaskClick={handleSelectTask}
             onCreateTask={(date) => {
               setCreateTaskDate(date);
               setShowCreateTask(true);
@@ -210,7 +229,7 @@ function AppContent() {
       case 'timeline':
         return (
           <TimelineView
-            onTaskClick={setSelectedTask}
+            onTaskClick={handleSelectTask}
             onCreateTask={(date) => {
               setCreateTaskDate(date);
               setShowCreateTask(true);
@@ -220,7 +239,7 @@ function AppContent() {
       case 'inbox':
         return (
           <Inbox
-            onTaskClick={setSelectedTask}
+            onTaskClick={handleSelectTask}
             onProjectClick={handleOpenProject}
             onNavigate={navigateTo}
           />
@@ -267,7 +286,7 @@ function AppContent() {
             onOpenCopilot={() => setIsCopilotOpen(true)}
             onNavigate={navigateTo}
             onOpenPWA={() => setIsPWAModalOpen(true)}
-            onTaskClick={setSelectedTask}
+            onTaskClick={handleSelectTask}
             onProjectClick={handleOpenProject}
           />
           {/* Main content area — on mobile, reserve space for the bottom nav (56px) */}
@@ -371,7 +390,7 @@ function AppContent() {
         {selectedTask && (
           <TaskDetail
             taskId={selectedTask}
-            onClose={() => setSelectedTask(null)}
+            onClose={() => handleSelectTask(null)}
           />
         )}
 
@@ -395,7 +414,7 @@ function AppContent() {
             setView(v);
           }}
           onSelectTask={id => {
-            setSelectedTask(id);
+            handleSelectTask(id);
             setCommandPaletteOpen(false);
           }}
           onSelectProject={id => {
@@ -423,7 +442,7 @@ function AppContent() {
           isOpen={isCopilotOpen}
           onClose={() => setIsCopilotOpen(false)}
           currentProjectId={selectedProjectId}
-          onSelectTask={id => setSelectedTask(id)}
+          onSelectTask={id => handleSelectTask(id)}
         />
 
         {/* Floating Draggable FlowAi Trigger Button */}

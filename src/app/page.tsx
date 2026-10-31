@@ -13,12 +13,27 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function HomePage() {
+export default async function HomePage(props: {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const session = await auth();
+  const searchParams = props.searchParams ? await props.searchParams : undefined;
+  const taskId = searchParams?.task || searchParams?.taskId;
+  const projectId = searchParams?.projectId;
 
-  // If already authenticated, redirect straight to the workspace
+  const queryParts: string[] = [];
+  if (taskId && typeof taskId === 'string') queryParts.push(`task=${encodeURIComponent(taskId)}`);
+  if (projectId && typeof projectId === 'string') queryParts.push(`projectId=${encodeURIComponent(projectId)}`);
+  const queryString = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+
+  // If already authenticated, redirect straight to the workspace preserving deep links
   if (session?.user) {
-    redirect('/app');
+    redirect(`/app${queryString}`);
+  }
+
+  // If not authenticated and a deep link was accessed, prompt login and return back
+  if (queryString) {
+    redirect(`/auth/login?callbackUrl=${encodeURIComponent(`/app${queryString}`)}`);
   }
 
   return <LandingPage />;

@@ -126,9 +126,48 @@ function formatActivityText(text: string) {
 export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
   const { data: session } = useSession();
   const toast = useToast();
-  const { tasks: ctxTasks, createTask, deleteTask } = useTasks();
+  const { tasks: ctxTasks, createTask, deleteTask, isLoading: ctxLoading } = useTasks();
   const [editing, setEditing] = useState(false);
-  const task = ctxTasks.find(t => t.id === taskId);
+  const ctxTask = ctxTasks.find(t => t.id === taskId);
+  const [directTask, setDirectTask] = useState<DBTask | null>(null);
+  const [isDirectLoading, setIsDirectLoading] = useState(false);
+
+  const task = ctxTask || directTask;
+
+  // Direct deep link task fetcher (if task is not yet loaded into context or accessed directly via URL)
+  useEffect(() => {
+    if (!taskId) return;
+    if (ctxTask) {
+      if (directTask) setDirectTask(null);
+      return;
+    }
+
+    let isMounted = true;
+    setIsDirectLoading(true);
+
+    fetch(`/api/tasks/${taskId}`)
+      .then(res => {
+        if (!res.ok) throw new Error('Task not found');
+        return res.json();
+      })
+      .then(envelope => {
+        if (!isMounted) return;
+        const data = envelope?.data ?? envelope;
+        if (data && data.id) {
+          setDirectTask(data);
+        }
+      })
+      .catch(err => {
+        console.warn('[TaskDetail] Direct fetch failed:', err);
+      })
+      .finally(() => {
+        if (isMounted) setIsDirectLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [taskId, ctxTask, directTask]);
   const [commentText, setCommentText] = useState('');
   const [activeTab, setActiveTab] = useState<'comments' | 'activity'>('comments');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -137,7 +176,7 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
 
   const handleCopyLink = () => {
     if (!task) return;
-    const url = `${window.location.origin}/?task=${task.id}`;
+    const url = `${window.location.origin}/app?task=${task.id}`;
     navigator.clipboard.writeText(url).then(
       () => toast.success('Task link copied to clipboard'),
       () => toast.error('Failed to copy link')
@@ -178,7 +217,7 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
 
   const handleShare = async () => {
     if (!task) return;
-    const url = `${window.location.origin}/?task=${task.id}`;
+    const url = `${window.location.origin}/app?task=${task.id}`;
     if (typeof navigator !== 'undefined' && navigator.share) {
       try {
         await navigator.share({
@@ -311,7 +350,39 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
     }
   };
 
-  if (!task) return null;
+  if (!task) {
+    if (isDirectLoading || ctxLoading) {
+      return (
+        <>
+          <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
+          <div className="fixed inset-y-0 right-0 w-full sm:w-[520px] max-w-full bg-white sm:border-l border-[#E5E7EB] z-50 flex flex-col shadow-2xl pt-safe pb-safe animate-fadeIn">
+            <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-[#E5E7EB]">
+              <div className="h-5 w-20 bg-gray-200 animate-pulse rounded-full" />
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#F3F4F6] text-[rgba(17,17,17,0.4)] transition-colors cursor-pointer"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="h-7 w-3/4 bg-gray-200 animate-pulse rounded" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="h-10 bg-gray-100 animate-pulse rounded" />
+                <div className="h-10 bg-gray-100 animate-pulse rounded" />
+              </div>
+              <div className="h-24 bg-gray-100 animate-pulse rounded" />
+            </div>
+          </div>
+        </>
+      );
+    }
+    return null;
+  }
 
   const statusKey = (task.status in statusColors ? task.status : 'todo') as Status;
   const priorityKey = (task.priority in priorityColors ? task.priority : 'medium') as Priority;

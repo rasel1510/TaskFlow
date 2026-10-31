@@ -59,7 +59,7 @@ export function isAuthRoute(pathname: string): boolean {
  * 3. All other cases (e.g. '/landing', static assets) → return null.
  */
 export function applyAuthMiddleware(request: NextRequest): NextResponse | null {
-  const { pathname } = request.nextUrl;
+  const { pathname, search } = request.nextUrl;
   const sessionToken = getSessionToken(request);
   const onAuthRoute = isAuthRoute(pathname);
 
@@ -68,15 +68,20 @@ export function applyAuthMiddleware(request: NextRequest): NextResponse | null {
   const isInviteRoute  = pathname.startsWith('/invite');
 
   // Rule 1: Authenticated user accessing root ('/') or auth pages
-  // They are already logged in — send them straight into their workspace!
+  // They are already logged in — send them straight into their workspace, preserving deep links!
   if (sessionToken && (pathname === '/' || onAuthRoute)) {
-    return NextResponse.redirect(new URL('/app', request.url));
+    const appUrl = new URL('/app', request.url);
+    if (search) {
+      appUrl.search = search;
+    }
+    return NextResponse.redirect(appUrl);
   }
 
-  // Rule 2: Unauthenticated user on protected route (like /app) → redirect to login
+  // Rule 2: Unauthenticated user on protected route (like /app) → redirect to login with full callbackUrl
   if (!sessionToken && !onAuthRoute && !isLandingRoute && !isInviteRoute && pathname !== '/') {
     const loginUrl = new URL('/auth/login', request.url);
-    loginUrl.searchParams.set('callbackUrl', request.nextUrl.pathname);
+    const fullCallback = pathname + (search || '');
+    loginUrl.searchParams.set('callbackUrl', fullCallback);
     return NextResponse.redirect(loginUrl);
   }
 
