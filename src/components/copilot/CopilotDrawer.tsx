@@ -19,7 +19,6 @@ interface CreatedTaskCard {
   priority: string;
   dueDate: string | null;
   projectName?: string;
-  subtasksCount?: number;
 }
 
 interface Message {

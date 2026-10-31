@@ -127,7 +127,6 @@ export interface NotificationPreferences {
   comment_on_task: boolean;
   mentioned: boolean;
   status_changed: boolean;
-  subtask_completed: boolean;
   new_member: boolean;
 
   // Product Manager & Sprints
@@ -151,7 +150,6 @@ const DEFAULT_NOTIF_PREFS: NotificationPreferences = {
   comment_on_task: true,
   mentioned: true,
   status_changed: true,
-  subtask_completed: true,
   new_member: false,
 
   pm_project_at_risk: true,
@@ -1628,7 +1626,7 @@ export default function Settings() {
                   {
                     key: 'task_assigned',
                     label: 'Task Assignments',
-                    desc: 'When a task or subtask is assigned to your account',
+                    desc: 'When a task is assigned to your account',
                   },
                   {
                     key: 'task_due_soon',
@@ -1650,11 +1648,7 @@ export default function Settings() {
                     label: 'Status Transitions',
                     desc: 'When a watched task changes state (e.g. In Progress → Done)',
                   },
-                  {
-                    key: 'subtask_completed',
-                    label: 'Subtask Completions',
-                    desc: 'When checklist items and subtasks are marked as resolved',
-                  },
+
                   {
                     key: 'new_member',
                     label: 'Workspace Member Join Alerts',

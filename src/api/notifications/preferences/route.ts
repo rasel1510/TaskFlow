@@ -21,7 +21,6 @@ export interface NotificationPreferences {
   comment_on_task: boolean;
   mentioned: boolean;
   status_changed: boolean;
-  subtask_completed: boolean;
   new_member: boolean;
 
   // Role-Specific Triggers
@@ -41,7 +40,6 @@ export const DEFAULT_PREFERENCES: NotificationPreferences = {
   comment_on_task: true,
   mentioned: true,
   status_changed: true,
-  subtask_completed: true,
   new_member: false,
 
   pm_project_at_risk: true,

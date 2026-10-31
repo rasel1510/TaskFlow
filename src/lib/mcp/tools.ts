@@ -92,7 +92,7 @@ export function parseNaturalDate(input: unknown): Date | undefined {
 export const MCP_TOOL_DEFINITIONS: McpToolDefinition[] = [
   {
     name: 'create_task',
-    description: 'Create a new task in FlowSync with title, due date, priority, project, and optional subtasks.',
+    description: 'Create a new task in FlowSync with title, due date, priority, and project.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -135,11 +135,7 @@ export const MCP_TOOL_DEFINITIONS: McpToolDefinition[] = [
           items: { type: 'string' },
           description: 'Tags/labels for the task (e.g. ["frontend", "bug"])',
         },
-        subtasks: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'List of checklist subtask titles to create under this task',
-        },
+
       },
       required: ['title'],
     },
@@ -232,7 +228,6 @@ export const MCP_TOOL_DEFINITIONS: McpToolDefinition[] = [
               status: { type: 'string', enum: ['backlog', 'todo', 'in_progress', 'in_review', 'done'] },
               description: { type: 'string' },
               projectName: { type: 'string' },
-              subtasks: { type: 'array', items: { type: 'string' } },
             },
             required: ['title'],
           },
@@ -242,25 +237,7 @@ export const MCP_TOOL_DEFINITIONS: McpToolDefinition[] = [
       required: ['tasks'],
     },
   },
-  {
-    name: 'add_subtasks',
-    description: 'Add checklist subtasks to an existing task.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        taskId: {
-          type: 'string',
-          description: 'The task ID or task number (e.g. "TF-001")',
-        },
-        subtaskTitles: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Array of subtask titles to create',
-        },
-      },
-      required: ['taskId', 'subtaskTitles'],
-    },
-  },
+
   {
     name: 'list_projects',
     description: 'List all active projects in FlowSync with progress, health, and metadata.',
@@ -308,8 +285,6 @@ export async function executeMcpTool(
         return await handleUpdateTask(args, context);
       case 'batch_create_tasks':
         return await handleBatchCreateTasks(args, context);
-      case 'add_subtasks':
-        return await handleAddSubtasks(args, context);
       case 'list_projects':
         return await handleListProjects(args, context);
       case 'get_workspace_summary':
@@ -406,9 +381,7 @@ async function handleCreateTask(
   const taskCount = await prisma.task.count();
   const taskNumber = `TF-${String(taskCount + 1).padStart(3, '0')}`;
 
-  const subtasksList = Array.isArray(args.subtasks)
-    ? (args.subtasks as unknown[]).map(s => String(s).trim()).filter(Boolean)
-    : [];
+
 
   const createdTask = await prisma.task.create({
     data: {
@@ -422,13 +395,10 @@ async function handleCreateTask(
       labels: Array.isArray(args.labels) ? (args.labels as string[]) : [],
       projectId: targetProjectId,
       assigneeId,
-      subtasks: subtasksList.length > 0 ? {
-        create: subtasksList.map(t => ({ title: t, done: false })),
-      } : undefined,
+
     },
     include: {
       project: { select: { id: true, name: true, color: true } },
-      subtasks: true,
     },
   });
 
@@ -447,7 +417,6 @@ async function handleCreateTask(
     priority: createdTask.priority,
     dueDate: createdTask.dueDate?.toISOString().split('T')[0] || null,
     projectName: createdTask.project?.name || targetProjectName || 'Personal',
-    subtasksCount: createdTask.subtasks.length,
   };
 
   return {
@@ -508,7 +477,6 @@ async function handleListTasks(
       dueDate: true,
       labels: true,
       project: { select: { id: true, name: true, color: true } },
-      subtasks: { select: { id: true, title: true, done: true } },
     },
   });
 
@@ -520,7 +488,6 @@ async function handleListTasks(
     priority: t.priority,
     dueDate: t.dueDate ? t.dueDate.toISOString().split('T')[0] : null,
     projectName: t.project?.name || null,
-    subtasks: t.subtasks.map(s => `${s.done ? '[x]' : '[ ]'} ${s.title}`),
   }));
 
   return {
@@ -643,49 +610,6 @@ async function handleBatchCreateTasks(
         type: 'text',
         text: `Successfully created ${createdResults.length} tasks in batch.`,
         data: createdResults,
-      },
-    ],
-  };
-}
-
-async function handleAddSubtasks(
-  args: Record<string, unknown>,
-  context: ExecutionContext
-): Promise<McpToolCallResult> {
-  const taskIdInput = String(args.taskId || '').trim();
-  const subtaskTitles = Array.isArray(args.subtaskTitles) ? args.subtaskTitles.map(String) : [];
-
-  if (!taskIdInput || subtaskTitles.length === 0) {
-    return { isError: true, content: [{ type: 'text', text: 'taskId and non-empty subtaskTitles are required.' }] };
-  }
-
-  const existing = await prisma.task.findFirst({
-    where: {
-      OR: [
-        { id: taskIdInput },
-        { taskNumber: { equals: taskIdInput, mode: 'insensitive' } },
-      ],
-    },
-    select: { id: true, taskNumber: true, title: true },
-  });
-
-  if (!existing) {
-    return { isError: true, content: [{ type: 'text', text: `Task "${taskIdInput}" not found.` }] };
-  }
-
-  await prisma.subTask.createMany({
-    data: subtaskTitles.map(title => ({
-      taskId: existing.id,
-      title: title.trim(),
-      done: false,
-    })),
-  });
-
-  return {
-    content: [
-      {
-        type: 'text',
-        text: `Added ${subtaskTitles.length} subtask(s) to "${existing.title}".`,
       },
     ],
   };

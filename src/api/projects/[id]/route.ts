@@ -63,7 +63,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
                   select: { id: true, name: true, avatar: true, role: true, email: true },
                 },
                 _count: {
-                  select: { subtasks: true, comments: true },
+                  select: { comments: true },
                 },
               },
               orderBy: { createdAt: 'desc' },

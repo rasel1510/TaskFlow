@@ -29,7 +29,6 @@ interface ProjectTask {
     role?: string;
   } | null;
   _count?: {
-    subtasks: number;
     comments: number;
   };
 }

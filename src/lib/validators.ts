@@ -184,31 +184,8 @@ export const CreateCommentSchema = z.object({
 export type CreateCommentInput = z.infer<typeof CreateCommentSchema>;
 
 // ---------------------------------------------------------------------------
-// Subtask schemas
 // ---------------------------------------------------------------------------
 
-export const CreateSubtaskSchema = z.object({
-  title: z
-    .string()
-    .min(1, 'Title cannot be empty')
-    .max(255, 'Title must be 255 characters or fewer')
-    .trim(),
-});
-
-export const UpdateSubtaskSchema = z.object({
-  title: z
-    .string()
-    .min(1, 'Title cannot be empty')
-    .max(255, 'Title must be 255 characters or fewer')
-    .trim()
-    .optional(),
-  done: z.boolean().optional(),
-});
-
-export type CreateSubtaskInput = z.infer<typeof CreateSubtaskSchema>;
-export type UpdateSubtaskInput = z.infer<typeof UpdateSubtaskSchema>;
-
-// ---------------------------------------------------------------------------
 // Profile and password schemas
 // ---------------------------------------------------------------------------
 

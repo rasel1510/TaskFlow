@@ -68,7 +68,6 @@ export async function GET(_request: NextRequest, context: RouteContext) {
           select: { id: true, name: true, email: true, avatar: true, role: true },
         },
         project: true,
-        subtasks: true,
         comments: {
           select: {
             id: true, text: true, reactions: true, createdAt: true,
@@ -206,7 +205,6 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           select: { id: true, name: true, email: true, avatar: true, role: true },
         } : false,
         project:  'projectId'  in updateData,
-        subtasks: false,
       },
     });
 

@@ -66,8 +66,6 @@ function KanbanCard({
   onClick?: () => void;
   isOverlay?: boolean;
 }) {
-  const subtaskDone = task.subtasks?.filter(s => s.done).length ?? 0;
-  const subtaskTotal = task.subtasks?.length ?? 0;
   const pConfig = priorityColors[task.priority as keyof typeof priorityColors] || priorityColors.medium;
   const labels = Array.isArray(task.labels) ? task.labels : [];
 
@@ -101,17 +99,7 @@ function KanbanCard({
         {task.project?.name ?? getProjectName(task.projectId)}
       </div>
 
-      {subtaskTotal > 0 && (
-        <div className="mb-2.5">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10.5px] text-[rgba(17,17,17,0.45)]">{subtaskDone}/{subtaskTotal} subtasks</span>
-            <span className="text-[10.5px] font-medium text-[rgba(17,17,17,0.45)]">{Math.round((subtaskDone / subtaskTotal) * 100)}%</span>
-          </div>
-          <div className="h-1 bg-[#F3F4F6] rounded-full overflow-hidden">
-            <div className="h-full bg-[#2563EB] rounded-full transition-all" style={{ width: `${(subtaskDone / subtaskTotal) * 100}%` }} />
-          </div>
-        </div>
-      )}
+
 
       {/* Footer */}
       <div className="flex items-center justify-between pt-1 border-t border-[#F3F4F6] text-[rgba(17,17,17,0.45)]">

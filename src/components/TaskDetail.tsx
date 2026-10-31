@@ -131,7 +131,7 @@ function formatActivityText(text: string) {
 export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
   const { data: session } = useSession();
   const toast = useToast();
-  const { tasks: ctxTasks, createTask, deleteTask, createSubtask, toggleSubtask, deleteSubtask } = useTasks();
+  const { tasks: ctxTasks, createTask, deleteTask } = useTasks();
   const [editing, setEditing] = useState(false);
   const task = ctxTasks.find(t => t.id === taskId);
   const [commentText, setCommentText] = useState('');
@@ -256,10 +256,7 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
   const [loadingActivities, setLoadingActivities] = useState(false);
   const [submittingComment, setSubmittingComment] = useState(false);
 
-  // Subtask management state
-  const [isAddingSubtask, setIsAddingSubtask] = useState(false);
-  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
-  const [creatingSubtask, setCreatingSubtask] = useState(false);
+
 
   const loadComments = useCallback(async (signal?: AbortSignal) => {
     if (!taskId) return;
@@ -310,33 +307,7 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
     };
   }, [activeTab, loadComments, loadActivities]);
 
-  const handleAddSubtask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!task || !newSubtaskTitle.trim() || creatingSubtask) return;
-    setCreatingSubtask(true);
-    try {
-      await createSubtask(task.id, newSubtaskTitle.trim());
-      setNewSubtaskTitle('');
-      setIsAddingSubtask(false);
-      loadActivities();
-    } catch {
-      // Handled in TaskContext
-    } finally {
-      setCreatingSubtask(false);
-    }
-  };
 
-  const handleToggleSubtask = async (subtaskId: string, done: boolean) => {
-    if (!task) return;
-    await toggleSubtask(task.id, subtaskId, done);
-    loadActivities();
-  };
-
-  const handleDeleteSubtask = async (subtaskId: string) => {
-    if (!task) return;
-    await deleteSubtask(task.id, subtaskId);
-    loadActivities();
-  };
 
   const handleAddComment = async () => {
     if (!commentText.trim() || !taskId) return;
@@ -388,8 +359,7 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
   const priorityKey = (task.priority in priorityColors ? task.priority : 'medium') as Priority;
   const s = statusColors[statusKey];
   const p = priorityColors[priorityKey];
-  const subtaskDone = task.subtasks?.filter(s => s.done).length ?? 0;
-  const subtaskTotal = task.subtasks?.length ?? 0;
+
 
   return (
     <>
@@ -519,7 +489,7 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
                       {notifPref === 'all' && <Check size={13} className="text-[#2563EB]" />}
                     </div>
                     <p className="text-[10.5px] text-[rgba(17,17,17,0.45)] mt-0.5 leading-snug">
-                      Status changes, comments & subtasks
+                      Status changes & comments
                     </p>
                   </div>
                 </DropdownMenuItem>
@@ -635,109 +605,6 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
                 <p className="text-[13.5px] text-[rgba(17,17,17,0.75)] leading-relaxed">{task.description}</p>
               </div>
             )}
-
-            {/* Subtasks */}
-            <div className="mb-5">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.35)]">
-                  Subtasks {subtaskTotal > 0 && `(${subtaskDone}/${subtaskTotal})`}
-                </div>
-                {subtaskTotal > 0 && (
-                  <span className="text-[11.5px] text-[rgba(17,17,17,0.45)]">
-                    {Math.round((subtaskDone / subtaskTotal) * 100)}% done
-                  </span>
-                )}
-              </div>
-
-              {subtaskTotal > 0 && (
-                <div className="h-1.5 bg-[#F3F4F6] rounded-full overflow-hidden mb-3">
-                  <div
-                    className="h-full bg-[#2563EB] rounded-full transition-all duration-300"
-                    style={{ width: `${(subtaskDone / subtaskTotal) * 100}%` }}
-                  />
-                </div>
-              )}
-
-              {subtaskTotal > 0 && (
-                <div className="space-y-1.5 mb-2">
-                  {task.subtasks?.map(sub => (
-                    <div
-                      key={sub.id}
-                      className="group flex items-center justify-between py-1.5 px-3 rounded-lg hover:bg-[#F9FAFB] transition-colors"
-                    >
-                      <label className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={sub.done}
-                          onChange={(e) => handleToggleSubtask(sub.id, e.target.checked)}
-                          className="w-3.5 h-3.5 rounded border-[#D1D5DB] accent-[#2563EB] cursor-pointer"
-                        />
-                        <span
-                          className={`text-[13px] truncate select-none ${
-                            sub.done ? 'line-through text-[rgba(17,17,17,0.35)]' : 'text-[#111111]'
-                          }`}
-                        >
-                          {sub.title}
-                        </span>
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteSubtask(sub.id)}
-                        title="Delete subtask"
-                        className="opacity-0 group-hover:opacity-100 p-1 text-[rgba(17,17,17,0.3)] hover:text-[#DC2626] rounded transition-opacity"
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Add subtask input */}
-              {isAddingSubtask ? (
-                <form
-                  onSubmit={handleAddSubtask}
-                  className="flex items-center gap-2 mt-2"
-                >
-                  <input
-                    type="text"
-                    autoFocus
-                    placeholder="Enter subtask title..."
-                    value={newSubtaskTitle}
-                    onChange={(e) => setNewSubtaskTitle(e.target.value)}
-                    className="flex-1 px-3 py-1.5 text-[12.5px] border border-[#2563EB] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#2563EB]"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!newSubtaskTitle.trim() || creatingSubtask}
-                    className="px-3 py-1.5 text-[12px] font-medium text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-lg disabled:opacity-50 transition-colors"
-                  >
-                    {creatingSubtask ? 'Adding...' : 'Add'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setIsAddingSubtask(false); setNewSubtaskTitle(''); }}
-                    className="px-2 py-1.5 text-[12px] text-[rgba(17,17,17,0.5)] hover:text-[#111111]"
-                  >
-                    Cancel
-                  </button>
-                </form>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setIsAddingSubtask(true)}
-                  className="flex items-center gap-1.5 mt-1 px-2.5 py-1 text-[12px] font-medium text-[rgba(17,17,17,0.5)] hover:text-[#2563EB] hover:bg-[#EFF6FF] rounded-lg transition-colors"
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                  Add subtask
-                </button>
-              )}
-            </div>
 
             {/* Tabs */}
             <div className="border-b border-[#E5E7EB] mb-4">
@@ -944,7 +811,7 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
           <DialogHeader>
             <DialogTitle className="text-[16px] font-semibold text-[#111111]">Delete Task</DialogTitle>
             <DialogDescription className="text-[13px] text-[rgba(17,17,17,0.6)] leading-relaxed mt-1.5">
-              Are you sure you want to delete <span className="font-semibold text-[#111111]">{task?.title}</span>? This action cannot be undone and will delete all subtasks and comments.
+              Are you sure you want to delete <span className="font-semibold text-[#111111]">{task?.title}</span>? This action cannot be undone and will delete all comments.
             </DialogDescription>
           </DialogHeader>
           <div className="mt-5 flex items-center justify-end gap-2">

@@ -386,7 +386,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
       icon: Layers,
       accent: 'text-emerald-500 dark:text-emerald-400',
       description:
-        'Keep distributed teams perfectly synchronized with live cursor presence, instant subtask updates, threaded inline comments, and seamless cross-project tagging.',
+        'Keep distributed teams perfectly synchronized with live cursor presence, instant task updates, threaded inline comments, and seamless cross-project tagging.',
     },
     {
       id: 'sprints',

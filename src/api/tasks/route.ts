@@ -43,6 +43,7 @@ function parseSafeDate(raw: unknown): Date | undefined {
       return d;
     }
   }
+
   const d = new Date(raw);
   if (isNaN(d.getTime())) return undefined;
   const year = d.getUTCFullYear();
@@ -59,7 +60,7 @@ import { recomputeProjectProgress } from '@/lib/projectProgress';
 import redisCache from '@/lib/redis';
 
 // Prisma-generated enum types (used for strict typing in create/update calls)
-type PrismaStatus   = Prisma.TaskCreateInput['status'];
+type PrismaStatus = Prisma.TaskCreateInput['status'];
 type PrismaPriority = Prisma.TaskCreateInput['priority'];
 
 // ---------------------------------------------------------------------------
@@ -77,16 +78,16 @@ export async function GET(request: NextRequest) {
     let sessionUserEmail: string | undefined;
     try {
       const session = await auth();
-      sessionUserId  = session?.user?.id    as string | undefined;
+      sessionUserId = session?.user?.id as string | undefined;
       sessionUserEmail = session?.user?.email as string | undefined;
     } catch {
       // auth() may throw in some edge cases — fall back to query params
     }
 
-    const requestedUserId    = searchParams.get('userId')    || undefined;
+    const requestedUserId = searchParams.get('userId') || undefined;
     const requestedUserEmail = searchParams.get('userEmail') || undefined;
 
-    const targetUserId    = sessionUserId    || requestedUserId;
+    const targetUserId = sessionUserId || requestedUserId;
     const targetUserEmail = sessionUserEmail || requestedUserEmail;
 
     // Fast resolution: prefer provided targetUserId without querying DB
@@ -130,12 +131,12 @@ export async function GET(request: NextRequest) {
 
     // Parse and validate query parameters
     const rawParams = {
-      limit:     searchParams.get('limit')     ?? undefined,
-      cursor:    searchParams.get('cursor')    ?? undefined,
-      status:    searchParams.get('status')    ?? undefined,
-      priority:  searchParams.get('priority')  ?? undefined,
+      limit: searchParams.get('limit') ?? undefined,
+      cursor: searchParams.get('cursor') ?? undefined,
+      status: searchParams.get('status') ?? undefined,
+      priority: searchParams.get('priority') ?? undefined,
       projectId: searchParams.get('projectId') ?? undefined,
-      search:    searchParams.get('search')    ?? undefined,
+      search: searchParams.get('search') ?? undefined,
     };
 
     const parsedQuery = TaskQuerySchema.safeParse(rawParams);
@@ -144,7 +145,7 @@ export async function GET(request: NextRequest) {
       priority: undefined, projectId: undefined, search: undefined,
     };
 
-    const limit  = query.limit ?? 50;
+    const limit = query.limit ?? 50;
     const cursor = query.cursor;
 
     // Build Prisma where — match any of the user's known IDs, projects owned by user, or projects where user is member
@@ -157,13 +158,13 @@ export async function GET(request: NextRequest) {
         { project: { members: { some: { userId: { in: userIds } } } } },
       ],
     };
-    if (query.status)    where.status    = query.status;
-    if (query.priority)  where.priority  = query.priority;
+    if (query.status) where.status = query.status;
+    if (query.priority) where.priority = query.priority;
     if (query.projectId) where.projectId = query.projectId;
-    if (query.search)    where.title     = { contains: query.search, mode: 'insensitive' };
+    if (query.search) where.title = { contains: query.search, mode: 'insensitive' };
 
-    const primaryId  = resolvedDbUserId || Array.from(userIdSet)[0];
-    const cacheKey   = `tasks:${primaryId}:${JSON.stringify(query)}`;
+    const primaryId = resolvedDbUserId || Array.from(userIdSet)[0];
+    const cacheKey = `tasks:${primaryId}:${JSON.stringify(query)}`;
 
     // Tiered cache — 30s TTL
     const result = await redisCache.wrap(cacheKey, 30, async () => {
@@ -175,8 +176,7 @@ export async function GET(request: NextRequest) {
           assignee: {
             select: { id: true, name: true, email: true, avatar: true, role: true },
           },
-          project:  true,
-          subtasks: true,
+          project: true,
         },
         orderBy: [
           { createdAt: 'desc' },
@@ -184,8 +184,8 @@ export async function GET(request: NextRequest) {
         ],
       });
 
-      const hasMore    = dbTasks.length > limit;
-      const items      = hasMore ? dbTasks.slice(0, limit) : dbTasks;
+      const hasMore = dbTasks.length > limit;
+      const items = hasMore ? dbTasks.slice(0, limit) : dbTasks;
       const serialized = items.map(t => ({
         ...t,
         dueDate: t.dueDate ? t.dueDate.toISOString().split('T')[0] : null,
@@ -197,8 +197,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data:    result.items,
-      meta:    result.meta,
+      data: result.items,
+      meta: result.meta,
     }, {
       status: 200,
       headers: { 'Cache-Control': 'private, max-age=15, stale-while-revalidate=60' },
@@ -235,19 +235,19 @@ export async function POST(request: NextRequest) {
     const { title, projectId, assigneeId, status, priority, dueDate, description, estimate, labels } = parsed.data;
 
     // 1. Resolve creator / assignee — prefer email (always canonical) over ID
-    let sessionUserId:    string | undefined;
+    let sessionUserId: string | undefined;
     let sessionUserEmail: string | undefined;
     try {
       const session = await auth();
-      sessionUserId    = session?.user?.id    as string | undefined;
+      sessionUserId = session?.user?.id as string | undefined;
       sessionUserEmail = session?.user?.email as string | undefined;
-    } catch {}
+    } catch { }
 
-    const queryUserId    = request.nextUrl.searchParams.get('userId')    || undefined;
+    const queryUserId = request.nextUrl.searchParams.get('userId') || undefined;
     const queryUserEmail = request.nextUrl.searchParams.get('userEmail') || undefined;
 
     const resolvedEmail = (sessionUserEmail || queryUserEmail || '')?.toLowerCase().trim();
-    const resolvedId    = sessionUserId || queryUserId;
+    const resolvedId = sessionUserId || queryUserId;
 
     if (!resolvedEmail && !resolvedId) {
       return NextResponse.json(
@@ -273,7 +273,7 @@ export async function POST(request: NextRequest) {
       const storedUsers = getAllStoredUsers();
       const storedUser = storedUsers.find(u =>
         (resolvedEmail && u.email.toLowerCase() === resolvedEmail) ||
-        (resolvedId    && u.id === resolvedId)
+        (resolvedId && u.id === resolvedId)
       );
       if (storedUser) {
         try {
@@ -281,11 +281,11 @@ export async function POST(request: NextRequest) {
             where: { email: storedUser.email },
             update: { name: storedUser.name, avatar: storedUser.avatar, role: storedUser.role },
             create: {
-              id:     storedUser.id,
-              name:   storedUser.name,
-              email:  storedUser.email,
+              id: storedUser.id,
+              name: storedUser.name,
+              email: storedUser.email,
               avatar: storedUser.avatar,
-              role:   storedUser.role,
+              role: storedUser.role,
             },
           });
         } catch { dbUser = null; }
@@ -347,29 +347,28 @@ export async function POST(request: NextRequest) {
     const newTask = await prisma.task.create({
       data: {
         taskNumber,
-        title:       (title as string).trim(),
-        projectId:   targetProjectId,
-        assigneeId:  targetAssigneeId,
-        status:      ((status   as string | undefined) ?? 'todo')     as PrismaStatus,
-        priority:    ((priority as string | undefined) ?? 'medium')   as PrismaPriority,
+        title: (title as string).trim(),
+        projectId: targetProjectId,
+        assigneeId: targetAssigneeId,
+        status: ((status as string | undefined) ?? 'todo') as PrismaStatus,
+        priority: ((priority as string | undefined) ?? 'medium') as PrismaPriority,
         description: typeof description === 'string' ? description.trim() : undefined,
-        estimate:    typeof estimate === 'string' ? estimate.trim() : undefined,
-        labels:      Array.isArray(labels) ? labels : [],
-        dueDate:     parseSafeDate(dueDate),
+        estimate: typeof estimate === 'string' ? estimate.trim() : undefined,
+        labels: Array.isArray(labels) ? labels : [],
+        dueDate: parseSafeDate(dueDate),
       },
       include: {
         assignee: {
           select: { id: true, name: true, email: true, avatar: true, role: true },
         },
         project: true,
-        subtasks: true,
       },
     });
 
     // Record initial task creation activity
     try {
       await logActivity(newTask.id, 'Task created', '✨');
-    } catch {}
+    } catch { }
 
     // Trigger notification for assignee
     if (newTask.assigneeId) {

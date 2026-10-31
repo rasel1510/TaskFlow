@@ -26,13 +26,6 @@ export interface Task {
   attachmentsCount: number;
   progress?: number;
   description?: string;
-  subtasks?: SubTask[];
-}
-
-export interface SubTask {
-  id: string;
-  title: string;
-  done: boolean;
 }
 
 export interface Project {
