@@ -18,6 +18,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { triggerParticleExplosion } from '@/lib/particleExplosion';
 import {
   Copy,
   CopyCheck,
@@ -1200,7 +1201,10 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
             </button>
             <button
               type="button"
-              onClick={handleDeleteTask}
+              onClick={(e) => {
+                triggerParticleExplosion(e.currentTarget);
+                handleDeleteTask();
+              }}
               disabled={isDeleting}
               className="px-3.5 py-1.5 text-[12.5px] font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg transition-colors shadow-xs cursor-pointer"
             >

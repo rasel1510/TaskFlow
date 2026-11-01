@@ -9,6 +9,7 @@ import { TaskRowSkeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/EmptyState';
 import gsap from 'gsap';
 import { RadialTaskMenu } from '@/components/RadialTaskMenu';
+import { triggerParticleExplosion } from '@/lib/particleExplosion';
 
 type SortMode = 'none' | 'urgent' | 'high' | 'medium' | 'low';
 
@@ -767,9 +768,12 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
               </button>
               <button
                 type="button"
-                onClick={handleConfirmDelete}
+                onClick={(e) => {
+                  triggerParticleExplosion(e.currentTarget);
+                  handleConfirmDelete();
+                }}
                 disabled={isDeleting}
-                className="px-4 py-2 bg-[#DC2626] text-white rounded-lg text-[13px] font-semibold hover:bg-[#B91C1C] disabled:opacity-40 transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-[#DC2626] text-white rounded-lg text-[13px] font-semibold hover:bg-[#B91C1C] disabled:opacity-40 transition-colors flex items-center gap-2 cursor-pointer"
               >
                 {isDeleting && (
                   <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
