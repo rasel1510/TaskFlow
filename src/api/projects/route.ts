@@ -35,7 +35,7 @@ function parseSafeDate(raw: unknown): Date | undefined {
 // ---------------------------------------------------------------------------
 // GET /api/projects
 // ---------------------------------------------------------------------------
-export async function GET() {
+export async function GET(request?: NextRequest) {
   try {
     let currentUserId: string | undefined;
     let currentUserRole: string | undefined;
@@ -51,6 +51,11 @@ export async function GET() {
         { status: 401 }
       );
     }
+
+    // Keyset pagination parameters
+    const searchParams = request ? new URL(request.url).searchParams : new URLSearchParams();
+    const limit = Math.min(Math.max(Number(searchParams.get('limit')) || 50, 1), 100);
+    const cursor = searchParams.get('cursor') || undefined;
 
     // Resolve tenant boundary: strictly isolate to the authenticated user's single team
     const teamContext = await getOrProvisionUserTeam(currentUserId);
@@ -69,10 +74,12 @@ export async function GET() {
           ],
         };
 
-    const cacheKey = `projects:list:${currentUserId}:${teamContext?.teamId || 'no-team'}`;
+    const cacheKey = `projects:list:${currentUserId}:${teamContext?.teamId || 'no-team'}:${limit}:${cursor || 'root'}`;
     const formatted = await redisCache.wrap(cacheKey, 15, async () => {
       const dbProjects = await prisma.project.findMany({
         where: teamFilter,
+        take: limit + 1,
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
         include: {
           owner: {
             select: { id: true, name: true, email: true, avatar: true, role: true, expertise: true },
@@ -97,10 +104,14 @@ export async function GET() {
             select: { tasks: true },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       });
 
-      return dbProjects.map(p => {
+      const hasMore = dbProjects.length > limit;
+      const items = hasMore ? dbProjects.slice(0, limit) : dbProjects;
+      const nextCursor = hasMore && items.length > 0 ? items[items.length - 1].id : null;
+
+      const projectList = items.map(p => {
         const isOwner = currentUserId ? p.ownerId === currentUserId : false;
         const memberList = (p.members || []).map(m => ({
           id: m.id,
@@ -157,9 +168,11 @@ export async function GET() {
           archivedAt: (p as any).archivedAt ? (p as any).archivedAt.toISOString() : null,
         };
       });
+
+      return { items: projectList, meta: { hasMore, nextCursor, limit } };
     });
 
-    return NextResponse.json({ success: true, data: formatted }, {
+    return NextResponse.json({ success: true, data: formatted.items, meta: formatted.meta }, {
       status: 200,
       headers: {
         'Cache-Control': 'private, max-age=10, stale-while-revalidate=30',
@@ -167,7 +180,7 @@ export async function GET() {
     });
   } catch (error) {
     console.error('[GET /api/projects] DB warning, returning empty list:', error);
-    return NextResponse.json({ success: true, data: [] }, { status: 200 });
+    return NextResponse.json({ success: true, data: [], meta: { hasMore: false, nextCursor: null, limit: 50 } }, { status: 200 });
   }
 }
 

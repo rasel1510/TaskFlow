@@ -43,6 +43,7 @@ import { UpdateTaskSchema, validationError } from '@/lib/validators';
 import { logActivity } from '@/lib/activity';
 import { recomputeProjectProgress } from '@/lib/projectProgress';
 import redisCache from '@/lib/redis';
+import { enqueueBackgroundTask } from '@/lib/asyncQueue';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -52,8 +53,8 @@ interface RouteContext {
 // Background work — fire and forget, never blocks the HTTP response
 // ---------------------------------------------------------------------------
 
-function fireAndForget(fn: () => Promise<void>): void {
-  fn().catch(err => console.warn('[tasks/:id] background job failed:', err));
+function fireAndForget(fn: () => Promise<void>, name = 'task_async_cleanup'): void {
+  enqueueBackgroundTask(name, fn);
 }
 
 // ---------------------------------------------------------------------------
@@ -63,12 +64,15 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
 
-    const task = await prisma.task.findUnique({
+    const cacheKey = `task:${id}`;
+    const serializedTask = await redisCache.wrap(cacheKey, 30, async () => {
+      const task = await prisma.task.findUnique({
       where: { id },
       include: {
         assignee: {
           select: { id: true, name: true, email: true, avatar: true, role: true },
         },
+        creator: { select: { id: true, name: true, email: true, avatar: true, role: true } },
         project: true,
         comments: {
           select: {
@@ -85,19 +89,27 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       },
     });
 
-    if (!task) {
+      if (!task) return null;
+      return {
+        ...task,
+        dueDate: task.dueDate ? task.dueDate.toISOString().split('T')[0] : null,
+      };
+    });
+
+    if (!serializedTask) {
       return NextResponse.json(
         { message: `Task with id "${id}" was not found` },
         { status: 404 }
       );
     }
 
-    const serializedTask = {
-      ...task,
-      dueDate: task.dueDate ? task.dueDate.toISOString().split('T')[0] : null,
-    };
-
-    return NextResponse.json({ success: true, data: serializedTask }, { status: 200 });
+    return NextResponse.json(
+      { success: true, data: serializedTask },
+      {
+        status: 200,
+        headers: { 'Cache-Control': 'private, max-age=15, stale-while-revalidate=45' },
+      }
+    );
   } catch (error) {
     console.error('[GET /api/tasks/:id] Error:', error);
     return NextResponse.json(

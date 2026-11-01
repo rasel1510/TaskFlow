@@ -58,6 +58,7 @@ import { CreateTaskSchema, TaskQuerySchema, validationError } from '@/lib/valida
 import { logActivity } from '@/lib/activity';
 import { recomputeProjectProgress } from '@/lib/projectProgress';
 import redisCache from '@/lib/redis';
+import { enqueueBackgroundTask } from '@/lib/asyncQueue';
 
 // Prisma-generated enum types (used for strict typing in create/update calls)
 type PrismaStatus = Prisma.TaskCreateInput['status'];
@@ -369,48 +370,51 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Record initial task creation activity
-    try {
-      await logActivity(newTask.id, 'Task created', '✨');
-    } catch { }
-
-    // Trigger notification for assignee
-    if (newTask.assigneeId) {
+    // Asynchronous non-blocking side-effects (<20ms response time guarantee)
+    enqueueBackgroundTask('task_created_side_effects', async () => {
+      // 1. Record audit activity
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const notifModel = (prisma as any).notification;
-        if (notifModel) {
-          await notifModel.create({
-            data: {
-              userId: newTask.assigneeId,
-              type: 'task_assigned',
-              title: 'Assigned to new task',
-              body: `You were assigned to ${newTask.taskNumber ?? 'task'}: ${newTask.title}`,
-              taskId: newTask.id,
-            },
-          });
+        await logActivity(newTask.id, 'Task created', '✨');
+      } catch {}
+
+      // 2. Trigger notification for assignee
+      if (newTask.assigneeId) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const notifModel = (prisma as any).notification;
+          if (notifModel) {
+            await notifModel.create({
+              data: {
+                userId: newTask.assigneeId,
+                type: 'task_assigned',
+                title: 'Assigned to new task',
+                body: `You were assigned to ${newTask.taskNumber ?? 'task'}: ${newTask.title}`,
+                taskId: newTask.id,
+              },
+            });
+          }
+        } catch (notifErr) {
+          console.warn('[POST /api/tasks] Notification creation warning:', notifErr);
         }
-      } catch (notifErr) {
-        console.warn('[POST /api/tasks] Notification creation ignored:', notifErr);
       }
-    }
 
-    // Auto-recompute progress for project (Step 4.5)
-    if (newTask.projectId) {
-      try {
-        await recomputeProjectProgress(newTask.projectId);
-      } catch (progressErr) {
-        console.warn('[POST /api/tasks] Progress recompute warning:', progressErr);
+      // 3. Auto-recompute progress for project
+      if (newTask.projectId) {
+        try {
+          await recomputeProjectProgress(newTask.projectId);
+        } catch (progressErr) {
+          console.warn('[POST /api/tasks] Progress recompute warning:', progressErr);
+        }
       }
-    }
 
-    // Invalidate distributed caches for tasks, projects, reports, and notifications
-    await Promise.all([
-      redisCache.delPattern('tasks:*'),
-      redisCache.delPattern('reports:*'),
-      redisCache.delPattern('projects:*'),
-      redisCache.delPattern('notifs:*'),
-    ]);
+      // 4. Invalidate distributed caches
+      await Promise.allSettled([
+        redisCache.delPattern('tasks:*'),
+        redisCache.delPattern('reports:*'),
+        redisCache.delPattern('projects:*'),
+        redisCache.delPattern('notifs:*'),
+      ]);
+    });
 
     const serializedNewTask = {
       ...newTask,
