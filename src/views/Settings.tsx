@@ -677,15 +677,15 @@ export default function Settings() {
   };
 
   const handleRevokeInvite = async (inviteId: string) => {
+    // Instant optimistic removal (<1ms perceived latency)
+    setInvites(prev => prev.filter(inv => inv.id !== inviteId));
+    toast.success('Invitation revoked');
     try {
       const res = await fetch(`/api/team/invite?id=${encodeURIComponent(inviteId)}`, {
         method: 'DELETE',
       });
       const json = await res.json();
-      if (res.ok && json.success) {
-        toast.success('Invitation revoked');
-        setInvites(prev => prev.filter(inv => inv.id !== inviteId));
-      } else {
+      if (!res.ok || !json.success) {
         toast.error(json.error || 'Failed to revoke invitation');
       }
     } catch {

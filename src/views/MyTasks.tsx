@@ -268,7 +268,23 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
     if (action === 'delete') {
       const ok = window.confirm(`Delete ${selected.size} selected task(s)? This cannot be undone.`);
       if (!ok) return;
+
+      const idsToDelete = Array.from(selected);
+      // Instant optimistic UI update (<1ms perceived latency)
+      setSelected(new Set());
+      setBulkStatusMenu(false);
+      setBulkPriorityMenu(false);
+      toast.success(`🗑️ Deleted ${idsToDelete.length} task${idsToDelete.length !== 1 ? 's' : ''}`);
+
+      // Optimistically delete tasks in background
+      idsToDelete.forEach(id => {
+        deleteTask(id).catch(err => {
+          console.error('[BulkDelete] Background task delete error:', err);
+        });
+      });
+      return;
     }
+
     setBulkLoading(true);
     setBulkStatusMenu(false);
     setBulkPriorityMenu(false);
@@ -281,7 +297,7 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
       const data = await res.json();
       if (data.success) {
         const countMsg = `${data.data?.count ?? selected.size} task${(data.data?.count ?? selected.size) !== 1 ? 's' : ''}`;
-        toast.success(action === 'delete' ? `🗑️ Deleted ${countMsg}` : `✅ Updated ${countMsg}`);
+        toast.success(`✅ Updated ${countMsg}`);
         setSelected(new Set());
         if (typeof refreshTasks === 'function') await refreshTasks();
       } else {
@@ -292,7 +308,7 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
     } finally {
       setBulkLoading(false);
     }
-  }, [selected, toast, refreshTasks]);
+  }, [selected, toast, refreshTasks, deleteTask]);
 
   // Legacy single-task delete
   const handleBulkDelete = () => handleBulkAction('delete');

@@ -504,7 +504,9 @@ export default function ProjectDetail({
   };
 
   const handleRevokeInvitation = async (inviteId: string) => {
-    setRevokingInviteId(inviteId);
+    // Instant optimistic dismissal
+    setInvitations(prev => prev.filter(i => i.id !== inviteId));
+    toast.success('Invitation revoked successfully');
     try {
       const res = await fetch(`/api/projects/${projectId}/invitations?inviteId=${inviteId}`, {
         method: 'DELETE',
@@ -513,12 +515,9 @@ export default function ProjectDetail({
       if (!res.ok || json.success === false) {
         throw new Error(json.error?.message || 'Failed to revoke invitation');
       }
-      toast.success('Invitation revoked successfully');
-      fetchInvitations();
     } catch (err: any) {
       toast.error(err.message || 'Failed to revoke invitation');
-    } finally {
-      setRevokingInviteId(null);
+      fetchInvitations();
     }
   };
 

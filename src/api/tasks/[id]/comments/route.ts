@@ -479,13 +479,11 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       );
     }
 
-    await prisma.$transaction([
-      prisma.comment.delete({ where: { id: commentId } }),
-      prisma.task.update({
-        where: { id: taskId },
-        data: { commentsCount: { decrement: 1 } },
-      }),
-    ]);
+    await prisma.comment.delete({ where: { id: commentId } });
+    void prisma.task.update({
+      where: { id: taskId },
+      data: { commentsCount: { decrement: 1 } },
+    }).catch(() => {});
 
     return NextResponse.json({ success: true, message: 'Comment deleted successfully' });
   } catch (err) {

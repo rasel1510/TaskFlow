@@ -51,6 +51,7 @@ interface RouteContext {
 // ---------------------------------------------------------------------------
 // Background work — fire and forget, never blocks the HTTP response
 // ---------------------------------------------------------------------------
+
 function fireAndForget(fn: () => Promise<void>): void {
   fn().catch(err => console.warn('[tasks/:id] background job failed:', err));
 }
