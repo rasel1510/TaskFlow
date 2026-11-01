@@ -11,7 +11,6 @@ import ws from 'ws';
 
 // Ensure WebSocket constructor is set in Node.js environment
 neonConfig.webSocketConstructor = ws;
-neonConfig.fetchConnectionCache = true;
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;

@@ -35,7 +35,7 @@ function parseSafeDate(raw: unknown): Date | undefined {
 // ---------------------------------------------------------------------------
 // GET /api/projects
 // ---------------------------------------------------------------------------
-export async function GET(request?: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     let currentUserId: string | undefined;
     let currentUserRole: string | undefined;
