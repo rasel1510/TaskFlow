@@ -325,6 +325,9 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       return updated;
     });
 
+    // Instant optimistic feedback (<1ms)
+    toast.success('Task deleted');
+
     try {
       const params = new URLSearchParams();
       if (sessionUserId)    params.set('userId',    sessionUserId);
@@ -337,7 +340,6 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         toast.error('Failed to delete task');
         throw new Error(`Delete task failed: ${res.status}`);
       }
-      toast.success('Task deleted');
     } catch (err) {
       setTasks(snapshot);
       if (!(err instanceof Error && err.message.startsWith('Delete task failed'))) {

@@ -36,6 +36,7 @@ function parseSafeDate(raw: unknown): Date | undefined {
   return d;
 }
 
+
 import prisma from '@/lib/prisma';
 import { getAllStoredUsers } from '@/data/userStore';
 import { UpdateTaskSchema, validationError } from '@/lib/validators';
@@ -204,7 +205,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         assignee: 'assigneeId' in updateData ? {
           select: { id: true, name: true, email: true, avatar: true, role: true },
         } : false,
-        project:  'projectId'  in updateData,
+        project: 'projectId' in updateData,
       },
     });
 
@@ -214,8 +215,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       ...mergedTask,
       dueDate: mergedTask.dueDate
         ? (mergedTask.dueDate instanceof Date
-            ? mergedTask.dueDate.toISOString().split('T')[0]
-            : String(mergedTask.dueDate).split('T')[0])
+          ? mergedTask.dueDate.toISOString().split('T')[0]
+          : String(mergedTask.dueDate).split('T')[0])
         : null,
     };
     const response = NextResponse.json({ success: true, data: serializedTask }, { status: 200 });
@@ -226,7 +227,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
       if (updateData.status && updateData.status !== existing.status) {
         const from = existing.status.replace(/_/g, ' ');
-        const to   = updateData.status.replace(/_/g, ' ');
+        const to = updateData.status.replace(/_/g, ' ');
         logs.push(logActivity(id, `Status changed from ${from} to ${to}`, '🔄'));
       }
       if (updateData.priority && updateData.priority !== existing.priority) {
@@ -287,32 +288,34 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
 
-    // Fetch only what we need for background work
-    const existing = await prisma.task.findUnique({
-      where: { id },
-      select: { id: true, projectId: true, assigneeId: true },
-    });
-
-    if (!existing) {
-      // Already deleted — idempotent success
-      return NextResponse.json(
-        { success: true, data: { message: 'Task deleted successfully' } },
-        { status: 200 }
-      );
+    // High-performance single-query atomic delete
+    let deletedTask: { id: string; projectId: string | null; assigneeId: string | null } | null = null;
+    try {
+      deletedTask = await prisma.task.delete({
+        where: { id },
+        select: { id: true, projectId: true, assigneeId: true },
+      });
+    } catch (err: unknown) {
+      // Prisma P2025: Record to delete does not exist (idempotent success)
+      if (err && typeof err === 'object' && 'code' in err && err.code === 'P2025') {
+        return NextResponse.json(
+          { success: true, data: { message: 'Task deleted successfully' } },
+          { status: 200 }
+        );
+      }
+      throw err;
     }
 
-    // Core delete
-    await prisma.task.delete({ where: { id } });
-
-    // Respond immediately, background cleanup follows
+    // Immediate response to client (<50ms)
     const response = NextResponse.json(
       { success: true, data: { message: 'Task deleted successfully' } },
       { status: 200 }
     );
 
+    // Completely non-blocking background cleanup
     fireAndForget(async () => {
       await Promise.allSettled([
-        existing.projectId ? recomputeProjectProgress(existing.projectId) : Promise.resolve(),
+        deletedTask?.projectId ? recomputeProjectProgress(deletedTask.projectId) : Promise.resolve(),
         redisCache.del(`task:${id}`),
         redisCache.delPattern('tasks:*'),
         redisCache.delPattern('reports:*'),

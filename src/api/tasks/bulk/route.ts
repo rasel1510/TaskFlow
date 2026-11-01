@@ -62,17 +62,8 @@ export async function POST(request: NextRequest) {
         where: { id: { in: ids } },
       });
 
-      // Recompute project progress in parallel
-      await Promise.all(distinctProjectIds.map((pId) => recomputeProjectProgress(pId)));
-
-      // Invalidate caches
-      await Promise.all([
-        redisCache.delPattern('tasks:*'),
-        redisCache.delPattern('reports:*'),
-        redisCache.delPattern('projects:*'),
-      ]);
-
-      return NextResponse.json(
+      // Immediate response to client
+      const response = NextResponse.json(
         {
           success: true,
           data: {
@@ -83,6 +74,22 @@ export async function POST(request: NextRequest) {
         },
         { status: 200 }
       );
+
+      // Non-blocking background side-effects
+      void Promise.resolve().then(async () => {
+        try {
+          await Promise.allSettled([
+            ...distinctProjectIds.map((pId) => recomputeProjectProgress(pId)),
+            redisCache.delPattern('tasks:*'),
+            redisCache.delPattern('reports:*'),
+            redisCache.delPattern('projects:*'),
+          ]);
+        } catch (err) {
+          console.error('[bulk delete] Background cleanup error:', err);
+        }
+      });
+
+      return response;
     }
 
     if (action === 'update' && payload) {
