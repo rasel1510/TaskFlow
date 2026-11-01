@@ -14,21 +14,23 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  // References to track drag gesture accurately without state latency
+  // Mutable refs for zero-latency, 120fps hardware-accelerated drag tracking
+  const currentPos = useRef({ x: 0, y: 0 });
   const dragInfo = useRef({
     startX: 0,
     startY: 0,
-    initialButtonX: 0,
-    initialButtonY: 0,
+    initialX: 0,
+    initialY: 0,
     hasMoved: false,
     pointerId: -1,
+    rafId: 0,
   });
 
-  // Clamp coordinates within the viewport
+  // Clamp coordinates within visible screen boundary
   const clampPosition = useCallback((x: number, y: number) => {
     if (typeof window === 'undefined') return { x, y };
     const btn = buttonRef.current;
-    const width = btn ? btn.offsetWidth : 110;
+    const width = btn ? btn.offsetWidth : 112;
     const height = btn ? btn.offsetHeight : 44;
 
     const minX = PADDING;
@@ -37,34 +39,48 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
     const maxY = Math.max(minY, window.innerHeight - height - PADDING);
 
     return {
-      x: Math.min(Math.max(x, minX), maxX),
-      y: Math.min(Math.max(y, minY), maxY),
+      x: Math.round(Math.min(Math.max(x, minX), maxX)),
+      y: Math.round(Math.min(Math.max(y, minY), maxY)),
     };
   }, []);
 
-  // Restore saved position on mount (or calculate default bottom-right)
+  // Restore saved position or position in bottom-right by default
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    let initX = 0;
+    let initY = 0;
+    let foundSaved = false;
 
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
-          setPosition(clampPosition(parsed.x, parsed.y));
-          return;
+          const clamped = clampPosition(parsed.x, parsed.y);
+          initX = clamped.x;
+          initY = clamped.y;
+          foundSaved = true;
         }
       }
-    } catch {
-      // Fallback
+    } catch {}
+
+    if (!foundSaved) {
+      const width = 112;
+      const height = 44;
+      const defaultX = window.innerWidth - width - 24;
+      const defaultY = window.innerHeight - height - 24;
+      const clamped = clampPosition(defaultX, defaultY);
+      initX = clamped.x;
+      initY = clamped.y;
     }
 
-    // Default position: bottom-6 right-6
-    const width = 112;
-    const height = 44;
-    const defaultX = window.innerWidth - width - 24;
-    const defaultY = window.innerHeight - height - 24;
-    setPosition(clampPosition(defaultX, defaultY));
+    currentPos.current = { x: initX, y: initY };
+    setPosition({ x: initX, y: initY });
+
+    if (buttonRef.current) {
+      buttonRef.current.style.transform = `translate3d(${initX}px, ${initY}px, 0)`;
+    }
   }, [clampPosition]);
 
   // Adjust position when viewport resizes or rotates on mobile
@@ -72,7 +88,12 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
     if (typeof window === 'undefined') return;
 
     const handleResize = () => {
-      setPosition(prev => (prev ? clampPosition(prev.x, prev.y) : null));
+      const clamped = clampPosition(currentPos.current.x, currentPos.current.y);
+      currentPos.current = clamped;
+      setPosition(clamped);
+      if (buttonRef.current) {
+        buttonRef.current.style.transform = `translate3d(${clamped.x}px, ${clamped.y}px, 0)`;
+      }
     };
 
     window.addEventListener('resize', handleResize);
@@ -80,27 +101,25 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
   }, [clampPosition]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
-    // Only respond to primary button (left click / single touch)
+    // Only primary button (left-click / single touch)
     if (e.button !== 0) return;
 
     const btn = buttonRef.current;
     if (!btn) return;
 
-    const rect = btn.getBoundingClientRect();
     dragInfo.current = {
       startX: e.clientX,
       startY: e.clientY,
-      initialButtonX: rect.left,
-      initialButtonY: rect.top,
+      initialX: currentPos.current.x,
+      initialY: currentPos.current.y,
       hasMoved: false,
       pointerId: e.pointerId,
+      rafId: 0,
     };
 
     try {
       btn.setPointerCapture(e.pointerId);
-    } catch {
-      // ignore
-    }
+    } catch {}
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
@@ -110,55 +129,65 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
     const deltaY = e.clientY - dragInfo.current.startY;
     const distance = Math.hypot(deltaX, deltaY);
 
-    if (!dragInfo.current.hasMoved && distance > 6) {
+    if (!dragInfo.current.hasMoved && distance > 4) {
       dragInfo.current.hasMoved = true;
       setIsDragging(true);
     }
 
     if (dragInfo.current.hasMoved) {
-      const newX = dragInfo.current.initialButtonX + deltaX;
-      const newY = dragInfo.current.initialButtonY + deltaY;
-      const clamped = clampPosition(newX, newY);
-      setPosition(clamped);
+      const rawX = dragInfo.current.initialX + deltaX;
+      const rawY = dragInfo.current.initialY + deltaY;
+      const clamped = clampPosition(rawX, rawY);
+
+      currentPos.current = clamped;
+
+      // Direct GPU transform update in next animation frame for fluid 120 FPS
+      if (dragInfo.current.rafId) {
+        cancelAnimationFrame(dragInfo.current.rafId);
+      }
+
+      dragInfo.current.rafId = requestAnimationFrame(() => {
+        if (buttonRef.current) {
+          buttonRef.current.style.transform = `translate3d(${clamped.x}px, ${clamped.y}px, 0)`;
+        }
+      });
     }
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (dragInfo.current.pointerId !== e.pointerId) return;
 
+    if (dragInfo.current.rafId) {
+      cancelAnimationFrame(dragInfo.current.rafId);
+    }
+
     const btn = buttonRef.current;
     if (btn) {
       try {
         btn.releasePointerCapture(e.pointerId);
-      } catch {
-        // ignore
-      }
+      } catch {}
     }
 
-    const hadMoved = dragInfo.current.hasMoved;
+    const wasDragging = dragInfo.current.hasMoved;
     dragInfo.current.pointerId = -1;
     setIsDragging(false);
 
-    if (hadMoved) {
-      // Persist the newly dropped position
-      setPosition(currentPos => {
-        if (currentPos) {
-          try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(currentPos));
-          } catch {
-            // ignore
-          }
-        }
-        return currentPos;
-      });
+    if (wasDragging) {
+      // Persist the final position
+      const finalPos = currentPos.current;
+      setPosition(finalPos);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(finalPos));
+      } catch {}
     } else {
-      // Tap / click without dragging
+      // Clean tap without drag
       onClick();
     }
   };
 
   const handlePointerCancel = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (dragInfo.current.pointerId === e.pointerId) {
+      if (dragInfo.current.rafId) cancelAnimationFrame(dragInfo.current.rafId);
       dragInfo.current.pointerId = -1;
       setIsDragging(false);
     }
@@ -181,23 +210,19 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
       onPointerCancel={handlePointerCancel}
       onKeyDown={handleKeyDown}
       aria-label="Open FlowAi"
-      title="FlowAi (Drag to move)"
-      style={
-        position
-          ? {
-              left: `${position.x}px`,
-              top: `${position.y}px`,
-              right: 'auto',
-              bottom: 'auto',
-            }
-          : undefined
-      }
-      className={`group fixed z-40 flex items-center justify-center rounded-full px-4 py-2.5 [isolation:isolate] select-none touch-none focus:outline-none transition-all duration-500 ${
-        position ? '' : 'bottom-6 right-6'
-      } ${
+      title="FlowAi (Drag to move anywhere)"
+      style={{
+        left: 0,
+        top: 0,
+        transform: position
+          ? `translate3d(${position.x}px, ${position.y}px, 0)`
+          : 'translate3d(calc(100vw - 136px), calc(100vh - 68px), 0)',
+        willChange: 'transform',
+      }}
+      className={`group fixed z-40 flex items-center justify-center rounded-full px-4 py-2.5 [isolation:isolate] select-none touch-none focus:outline-none ${
         isDragging
-          ? 'cursor-grabbing scale-105 shadow-[0_0_50px_0px_rgba(234,88,12,0.85)]'
-          : 'cursor-grab hover:scale-[1.03] active:scale-95 shadow-xl shadow-black/40 hover:shadow-[0_0_45px_-8px_rgba(234,88,12,0.65)]'
+          ? 'cursor-grabbing scale-105 shadow-[0_0_50px_0px_rgba(234,88,12,0.85)] transition-none'
+          : 'cursor-grab hover:scale-[1.03] active:scale-95 shadow-xl shadow-black/40 hover:shadow-[0_0_45px_-8px_rgba(234,88,12,0.65)] transition-transform duration-200 ease-out'
       }`}
     >
       <style>{`
@@ -210,7 +235,7 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
 
       {/* Surrounding Ambient Gradient Background Light (Outer Soft Halo) - Displays on Hover */}
       <div
-        className={`absolute -inset-5 sm:-inset-6 rounded-full pointer-events-none -z-30 transition-all duration-500 ease-out ${
+        className={`absolute -inset-5 sm:-inset-6 rounded-full pointer-events-none -z-30 transition-all duration-300 ease-out ${
           isDragging ? 'opacity-100 scale-110' : 'opacity-0'
         } group-hover:opacity-100 group-hover:scale-110`}
         style={{
@@ -222,7 +247,7 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
 
       {/* Surrounding Ambient Gradient Light (Concentrated Warm Rim Light) - Displays on Hover */}
       <div
-        className={`absolute -inset-2.5 sm:-inset-3 rounded-full pointer-events-none -z-20 transition-all duration-500 ease-out ${
+        className={`absolute -inset-2.5 sm:-inset-3 rounded-full pointer-events-none -z-20 transition-all duration-300 ease-out ${
           isDragging ? 'opacity-100' : 'opacity-0'
         } group-hover:opacity-100`}
         style={{
@@ -257,7 +282,7 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
         />
 
         {/* Orange Glow on Hover (Inner Base Light) */}
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2/3 h-1/2 bg-orange-500/0 blur-2xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-orange-500/35" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2/3 h-1/2 bg-orange-500/0 blur-2xl rounded-full pointer-events-none transition-colors duration-300 group-hover:bg-orange-500/35" />
       </div>
 
       {/* Content - strictly preserved without altering icon or text */}
