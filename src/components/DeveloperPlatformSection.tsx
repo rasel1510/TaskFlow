@@ -444,7 +444,7 @@ export default function DeveloperPlatformSection() {
             ========================================================================= */}
         <div className="flex flex-col rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#0e1013] shadow-xl overflow-hidden">
           {/* Card Top Banner */}
-          <div className="px-5 py-4 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50/70 dark:bg-neutral-900/50 flex items-center justify-between">
+          <div className="px-4 sm:px-5 py-4 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50/70 dark:bg-neutral-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <div className="h-8 w-8 rounded-lg bg-emerald-600/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                 <Bot className="h-4.5 w-4.5" />
@@ -463,7 +463,7 @@ export default function DeveloperPlatformSection() {
             </div>
 
             {/* Target Client Switcher */}
-            <div className="flex items-center gap-1 p-1 rounded-lg bg-neutral-200/60 dark:bg-neutral-800/80 text-xs">
+            <div className="flex items-center gap-1 p-1 rounded-lg bg-neutral-200/60 dark:bg-neutral-800/80 text-xs self-start sm:self-auto overflow-x-auto max-w-full">
               <button
                 type="button"
                 onClick={() => setMcpTab('chatgpt')}
@@ -670,7 +670,7 @@ export default function DeveloperPlatformSection() {
             ========================================================================= */}
         <div className="flex flex-col rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#0e1013] shadow-xl overflow-hidden">
           {/* Card Top Banner */}
-          <div className="px-5 py-4 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50/70 dark:bg-neutral-900/50 flex items-center justify-between">
+          <div className="px-4 sm:px-5 py-4 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50/70 dark:bg-neutral-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <div className="h-8 w-8 rounded-lg bg-blue-600/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center">
                 <Code2 className="h-4.5 w-4.5" />
@@ -689,7 +689,7 @@ export default function DeveloperPlatformSection() {
             </div>
 
             {/* Language Switcher */}
-            <div className="flex items-center gap-1 p-1 rounded-lg bg-neutral-200/60 dark:bg-neutral-800/80 text-xs">
+            <div className="flex items-center gap-1 p-1 rounded-lg bg-neutral-200/60 dark:bg-neutral-800/80 text-xs self-start sm:self-auto overflow-x-auto max-w-full">
               {(['curl', 'typescript', 'python'] as ApiLanguage[]).map((lang) => (
                 <button
                   key={lang}
@@ -818,7 +818,9 @@ export default function DeveloperPlatformSection() {
                 Parameters & Payload Schema
               </span>
               <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden text-xs">
-                <div className="grid grid-cols-12 bg-neutral-100/70 dark:bg-neutral-800/50 px-3 py-2 font-semibold text-[11px] text-neutral-600 dark:text-neutral-400 border-b border-neutral-200 dark:border-neutral-800">
+                <div className="overflow-x-auto">
+                  <div className="min-w-[420px]">
+                    <div className="grid grid-cols-12 bg-neutral-100/70 dark:bg-neutral-800/50 px-3 py-2 font-semibold text-[11px] text-neutral-600 dark:text-neutral-400 border-b border-neutral-200 dark:border-neutral-800">
                   <div className="col-span-4 font-mono">Field</div>
                   <div className="col-span-3 font-mono">Type</div>
                   <div className="col-span-5">Description</div>
@@ -842,6 +844,8 @@ export default function DeveloperPlatformSection() {
                       </div>
                     </div>
                   ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

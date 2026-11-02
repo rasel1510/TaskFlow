@@ -1009,7 +1009,7 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
 
         {/* Comment input — always visible when on comments tab */}
         {activeTab === 'comments' && (
-          <div className="border-t border-[#E5E7EB] p-3.5 sm:p-4 shrink-0 bg-white relative">
+          <div className="border-t border-[#E5E7EB] p-3.5 sm:p-4 pb-[max(0.875rem,env(safe-area-inset-bottom))] shrink-0 bg-white relative">
             {/* Mention Autocomplete Dropdown */}
             {showMentionMenu && filteredMentionUsers.length > 0 && (
               <div className="absolute left-10 sm:left-12 bottom-full mb-2 w-72 max-h-56 overflow-y-auto bg-white border border-[#E5E7EB] rounded-xl shadow-xl z-50 py-1 divide-y divide-[#F1F3F5] animate-in fade-in slide-in-from-bottom-2">
@@ -1060,7 +1060,7 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
             )}
 
             {/* Quick Mentions & Task Creator Bar */}
-            <div className="flex items-center gap-1.5 mb-2 overflow-x-auto pb-0.5">
+            <div className="flex items-center gap-1.5 mb-2 overflow-x-auto no-scrollbar pb-0.5">
               <span className="text-[11px] font-medium text-[rgba(17,17,17,0.45)] shrink-0 flex items-center gap-1">
                 <AtSign size={11} className="text-[#2563EB]" /> Mention:
               </span>
@@ -1157,7 +1157,7 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
                   className="w-full px-3 pt-2.5 pb-1 text-[13px] text-[#111111] placeholder-[#9CA3AF] outline-none resize-none"
                 />
                 <div className="flex items-center justify-between px-2.5 pb-2 pt-0.5">
-                  <span className="text-[10.5px] text-[rgba(17,17,17,0.38)]">Ctrl+Enter to send</span>
+                  <span className="hidden sm:inline text-[10.5px] text-[rgba(17,17,17,0.38)]">Ctrl+Enter to send</span>
                   <button
                     type="button"
                     disabled={!commentText.trim() || submittingComment}

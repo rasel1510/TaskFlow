@@ -324,15 +324,15 @@ export default function AddProjectMembersModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150"
       onClick={() => !submitting && onClose()}
     >
       <div
-        className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-150 overflow-hidden"
+        className="bg-white rounded-t-2xl sm:rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-2xl max-h-[92dvh] sm:max-h-[90vh] flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-150 overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#F3F4F6] shrink-0 bg-white">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[#F3F4F6] shrink-0 bg-white">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-[#2563EB] shrink-0">
               <UserPlus className="w-5 h-5" />
@@ -357,7 +357,7 @@ export default function AddProjectMembersModal({
         </div>
 
         {/* Reassurance Banner: Direct Addition without Email */}
-        <div className="px-6 py-2.5 bg-[#EFF6FF] border-b border-[#DBEAFE] flex items-center gap-2.5 shrink-0 text-[12px] text-blue-900">
+        <div className="px-4 sm:px-6 py-2.5 bg-[#EFF6FF] border-b border-[#DBEAFE] flex items-center gap-2.5 shrink-0 text-[12px] text-blue-900">
           <Sparkles className="w-4 h-4 text-[#2563EB] shrink-0" />
           <div>
             <span className="font-bold text-blue-950">Direct Enrollment: </span>
@@ -647,7 +647,7 @@ export default function AddProjectMembersModal({
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-3.5 border-t border-[#F3F4F6] bg-white flex items-center justify-between shrink-0">
+        <div className="px-4 sm:px-6 py-3 sm:py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] border-t border-[#F3F4F6] bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shrink-0">
           <div className="text-xs text-gray-600">
             {selectedCount > 0 ? (
               <span className="font-semibold text-blue-900 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">

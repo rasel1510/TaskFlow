@@ -373,7 +373,7 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
           </div>
 
           {/* Status tabs — horizontal scroll on mobile */}
-          <div className="flex items-center gap-0.5 p-0.5 bg-[#F3F4F6] rounded-lg overflow-x-auto shrink-0">
+          <div className="flex items-center gap-0.5 p-0.5 bg-[#F3F4F6] rounded-lg overflow-x-auto no-scrollbar shrink-0">
             {statuses.map(s => (
               <button
                 key={s.value}
@@ -721,7 +721,7 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
                   </div>
                 </div>
                 {/* Bottom row: status + priority + due date */}
-                <div className="flex items-center gap-2 mt-2.5 ml-7 flex-wrap">
+                <div className="flex items-center gap-2 mt-2.5 flex-wrap">
                   <span className="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap shrink-0" style={{ backgroundColor: sc(task.status).bg, color: sc(task.status).text }}>
                     {sc(task.status).label}
                   </span>

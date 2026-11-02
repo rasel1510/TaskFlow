@@ -173,9 +173,9 @@ export default function OnboardingModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
       <div
-        className="bg-white rounded-3xl border border-[#E5E7EB] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col animate-in zoom-in-95 duration-200"
+        className="bg-white rounded-t-3xl sm:rounded-3xl border border-[#E5E7EB] shadow-2xl w-full max-w-lg max-h-[92dvh] sm:max-h-[85vh] overflow-y-auto flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 pb-safe"
         onClick={e => e.stopPropagation()}
       >
         {/* Banner header */}

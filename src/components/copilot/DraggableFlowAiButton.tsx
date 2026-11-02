@@ -36,7 +36,9 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
     const minX = PADDING;
     const maxX = Math.max(minX, window.innerWidth - width - PADDING);
     const minY = PADDING;
-    const maxY = Math.max(minY, window.innerHeight - height - PADDING);
+    // On mobile screens (<768px), keep above bottom navigation bar (56px) + safe area inset
+    const bottomNavOffset = window.innerWidth < 768 ? 72 : 0;
+    const maxY = Math.max(minY, window.innerHeight - height - PADDING - bottomNavOffset);
 
     return {
       x: Math.round(Math.min(Math.max(x, minX), maxX)),
@@ -68,8 +70,10 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
     if (!foundSaved) {
       const width = 112;
       const height = 44;
-      const defaultX = window.innerWidth - width - 24;
-      const defaultY = window.innerHeight - height - 24;
+      const sideOffset = window.innerWidth < 768 ? 16 : 24;
+      const bottomOffset = window.innerWidth < 768 ? 82 : 24;
+      const defaultX = window.innerWidth - width - sideOffset;
+      const defaultY = window.innerHeight - height - bottomOffset;
       const clamped = clampPosition(defaultX, defaultY);
       initX = clamped.x;
       initY = clamped.y;

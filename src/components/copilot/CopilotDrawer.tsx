@@ -200,7 +200,7 @@ export default function CopilotDrawer({
       <div className="flex-1 cursor-pointer" onClick={onClose} />
 
       {/* Drawer Container */}
-      <div className="w-full max-w-[480px] h-full bg-white shadow-2xl flex flex-col border-l border-[#E5E7EB] animate-in slide-in-from-right duration-200">
+      <div className="w-full max-w-[480px] h-[100dvh] bg-white shadow-2xl flex flex-col border-l border-[#E5E7EB] animate-in slide-in-from-right duration-200">
         {/* Header */}
         <div className="px-5 py-4 border-b border-[#F1F3F5] flex items-center justify-between bg-[#FAFBFC]">
           <div className="flex items-center gap-3">
@@ -350,7 +350,7 @@ export default function CopilotDrawer({
             <p className="text-[11px] font-medium text-gray-400 mb-2">
               Suggestions
             </p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {SUGGESTED_PROMPTS.map((item, idx) => (
                 <button
                   key={idx}
@@ -371,7 +371,7 @@ export default function CopilotDrawer({
         )}
 
         {/* Input Area */}
-        <div className="p-4 border-t border-[#F1F3F5] bg-white">
+        <div className="p-3 sm:p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-[#F1F3F5] bg-white">
           <div className="relative border border-[#E5E7EB] rounded-xl focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-blue-500/10 transition-all bg-[#F9FAFB]">
             <textarea
               ref={inputRef}
@@ -383,7 +383,7 @@ export default function CopilotDrawer({
               className="w-full resize-none px-3.5 py-2.5 text-[13px] bg-transparent outline-none text-[#111111] placeholder:text-gray-400 leading-relaxed"
             />
             <div className="flex items-center justify-between px-3 py-1.5 border-t border-gray-200/50">
-              <span className="text-[10.5px] text-gray-400">
+              <span className="hidden sm:inline text-[10.5px] text-gray-400">
                 Enter to send · Shift+Enter for newline
               </span>
               <button
