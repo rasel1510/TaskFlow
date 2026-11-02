@@ -66,6 +66,7 @@ export function applyAuthMiddleware(request: NextRequest): NextResponse | null {
   // Dedicated landing showcase route and invite onboarding route are always accessible
   const isLandingRoute = pathname.startsWith('/landing');
   const isInviteRoute  = pathname.startsWith('/invite');
+  const isDocsRoute    = pathname.startsWith('/docs') || pathname.startsWith('/developers');
 
   // Rule 1: Authenticated user accessing root ('/') or auth pages
   // They are already logged in — send them straight into their workspace, preserving deep links!
@@ -78,7 +79,7 @@ export function applyAuthMiddleware(request: NextRequest): NextResponse | null {
   }
 
   // Rule 2: Unauthenticated user on protected route (like /app) → redirect to login with full callbackUrl
-  if (!sessionToken && !onAuthRoute && !isLandingRoute && !isInviteRoute && pathname !== '/') {
+  if (!sessionToken && !onAuthRoute && !isLandingRoute && !isInviteRoute && !isDocsRoute && pathname !== '/') {
     const loginUrl = new URL('/auth/login', request.url);
     const fullCallback = pathname + (search || '');
     loginUrl.searchParams.set('callbackUrl', fullCallback);

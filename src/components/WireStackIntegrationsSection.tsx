@@ -253,9 +253,9 @@ export default function WireStackIntegrationsSection() {
 
                 <div className="space-y-4 sm:space-y-4.5 my-auto">
                   {/* 1. API Tool Card */}
-                  <div
-                    onClick={() => setActiveModal('api')}
-                    className="group bg-white dark:bg-neutral-800/90 rounded-2xl p-5 sm:p-6 border border-neutral-200/80 dark:border-neutral-700/80 shadow-2xs hover:shadow-md hover:border-neutral-300 dark:hover:border-neutral-600 transition-all cursor-pointer flex items-start gap-4"
+                  <Link
+                    href="/docs"
+                    className="group bg-white dark:bg-neutral-800/90 rounded-2xl p-5 sm:p-6 border border-neutral-200/80 dark:border-neutral-700/80 shadow-2xs hover:shadow-md hover:border-neutral-300 dark:hover:border-neutral-600 transition-all cursor-pointer flex items-start gap-4 block"
                   >
                     {/* API Squircle Icon Matching Image */}
                     <div className="w-12 h-12 rounded-2xl bg-[#111111] text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
@@ -278,7 +278,7 @@ export default function WireStackIntegrationsSection() {
                         <span className="text-sm leading-none">&rsaquo;</span>
                       </div>
                     </div>
-                  </div>
+                  </Link>
 
                   {/* 2. MCP Server Tool Card */}
                   <div
