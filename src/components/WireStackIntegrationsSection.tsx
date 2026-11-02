@@ -308,10 +308,7 @@ export default function WireStackIntegrationsSection() {
                 </div>
               </div>
 
-              {/* Bottom helper footnote */}
-              <div className="text-center pt-3 text-[11px] text-neutral-400 dark:text-neutral-500 font-medium">
-                100% typed SDKs for TypeScript, Python, Go & cURL
-              </div>
+
             </div>
 
           </div>
