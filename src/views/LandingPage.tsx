@@ -36,7 +36,7 @@ import { LiquidGlassCard, LiquidButton } from '@/components/kokonutui/liquid-gla
 import PWAModal from '@/components/PWAModal';
 import TrustedBySection from '@/components/TrustedBySection';
 import StreamlineVelocitySection from '@/components/StreamlineVelocitySection';
-import DeveloperPlatformSection from '@/components/DeveloperPlatformSection';
+import WireStackIntegrationsSection from '@/components/WireStackIntegrationsSection';
 import Footer from '@/components/Footer';
 import CloudSky from '@/components/CloudSky';
 
@@ -635,12 +635,20 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
         {/* ─────────────────────────────────────────────────────────────────────────
             2.8. DEVELOPER & AI PLATFORM SECTION (MCP + REST API)
             ───────────────────────────────────────────────────────────────────────── */}
-        <DeveloperPlatformSection />
+
 
         {/* ─────────────────────────────────────────────────────────────────────────
             PINNED PANELS WITH OVERSCROLL: FEATURES & FAQ SECTIONS
             ───────────────────────────────────────────────────────────────────────── */}
         <div ref={slidesWrapperRef} className="slides-wrapper relative w-full px-3 sm:px-6 lg:px-8 mt-12 sm:mt-16">
+          {/* 2.8. WIRE YOUR STACK SECTION ("Wire your stack in, and through, FlowSync") */}
+          <section
+            id="integrations"
+            className="section section-0 section-integrations w-full h-[calc(100vh-64px)] relative flex justify-center box-border overflow-hidden rounded-2xl sm:rounded-3xl border border-neutral-200/90 dark:border-neutral-800/80 bg-neutral-50/95 dark:bg-[#0e0f11] shadow-2xl backdrop-blur-sm"
+          >
+            <WireStackIntegrationsSection />
+          </section>
+
           {/* 3. FEATURES SECTION ("Everything you need to succeed") */}
           <section
             id="features"
