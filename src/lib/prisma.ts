@@ -22,18 +22,26 @@ const CURRENT_ADAPTER_ID = 'neon-wss-v6';
 function createPrismaClient(): PrismaClient {
   const connectionString = process.env.DATABASE_URL;
 
+  let client: PrismaClient;
   // When connecting to Neon, use the WebSocket adapter (port 443) to avoid TCP port 5432 timeouts
   if (connectionString && connectionString.includes('neon.tech')) {
     const adapter = new PrismaNeon({ connectionString });
-    return new PrismaClient({
+    client = new PrismaClient({
       adapter,
+      log: ['warn', 'error'],
+    });
+  } else {
+    client = new PrismaClient({
       log: ['warn', 'error'],
     });
   }
 
-  return new PrismaClient({
-    log: ['warn', 'error'],
-  });
+  // Pre-warm the database connection non-blockingly so the first user query doesn't pay cold-start latency (only in runtime, not during static build)
+  if (process.env.NEXT_PHASE !== 'phase-production-build' && process.env.npm_lifecycle_event !== 'build') {
+    client.$queryRawUnsafe('SELECT 1').catch(() => {});
+  }
+
+  return client;
 }
 
 // Invalidate and replace any stale cached instance from globalThis in development
@@ -49,4 +57,3 @@ if (!globalForPrisma.prisma || globalForPrisma.__adapterId !== CURRENT_ADAPTER_I
 
 export const prisma = globalForPrisma.prisma;
 export default prisma;
-

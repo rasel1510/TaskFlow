@@ -39,10 +39,12 @@ export async function GET(request: NextRequest) {
   try {
     let currentUserId: string | undefined;
     let currentUserRole: string | undefined;
+    let sessionTeamId: string | undefined;
     try {
       const session = await auth();
       currentUserId = session?.user?.id;
       currentUserRole = (session?.user as { role?: string })?.role;
+      sessionTeamId = (session?.user as { teamId?: string })?.teamId;
     } catch {}
 
     if (!currentUserId) {
@@ -57,12 +59,17 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(Math.max(Number(searchParams.get('limit')) || 50, 1), 100);
     const cursor = searchParams.get('cursor') || undefined;
 
-    // Resolve tenant boundary: strictly isolate to the authenticated user's single team
-    const teamContext = await getOrProvisionUserTeam(currentUserId);
-    const teamFilter = teamContext?.teamId
+    // Fast-path tenant resolution: check session first for zero-latency in-memory resolution
+    let resolvedTeamId = sessionTeamId;
+    if (!resolvedTeamId) {
+      const teamContext = await getOrProvisionUserTeam(currentUserId);
+      resolvedTeamId = teamContext?.teamId;
+    }
+
+    const teamFilter = resolvedTeamId
       ? {
           OR: [
-            { teamId: teamContext.teamId },
+            { teamId: resolvedTeamId },
             { ownerId: currentUserId },
             { members: { some: { userId: currentUserId } } },
           ],
@@ -74,18 +81,32 @@ export async function GET(request: NextRequest) {
           ],
         };
 
-    const cacheKey = `projects:list:${currentUserId}:${teamContext?.teamId || 'no-team'}:${limit}:${cursor || 'root'}`;
-    const formatted = await redisCache.wrap(cacheKey, 15, async () => {
+    const cacheKey = `projects:list:${currentUserId}:${resolvedTeamId || 'no-team'}:${limit}:${cursor || 'root'}`;
+    const formatted = await redisCache.wrap(cacheKey, 60, async () => {
       const dbProjects = await prisma.project.findMany({
         where: teamFilter,
         take: limit + 1,
         ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
-        include: {
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          color: true,
+          health: true,
+          progress: true,
+          startDate: true,
+          dueDate: true,
+          createdAt: true,
+          ownerId: true,
           owner: {
             select: { id: true, name: true, email: true, avatar: true, role: true, expertise: true },
           },
           members: {
-            include: {
+            select: {
+              id: true,
+              userId: true,
+              role: true,
+              joinedAt: true,
               user: {
                 select: { id: true, name: true, email: true, avatar: true, role: true, expertise: true },
               },
@@ -93,7 +114,13 @@ export async function GET(request: NextRequest) {
             orderBy: { joinedAt: 'asc' },
           },
           joinRequests: {
-            include: {
+            where: { status: 'pending' },
+            select: {
+              id: true,
+              userId: true,
+              status: true,
+              message: true,
+              createdAt: true,
               user: {
                 select: { id: true, name: true, email: true, avatar: true, role: true, expertise: true },
               },
@@ -134,7 +161,7 @@ export async function GET(request: NextRequest) {
         // Only project owner / PM or Admin can see all pending requests
         const canManage = isOwner || currentUserRole === 'Project Manager' || currentUserRole === 'Admin';
         const pendingRequests = canManage
-          ? (p.joinRequests?.filter(r => r.status === 'pending') || []).map(r => ({
+          ? (p.joinRequests || []).map(r => ({
               id: r.id,
               userId: r.userId,
               status: r.status,
@@ -175,7 +202,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: true, data: formatted.items, meta: formatted.meta }, {
       status: 200,
       headers: {
-        'Cache-Control': 'private, max-age=10, stale-while-revalidate=30',
+        'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
       },
     });
   } catch (error) {
