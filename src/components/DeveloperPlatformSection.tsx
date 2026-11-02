@@ -817,15 +817,13 @@ export default function DeveloperPlatformSection() {
               <span className="text-xs font-semibold text-neutral-900 dark:text-white">
                 Parameters & Payload Schema
               </span>
-              <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden text-xs">
-                <div className="overflow-x-auto">
-                  <div className="min-w-[420px]">
-                    <div className="grid grid-cols-12 bg-neutral-100/70 dark:bg-neutral-800/50 px-3 py-2 font-semibold text-[11px] text-neutral-600 dark:text-neutral-400 border-b border-neutral-200 dark:border-neutral-800">
+              <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-x-auto text-xs">
+                <div className="grid grid-cols-12 min-w-[380px] bg-neutral-100/70 dark:bg-neutral-800/50 px-3 py-2 font-semibold text-[11px] text-neutral-600 dark:text-neutral-400 border-b border-neutral-200 dark:border-neutral-800">
                   <div className="col-span-4 font-mono">Field</div>
                   <div className="col-span-3 font-mono">Type</div>
                   <div className="col-span-5">Description</div>
                 </div>
-                <div className="divide-y divide-neutral-200 dark:divide-neutral-800 bg-white dark:bg-[#111317]">
+                <div className="divide-y divide-neutral-200 dark:divide-neutral-800 min-w-[380px] bg-white dark:bg-[#111317]">
                   {activeEndpoint.parameters.map((param) => (
                     <div key={param.name} className="grid grid-cols-12 px-3 py-2 items-center text-[11px]">
                       <div className="col-span-4 font-mono font-medium text-neutral-900 dark:text-white flex items-center gap-1.5">
@@ -844,8 +842,6 @@ export default function DeveloperPlatformSection() {
                       </div>
                     </div>
                   ))}
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
