@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import OnboardingHeader from '@/components/onboarding/OnboardingHeader';
 import InvoiceModal, { InvoiceData } from '@/components/onboarding/InvoiceModal';
 import { CheckCircle2, FileText, ArrowRight, ShieldCheck, Sparkles, Building2 } from 'lucide-react';
 
-export default function OnboardingSuccessPage() {
+function OnboardingSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const invoiceId = searchParams.get('invoiceId');
@@ -131,5 +131,17 @@ export default function OnboardingSuccessPage() {
         invoice={invoice}
       />
     </div>
+  );
+}
+
+export default function OnboardingSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#FDFBF7] dark:bg-[#0D0E12] flex items-center justify-center text-xs font-semibold text-neutral-400">
+        Loading confirmation...
+      </div>
+    }>
+      <OnboardingSuccessContent />
+    </Suspense>
   );
 }
