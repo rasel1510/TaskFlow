@@ -48,6 +48,7 @@ export async function GET() {
         name: true,
         email: true,
         plan: true,
+        teamId: true,
         billingCycle: true,
         subscriptionStatus: true,
         failedPaymentAttempts: true,
@@ -72,10 +73,16 @@ export async function GET() {
       expYear: 2028,
     };
 
+    const hasPaid =
+      (user.invoices && user.invoices.some(inv => inv.status === 'paid')) ||
+      user.plan === 'pro';
+
     return NextResponse.json({
       success: true,
       data: {
         plan: user.plan || 'free',
+        hasPaid,
+        teamId: user.teamId,
         billingCycle: user.billingCycle || 'monthly',
         subscriptionStatus: user.subscriptionStatus || 'active',
         failedPaymentAttempts: user.failedPaymentAttempts || 0,

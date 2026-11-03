@@ -100,6 +100,23 @@ function AppContent() {
     }
   }, [status, router]);
 
+  // Enforce Payment & Company Setup Gates:
+  // If registered user signs in without payment, ALWAYS redirect to Payment page.
+  // If payment is successful but company is not created, redirect to Create Organization.
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user) {
+      const user = session.user as any;
+      if (user.hasPaid === false) {
+        router.replace('/onboarding/plans');
+        return;
+      }
+      if (user.hasCompletedOnboarding === false || !user.teamId) {
+        router.replace('/onboarding/organization');
+        return;
+      }
+    }
+  }, [status, session, router]);
+
   // Close mobile sidebar on view change
   useEffect(() => {
     setMobileSidebarOpen(false);

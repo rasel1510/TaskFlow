@@ -65,7 +65,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           // Attempt to find user in database with team information
           const dbUser = await prisma.user.findUnique({
             where: { email },
-            include: { team: { select: { id: true, name: true, slug: true } } },
+            include: {
+              team: { select: { id: true, name: true, slug: true } },
+              invoices: { select: { id: true, status: true }, take: 5 },
+            },
           });
 
           if (dbUser) {
@@ -75,6 +78,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 return null;
               }
             }
+            const hasPaid =
+              (dbUser.invoices && dbUser.invoices.some(inv => inv.status === 'paid')) ||
+              dbUser.plan === 'pro';
+
             return {
               id: dbUser.id,
               name: dbUser.name,
@@ -83,6 +90,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               role: dbUser.role,
               teamId: dbUser.teamId,
               teamName: dbUser.team?.name,
+              plan: dbUser.plan,
+              hasPaid,
+              hasCompletedOnboarding: dbUser.hasCompletedOnboarding,
             };
           }
         } catch {
@@ -130,6 +140,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.avatar = (user as { avatar?: string }).avatar || user.image;
         token.teamId = (user as { teamId?: string }).teamId;
         token.teamName = (user as { teamName?: string }).teamName;
+        token.plan = (user as any).plan || 'free';
+        token.hasPaid = Boolean((user as any).hasPaid);
+        token.hasCompletedOnboarding = Boolean((user as any).hasCompletedOnboarding);
       }
 
       if (trigger === 'update' && session) {
@@ -147,7 +160,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         try {
           const freshUser = await prisma.user.findUnique({
             where: { id: token.id as string },
-            select: { name: true, role: true, avatar: true, teamId: true, team: { select: { name: true } } },
+            select: {
+              name: true,
+              role: true,
+              avatar: true,
+              teamId: true,
+              plan: true,
+              hasCompletedOnboarding: true,
+              invoices: { select: { id: true, status: true }, take: 5 },
+              team: { select: { name: true } },
+            },
           });
           if (freshUser) {
             if (freshUser.name) token.name = freshUser.name;
@@ -155,6 +177,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             if (freshUser.avatar) token.avatar = freshUser.avatar;
             if (freshUser.teamId) token.teamId = freshUser.teamId;
             if (freshUser.team?.name) token.teamName = freshUser.team.name;
+            token.plan = freshUser.plan;
+            token.hasPaid =
+              (freshUser.invoices && freshUser.invoices.some(inv => inv.status === 'paid')) ||
+              freshUser.plan === 'pro';
+            token.hasCompletedOnboarding = freshUser.hasCompletedOnboarding;
             token.lastSynced = now;
           }
         } catch {
@@ -173,6 +200,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as { avatar?: string }).avatar = (token.avatar as string) || '';
         (session.user as { teamId?: string }).teamId = (token.teamId as string) || '';
         (session.user as { teamName?: string }).teamName = (token.teamName as string) || '';
+        (session.user as any).plan = token.plan || 'free';
+        (session.user as any).hasPaid = Boolean(token.hasPaid);
+        (session.user as any).hasCompletedOnboarding = Boolean(token.hasCompletedOnboarding);
       }
       return session;
     },

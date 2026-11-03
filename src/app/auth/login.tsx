@@ -76,7 +76,46 @@ function LoginForm() {
         return;
       }
 
-      setSuccess('Authentication successful! Redirecting to workspace...');
+      setSuccess('Authentication successful! Checking account status...');
+
+      try {
+        const billingRes = await fetch('/api/billing');
+        if (billingRes.ok) {
+          const billingJson = await billingRes.json();
+          const { hasPaid, hasCompletedOnboarding, teamId } = billingJson?.data || {};
+
+          // Rule: If user has not completed payment, ALWAYS redirect to Payment page
+          if (!hasPaid) {
+            setSuccess('Payment required. Redirecting to payment page...');
+            setTimeout(() => {
+              router.push('/onboarding/plans');
+              router.refresh();
+            }, 600);
+            return;
+          }
+
+          // If paid but hasn't completed company setup
+          if (!hasCompletedOnboarding || !teamId) {
+            setSuccess('Payment confirmed! Redirecting to company setup...');
+            setTimeout(() => {
+              router.push('/onboarding/organization');
+              router.refresh();
+            }, 600);
+            return;
+          }
+
+          // Payment completed and company setup done -> Send to Company Dashboard (/app)
+          setSuccess('Redirecting to your company dashboard...');
+          setTimeout(() => {
+            router.push(targetUrl);
+            router.refresh();
+          }, 600);
+          return;
+        }
+      } catch (checkErr) {
+        console.warn('Billing check error on login:', checkErr);
+      }
+
       setTimeout(() => {
         router.push(targetUrl);
         router.refresh();
