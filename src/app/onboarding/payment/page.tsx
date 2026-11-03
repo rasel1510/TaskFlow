@@ -144,7 +144,7 @@ export default function OnboardingPaymentPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] dark:bg-[#0D0E12] text-neutral-900 dark:text-neutral-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-gradient-to-b from-[#F0F6FF] via-[#F8FAFC] to-[#EFF6FF] dark:from-[#0B1120] dark:via-[#0F172A] dark:to-[#0B1120] text-slate-900 dark:text-slate-100 flex flex-col font-sans relative overflow-hidden transition-colors">
       <OnboardingHeader currentStep={2} />
 
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12 flex flex-col items-center">
@@ -193,7 +193,7 @@ export default function OnboardingPaymentPage() {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 w-full max-w-3xl">
 
           {/* Order Summary (Col 2) */}
-          <div className="md:col-span-2 order-2 md:order-1 rounded-2xl bg-white dark:bg-[#121316] border border-[#ECE5D8] dark:border-neutral-800 p-6 flex flex-col justify-between shadow-xs">
+          <div className="md:col-span-2 order-2 md:order-1 rounded-2xl bg-white dark:bg-[#121316] border border-slate-200 dark:border-neutral-800 p-6 flex flex-col justify-between shadow-xs">
             <div>
               <h4 className="font-bold text-xs uppercase tracking-wider text-neutral-400 mb-3">
                 Order Summary
@@ -216,7 +216,7 @@ export default function OnboardingPaymentPage() {
 
               <div className="flex justify-between items-baseline pt-4">
                 <span className="text-sm font-bold text-neutral-950 dark:text-white">Total Due</span>
-                <span className="text-2xl font-black text-[#E44232]">$20.00</span>
+                <span className="text-2xl font-black text-blue-600 dark:text-blue-400">$20.00</span>
               </div>
 
               <div className="mt-6 p-3 rounded-xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200/60 dark:border-neutral-800 text-[11px] text-neutral-500 space-y-1">
@@ -249,7 +249,7 @@ export default function OnboardingPaymentPage() {
           </div>
 
           {/* Stripe Card Form (Col 3) */}
-          <div className="md:col-span-3 order-1 md:order-2 rounded-2xl bg-white dark:bg-[#15171C] border border-[#ECE5D8] dark:border-neutral-800 p-6 sm:p-7 shadow-lg">
+          <div className="md:col-span-3 order-1 md:order-2 rounded-2xl bg-white dark:bg-[#15171C] border border-slate-200 dark:border-neutral-800 p-6 sm:p-7 shadow-lg">
 
             <div className="flex items-center justify-between pb-4 border-b border-neutral-100 dark:border-neutral-800 mb-5">
               <div className="flex items-center gap-2">

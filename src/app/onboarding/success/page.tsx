@@ -45,7 +45,7 @@ function OnboardingSuccessContent() {
   }, [invoiceId]);
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] dark:bg-[#0D0E12] text-neutral-900 dark:text-neutral-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-gradient-to-b from-[#F0F6FF] via-[#F8FAFC] to-[#EFF6FF] dark:from-[#0B1120] dark:via-[#0F172A] dark:to-[#0B1120] text-slate-900 dark:text-slate-100 flex flex-col font-sans relative overflow-hidden transition-colors">
       <OnboardingHeader currentStep={3} />
 
       <main className="flex-1 max-w-2xl w-full mx-auto px-4 sm:px-6 py-12 sm:py-16 flex flex-col items-center">
@@ -64,7 +64,7 @@ function OnboardingSuccessContent() {
         </p>
 
         {/* Invoice Summary Box (Matches "Invoice" in diagram) */}
-        <div className="w-full mt-8 p-6 rounded-2xl bg-white dark:bg-[#15171C] border border-[#ECE5D8] dark:border-neutral-800 shadow-sm space-y-4">
+        <div className="w-full mt-8 p-6 rounded-2xl bg-white dark:bg-[#15171C] border border-slate-200 dark:border-neutral-800 shadow-sm space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-neutral-800">
             <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">
               Transaction Details
@@ -105,7 +105,7 @@ function OnboardingSuccessContent() {
               onClick={() => setModalOpen(true)}
               className="w-full py-2.5 px-4 rounded-xl font-semibold text-xs border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800 text-neutral-800 dark:text-neutral-200 transition-colors flex items-center justify-center gap-2 cursor-pointer"
             >
-              <FileText size={14} className="text-[#E44232]" />
+              <FileText size={14} className="text-blue-600 dark:text-blue-400" />
               <span>View / Download Invoice PDF</span>
             </button>
           </div>
@@ -115,7 +115,7 @@ function OnboardingSuccessContent() {
         <div className="w-full mt-8">
           <button
             onClick={() => router.push('/onboarding/organization')}
-            className="w-full py-3.5 px-6 rounded-xl font-bold text-sm bg-[#E44232] hover:bg-[#D0392A] text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-3.5 px-6 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
           >
             <span>Continue to Create Organization</span>
             <ArrowRight size={16} />
