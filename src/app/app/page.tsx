@@ -19,6 +19,7 @@ import TimelineView from '@/views/TimelineView';
 import Inbox from '@/views/Inbox';
 import Reports from '@/views/Reports';
 import Settings from '@/views/Settings';
+import BillingView from '@/views/BillingView';
 import TeamView from '@/views/TeamView';
 import { TaskProvider } from '@/context/TaskContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -37,6 +38,7 @@ type View =
   | 'calendar'
   | 'timeline'
   | 'reports'
+  | 'billing'
   | 'settings'
   | 'inbox';
 
@@ -263,6 +265,8 @@ function AppContent() {
         );
       case 'reports':
         return <Reports />;
+      case 'billing':
+        return <BillingView />;
       case 'team':
         return <TeamView />;
       case 'settings':

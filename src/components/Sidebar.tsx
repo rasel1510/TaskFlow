@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useTaskContext } from '@/context/TaskContext';
 
-type View = 'dashboard' | 'tasks' | 'kanban' | 'projects' | 'team' | 'calendar' | 'timeline' | 'reports' | 'settings' | 'inbox';
+type View = 'dashboard' | 'tasks' | 'kanban' | 'projects' | 'team' | 'calendar' | 'timeline' | 'reports' | 'billing' | 'settings' | 'inbox';
 
 interface SidebarProps {
   currentView: View;
@@ -84,6 +84,11 @@ const navItems: NavItem[] = [
     id: 'reports',
     label: 'Reports',
     icon: <Icon path="M18 20V10M12 20V4M6 20v-6" />,
+  },
+  {
+    id: 'billing',
+    label: 'Billing',
+    icon: <Icon path="M3 10h18M7 15h1m4 0h1m-7-9h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" />,
   },
 ];
 

@@ -19,7 +19,7 @@ interface HeaderNotificationItem {
   meta?: string;
 }
 
-type View = 'dashboard' | 'tasks' | 'kanban' | 'projects' | 'team' | 'calendar' | 'timeline' | 'reports' | 'settings' | 'inbox';
+type View = 'dashboard' | 'tasks' | 'kanban' | 'projects' | 'team' | 'calendar' | 'timeline' | 'reports' | 'billing' | 'settings' | 'inbox';
 
 const pageTitles: Record<View, string> = {
   dashboard: 'Dashboard',
@@ -30,6 +30,7 @@ const pageTitles: Record<View, string> = {
   calendar: 'Calendar',
   timeline: 'Timeline',
   reports: 'Reports',
+  billing: 'Company Billing',
   settings: 'Settings',
   inbox: 'Inbox',
 };
