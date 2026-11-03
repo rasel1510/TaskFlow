@@ -90,3 +90,4 @@ export default function OnboardingHeader({ currentStep }: OnboardingHeaderProps)
     </header>
   );
 }
+

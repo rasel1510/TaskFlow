@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import OnboardingHeader from '@/components/onboarding/OnboardingHeader';
 import {
   CreditCard,
@@ -29,7 +29,7 @@ export default function OnboardingPaymentPage() {
   // Execution states
   const [processing, setProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  
+
   // Mandatory Supervisor Constraint: LIMIT TO 5 TIMES FOR THE USER
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [isLockedOut, setIsLockedOut] = useState(false);
@@ -48,7 +48,7 @@ export default function OnboardingPaymentPage() {
           }
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Format Card Number input (xxxx xxxx xxxx xxxx)
@@ -148,7 +148,7 @@ export default function OnboardingPaymentPage() {
       <OnboardingHeader currentStep={2} />
 
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12 flex flex-col items-center">
-        
+
         {/* Title */}
         <div className="text-center max-w-xl mx-auto space-y-2 mb-8">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#635BFF]/10 text-[#635BFF] dark:text-[#7A73FF] border border-[#635BFF]/20">
@@ -170,10 +170,9 @@ export default function OnboardingPaymentPage() {
           <div
             className={`
               w-full max-w-md mb-6 p-4 rounded-2xl border text-xs flex items-start gap-3 transition-all
-              ${
-                isLockedOut
-                  ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200'
-                  : 'bg-amber-50 dark:bg-amber-950/60 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+              ${isLockedOut
+                ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200'
+                : 'bg-amber-50 dark:bg-amber-950/60 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200'
               }
             `}
           >
@@ -192,7 +191,7 @@ export default function OnboardingPaymentPage() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 w-full max-w-3xl">
-          
+
           {/* Order Summary (Col 2) */}
           <div className="md:col-span-2 order-2 md:order-1 rounded-2xl bg-white dark:bg-[#121316] border border-[#ECE5D8] dark:border-neutral-800 p-6 flex flex-col justify-between shadow-xs">
             <div>
@@ -251,7 +250,7 @@ export default function OnboardingPaymentPage() {
 
           {/* Stripe Card Form (Col 3) */}
           <div className="md:col-span-3 order-1 md:order-2 rounded-2xl bg-white dark:bg-[#15171C] border border-[#ECE5D8] dark:border-neutral-800 p-6 sm:p-7 shadow-lg">
-            
+
             <div className="flex items-center justify-between pb-4 border-b border-neutral-100 dark:border-neutral-800 mb-5">
               <div className="flex items-center gap-2">
                 <CreditCard size={18} className="text-[#635BFF]" />
@@ -270,7 +269,7 @@ export default function OnboardingPaymentPage() {
             </div>
 
             <form onSubmit={handleSubmitPayment} className="space-y-4">
-              
+
               {/* Cardholder Name */}
               <div>
                 <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
@@ -396,3 +395,4 @@ export default function OnboardingPaymentPage() {
     </div>
   );
 }
+

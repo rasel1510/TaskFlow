@@ -81,7 +81,7 @@ export default function OnboardingPlansPage() {
       <OnboardingHeader currentStep={1} />
 
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-10 sm:py-14 flex flex-col items-center">
-        
+
         {/* Title & Headline */}
         <div className="text-center max-w-2xl mx-auto space-y-3">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#E44232]/10 text-[#E44232] dark:bg-[#E44232]/20 dark:text-rose-400 border border-[#E44232]/20">
@@ -100,7 +100,7 @@ export default function OnboardingPlansPage() {
 
         {/* 2 Category Plans Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 w-full max-w-4xl mt-10">
-          
+
           {/* 1. BASIC PLAN CARD */}
           <div className="rounded-3xl border border-[#ECE5D8] dark:border-neutral-800 bg-white dark:bg-[#121316] p-6 sm:p-8 flex flex-col justify-between shadow-xs hover:shadow-md transition-all">
             <div>
@@ -281,3 +281,4 @@ export default function OnboardingPlansPage() {
     </div>
   );
 }
+

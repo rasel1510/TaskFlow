@@ -180,3 +180,4 @@ export default function InvoiceModal({ open, onClose, invoice }: InvoiceModalPro
     </Dialog>
   );
 }
+
