@@ -245,9 +245,9 @@ export const SignupSchema = z.object({
 
   teamName: z
     .string()
-    .min(2, 'Team name must be at least 2 characters')
     .max(80, 'Team name must be 80 characters or fewer')
-    .trim(),
+    .trim()
+    .optional(),
 
   password: z
     .string()

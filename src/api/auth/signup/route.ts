@@ -151,24 +151,8 @@ export async function POST(req: Request) {
           teamName: pendingInvite.team.name,
         });
       } else {
-        // Standard new SaaS workspace registration
-        const baseSlug = cleanTeamName
-          .toLowerCase()
-          .replace(/[^a-z0-9]/g, '-')
-          .replace(/-+/g, '-')
-          .replace(/^-|-$/g, '')
-          .slice(0, 30) || 'team';
-        const uniqueSlug = `${baseSlug}-${Date.now().toString(36)}`;
-
-        // Create Team for this SaaS account
-        const newTeam = await prisma.team.create({
-          data: {
-            name: cleanTeamName,
-            slug: uniqueSlug,
-          },
-        });
-
-        // Persist new user in database as Admin of the team
+        // Standard user signup — account created first without company
+        // Company will be created later on /onboarding/organization where this user becomes Admin
         const newUser = await prisma.user.create({
           data: {
             name: (name as string).trim(),
@@ -176,8 +160,9 @@ export async function POST(req: Request) {
             password: hashedPassword,
             role: normalizedRole,
             avatar,
-            teamId: newTeam.id,
+            teamId: null,
             emailVerified: null,
+            hasCompletedOnboarding: false,
           },
         });
 
@@ -191,8 +176,8 @@ export async function POST(req: Request) {
           password: hashedPassword,
           role: newUser.role,
           avatar: newUser.avatar,
-          teamId: newTeam.id,
-          teamName: newTeam.name,
+          teamId: '',
+          teamName: '',
         });
       }
     } catch (dbError) {

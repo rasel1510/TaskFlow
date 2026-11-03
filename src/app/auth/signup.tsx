@@ -19,7 +19,6 @@ import {
   KeyRound,
   ShieldCheck,
   RotateCw,
-  Building2,
 } from 'lucide-react';
 
 export default function SignupPage() {
@@ -31,8 +30,7 @@ export default function SignupPage() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    teamName: '',
-    password: '',
+        password: '',
     agreeToTerms: false,
   });
 
@@ -140,10 +138,6 @@ export default function SignupPage() {
       setError('Please provide a valid work email');
       return;
     }
-    if (!formData.teamName.trim()) {
-      setError('Please enter your team or company name');
-      return;
-    }
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters');
       return;
@@ -162,7 +156,6 @@ export default function SignupPage() {
         body: JSON.stringify({
           name: formData.name.trim(),
           email: formData.email.trim(),
-          teamName: formData.teamName.trim(),
           password: formData.password,
         }),
       });
@@ -448,23 +441,7 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              {/* Team Name Input */}
-              <div>
-                <label className="block text-xs font-semibold text-[#111111] mb-1.5">
-                  Company / Team Name
-                </label>
-                <div className="relative">
-                  <Building2 className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Acme Innovations"
-                    value={formData.teamName}
-                    onChange={e => setFormData({ ...formData, teamName: e.target.value })}
-                    className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all shadow-xs"
-                  />
-                </div>
-              </div>
+              
 
               {/* Password */}
               <div>
