@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import OnboardingHeader from '@/components/onboarding/OnboardingHeader';
 import { Building2, ArrowRight, Sparkles, CheckCircle2, AlertCircle, Users } from 'lucide-react';
@@ -13,6 +13,31 @@ export default function OnboardingOrganizationPage() {
   const [size, setSize] = useState('6-20');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checkingPayment, setCheckingPayment] = useState(true);
+
+  // Verify that user has paid via Stripe before allowing them to set up an organization
+  useEffect(() => {
+    async function checkSubscription() {
+      try {
+        const res = await fetch('/api/billing');
+        if (res.ok) {
+          const json = await res.json();
+          const hasPaid =
+            (json.data?.invoices && json.data.invoices.length > 0) ||
+            json.data?.plan === 'pro';
+          if (!hasPaid) {
+            router.replace('/onboarding/plans');
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Billing verification error:', err);
+      } finally {
+        setCheckingPayment(false);
+      }
+    }
+    checkSubscription();
+  }, [router]);
 
   const slugPreview = orgName
     .toLowerCase()
@@ -43,6 +68,13 @@ export default function OnboardingOrganizationPage() {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
+        if (data.requiresPayment) {
+          setError('Payment required: You must complete payment using Stripe before opening your company.');
+          setTimeout(() => {
+            router.push('/onboarding/plans');
+          }, 1800);
+          return;
+        }
         setError(data.error || 'Failed to initialize organization. Please try again.');
         return;
       }

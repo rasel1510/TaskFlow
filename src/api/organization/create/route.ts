@@ -21,11 +21,27 @@ export async function POST(req: Request) {
 
     const user = await prisma.user.findFirst({
       where: session.user.id ? { id: session.user.id } : { email: session.user.email! },
-      include: { team: true },
+      include: { team: true, invoices: true },
     });
 
     if (!user) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+    }
+
+    // Enforce Mandate: User cannot open company without completing payment using Stripe
+    const hasCompletedPayment =
+      (user.invoices && user.invoices.some(inv => inv.status === 'paid')) ||
+      user.plan === 'pro';
+
+    if (!hasCompletedPayment) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Payment required: You must complete payment using Stripe before opening your company.',
+          requiresPayment: true,
+        },
+        { status: 402 }
+      );
     }
 
     const baseSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'workspace';
