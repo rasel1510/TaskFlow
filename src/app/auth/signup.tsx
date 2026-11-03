@@ -309,7 +309,7 @@ export default function SignupPage() {
       if (signInRes?.error) {
         router.push('/auth/login?verified=true');
       } else {
-        router.push('/app');
+        router.push('/onboarding/plans');
         router.refresh();
       }
     } catch {

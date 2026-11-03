@@ -87,6 +87,16 @@ model User {
   teamId        String?
   team          Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
 
+  // Subscription & Onboarding fields
+  plan                   String    @default("free")
+  billingCycle           String    @default("monthly")
+  subscriptionStatus     String    @default("active")
+  stripeCustomerId       String?
+  hasCompletedOnboarding Boolean   @default(false)
+  failedPaymentAttempts  Int       @default(0)
+
+  invoices               Invoice[]
+
   tasksAssigned Task[]               @relation("TaskAssignee")
   tasksCreated  Task[]               @relation("TaskCreator")
   projectsOwned Project[]            @relation("ProjectOwner")
@@ -274,4 +284,25 @@ model VerificationCode {
   createdAt DateTime @default(now())
 
   @@index([email])
+}
+
+model Invoice {
+  id            String   @id @default(cuid())
+  invoiceNumber String   @unique
+  amount        Float    @default(20.00)
+  currency      String   @default("usd")
+  status        String   @default("paid")
+  planName      String   @default("Pro Plan")
+  billingCycle  String   @default("monthly")
+  paymentMethod String   @default("card")
+  last4         String?
+  brand         String?
+  pdfUrl        String?
+  createdAt     DateTime @default(now())
+
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([invoiceNumber])
 }

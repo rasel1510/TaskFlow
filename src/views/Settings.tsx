@@ -1,4 +1,5 @@
 'use client';
+import BillingSettingsTab from '@/components/settings/BillingSettingsTab';
 
 /**
  * src/views/Settings.tsx
@@ -23,7 +24,7 @@ import { Eye, EyeOff, Send, Shield, Briefcase, User, RefreshCw, Mail, Copy, Chec
 
 /* ─────────────── types ─────────────── */
 
-type Section = 'profile' | 'workspace' | 'members' | 'notifications' | 'security';
+type Section = 'profile' | 'workspace' | 'billing' | 'members' | 'notifications' | 'security';
 
 export const DEFAULT_EXPERTISE_OPTIONS = [
   { id: 'UI Design', label: 'UI Design' },
@@ -164,6 +165,7 @@ const navItems: { id: Section; label: string; group: string }[] = [
   { id: 'profile',       label: 'Profile',      group: 'Account' },
   { id: 'security',      label: 'Security',     group: 'Account' },
   { id: 'workspace',     label: 'General',      group: 'Workspace' },
+  { id: 'billing',       label: 'Billing & Plan', group: 'Workspace' },
   { id: 'members',       label: 'Members',      group: 'Workspace' },
   { id: 'notifications', label: 'Notifications',group: 'Workspace' },
 ];
@@ -1781,6 +1783,13 @@ export default function Settings() {
               <SaveButton loading={notifSaving} onClick={saveNotifPrefs} label="Save Preferences" />
             </div>
           </div>
+        )}
+
+        {/* ━━━━━━━━━━━━━━━━━━━━━━━━
+            BILLING & PLAN
+        ━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        {section === 'billing' && (
+          <BillingSettingsTab />
         )}
 
         {/* ━━━━━━━━━━━━━━━━━━━━━━━━
