@@ -11,9 +11,9 @@ import {
   RotateCw,
   ArrowRight,
   Check,
-  HelpCircle,
   Sparkles,
   Info,
+  ChevronDown,
 } from 'lucide-react';
 
 export default function OnboardingPaymentPage() {
@@ -48,7 +48,7 @@ export default function OnboardingPaymentPage() {
           }
         }
       })
-      .catch(() => { });
+      .catch(() => {});
   }, []);
 
   // Format Card Number input (xxxx xxxx xxxx xxxx)
@@ -68,23 +68,23 @@ export default function OnboardingPaymentPage() {
     }
   };
 
-  // Auto-fill valid Stripe test card
+  // Testing helpers
   const handleFillValidCard = () => {
-    setCardName('Senior Software Engineer');
+    setCardName('Alex Morgan');
     setCardNumber('4242 4242 4242 4242');
     setExpDate('12 / 28');
-    setCvc('999');
+    setCvc('424');
     setZipCode('94107');
     setErrorMsg(null);
   };
 
-  // Auto-fill test decline card (to test 5-attempt retry limit)
   const handleFillDecliningCard = () => {
-    setCardName('Test Decline Card');
+    setCardName('Alex Morgan');
     setCardNumber('4000 0000 0000 0002');
-    setExpDate('10 / 25');
-    setCvc('123');
-    setZipCode('10001');
+    setExpDate('12 / 28');
+    setCvc('002');
+    setZipCode('94107');
+    setErrorMsg(null);
   };
 
   // Submit payment to Stripe gateway
@@ -93,7 +93,7 @@ export default function OnboardingPaymentPage() {
     if (isLockedOut) return;
 
     if (!cardNumber || !expDate || !cvc || !cardName) {
-      setErrorMsg('Please complete all card details before proceeding.');
+      setErrorMsg('Please complete all payment fields before proceeding.');
       return;
     }
 
@@ -123,17 +123,17 @@ export default function OnboardingPaymentPage() {
 
         if (nextAttempts >= 5 || data.attemptsExceeded) {
           setIsLockedOut(true);
-          setErrorMsg('Security Limit Reached: Maximum of 5 payment attempts exceeded. Please contact support at support@flowsync.app.');
+          setErrorMsg('Security Limit Reached: Maximum of 5 payment attempts exceeded. Please contact support.');
         } else {
           setErrorMsg(
             data.error ||
-            `Card declined. Attempt ${nextAttempts} of 5. You have ${5 - nextAttempts} attempts remaining before account security lockout.`
+            `Card was declined. Attempt ${nextAttempts} of 5. You have ${5 - nextAttempts} attempts remaining.`
           );
         }
         return;
       }
 
-      // Successful Stripe payment
+      // Successful Stripe payment -> redirect to Success Page
       const invoiceId = data.data.invoice?.id;
       router.push(`/onboarding/success?invoiceId=${invoiceId || ''}`);
     } catch {
@@ -144,125 +144,141 @@ export default function OnboardingPaymentPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#F0F6FF] via-[#F8FAFC] to-[#EFF6FF] dark:from-[#0B1120] dark:via-[#0F172A] dark:to-[#0B1120] text-slate-900 dark:text-slate-100 flex flex-col font-sans relative overflow-hidden transition-colors">
+    <div className="relative min-h-screen bg-gradient-to-b from-[#F0F6FF] via-[#F8FAFC] to-[#EFF6FF] dark:from-[#0B1120] dark:via-[#0F172A] dark:to-[#0B1120] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors overflow-hidden">
+      
+      {/* Ambient background glow in FlowSync Blue */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[850px] h-[320px] bg-blue-500/10 blur-[130px] rounded-full pointer-events-none -z-10" />
+
+      {/* Top Header */}
       <OnboardingHeader currentStep={2} />
 
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12 flex flex-col items-center">
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-10 sm:py-14 flex flex-col items-center">
 
-        {/* Title */}
-        <div className="text-center max-w-xl mx-auto space-y-2 mb-8">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#635BFF]/10 text-[#635BFF] dark:text-[#7A73FF] border border-[#635BFF]/20">
-            <Lock size={12} />
+        {/* Clean, Minimalist Header */}
+        <div className="text-center max-w-lg mx-auto space-y-2.5 mb-10">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800/60 shadow-xs">
+            <Lock size={12} className="text-blue-600 dark:text-blue-400" />
             <span>Stripe Payment Gateway</span>
-          </div>
+          </span>
 
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-950 dark:text-white">
-            Complete Your $20 Pro Subscription
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white">
+            Complete Your Pro Subscription
           </h1>
 
-          <p className="text-xs sm:text-sm text-neutral-500">
-            Securely processed via Stripe. Your card will be charged $20.00 today.
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+            Encrypted payment gateway. Billed $20.00 monthly with automatic invoice receipts.
           </p>
         </div>
 
-        {/* 5-Attempt Limit Alert if Failed */}
+        {/* 5-Attempt Limit Alert */}
         {failedAttempts > 0 && (
           <div
             className={`
-              w-full max-w-md mb-6 p-4 rounded-2xl border text-xs flex items-start gap-3 transition-all
+              w-full max-w-2xl mb-6 p-4 rounded-2xl border text-xs flex items-start gap-3 transition-all animate-fadeIn
               ${isLockedOut
-                ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200'
-                : 'bg-amber-50 dark:bg-amber-950/60 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+                ? 'bg-rose-50/90 dark:bg-rose-950/60 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200'
+                : 'bg-amber-50/90 dark:bg-amber-950/60 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200'
               }
             `}
           >
             <AlertTriangle size={18} className="shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
             <div>
               <p className="font-bold text-sm">
-                {isLockedOut ? 'Payment Limit Reached (5/5)' : `Payment Retry (${failedAttempts}/5)`}
+                {isLockedOut ? 'Payment Limit Reached (5 of 5)' : `Card Declined (Attempt ${failedAttempts} of 5)`}
               </p>
               <p className="mt-0.5 leading-relaxed">
                 {isLockedOut
-                  ? 'As mandated by system policy, users are limited to 5 failed payment attempts. Please contact support or select our Basic Plan.'
-                  : `Supervisor Safety Limit: User is allowed up to 5 attempts. You have ${5 - failedAttempts} attempts remaining.`}
+                  ? 'As mandated by system policy, users are limited to 5 failed payment attempts. Please contact support or use a promo waiver.'
+                  : `Supervisor Security Rule: Maximum 5 attempts allowed. You have ${5 - failedAttempts} attempts remaining.`}
               </p>
             </div>
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 w-full max-w-3xl">
+        {/* Main 2-Column Minimalist Checkout Layout */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 sm:gap-8 w-full max-w-3xl items-start">
 
-          {/* Order Summary (Col 2) */}
-          <div className="md:col-span-2 order-2 md:order-1 rounded-2xl bg-white dark:bg-[#121316] border border-slate-200 dark:border-neutral-800 p-6 flex flex-col justify-between shadow-xs">
+          {/* Left Column: Order Summary (Col 2) */}
+          <div className="md:col-span-2 order-2 md:order-1 rounded-2xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-slate-200 dark:border-slate-800 p-6 flex flex-col justify-between shadow-[0_4px_20px_rgba(0,0,0,0.03)] space-y-6">
             <div>
-              <h4 className="font-bold text-xs uppercase tracking-wider text-neutral-400 mb-3">
-                Order Summary
-              </h4>
+              <h2 className="font-bold text-[11px] uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-4">
+                Plan Details
+              </h2>
 
-              <div className="space-y-3 text-xs sm:text-sm border-b border-neutral-100 dark:border-neutral-800 pb-4">
-                <div className="flex justify-between font-semibold text-neutral-900 dark:text-white">
-                  <span>FlowSync Pro Plan</span>
-                  <span>$20.00</span>
+              <div className="space-y-3.5 text-xs sm:text-sm border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div className="flex justify-between font-semibold text-slate-950 dark:text-white">
+                  <span>FlowSync Pro</span>
+                  <span className="font-bold">$20.00</span>
                 </div>
-                <div className="flex justify-between text-neutral-500 text-xs">
-                  <span>Billing Cycle</span>
-                  <span>Monthly</span>
+                <div className="flex justify-between text-slate-500 text-xs">
+                  <span>Billing interval</span>
+                  <span className="text-slate-700 dark:text-slate-300 font-medium">Monthly</span>
                 </div>
-                <div className="flex justify-between text-neutral-500 text-xs">
-                  <span>Tax (0%)</span>
-                  <span>$0.00</span>
+                <div className="flex justify-between text-slate-500 text-xs">
+                  <span>Sales tax</span>
+                  <span className="text-slate-700 dark:text-slate-300 font-medium">$0.00</span>
                 </div>
               </div>
 
               <div className="flex justify-between items-baseline pt-4">
-                <span className="text-sm font-bold text-neutral-950 dark:text-white">Total Due</span>
-                <span className="text-2xl font-black text-blue-600 dark:text-blue-400">$20.00</span>
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Due</span>
+                <span className="text-2xl font-extrabold text-blue-600 dark:text-blue-400 tracking-tight">$20.00</span>
               </div>
 
-              <div className="mt-6 p-3 rounded-xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200/60 dark:border-neutral-800 text-[11px] text-neutral-500 space-y-1">
-                <p className="font-semibold text-neutral-700 dark:text-neutral-300">✓ Instant Activation</p>
-                <p>✓ Downloadable Tax Invoice</p>
-                <p>✓ Cancel anytime with 1 click</p>
+              <div className="mt-6 p-3.5 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 text-[11px] text-slate-600 dark:text-slate-300 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Check size={14} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
+                  <span>Instant organization setup</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Check size={14} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
+                  <span>Official downloadable tax invoice</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Check size={14} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
+                  <span>Cancel anytime with 1-click</span>
+                </div>
               </div>
             </div>
 
-            {/* Quick Testing Bar */}
-            <div className="mt-6 pt-4 border-t border-neutral-100 dark:border-neutral-800 space-y-2">
-              <span className="text-[10px] uppercase font-bold text-neutral-400 block">
-                Testing Tools
-              </span>
-              <button
-                type="button"
-                onClick={handleFillValidCard}
-                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-100 transition-colors cursor-pointer font-medium"
-              >
-                Auto-fill Valid Stripe Card (4242...)
-              </button>
-              <button
-                type="button"
-                onClick={handleFillDecliningCard}
-                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 hover:bg-rose-100 transition-colors cursor-pointer font-medium"
-              >
-                Auto-fill Declining Card (Test 5 Retries)
-              </button>
+            {/* Discreet Testing Pill */}
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between text-[11px] text-slate-400 mb-2">
+                <span className="font-semibold uppercase tracking-wider text-[10px]">Testing Tools</span>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleFillValidCard}
+                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer font-medium"
+                >
+                  ✓ Fill Valid Card (4242...)
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFillDecliningCard}
+                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs bg-slate-50 hover:bg-rose-50 text-slate-600 hover:text-rose-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer font-medium"
+                >
+                  ⚠ Fill Declining Card (Test 5 Retries)
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Stripe Card Form (Col 3) */}
-          <div className="md:col-span-3 order-1 md:order-2 rounded-2xl bg-white dark:bg-[#15171C] border border-slate-200 dark:border-neutral-800 p-6 sm:p-7 shadow-lg">
+          {/* Right Column: Stripe Card Form (Col 3) */}
+          <div className="md:col-span-3 order-1 md:order-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 sm:p-7 shadow-[0_10px_30px_rgba(37,99,235,0.05)]">
 
-            <div className="flex items-center justify-between pb-4 border-b border-neutral-100 dark:border-neutral-800 mb-5">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-5">
               <div className="flex items-center gap-2">
-                <CreditCard size={18} className="text-[#635BFF]" />
-                <span className="text-sm font-bold text-neutral-950 dark:text-white">
+                <CreditCard size={17} className="text-blue-600 dark:text-blue-400" />
+                <span className="text-sm font-bold text-slate-950 dark:text-white">
                   Payment Details
                 </span>
               </div>
 
-              {/* Stripe Brand Badges */}
               <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-bold text-[#635BFF]">stripe</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-500 font-mono">
+                <span className="text-[11px] font-bold tracking-tight text-slate-500">stripe</span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/80 dark:text-blue-300 font-mono font-semibold">
                   TEST MODE
                 </span>
               </div>
@@ -272,7 +288,7 @@ export default function OnboardingPaymentPage() {
 
               {/* Cardholder Name */}
               <div>
-                <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                   Cardholder Name
                 </label>
                 <input
@@ -281,13 +297,13 @@ export default function OnboardingPaymentPage() {
                   value={cardName}
                   onChange={e => setCardName(e.target.value)}
                   disabled={isLockedOut || processing}
-                  className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#635BFF]/30 focus:border-[#635BFF]"
+                  className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-slate-50/70 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-600 transition-all text-slate-900 dark:text-white"
                 />
               </div>
 
               {/* Card Number */}
               <div>
-                <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                   Card Number
                 </label>
                 <div className="relative">
@@ -297,10 +313,10 @@ export default function OnboardingPaymentPage() {
                     value={cardNumber}
                     onChange={handleCardNumberChange}
                     disabled={isLockedOut || processing}
-                    className="w-full pl-3.5 pr-12 py-2.5 rounded-xl text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-[#635BFF]/30 focus:border-[#635BFF]"
+                    className="w-full pl-3.5 pr-20 py-2.5 rounded-xl text-xs sm:text-sm bg-slate-50/70 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-600 transition-all text-slate-900 dark:text-white"
                   />
-                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                    <span className="text-[10px] font-bold text-neutral-400">VISA / MC</span>
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none">
+                    <span className="text-[10px] font-bold text-slate-400">VISA / MC</span>
                   </div>
                 </div>
               </div>
@@ -308,7 +324,7 @@ export default function OnboardingPaymentPage() {
               {/* Expiry & CVC */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                     Expiration
                   </label>
                   <input
@@ -317,12 +333,12 @@ export default function OnboardingPaymentPage() {
                     value={expDate}
                     onChange={handleExpChange}
                     disabled={isLockedOut || processing}
-                    className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 font-mono text-center focus:outline-none focus:ring-2 focus:ring-[#635BFF]/30 focus:border-[#635BFF]"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-slate-50/70 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-mono text-center focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-600 transition-all text-slate-900 dark:text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                     CVC / CVV
                   </label>
                   <input
@@ -332,14 +348,14 @@ export default function OnboardingPaymentPage() {
                     value={cvc}
                     onChange={e => setCvc(e.target.value.replace(/\D/g, ''))}
                     disabled={isLockedOut || processing}
-                    className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 font-mono text-center focus:outline-none focus:ring-2 focus:ring-[#635BFF]/30 focus:border-[#635BFF]"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-slate-50/70 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-mono text-center focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-600 transition-all text-slate-900 dark:text-white"
                   />
                 </div>
               </div>
 
               {/* ZIP Code */}
               <div>
-                <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                   Postal / ZIP Code
                 </label>
                 <input
@@ -348,22 +364,22 @@ export default function OnboardingPaymentPage() {
                   value={zipCode}
                   onChange={e => setZipCode(e.target.value)}
                   disabled={isLockedOut || processing}
-                  className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#635BFF]/30 focus:border-[#635BFF]"
+                  className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-slate-50/70 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-600 transition-all text-slate-900 dark:text-white"
                 />
               </div>
 
-              {/* Error message */}
+              {/* Error Alert */}
               {errorMsg && (
-                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300">
+                <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 animate-fadeIn">
                   {errorMsg}
                 </div>
               )}
 
-              {/* Pay Button */}
+              {/* Submit Pay Button */}
               <button
                 type="submit"
                 disabled={processing || isLockedOut}
-                className="w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm bg-[#635BFF] hover:bg-[#5349EE] disabled:opacity-50 text-white transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2 mt-4"
+                className="w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 text-white transition-all shadow-md hover:shadow-lg shadow-blue-500/20 cursor-pointer flex items-center justify-center gap-2 mt-5"
               >
                 {processing ? (
                   <>
@@ -379,13 +395,12 @@ export default function OnboardingPaymentPage() {
                   </>
                 )}
               </button>
-
-              <div className="flex items-center justify-center gap-2 text-[11px] text-neutral-400 pt-2">
-                <ShieldCheck size={13} className="text-emerald-500" />
-                <span>Encrypted with TLS 1.3 & Stripe PCI Level 1 Certified</span>
-              </div>
-
             </form>
+
+            <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
+              <ShieldCheck size={14} className="text-emerald-500" />
+              <span>Encrypted with TLS 1.3 & Stripe PCI Level 1 Certified</span>
+            </div>
 
           </div>
 
@@ -395,4 +410,3 @@ export default function OnboardingPaymentPage() {
     </div>
   );
 }
-
