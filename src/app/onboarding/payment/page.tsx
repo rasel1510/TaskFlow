@@ -67,26 +67,6 @@ export default function OnboardingPaymentPage() {
       setExpDate(raw);
     }
   };
-
-  // Testing helpers
-  const handleFillValidCard = () => {
-    setCardName('Alex Morgan');
-    setCardNumber('4242 4242 4242 4242');
-    setExpDate('12 / 28');
-    setCvc('424');
-    setZipCode('94107');
-    setErrorMsg(null);
-  };
-
-  const handleFillDecliningCard = () => {
-    setCardName('Alex Morgan');
-    setCardNumber('4000 0000 0000 0002');
-    setExpDate('12 / 28');
-    setCvc('002');
-    setZipCode('94107');
-    setErrorMsg(null);
-  };
-
   // Submit payment to Stripe gateway
   const handleSubmitPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -199,69 +179,29 @@ export default function OnboardingPaymentPage() {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 sm:gap-8 w-full max-w-3xl items-start">
 
           {/* Left Column: Order Summary (Col 2) */}
-          <div className="md:col-span-2 order-2 md:order-1 rounded-2xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-slate-200 dark:border-slate-800 p-6 flex flex-col justify-between shadow-[0_4px_20px_rgba(0,0,0,0.03)] space-y-6">
-            <div>
-              <h2 className="font-bold text-[11px] uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-4">
-                Plan Details
-              </h2>
+          <div className="md:col-span-2 order-2 md:order-1 rounded-2xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-slate-200 dark:border-slate-800 p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] space-y-4">
+            <h2 className="font-bold text-[11px] uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              Plan Details
+            </h2>
 
-              <div className="space-y-3.5 text-xs sm:text-sm border-b border-slate-100 dark:border-slate-800 pb-4">
-                <div className="flex justify-between font-semibold text-slate-950 dark:text-white">
-                  <span>FlowSync Pro</span>
-                  <span className="font-bold">$20.00</span>
-                </div>
-                <div className="flex justify-between text-slate-500 text-xs">
-                  <span>Billing interval</span>
-                  <span className="text-slate-700 dark:text-slate-300 font-medium">Monthly</span>
-                </div>
-                <div className="flex justify-between text-slate-500 text-xs">
-                  <span>Sales tax</span>
-                  <span className="text-slate-700 dark:text-slate-300 font-medium">$0.00</span>
-                </div>
+            <div className="space-y-3.5 text-xs sm:text-sm border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="flex justify-between font-semibold text-slate-950 dark:text-white">
+                <span>FlowSync Pro</span>
+                <span className="font-bold">$20.00</span>
               </div>
-
-              <div className="flex justify-between items-baseline pt-4">
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Due</span>
-                <span className="text-2xl font-extrabold text-blue-600 dark:text-blue-400 tracking-tight">$20.00</span>
+              <div className="flex justify-between text-slate-500 text-xs">
+                <span>Billing interval</span>
+                <span className="text-slate-700 dark:text-slate-300 font-medium">Monthly</span>
               </div>
-
-              <div className="mt-6 p-3.5 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 text-[11px] text-slate-600 dark:text-slate-300 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Check size={14} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
-                  <span>Instant organization setup</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check size={14} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
-                  <span>Official downloadable tax invoice</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check size={14} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
-                  <span>Cancel anytime with 1-click</span>
-                </div>
+              <div className="flex justify-between text-slate-500 text-xs">
+                <span>Sales tax</span>
+                <span className="text-slate-700 dark:text-slate-300 font-medium">$0.00</span>
               </div>
             </div>
 
-            {/* Discreet Testing Pill */}
-            <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-              <div className="flex items-center justify-between text-[11px] text-slate-400 mb-2">
-                <span className="font-semibold uppercase tracking-wider text-[10px]">Testing Tools</span>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <button
-                  type="button"
-                  onClick={handleFillValidCard}
-                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer font-medium"
-                >
-                  ✓ Fill Valid Card (4242...)
-                </button>
-                <button
-                  type="button"
-                  onClick={handleFillDecliningCard}
-                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs bg-slate-50 hover:bg-rose-50 text-slate-600 hover:text-rose-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer font-medium"
-                >
-                  ⚠ Fill Declining Card (Test 5 Retries)
-                </button>
-              </div>
+            <div className="flex justify-between items-baseline pt-2">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Due</span>
+              <span className="text-2xl font-extrabold text-blue-600 dark:text-blue-400 tracking-tight">$20.00</span>
             </div>
           </div>
 
