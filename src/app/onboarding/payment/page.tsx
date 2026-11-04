@@ -136,10 +136,6 @@ export default function OnboardingPaymentPage() {
 
         {/* Clean, Minimalist Header */}
         <div className="text-center max-w-lg mx-auto space-y-2.5 mb-10">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800/60 shadow-xs">
-            <Lock size={12} className="text-blue-600 dark:text-blue-400" />
-            <span>Stripe Payment Gateway</span>
-          </span>
 
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white">
             Complete Your Pro Subscription
