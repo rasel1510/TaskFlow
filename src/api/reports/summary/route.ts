@@ -67,14 +67,16 @@ export async function GET(request: NextRequest) {
       : null;
 
     const isAdmin = user?.role === 'Admin' || user?.role === 'ADMIN';
+    const userTeamId = user?.teamId;
 
-    const cacheKey = `reports:summary:${targetUserId || 'anon'}:${isAdmin ? 'admin' : 'user'}`;
+    const cacheKey = `reports:summary:${targetUserId || 'anon'}:${userTeamId || 'no-team'}:${isAdmin ? 'admin' : 'user'}`;
 
     // Serve from Redis / L1 Memory cache if warm (15s TTL so roadmap updates promptly)
     const reportData = await redisCache.wrap(cacheKey, 15, async () => {
-      // Projects: Project Manager / user must strictly only see projects they own or are members of
-      const projectWhere = isAdmin
-        ? {}
+      // Strict multi-tenant isolation: Never leak cross-organization data!
+      // If user belongs to a company (team), metrics MUST be strictly scoped to that company.
+      const projectWhere = userTeamId
+        ? { teamId: userTeamId }
         : targetUserId
         ? {
             OR: [
@@ -84,9 +86,14 @@ export async function GET(request: NextRequest) {
           }
         : { id: 'none' };
 
-      // Tasks: match user's assigned tasks OR tasks inside projects they own/manage or are a member of
-      const taskWhere = isAdmin
-        ? {}
+      const taskWhere = userTeamId
+        ? {
+            OR: [
+              { project: { teamId: userTeamId } },
+              { assignee: { teamId: userTeamId } },
+              { creator: { teamId: userTeamId } },
+            ],
+          }
         : targetUserId
         ? {
             OR: [
@@ -97,18 +104,10 @@ export async function GET(request: NextRequest) {
           }
         : { id: 'none' };
 
-      // Users for Team Workload: only team members or collaborators on their projects
-      const userWhere = isAdmin
-        ? {}
+      const userWhere = userTeamId
+        ? { teamId: userTeamId }
         : targetUserId
-        ? {
-            OR: [
-              { id: targetUserId },
-              ...(user?.teamId ? [{ teamId: user.teamId }] : []),
-              { memberships: { some: { project: { ownerId: targetUserId } } } },
-              { tasksAssigned: { some: { project: { ownerId: targetUserId } } } },
-            ],
-          }
+        ? { id: targetUserId }
         : { id: 'none' };
 
       // 1. KPI Counts & Distributions in parallel

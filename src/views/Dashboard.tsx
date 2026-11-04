@@ -248,12 +248,17 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
 
   // Velocity chart data - strictly reflects real aggregated telemetry
   const velocityData = useMemo(() => {
+    // If the organization has zero tasks, velocity is strictly zero across all days
+    if (totalTasks === 0) {
+      const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      return dayNames.map((day) => ({ day, completed: 0, created: 0 }));
+    }
     if (summary?.weeklyVelocity && summary.weeklyVelocity.length > 0) {
       return summary.weeklyVelocity;
     }
     const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return dayNames.map((day) => ({ day, completed: 0, created: 0 }));
-  }, [summary]);
+  }, [summary, totalTasks]);
 
   const totalCompletedVelocity = velocityData.reduce((acc, v) => acc + v.completed, 0);
   const totalCreatedVelocity = velocityData.reduce((acc, v) => acc + v.created, 0);
@@ -447,8 +452,9 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
                 <div>
                   <div className="text-muted-foreground text-xs">Net Velocity</div>
                   <div className="font-semibold text-base sm:text-lg text-foreground tabular-nums">
-                    {totalCompletedVelocity >= totalCreatedVelocity ? '+' : ''}
-                    {totalCompletedVelocity - totalCreatedVelocity}
+                    {totalCompletedVelocity === 0 && totalCreatedVelocity === 0
+                      ? '0'
+                      : `${totalCompletedVelocity >= totalCreatedVelocity ? '+' : ''}${totalCompletedVelocity - totalCreatedVelocity}`}
                   </div>
                 </div>
               </div>
