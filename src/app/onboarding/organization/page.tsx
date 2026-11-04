@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import OnboardingHeader from '@/components/onboarding/OnboardingHeader';
-import { Building2, AlertCircle } from 'lucide-react';
+import { Building2, AlertCircle, ArrowLeft } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -30,6 +30,15 @@ export default function OnboardingOrganizationPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkingPayment, setCheckingPayment] = useState(true);
+
+  // Navigate back safely
+  const handleBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push('/onboarding/success');
+    }
+  };
 
   // Verify that user has paid via Stripe before allowing them to set up an organization
   useEffect(() => {
@@ -104,8 +113,20 @@ export default function OnboardingOrganizationPage() {
     <div className="min-h-screen bg-gradient-to-b from-[#F0F6FF] via-[#F8FAFC] to-[#EFF6FF] dark:from-[#0B1120] dark:via-[#0F172A] dark:to-[#0B1120] text-slate-900 dark:text-slate-100 flex flex-col font-sans relative overflow-x-hidden transition-colors">
       <OnboardingHeader currentStep={4} />
 
-      <main className="flex-1 max-w-2xl w-full mx-auto px-4 sm:px-6 py-12 sm:py-16 flex flex-col items-center">
+      <main className="flex-1 max-w-2xl w-full mx-auto px-4 sm:px-6 py-10 sm:py-14 flex flex-col items-center">
         
+        {/* Top Back Navigation Link */}
+        <div className="w-full max-w-xl mb-3 flex items-center justify-start">
+          <button
+            type="button"
+            onClick={handleBack}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-all cursor-pointer group"
+          >
+            <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+            <span>Back</span>
+          </button>
+        </div>
+
         {/* Title */}
         <div className="text-center max-w-lg mx-auto space-y-2 mb-8">
           <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60 flex items-center justify-center mx-auto mb-3">
@@ -122,7 +143,7 @@ export default function OnboardingOrganizationPage() {
         </div>
 
         {/* Organization Form Card */}
-        <div className="w-full p-6 sm:p-8 rounded-3xl bg-white dark:bg-[#15171C] border border-slate-200 dark:border-slate-800 shadow-xl">
+        <div className="w-full max-w-xl p-6 sm:p-8 rounded-3xl bg-white dark:bg-[#15171C] border border-slate-200 dark:border-slate-800 shadow-xl">
           <form onSubmit={handleSubmit} className="space-y-5">
             
             {/* Input Organization Name */}
@@ -205,16 +226,26 @@ export default function OnboardingOrganizationPage() {
               </div>
             )}
 
-            {/* Submit Button -> Redirects to Dashboard (/app) */}
-            <div className="pt-3">
+            {/* Action Buttons: Back + Go to Dashboard */}
+            <div className="pt-3 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleBack}
+                disabled={loading}
+                className="py-3.5 px-5 rounded-xl font-semibold text-sm border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-950 dark:hover:text-white transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
+              >
+                <ArrowLeft size={16} />
+                <span>Back</span>
+              </button>
+
               <button
                 type="submit"
                 disabled={loading || !orgName.trim()}
-                className="w-full py-3.5 px-6 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                className="flex-1 py-3.5 px-6 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center cursor-pointer"
               >
                 {loading ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
                     <span>Initializing Workspace & Projects...</span>
                   </>
                 ) : (
