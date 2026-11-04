@@ -6,7 +6,6 @@ import OnboardingHeader from '@/components/onboarding/OnboardingHeader';
 import {
   CreditCard,
   Lock,
-  ShieldCheck,
   AlertTriangle,
   RotateCw,
   ArrowRight,
@@ -332,11 +331,6 @@ export default function OnboardingPaymentPage() {
                 )}
               </button>
             </form>
-
-            <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
-              <ShieldCheck size={14} className="text-emerald-500" />
-              <span>Encrypted with TLS 1.3 & Stripe PCI Level 1 Certified</span>
-            </div>
 
           </div>
 
