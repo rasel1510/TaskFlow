@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import OnboardingHeader from '@/components/onboarding/OnboardingHeader';
-import { Check, Sparkles, ArrowRight, Tag, AlertCircle } from 'lucide-react';
+import { Check, Sparkles, ArrowRight, ArrowLeft, Tag, AlertCircle } from 'lucide-react';
 
 export default function OnboardingPlansPage() {
   const router = useRouter();
@@ -16,6 +16,15 @@ export default function OnboardingPlansPage() {
   const [basicLoading, setBasicLoading] = useState(false);
   const [proLoading, setProLoading] = useState(false);
   const [proError, setProError] = useState<string | null>(null);
+
+  // Navigate back safely to previous page (signup or login or home)
+  const handleBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push('/auth/signup');
+    }
+  };
 
   // Handle selecting the Basic Plan ($0)
   const handleSelectBasic = async () => {
@@ -110,9 +119,21 @@ export default function OnboardingPlansPage() {
       <div className="absolute top-1/3 -right-48 w-[400px] h-[400px] bg-indigo-500/10 blur-[140px] rounded-full pointer-events-none -z-10" />
 
       {/* Top Header with official FlowSync logo and stepper */}
-      <OnboardingHeader currentStep={1} />
+      <OnboardingHeader currentStep={1} onBack={handleBack} />
 
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-10 sm:py-14 flex flex-col items-center">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-10 flex flex-col items-center">
+
+        {/* Top Back Navigation Link */}
+        <div className="w-full max-w-5xl mb-3 sm:mb-4 flex items-center justify-start">
+          <button
+            type="button"
+            onClick={handleBack}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-all cursor-pointer group"
+          >
+            <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+            <span>Back</span>
+          </button>
+        </div>
 
         {/* Hero Section with Official Landing Page Logo & FlowSync Blue Accent */}
         <div className="text-center max-w-2xl mx-auto space-y-3">
@@ -357,6 +378,18 @@ export default function OnboardingPlansPage() {
               100% Free Waiver
             </span>
           </div>
+        </div>
+
+        {/* Bottom Back Button */}
+        <div className="w-full max-w-xl mt-8 mb-4 flex items-center justify-center">
+          <button
+            type="button"
+            onClick={handleBack}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white border border-slate-200 dark:border-slate-800 hover:bg-white dark:hover:bg-slate-900 shadow-xs transition-all cursor-pointer group"
+          >
+            <ArrowLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
+            <span>Back</span>
+          </button>
         </div>
 
       </main>

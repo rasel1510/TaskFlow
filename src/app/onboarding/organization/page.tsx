@@ -126,7 +126,7 @@ function OnboardingOrganizationContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#F0F6FF] via-[#F8FAFC] to-[#EFF6FF] dark:from-[#0B1120] dark:via-[#0F172A] dark:to-[#0B1120] text-slate-900 dark:text-slate-100 flex flex-col font-sans relative overflow-x-hidden transition-colors">
-      <OnboardingHeader currentStep={4} />
+      <OnboardingHeader currentStep={4} onBack={handleBack} />
 
       <main className="flex-1 max-w-2xl w-full mx-auto px-4 sm:px-6 py-10 sm:py-14 flex flex-col items-center">
         
