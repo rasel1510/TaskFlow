@@ -30,7 +30,7 @@ export default function OnboardingHeader({ currentStep }: OnboardingHeaderProps)
               <path d="M12.2792 33.593C16.4726 31.7278 19.3843 29.1194 18.7827 27.767C18.1812 26.4146 14.2942 26.8304 10.1008 28.6957C5.90744 30.5609 2.99571 33.1693 3.59726 34.5217C4.1988 35.8741 8.08584 35.4583 12.2792 33.593Z" />
             </svg>
           </div>
-          <span className="font-bold text-xl text-slate-900 tracking-tight transition-colors dark:text-white">
+          <span className="font-bold text-2xl text-black tracking-tighter transition-colors dark:text-white">
             FlowSync
           </span>
         </Link>

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import OnboardingHeader from '@/components/onboarding/OnboardingHeader';
-import { Check, Sparkles, ArrowRight, Tag, Shield, Zap, Lock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Check, Sparkles, ArrowRight, Tag, AlertCircle } from 'lucide-react';
 
 export default function OnboardingPlansPage() {
   const router = useRouter();
@@ -86,8 +86,21 @@ export default function OnboardingPlansPage() {
 
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-10 sm:py-14 flex flex-col items-center">
 
-        {/* Title & Badge */}
+        {/* Hero Section with Official Landing Page Logo & FlowSync Blue Accent */}
         <div className="text-center max-w-2xl mx-auto space-y-3">
+          
+          {/* Centered Landing Page FlowSync Logo glyph in FlowSync Blue container */}
+          <div className="flex items-center justify-center mb-1">
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60 flex items-center justify-center shadow-xs transition-transform duration-200 hover:scale-105">
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 50 50">
+                <title>FlowSync Logo</title>
+                <path d="M27.5308 40.1395C27.5757 35.5502 26.4122 31.8182 24.9322 31.8037C23.4521 31.7893 22.2159 35.4979 22.1711 40.0871C22.1262 44.6764 23.2897 48.4085 24.7697 48.4229C26.2498 48.4374 27.486 44.7288 27.5308 40.1395Z" />
+                <path d="M18.947 39.0972C21.4661 35.2608 22.5052 31.4922 21.268 30.6798C20.0307 29.8674 16.9856 32.3188 14.4666 36.1552C11.9475 39.9916 10.9084 43.7601 12.1456 44.5726C13.3829 45.385 16.4279 42.9336 18.947 39.0972Z" />
+                <path d="M12.2792 33.593C16.4726 31.7278 19.3843 29.1194 18.7827 27.767C18.1812 26.4146 14.2942 26.8304 10.1008 28.6957C5.90744 30.5609 2.99571 33.1693 3.59726 34.5217C4.1988 35.8741 8.08584 35.4583 12.2792 33.593Z" />
+              </svg>
+            </div>
+          </div>
+
           <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800/60 shadow-xs">
             <Sparkles size={13} className="text-blue-600 dark:text-blue-400" />
             <span>Workspace Plans & Pricing</span>
@@ -106,10 +119,10 @@ export default function OnboardingPlansPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 w-full max-w-4xl mt-10">
 
           {/* 1. BASIC PLAN CARD */}
-          <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm p-6 sm:p-8 flex flex-col justify-between shadow-[0_10px_30px_rgba(0,0,0,0.03)] hover:shadow-[0_20px_40px_rgba(37,99,235,0.06)] hover:border-blue-200 dark:hover:border-blue-900/50 transition-all">
+          <div className="rounded-3xl border border-blue-100 dark:border-blue-900/40 bg-white/95 dark:bg-slate-900/90 backdrop-blur-sm p-6 sm:p-8 flex flex-col justify-between shadow-[0_10px_30px_rgba(37,99,235,0.04)] hover:shadow-[0_20px_40px_rgba(37,99,235,0.08)] hover:border-blue-300 dark:hover:border-blue-800 transition-all">
             <div>
               <div className="flex items-center justify-between">
-                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-50/70 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60">
                   Starter Tier
                 </span>
               </div>
@@ -126,26 +139,26 @@ export default function OnboardingPlansPage() {
                 <span className="text-xs font-medium text-slate-500">/ forever</span>
               </div>
 
-              {/* Feature Checklist */}
-              <ul className="mt-6 space-y-3 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+              {/* Feature Checklist in FlowSync Blue */}
+              <ul className="mt-6 space-y-3 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
                 <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-emerald-500 shrink-0" strokeWidth={2.5} />
+                  <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
                   <span>Up to 5 active projects</span>
                 </li>
                 <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-emerald-500 shrink-0" strokeWidth={2.5} />
+                  <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
                   <span>Up to 5 team members & collaborators</span>
                 </li>
                 <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-emerald-500 shrink-0" strokeWidth={2.5} />
+                  <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
                   <span>Standard Kanban, List & Calendar views</span>
                 </li>
                 <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-emerald-500 shrink-0" strokeWidth={2.5} />
+                  <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
                   <span>Realtime task status updates</span>
                 </li>
                 <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-emerald-500 shrink-0" strokeWidth={2.5} />
+                  <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
                   <span>Community support</span>
                 </li>
               </ul>
@@ -154,19 +167,19 @@ export default function OnboardingPlansPage() {
             <button
               onClick={handleSelectBasic}
               disabled={basicLoading}
-              className="mt-8 w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm border-2 border-slate-200 dark:border-slate-700 hover:border-blue-600 hover:bg-blue-50/50 dark:hover:bg-blue-950/30 text-slate-900 dark:text-white transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs"
+              className="mt-8 w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm border-2 border-blue-200 dark:border-blue-800/80 bg-blue-50/40 dark:bg-blue-950/20 hover:bg-blue-600 hover:border-blue-600 hover:text-white text-blue-700 dark:text-blue-300 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs"
             >
               <span>{basicLoading ? 'Activating...' : 'Select Basic Plan'}</span>
               <ArrowRight size={14} />
             </button>
           </div>
 
-          {/* 2. PRO PLAN CARD ($20 / month — Supervisor Specification) */}
-          <div className="rounded-3xl border-2 border-blue-600 dark:border-blue-500 bg-white dark:bg-slate-900 p-6 sm:p-8 flex flex-col justify-between shadow-[0_20px_50px_rgba(37,99,235,0.14)] relative overflow-hidden ring-1 ring-blue-500/20">
-            {/* Top popular ribbon in FlowSync Blue gradient */}
-            <div className="absolute top-0 right-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[10px] font-black tracking-wider uppercase py-1.5 px-4 rounded-bl-2xl shadow-sm flex items-center gap-1">
+          {/* 2. PRO PLAN CARD ($20 / month — FlowSync Blue Signature Theme) */}
+          <div className="rounded-3xl border-2 border-blue-600 dark:border-blue-500 bg-white dark:bg-slate-900 p-6 sm:p-8 flex flex-col justify-between shadow-[0_20px_50px_rgba(37,99,235,0.16)] relative overflow-hidden ring-4 ring-blue-500/15">
+            {/* Top popular ribbon in FlowSync Blue */}
+            <div className="absolute top-0 right-0 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black tracking-wider uppercase py-1.5 px-4 rounded-bl-2xl shadow-sm flex items-center gap-1">
               <Sparkles size={11} className="text-blue-200" />
-              <span>Recommended by Supervisor</span>
+              <span>Recommended</span>
             </div>
 
             <div>
@@ -189,7 +202,7 @@ export default function OnboardingPlansPage() {
                 <span className="text-xs font-medium text-slate-500">/ month</span>
               </div>
 
-              {/* Feature Checklist */}
+              {/* Feature Checklist in FlowSync Blue */}
               <ul className="mt-6 space-y-3 text-xs sm:text-sm text-slate-700 dark:text-slate-200">
                 <li className="flex items-center gap-2.5 font-medium">
                   <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
@@ -218,10 +231,10 @@ export default function OnboardingPlansPage() {
               </ul>
             </div>
 
-            {/* As noted in supervisor's diagram: "Pay $20" button */}
+            {/* Pay $20 Primary Button in Signature FlowSync Blue */}
             <button
               onClick={() => router.push('/onboarding/payment?plan=pro')}
-              className="mt-8 w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white transition-all shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/35 hover:scale-[1.01] active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2"
+              className="mt-8 w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/35 hover:scale-[1.01] active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2"
             >
               <span>Pay $20 (Continue with Stripe)</span>
               <ArrowRight size={15} />
@@ -230,10 +243,8 @@ export default function OnboardingPlansPage() {
 
         </div>
 
-        {/* =========================================================================
-            PROMO CODE SECTION (Matching diagram: "Insert Promo Code")
-            ========================================================================= */}
-        <div className="w-full max-w-xl mt-12 p-6 sm:p-7 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-blue-200/70 dark:border-blue-900/40 shadow-[0_10px_30px_rgba(37,99,235,0.04)]">
+        {/* Promo Code Section in FlowSync Blue */}
+        <div className="w-full max-w-xl mt-12 p-6 sm:p-7 rounded-2xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-blue-200/80 dark:border-blue-900/50 shadow-[0_10px_30px_rgba(37,99,235,0.06)]">
           <div className="flex items-center gap-2 mb-2">
             <Tag size={16} className="text-blue-600 dark:text-blue-400" />
             <h4 className="text-sm font-bold text-slate-950 dark:text-white">
@@ -251,12 +262,12 @@ export default function OnboardingPlansPage() {
               placeholder="e.g. FLOWVIP or SUPERVISOR100"
               value={promoCode}
               onChange={e => setPromoCode(e.target.value.toUpperCase())}
-              className="flex-1 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600 transition-all text-slate-900 dark:text-white"
+              className="flex-1 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-blue-50/30 dark:bg-slate-950 border border-blue-200/80 dark:border-slate-700 font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600 transition-all text-slate-900 dark:text-white"
             />
             <button
               type="submit"
               disabled={promoLoading || !promoCode.trim()}
-              className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-slate-950 hover:bg-blue-600 text-white dark:bg-blue-600 dark:hover:bg-blue-500 transition-colors disabled:opacity-50 shrink-0 cursor-pointer shadow-xs"
+              className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white transition-all disabled:opacity-50 shrink-0 cursor-pointer shadow-md shadow-blue-500/20"
             >
               {promoLoading ? 'Checking...' : 'Apply Code'}
             </button>
@@ -295,7 +306,9 @@ export default function OnboardingPlansPage() {
                 SUPERVISOR100
               </button>
             </span>
-            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">100% Free Waiver</span>
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/70 dark:border-blue-800/60">
+              100% Free Waiver
+            </span>
           </div>
         </div>
 
