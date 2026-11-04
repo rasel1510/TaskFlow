@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     const uniqueSlug = `${baseSlug}-${Math.random().toString(36).substring(2, 6)}`;
 
     // Create Team
-    let team = await prisma.team.create({
+    const team = await prisma.team.create({
       data: {
         name,
         slug: uniqueSlug,
@@ -56,6 +56,7 @@ export async function POST(req: Request) {
     });
 
     // Update User with new team, Admin role, and mark onboarding as complete
+    // DO NOT seed any default tasks or projects — company workspace starts 100% fresh & empty
     await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -64,59 +65,6 @@ export async function POST(req: Request) {
         hasCompletedOnboarding: true,
       },
     });
-
-    // Seed default starter project for the new organization
-    try {
-      const defaultProject = await prisma.project.create({
-        data: {
-          name: `${name} — Product Roadmap`,
-          description: `Core roadmap and task tracking for ${name}`,
-          color: '#2563EB',
-          progress: 35,
-          ownerId: user.id,
-          teamId: team.id,
-          tasks: {
-            create: [
-              {
-                title: `Welcome to ${name} on FlowSync`,
-                description: 'Explore your Kanban boards, invite team members, and connect GitHub or Slack.',
-                status: 'done',
-                priority: 'medium',
-                creatorId: user.id,
-                assigneeId: user.id,
-              },
-              {
-                title: 'Set up company sprints & milestones',
-                description: 'Define your quarterly OKRs and project deliverables.',
-                status: 'in_progress',
-                priority: 'high',
-                creatorId: user.id,
-                assigneeId: user.id,
-              },
-              {
-                title: 'Invite coworkers & team leads',
-                description: 'Send invitations from Team Settings to collaborate in real-time.',
-                status: 'todo',
-                priority: 'urgent',
-                creatorId: user.id,
-                assigneeId: user.id,
-              },
-            ],
-          },
-        },
-      });
-
-      // Add user as project member
-      await prisma.projectMember.create({
-        data: {
-          projectId: defaultProject.id,
-          userId: user.id,
-          role: 'OWNER',
-        },
-      });
-    } catch (projectSeedError) {
-      console.warn('Could not seed default starter project:', projectSeedError);
-    }
 
     return NextResponse.json({
       success: true,
@@ -135,4 +83,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
