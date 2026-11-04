@@ -1,9 +1,16 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import OnboardingHeader from '@/components/onboarding/OnboardingHeader';
-import { Building2, AlertCircle, ChevronDown, Check } from 'lucide-react';
+import { Building2, AlertCircle } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const INDUSTRY_OPTIONS = [
   'Software & Technology',
@@ -19,24 +26,10 @@ export default function OnboardingOrganizationPage() {
 
   const [orgName, setOrgName] = useState('');
   const [industry, setIndustry] = useState('Software & Technology');
-  const [industryOpen, setIndustryOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
   const [size, setSize] = useState('6-20');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkingPayment, setCheckingPayment] = useState(true);
-
-  // Close custom dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIndustryOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   // Verify that user has paid via Stripe before allowing them to set up an organization
   useEffect(() => {
@@ -108,7 +101,7 @@ export default function OnboardingOrganizationPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#F0F6FF] via-[#F8FAFC] to-[#EFF6FF] dark:from-[#0B1120] dark:via-[#0F172A] dark:to-[#0B1120] text-slate-900 dark:text-slate-100 flex flex-col font-sans relative overflow-hidden transition-colors">
+    <div className="min-h-screen bg-gradient-to-b from-[#F0F6FF] via-[#F8FAFC] to-[#EFF6FF] dark:from-[#0B1120] dark:via-[#0F172A] dark:to-[#0B1120] text-slate-900 dark:text-slate-100 flex flex-col font-sans relative overflow-x-hidden transition-colors">
       <OnboardingHeader currentStep={4} />
 
       <main className="flex-1 max-w-2xl w-full mx-auto px-4 sm:px-6 py-12 sm:py-16 flex flex-col items-center">
@@ -177,54 +170,31 @@ export default function OnboardingOrganizationPage() {
               </div>
             </div>
 
-            {/* Industry Selector - Custom Styled to match main box */}
+            {/* Industry Selector - Rendered via Radix Portal to prevent hiding/clipping */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Industry
               </label>
-              <div className="relative" ref={dropdownRef}>
-                <button
-                  type="button"
-                  onClick={() => setIndustryOpen(!industryOpen)}
-                  className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-slate-50/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-600 transition-all cursor-pointer text-left font-medium"
-                  aria-haspopup="listbox"
-                  aria-expanded={industryOpen}
+              <Select value={industry} onValueChange={setIndustry}>
+                <SelectTrigger className="w-full h-11 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-slate-50/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-600 transition-all cursor-pointer shadow-none flex items-center justify-between">
+                  <SelectValue placeholder="Select Industry" />
+                </SelectTrigger>
+                <SelectContent
+                  className="rounded-2xl bg-white dark:bg-[#15171C] border border-slate-200 dark:border-slate-800 shadow-2xl p-1.5 z-[9999]"
+                  position="popper"
+                  sideOffset={6}
                 >
-                  <span>{industry}</span>
-                  <ChevronDown
-                    size={16}
-                    className={`text-slate-400 transition-transform duration-200 ${
-                      industryOpen ? 'rotate-180 text-blue-600 dark:text-blue-400' : ''
-                    }`}
-                  />
-                </button>
-
-                {industryOpen && (
-                  <div className="absolute left-0 right-0 mt-1.5 z-50 rounded-2xl bg-white dark:bg-[#15171C] border border-slate-200 dark:border-slate-800 shadow-xl p-1.5 space-y-0.5 animate-in fade-in-0 zoom-in-95 duration-150">
-                    {INDUSTRY_OPTIONS.map(opt => {
-                      const isSelected = industry === opt;
-                      return (
-                        <button
-                          key={opt}
-                          type="button"
-                          onClick={() => {
-                            setIndustry(opt);
-                            setIndustryOpen(false);
-                          }}
-                          className={`w-full px-3 py-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-between transition-colors cursor-pointer text-left ${
-                            isSelected
-                              ? 'bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 font-semibold'
-                              : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/70 font-medium'
-                          }`}
-                        >
-                          <span>{opt}</span>
-                          {isSelected && <Check size={15} className="text-blue-600 dark:text-blue-400 shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+                  {INDUSTRY_OPTIONS.map(opt => (
+                    <SelectItem
+                      key={opt}
+                      value={opt}
+                      className="rounded-xl py-2.5 pl-8 pr-3 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 focus:bg-blue-50 dark:focus:bg-blue-950/70 focus:text-blue-600 dark:focus:text-blue-400 cursor-pointer transition-colors"
+                    >
+                      {opt}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Error banner */}
