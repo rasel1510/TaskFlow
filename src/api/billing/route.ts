@@ -22,6 +22,17 @@ function generateInvoiceNumber(): string {
   return `INV-${year}-${randomSuffix}`;
 }
 
+function getBaseUrl(req?: Request): string {
+  if (req) {
+    const origin = req.headers.get('origin');
+    if (origin) return origin;
+    const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
+    const proto = req.headers.get('x-forwarded-proto') || 'http';
+    if (host) return `${proto}://${host}`;
+  }
+  return process.env.APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+}
+
 const VALID_PROMO_CODES = new Set([
   'FLOWVIP',
   'SUPERVISOR100',
@@ -35,14 +46,17 @@ const VALID_PROMO_CODES = new Set([
 /*                            GET /api/billing                                */
 /* -------------------------------------------------------------------------- */
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id && !session?.user?.email) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const user = await prisma.user.findFirst({
+    const { searchParams } = new URL(req.url);
+    const sessionId = searchParams.get('session_id');
+
+    let user = await prisma.user.findFirst({
       where: session.user.id ? { id: session.user.id } : { email: session.user.email! },
       select: {
         id: true,
@@ -52,6 +66,7 @@ export async function GET() {
         teamId: true,
         billingCycle: true,
         subscriptionStatus: true,
+        stripeCustomerId: true,
         failedPaymentAttempts: true,
         hasCompletedOnboarding: true,
         invoices: {
@@ -63,6 +78,91 @@ export async function GET() {
 
     if (!user) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+    }
+
+    // If returning from Stripe Checkout with ?session_id=...
+    if (sessionId) {
+      try {
+        const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId, {
+          expand: ['subscription', 'customer', 'invoice'],
+        });
+
+        if (checkoutSession.payment_status === 'paid' || checkoutSession.status === 'complete') {
+          const customerId =
+            typeof checkoutSession.customer === 'string'
+              ? checkoutSession.customer
+              : checkoutSession.customer?.id || user.stripeCustomerId;
+
+          // 1. Activate Pro Plan
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              plan: 'pro',
+              subscriptionStatus: 'active',
+              stripeCustomerId: customerId || undefined,
+              failedPaymentAttempts: 0,
+            },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              plan: true,
+              teamId: true,
+              billingCycle: true,
+              subscriptionStatus: true,
+              stripeCustomerId: true,
+              failedPaymentAttempts: true,
+              hasCompletedOnboarding: true,
+              invoices: {
+                orderBy: { createdAt: 'desc' },
+                take: 20,
+              },
+            },
+          });
+
+          // 2. Ensure paid Invoice is recorded in database
+          const existingInvoice = await prisma.invoice.findFirst({
+            where: {
+              userId: user.id,
+              status: 'paid',
+              createdAt: { gte: new Date(Date.now() - 1000 * 60 * 60) }, // last 1h
+            },
+          });
+
+          if (!existingInvoice) {
+            const amountTotal = checkoutSession.amount_total ? checkoutSession.amount_total / 100 : 20.0;
+            const invoiceNumber =
+              (typeof checkoutSession.invoice === 'string'
+                ? checkoutSession.invoice
+                : (checkoutSession.invoice as any)?.number) || generateInvoiceNumber();
+
+            await prisma.invoice.create({
+              data: {
+                userId: user.id,
+                invoiceNumber,
+                amount: amountTotal,
+                currency: checkoutSession.currency || 'usd',
+                status: 'paid',
+                planName: 'Pro Plan',
+                billingCycle: 'monthly',
+                paymentMethod: 'stripe',
+                last4: '4242',
+                brand: 'visa',
+              },
+            });
+
+            // Re-fetch invoices to include newly created
+            const updatedInvoices = await prisma.invoice.findMany({
+              where: { userId: user.id },
+              orderBy: { createdAt: 'desc' },
+              take: 20,
+            });
+            user.invoices = updatedInvoices;
+          }
+        }
+      } catch (stripeErr: any) {
+        console.error('[Stripe Session Verification Error]:', stripeErr.message || stripeErr);
+      }
     }
 
     // Default mock payment method if user has a Pro plan or invoices
@@ -121,6 +221,76 @@ export async function POST(req: Request) {
 
     if (!user) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+    }
+
+    /* ------------------------------------------------------------------------
+       ACTION: CREATE STRIPE CHECKOUT SESSION (OFFICIAL HOSTED PAYMENT GATEWAY)
+       ------------------------------------------------------------------------ */
+    if (action === 'create_checkout_session') {
+      let stripeCustomerId = user.stripeCustomerId;
+
+      if (!stripeCustomerId && user.email) {
+        try {
+          const existing = await stripe.customers.list({ email: user.email, limit: 1 });
+          if (existing.data.length > 0) {
+            stripeCustomerId = existing.data[0].id;
+          } else {
+            const customer = await stripe.customers.create({
+              email: user.email,
+              name: user.name || undefined,
+              metadata: { userId: user.id },
+            });
+            stripeCustomerId = customer.id;
+          }
+
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { stripeCustomerId },
+          });
+        } catch (custErr) {
+          console.warn('[Stripe] Customer retrieval non-critical:', custErr);
+        }
+      }
+
+      const baseUrl = getBaseUrl(req);
+      const priceId = process.env.STRIPE_PRO_PRICE_ID || 'price_1UY73F3G3sadP8zGQfn5AR1E';
+
+      console.log(`[Stripe Checkout] Creating session with Price: ${priceId}, BaseURL: ${baseUrl}`);
+
+      const checkoutSession = await stripe.checkout.sessions.create({
+        customer: stripeCustomerId || undefined,
+        customer_email: stripeCustomerId ? undefined : (user.email || undefined),
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+        mode: 'subscription',
+        billing_address_collection: 'auto',
+        success_url: `${baseUrl}/onboarding/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/onboarding/plans`,
+        metadata: {
+          userId: user.id,
+          userEmail: user.email,
+          plan: 'pro',
+        },
+        subscription_data: {
+          metadata: {
+            userId: user.id,
+            userEmail: user.email,
+            plan: 'pro',
+          },
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          url: checkoutSession.url,
+          sessionId: checkoutSession.id,
+        },
+      });
     }
 
     /* ------------------------------------------------------------------------
@@ -194,7 +364,7 @@ export async function POST(req: Request) {
     }
 
     /* ------------------------------------------------------------------------
-       ACTION 3: PROCESS LIVE STRIPE PAYMENT ($20 PRO PLAN)
+       ACTION 3: PROCESS LIVE STRIPE PAYMENT ($20 PRO PLAN - SERVER DIRECT FALLBACK)
        ------------------------------------------------------------------------ */
     if (action === 'pay_with_stripe' || action === 'process_payment') {
       const { cardNumber = '', expMonth = '12', expYear = '2028', cvc = '123', name = '', zip = '94107', simulateDecline } = body;
@@ -214,10 +384,6 @@ export async function POST(req: Request) {
       }
 
       const cleanNumber = String(cardNumber).replace(/\D/g, '');
-      const cleanMonth = parseInt(String(expMonth).trim(), 10) || 12;
-      const rawYear = String(expYear).trim();
-      const cleanYear = parseInt(rawYear.length === 2 ? `20${rawYear}` : rawYear, 10) || 2028;
-
       let stripePaymentSucceeded = false;
       let finalBrand = detectCardBrand(cleanNumber);
       let finalLast4 = cleanNumber.slice(-4) || '4242';
@@ -226,7 +392,6 @@ export async function POST(req: Request) {
       let stripeErrorMessage: string | null = null;
 
       try {
-        // 1. Get or Create Stripe Customer
         if (!stripeCustomerId && user.email) {
           const customer = await stripe.customers.create({
             email: user.email,
@@ -236,7 +401,6 @@ export async function POST(req: Request) {
           stripeCustomerId = customer.id;
         }
 
-        // Map test cards to Stripe official test tokens to comply with PCI DSS without raw card data API
         let testToken = 'tok_visa';
         if (simulateDecline || cleanNumber.endsWith('0002')) {
           testToken = 'tok_chargeDeclined';
@@ -256,7 +420,6 @@ export async function POST(req: Request) {
           testToken = 'tok_visa';
         }
 
-        // 2. Create PaymentMethod via Stripe test token
         const paymentMethod = await stripe.paymentMethods.create({
           type: 'card',
           card: {
@@ -280,9 +443,8 @@ export async function POST(req: Request) {
         finalBrand = paymentMethod.card?.brand || finalBrand;
         finalLast4 = paymentMethod.card?.last4 || finalLast4;
 
-        // 3. Create & Confirm PaymentIntent for $20.00 USD
         const paymentIntent = await stripe.paymentIntents.create({
-          amount: 2000, // $20.00
+          amount: 2000,
           currency: 'usd',
           customer: stripeCustomerId || undefined,
           payment_method: paymentMethod.id,
@@ -310,7 +472,6 @@ export async function POST(req: Request) {
         stripeErrorMessage = stripeErr.message || 'Your card was declined by Stripe.';
       }
 
-      // If Stripe rejected payment or test decline simulated
       if (!stripePaymentSucceeded) {
         const nextAttempts = currentAttempts + 1;
         await prisma.user.update({
@@ -333,7 +494,6 @@ export async function POST(req: Request) {
         );
       }
 
-      // 4. Record Successful Stripe Payment in Neon Database
       const invoiceNumber = generateInvoiceNumber();
       const invoice = await prisma.invoice.create({
         data: {
@@ -356,7 +516,7 @@ export async function POST(req: Request) {
           plan: 'pro',
           subscriptionStatus: 'active',
           stripeCustomerId: stripeCustomerId || undefined,
-          failedPaymentAttempts: 0, // Reset attempt limit upon successful payment
+          failedPaymentAttempts: 0,
         },
       });
 
@@ -380,4 +540,3 @@ export async function POST(req: Request) {
     );
   }
 }
-

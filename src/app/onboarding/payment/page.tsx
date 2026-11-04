@@ -7,12 +7,8 @@ import {
   CreditCard,
   Lock,
   AlertTriangle,
-  RotateCw,
   ArrowRight,
-  Check,
-  Sparkles,
-  Info,
-  ChevronDown,
+  ShieldCheck,
 } from 'lucide-react';
 
 export default function OnboardingPaymentPage() {
@@ -66,7 +62,31 @@ export default function OnboardingPaymentPage() {
       setExpDate(raw);
     }
   };
-  // Submit payment to Stripe gateway
+
+  // Launch Stripe Hosted Payment Gateway
+  const handleRedirectToStripeCheckout = async () => {
+    setProcessing(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch('/api/billing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create_checkout_session' }),
+      });
+      const data = await res.json();
+      if (data.success && data.data?.url) {
+        window.location.href = data.data.url;
+      } else {
+        setErrorMsg(data.error || 'Failed to initialize payment gateway.');
+        setProcessing(false);
+      }
+    } catch {
+      setErrorMsg('Network error connecting to payment gateway.');
+      setProcessing(false);
+    }
+  };
+
+  // Submit payment to Stripe gateway direct fallback
   const handleSubmitPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLockedOut) return;
@@ -102,40 +122,43 @@ export default function OnboardingPaymentPage() {
 
         if (nextAttempts >= 5 || data.attemptsExceeded) {
           setIsLockedOut(true);
-          setErrorMsg('Security Limit Reached: Maximum of 5 payment attempts exceeded. Please contact support.');
+          setErrorMsg('Security Policy: Maximum payment attempts (5 of 5) reached. You are now locked out.');
         } else {
-          setErrorMsg(
-            data.error ||
-            `Card was declined. Attempt ${nextAttempts} of 5. You have ${5 - nextAttempts} attempts remaining.`
-          );
+          setErrorMsg(data.error || `Payment declined. You have ${5 - nextAttempts} attempts remaining.`);
         }
         return;
       }
 
-      // Successful Stripe payment -> redirect to Success Page
-      const invoiceId = data.data.invoice?.id;
-      router.push(`/onboarding/success?invoiceId=${invoiceId || ''}`);
+      // Success! Move to Confirmation Step (Success Page)
+      router.push(`/onboarding/success?invoiceId=${data.data.invoice.id}`);
     } catch {
-      setErrorMsg('Payment gateway communication error. Please check your network and retry.');
+      setErrorMsg('Network error communicating with payment gateway.');
     } finally {
       setProcessing(false);
     }
   };
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-b from-[#F0F6FF] via-[#F8FAFC] to-[#EFF6FF] dark:from-[#0B1120] dark:via-[#0F172A] dark:to-[#0B1120] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-[#F0F6FF] via-[#F8FAFC] to-[#EFF6FF] dark:from-[#0B1120] dark:via-[#0F172A] dark:to-[#0B1120] text-slate-900 dark:text-slate-100 flex flex-col font-sans relative overflow-x-hidden transition-colors">
       
       {/* Ambient background glow in FlowSync Blue */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[850px] h-[320px] bg-blue-500/10 blur-[130px] rounded-full pointer-events-none -z-10" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[340px] bg-blue-500/10 blur-[120px] rounded-full pointer-events-none -z-10" />
 
-      {/* Top Header */}
+      {/* Top Header with step progress indicator */}
       <OnboardingHeader currentStep={2} />
 
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-10 sm:py-14 flex flex-col items-center">
 
-        {/* Clean, Minimalist Header */}
-        <div className="text-center max-w-lg mx-auto space-y-2.5 mb-10">
+        {/* Security / Compliance Badge (Pill) */}
+        <div className="mb-4">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800/60 shadow-xs">
+            <Lock size={12} className="text-blue-600 dark:text-blue-400" />
+            <span>Stripe Payment Gateway</span>
+          </div>
+        </div>
 
+        {/* Title & Subtitle */}
+        <div className="text-center max-w-xl mx-auto space-y-2 mb-8">
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white">
             Complete Your Pro Subscription
           </h1>
@@ -198,9 +221,20 @@ export default function OnboardingPaymentPage() {
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Due</span>
               <span className="text-2xl font-extrabold text-blue-600 dark:text-blue-400 tracking-tight">$20.00</span>
             </div>
+
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 space-y-2">
+              <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                <ShieldCheck size={14} className="text-blue-600 shrink-0" />
+                <span>Instant activation upon payment</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                <ShieldCheck size={14} className="text-blue-600 shrink-0" />
+                <span>Cancel anytime from settings</span>
+              </div>
+            </div>
           </div>
 
-          {/* Right Column: Stripe Card Form (Col 3) */}
+          {/* Right Column: Stripe Payment Form (Col 3) */}
           <div className="md:col-span-3 order-1 md:order-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 sm:p-7 shadow-[0_10px_30px_rgba(37,99,235,0.05)]">
 
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-5">
@@ -217,6 +251,35 @@ export default function OnboardingPaymentPage() {
                   TEST MODE
                 </span>
               </div>
+            </div>
+
+            {/* Supervisor Primary Action: Send to Stripe Hosted Payment Gateway */}
+            <div className="mb-6">
+              <button
+                type="button"
+                onClick={handleRedirectToStripeCheckout}
+                disabled={processing || isLockedOut}
+                className="w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-md shadow-blue-500/20 cursor-pointer flex items-center justify-center gap-2"
+              >
+                {processing ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Connecting to Stripe Gateway...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Proceed to Stripe Payment Gateway ($20.00)</span>
+                    <ArrowRight size={15} />
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="relative flex items-center justify-center my-6">
+              <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
+              <span className="bg-white dark:bg-slate-900 px-3 text-[10px] font-semibold text-slate-400 uppercase tracking-wider absolute">
+                Or direct card input
+              </span>
             </div>
 
             <form onSubmit={handleSubmitPayment} className="space-y-4">
@@ -314,7 +377,7 @@ export default function OnboardingPaymentPage() {
               <button
                 type="submit"
                 disabled={processing || isLockedOut}
-                className="w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 text-white transition-all shadow-md hover:shadow-lg shadow-blue-500/20 cursor-pointer flex items-center justify-center gap-2 mt-5"
+                className="w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white transition-all shadow-md hover:shadow-lg shadow-blue-500/20 cursor-pointer flex items-center justify-center gap-2 mt-5"
               >
                 {processing ? (
                   <>

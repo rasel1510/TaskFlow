@@ -14,6 +14,8 @@ export default function OnboardingPlansPage() {
   const [promoSuccess, setPromoSuccess] = useState<string | null>(null);
 
   const [basicLoading, setBasicLoading] = useState(false);
+  const [proLoading, setProLoading] = useState(false);
+  const [proError, setProError] = useState<string | null>(null);
 
   // Handle selecting the Basic Plan ($0)
   const handleSelectBasic = async () => {
@@ -34,6 +36,32 @@ export default function OnboardingPlansPage() {
       router.push('/onboarding/organization');
     } finally {
       setBasicLoading(false);
+    }
+  };
+
+  // Handle selecting Pro Plan ($20) -> Redirect directly to Stripe Hosted Payment Gateway
+  const handlePayWithStripe = async () => {
+    setProLoading(true);
+    setProError(null);
+    try {
+      const res = await fetch('/api/billing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create_checkout_session' }),
+      });
+
+      const data = await res.json();
+
+      if (data.success && data.data?.url) {
+        // Send user directly to Stripe Hosted Payment Gateway
+        window.location.href = data.data.url;
+      } else {
+        setProError(data.error || 'Unable to connect to Stripe payment gateway. Please try again.');
+        setProLoading(false);
+      }
+    } catch {
+      setProError('Network error connecting to Stripe. Please try again.');
+      setProLoading(false);
     }
   };
 
@@ -166,7 +194,7 @@ export default function OnboardingPlansPage() {
 
             <button
               onClick={handleSelectBasic}
-              disabled={basicLoading}
+              disabled={basicLoading || proLoading}
               className="mt-8 w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm border-2 border-blue-200 dark:border-blue-800/80 bg-blue-50/40 dark:bg-blue-950/20 hover:bg-blue-600 hover:border-blue-600 hover:text-white text-blue-700 dark:text-blue-300 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs"
             >
               <span>{basicLoading ? 'Activating...' : 'Select Basic Plan'}</span>
@@ -174,7 +202,7 @@ export default function OnboardingPlansPage() {
             </button>
           </div>
 
-          {/* 2. PRO PLAN CARD ($20 / month — FlowSync Blue Signature Theme) */}
+          {/* 2. PRO PLAN CARD ($20 / month — Direct Stripe Hosted Gateway) */}
           <div className="rounded-3xl border-2 border-blue-600 dark:border-blue-500 bg-white dark:bg-slate-900 p-6 sm:p-8 flex flex-col justify-between shadow-[0_20px_50px_rgba(37,99,235,0.16)] relative overflow-hidden ring-4 ring-blue-500/15">
             {/* Top popular ribbon in FlowSync Blue */}
             <div className="absolute top-0 right-0 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black tracking-wider uppercase py-1.5 px-4 rounded-bl-2xl shadow-sm flex items-center gap-1">
@@ -231,14 +259,33 @@ export default function OnboardingPlansPage() {
               </ul>
             </div>
 
-            {/* Pay $20 Primary Button in Signature FlowSync Blue */}
-            <button
-              onClick={() => router.push('/onboarding/payment?plan=pro')}
-              className="mt-8 w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/35 hover:scale-[1.01] active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2"
-            >
-              <span>Pay $20 (Continue with Stripe)</span>
-              <ArrowRight size={15} />
-            </button>
+            {/* Pay $20 Primary Button -> Direct Stripe Payment Gateway */}
+            <div className="mt-8 space-y-2">
+              <button
+                type="button"
+                onClick={handlePayWithStripe}
+                disabled={proLoading}
+                className="w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-75 text-white transition-all shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/35 hover:scale-[1.01] active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2"
+              >
+                {proLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Connecting to Stripe Gateway...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Pay $20 (Continue to Stripe Gateway)</span>
+                    <ArrowRight size={15} />
+                  </>
+                )}
+              </button>
+
+              {proError && (
+                <p className="text-xs text-rose-600 dark:text-rose-400 font-medium text-center animate-fadeIn">
+                  {proError}
+                </p>
+              )}
+            </div>
           </div>
 
         </div>
