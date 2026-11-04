@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import OnboardingHeader from '@/components/onboarding/OnboardingHeader';
 import { Building2, AlertCircle, ArrowLeft } from 'lucide-react';
 import {
@@ -21,8 +21,10 @@ const INDUSTRY_OPTIONS = [
   'Other',
 ];
 
-export default function OnboardingOrganizationPage() {
+function OnboardingOrganizationContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get('session_id');
 
   const [orgName, setOrgName] = useState('');
   const [industry, setIndustry] = useState('Software & Technology');
@@ -36,7 +38,7 @@ export default function OnboardingOrganizationPage() {
     if (typeof window !== 'undefined' && window.history.length > 1) {
       router.back();
     } else {
-      router.push('/onboarding/success');
+      router.push('/onboarding/plans');
     }
   };
 
@@ -44,12 +46,18 @@ export default function OnboardingOrganizationPage() {
   useEffect(() => {
     async function checkSubscription() {
       try {
-        const res = await fetch('/api/billing');
+        const url = sessionId
+          ? `/api/billing?session_id=${encodeURIComponent(sessionId)}`
+          : '/api/billing';
+
+        const res = await fetch(url);
         if (res.ok) {
           const json = await res.json();
           const hasPaid =
             (json.data?.invoices && json.data.invoices.length > 0) ||
-            json.data?.plan === 'pro';
+            json.data?.plan === 'pro' ||
+            json.data?.plan === 'basic';
+
           if (!hasPaid) {
             router.replace('/onboarding/plans');
             return;
@@ -62,7 +70,7 @@ export default function OnboardingOrganizationPage() {
       }
     }
     checkSubscription();
-  }, [router]);
+  }, [router, sessionId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,21 +89,14 @@ export default function OnboardingOrganizationPage() {
         body: JSON.stringify({
           name: orgName.trim(),
           industry,
-          size,
+          teamSize: size,
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        if (data.requiresPayment) {
-          setError('Payment required: You must complete payment using Stripe before opening your company.');
-          setTimeout(() => {
-            router.push('/onboarding/plans');
-          }, 1800);
-          return;
-        }
-        setError(data.error || 'Failed to initialize organization. Please try again.');
+        setError(data.error || 'Failed to create organization profile.');
         return;
       }
 
@@ -158,7 +159,7 @@ export default function OnboardingOrganizationPage() {
                   placeholder="e.g. Acme Corporation, TechWave Labs"
                   value={orgName}
                   onChange={e => setOrgName(e.target.value)}
-                  disabled={loading}
+                  disabled={loading || checkingPayment}
                   autoFocus
                   className="w-full pl-10 pr-4 py-3 rounded-xl text-sm bg-slate-50/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-600 transition-all placeholder:text-slate-400"
                 />
@@ -176,12 +177,12 @@ export default function OnboardingOrganizationPage() {
                     key={val}
                     type="button"
                     onClick={() => setSize(val)}
+                    disabled={loading || checkingPayment}
                     className={`
                       py-2 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer
-                      ${
-                        size === val
-                          ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 shadow-xs'
-                          : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                      ${size === val
+                        ? 'bg-blue-50 dark:bg-blue-950/70 border-blue-600 text-blue-600 dark:text-blue-400 shadow-xs'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300'
                       }
                     `}
                   >
@@ -191,20 +192,16 @@ export default function OnboardingOrganizationPage() {
               </div>
             </div>
 
-            {/* Industry Selector - Rendered via Radix Portal to prevent hiding/clipping */}
+            {/* Industry Custom Dropdown */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Industry
               </label>
-              <Select value={industry} onValueChange={setIndustry}>
-                <SelectTrigger className="w-full h-11 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-slate-50/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-600 transition-all cursor-pointer shadow-none flex items-center justify-between">
-                  <SelectValue placeholder="Select Industry" />
+              <Select value={industry} onValueChange={setIndustry} disabled={loading || checkingPayment}>
+                <SelectTrigger className="w-full py-3 h-auto px-4 rounded-xl text-sm bg-slate-50/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500/25 focus:border-blue-600 transition-all shadow-xs">
+                  <SelectValue placeholder="Select industry" />
                 </SelectTrigger>
-                <SelectContent
-                  className="rounded-2xl bg-white dark:bg-[#15171C] border border-slate-200 dark:border-slate-800 shadow-2xl p-1.5 z-[9999]"
-                  position="popper"
-                  sideOffset={6}
-                >
+                <SelectContent className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl p-1.5 z-50">
                   {INDUSTRY_OPTIONS.map(opt => (
                     <SelectItem
                       key={opt}
@@ -240,7 +237,7 @@ export default function OnboardingOrganizationPage() {
 
               <button
                 type="submit"
-                disabled={loading || !orgName.trim()}
+                disabled={loading || !orgName.trim() || checkingPayment}
                 className="flex-1 py-3.5 px-6 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center cursor-pointer"
               >
                 {loading ? (
@@ -259,5 +256,17 @@ export default function OnboardingOrganizationPage() {
 
       </main>
     </div>
+  );
+}
+
+export default function OnboardingOrganizationPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#F0F6FF] dark:bg-[#0B1120] flex items-center justify-center text-xs font-semibold text-slate-400">
+        Loading organization setup...
+      </div>
+    }>
+      <OnboardingOrganizationContent />
+    </Suspense>
   );
 }
