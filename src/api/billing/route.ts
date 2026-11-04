@@ -236,14 +236,31 @@ export async function POST(req: Request) {
           stripeCustomerId = customer.id;
         }
 
-        // 2. Create PaymentMethod via Stripe
+        // Map test cards to Stripe official test tokens to comply with PCI DSS without raw card data API
+        let testToken = 'tok_visa';
+        if (simulateDecline || cleanNumber.endsWith('0002')) {
+          testToken = 'tok_chargeDeclined';
+        } else if (cleanNumber.endsWith('0005')) {
+          testToken = 'tok_chargeDeclinedInsufficientFunds';
+        } else if (cleanNumber.endsWith('0069')) {
+          testToken = 'tok_chargeDeclinedExpiredCard';
+        } else if (cleanNumber.endsWith('0127')) {
+          testToken = 'tok_chargeDeclinedIncorrectCvc';
+        } else if (cleanNumber.startsWith('5')) {
+          testToken = 'tok_mastercard';
+        } else if (cleanNumber.startsWith('34') || cleanNumber.startsWith('37')) {
+          testToken = 'tok_amex';
+        } else if (cleanNumber.startsWith('6')) {
+          testToken = 'tok_discover';
+        } else {
+          testToken = 'tok_visa';
+        }
+
+        // 2. Create PaymentMethod via Stripe test token
         const paymentMethod = await stripe.paymentMethods.create({
           type: 'card',
           card: {
-            number: cleanNumber || '4242424242424242',
-            exp_month: cleanMonth,
-            exp_year: cleanYear,
-            cvc: String(cvc || '123'),
+            token: testToken,
           },
           billing_details: {
             name: String(name || user.name || 'Cardholder'),
