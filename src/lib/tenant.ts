@@ -29,6 +29,7 @@ export async function getOrProvisionUserTeam(userId: string): Promise<UserTeamCo
           email: true,
           role: true,
           teamId: true,
+          hasCompletedOnboarding: true,
           team: {
             select: {
               id: true,
@@ -52,6 +53,11 @@ export async function getOrProvisionUserTeam(userId: string): Promise<UserTeamCo
           teamName: user.team.name,
           teamSlug: user.team.slug,
         };
+      }
+
+      // If user has not completed company setup onboarding, do NOT auto-provision a ghost team
+      if (!user.hasCompletedOnboarding) {
+        return null;
       }
 
       // Auto-provision team for unassigned user (e.g. initial setup or legacy records)

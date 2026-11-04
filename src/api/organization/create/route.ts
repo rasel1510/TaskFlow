@@ -30,8 +30,9 @@ export async function POST(req: Request) {
 
     // Enforce Mandate: User cannot open company without completing payment using Stripe
     const hasCompletedPayment =
-      (user.invoices && user.invoices.some(inv => inv.status === 'paid')) ||
-      user.plan === 'pro';
+      Boolean(user.invoices && user.invoices.some(inv => inv.status === 'paid')) ||
+      user.plan === 'pro' ||
+      user.plan === 'basic';
 
     if (!hasCompletedPayment) {
       return NextResponse.json(

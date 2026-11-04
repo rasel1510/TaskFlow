@@ -79,35 +79,35 @@ function LoginForm() {
       setSuccess('Authentication successful! Checking account status...');
 
       try {
-        const billingRes = await fetch('/api/billing');
+        const billingRes = await fetch('/api/billing', { cache: 'no-store' });
         if (billingRes.ok) {
           const billingJson = await billingRes.json();
           const { hasPaid, hasCompletedOnboarding, teamId } = billingJson?.data || {};
 
-          // Rule: If user has not completed payment, ALWAYS redirect to Payment page
+          // Rule 1: If user has not completed payment, ALWAYS redirect to Payment page
           if (!hasPaid) {
-            setSuccess('Payment required. Redirecting to payment page...');
+            setSuccess('Payment required. Redirecting to payment options...');
             setTimeout(() => {
-              router.push('/onboarding/plans');
+              router.replace('/onboarding/plans');
               router.refresh();
             }, 600);
             return;
           }
 
-          // If paid but hasn't completed company setup
+          // Rule 2: If user completed payment and hasn't created company, directly send to Company Creation page
           if (!hasCompletedOnboarding || !teamId) {
             setSuccess('Payment confirmed! Redirecting to company setup...');
             setTimeout(() => {
-              router.push('/onboarding/organization');
+              router.replace('/onboarding/organization');
               router.refresh();
             }, 600);
             return;
           }
 
-          // Payment completed and company setup done -> Send to Company Dashboard (/app)
+          // Rule 3: Payment completed and company setup done -> Send to Company Dashboard (/app)
           setSuccess('Redirecting to your company dashboard...');
           setTimeout(() => {
-            router.push(targetUrl);
+            router.replace(targetUrl || '/app');
             router.refresh();
           }, 600);
           return;
@@ -116,8 +116,9 @@ function LoginForm() {
         console.warn('Billing check error on login:', checkErr);
       }
 
+      // Safe default: redirect unverified logins to payment options
       setTimeout(() => {
-        router.push(targetUrl);
+        router.replace('/onboarding/plans');
         router.refresh();
       }, 700);
     } catch (err: unknown) {

@@ -175,8 +175,9 @@ export async function GET(req: Request) {
     };
 
     const hasPaid =
-      (user.invoices && user.invoices.some(inv => inv.status === 'paid')) ||
-      user.plan === 'pro';
+      Boolean(user.invoices && user.invoices.some(inv => inv.status === 'paid')) ||
+      user.plan === 'pro' ||
+      user.plan === 'basic';
 
     return NextResponse.json({
       success: true,
@@ -187,7 +188,7 @@ export async function GET(req: Request) {
         billingCycle: user.billingCycle || 'monthly',
         subscriptionStatus: user.subscriptionStatus || 'active',
         failedPaymentAttempts: user.failedPaymentAttempts || 0,
-        hasCompletedOnboarding: user.hasCompletedOnboarding,
+        hasCompletedOnboarding: Boolean(user.hasCompletedOnboarding && user.teamId),
         paymentMethod,
         invoices: user.invoices,
       },

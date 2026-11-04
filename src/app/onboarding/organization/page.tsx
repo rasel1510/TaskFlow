@@ -50,24 +50,27 @@ function OnboardingOrganizationContent() {
           ? `/api/billing?session_id=${encodeURIComponent(sessionId)}`
           : '/api/billing';
 
-        const res = await fetch(url);
+        const res = await fetch(url, { cache: 'no-store' });
         if (res.ok) {
           const json = await res.json();
           const hasPaid =
-            (json.data?.invoices && json.data.invoices.length > 0) ||
+            Boolean(json.data?.invoices && json.data.invoices.some((inv: any) => inv.status === 'paid')) ||
             json.data?.plan === 'pro' ||
-            json.data?.plan === 'basic';
+            json.data?.plan === 'basic' ||
+            Boolean(json.data?.hasPaid);
 
           if (!hasPaid) {
             router.replace('/onboarding/plans');
             return;
           }
+
+          setCheckingPayment(false);
+          return;
         }
       } catch (err) {
         console.warn('Billing verification error:', err);
-      } finally {
-        setCheckingPayment(false);
       }
+      router.replace('/onboarding/plans');
     }
     checkSubscription();
   }, [router, sessionId]);
@@ -109,6 +112,17 @@ function OnboardingOrganizationContent() {
       setLoading(false);
     }
   };
+
+  if (checkingPayment) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-[#F0F6FF] via-[#F8FAFC] to-[#EFF6FF] dark:from-[#0B1120] dark:via-[#0F172A] dark:to-[#0B1120] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
+          <span className="text-xs font-medium text-slate-500">Verifying payment status...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#F0F6FF] via-[#F8FAFC] to-[#EFF6FF] dark:from-[#0B1120] dark:via-[#0F172A] dark:to-[#0B1120] text-slate-900 dark:text-slate-100 flex flex-col font-sans relative overflow-x-hidden transition-colors">

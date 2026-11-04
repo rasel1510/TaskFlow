@@ -79,8 +79,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               }
             }
             const hasPaid =
-              (dbUser.invoices && dbUser.invoices.some(inv => inv.status === 'paid')) ||
-              dbUser.plan === 'pro';
+              Boolean(dbUser.invoices && dbUser.invoices.some(inv => inv.status === 'paid')) ||
+              dbUser.plan === 'pro' ||
+              dbUser.plan === 'basic';
 
             return {
               id: dbUser.id,
@@ -92,7 +93,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               teamName: dbUser.team?.name,
               plan: dbUser.plan,
               hasPaid,
-              hasCompletedOnboarding: dbUser.hasCompletedOnboarding,
+              hasCompletedOnboarding: Boolean(dbUser.hasCompletedOnboarding && dbUser.teamId),
             };
           }
         } catch {
@@ -179,9 +180,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             if (freshUser.team?.name) token.teamName = freshUser.team.name;
             token.plan = freshUser.plan;
             token.hasPaid =
-              (freshUser.invoices && freshUser.invoices.some(inv => inv.status === 'paid')) ||
-              freshUser.plan === 'pro';
-            token.hasCompletedOnboarding = freshUser.hasCompletedOnboarding;
+              Boolean(freshUser.invoices && freshUser.invoices.some(inv => inv.status === 'paid')) ||
+              freshUser.plan === 'pro' ||
+              freshUser.plan === 'basic';
+            token.hasCompletedOnboarding = Boolean(freshUser.hasCompletedOnboarding && freshUser.teamId);
             token.lastSynced = now;
           }
         } catch {
@@ -202,7 +204,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as { teamName?: string }).teamName = (token.teamName as string) || '';
         (session.user as any).plan = token.plan || 'free';
         (session.user as any).hasPaid = Boolean(token.hasPaid);
-        (session.user as any).hasCompletedOnboarding = Boolean(token.hasCompletedOnboarding);
+        (session.user as any).hasCompletedOnboarding = Boolean(token.hasCompletedOnboarding && token.teamId);
       }
       return session;
     },

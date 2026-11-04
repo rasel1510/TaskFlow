@@ -74,6 +74,7 @@ function AppContent() {
   const [isPWAModalOpen, setIsPWAModalOpen] = useState(false);
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(true);
 
   // Handle post-invite onboarding and deep linking to project or task
   useEffect(() => {
@@ -102,21 +103,66 @@ function AppContent() {
     }
   }, [status, router]);
 
-  // Enforce Payment & Company Setup Gates:
-  // If registered user signs in without payment, ALWAYS redirect to Payment page.
-  // If payment is successful but company is not created, redirect to Create Organization.
+  // Authoritative Payment & Company Setup Gates:
+  // If registered user signs in without payment, ALWAYS redirect to Payment page (/onboarding/plans).
+  // If payment is successful but company is not created, redirect to Company Creation (/onboarding/organization).
+  // User cannot access Dashboard (/app) until payment is complete AND company is created.
   useEffect(() => {
-    if (status === 'authenticated' && session?.user) {
-      const user = session.user as any;
-      if (user.hasPaid === false) {
+    if (status === 'loading') return;
+    if (status === 'unauthenticated') {
+      router.replace('/auth/login');
+      return;
+    }
+
+    let isMounted = true;
+    async function verifyWorkspaceAccess() {
+      try {
+        const res = await fetch('/api/billing', { cache: 'no-store' });
+        if (res.ok) {
+          const json = await res.json();
+          const { hasPaid, hasCompletedOnboarding, teamId } = json?.data || {};
+
+          // Requirement 1: If user has not completed payment, send to payment page
+          if (!hasPaid) {
+            router.replace('/onboarding/plans');
+            return;
+          }
+
+          // Requirement 2: If user completed payment but no company, send to Company Creation page
+          if (!hasCompletedOnboarding || !teamId) {
+            router.replace('/onboarding/organization');
+            return;
+          }
+
+          if (isMounted) {
+            setIsVerifying(false);
+          }
+          return;
+        }
+      } catch (err) {
+        console.warn('Workspace verification network error:', err);
+      }
+
+      // Fallback check from session token if billing endpoint had a network glitch
+      const user = session?.user as any;
+      if (!user?.hasPaid) {
         router.replace('/onboarding/plans');
         return;
       }
-      if (user.hasCompletedOnboarding === false || !user.teamId) {
+      if (!user?.hasCompletedOnboarding || !user?.teamId) {
         router.replace('/onboarding/organization');
         return;
       }
+
+      if (isMounted) {
+        setIsVerifying(false);
+      }
     }
+
+    verifyWorkspaceAccess();
+    return () => {
+      isMounted = false;
+    };
   }, [status, session, router]);
 
   // Close mobile sidebar on view change
@@ -151,7 +197,7 @@ function AppContent() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  if (status === 'loading' || status === 'unauthenticated') {
+  if (status === 'loading' || status === 'unauthenticated' || isVerifying) {
     return (
       <div className="flex h-[100dvh] w-screen items-center justify-center bg-[#F9FAFB]">
         <div className="flex flex-col items-center gap-3">
@@ -177,7 +223,11 @@ function AppContent() {
           </div>
           <div className="flex items-center gap-2 text-xs font-medium text-gray-500">
             <div className="w-3.5 h-3.5 border-2 border-[#2563EB] border-t-transparent rounded-full animate-spin" />
-            {status === 'unauthenticated' ? 'Redirecting to login...' : 'Loading FlowSync...'}
+            {status === 'unauthenticated'
+              ? 'Redirecting to login...'
+              : isVerifying
+              ? 'Verifying workspace access...'
+              : 'Loading FlowSync...'}
           </div>
         </div>
       </div>
