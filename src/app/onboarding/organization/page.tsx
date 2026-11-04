@@ -1,19 +1,42 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import OnboardingHeader from '@/components/onboarding/OnboardingHeader';
-import { Building2, ArrowRight, Sparkles, CheckCircle2, AlertCircle, Users } from 'lucide-react';
+import { Building2, AlertCircle, ChevronDown, Check } from 'lucide-react';
+
+const INDUSTRY_OPTIONS = [
+  'Software & Technology',
+  'Design & Creative Agency',
+  'Product & Engineering',
+  'Finance & Operations',
+  'Healthcare & Life Sciences',
+  'Other',
+];
 
 export default function OnboardingOrganizationPage() {
   const router = useRouter();
 
   const [orgName, setOrgName] = useState('');
   const [industry, setIndustry] = useState('Software & Technology');
+  const [industryOpen, setIndustryOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   const [size, setSize] = useState('6-20');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkingPayment, setCheckingPayment] = useState(true);
+
+  // Close custom dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIndustryOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Verify that user has paid via Stripe before allowing them to set up an organization
   useEffect(() => {
@@ -38,11 +61,6 @@ export default function OnboardingOrganizationPage() {
     }
     checkSubscription();
   }, [router]);
-
-  const slugPreview = orgName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '') || 'your-company';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,7 +97,7 @@ export default function OnboardingOrganizationPage() {
         return;
       }
 
-      // Successfully created organization! As per supervisor diagram, redirect to Dashboard (/app)!
+      // Successfully created organization! Redirect to Dashboard (/app)
       router.push('/app');
       router.refresh();
     } catch {
@@ -101,26 +119,26 @@ export default function OnboardingOrganizationPage() {
             <Building2 size={24} />
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-950 dark:text-white">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white">
             Create Your Organization
           </h1>
 
-          <p className="text-xs sm:text-sm text-neutral-500">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
             Set up your company workspace to collaborate on tasks, projects, and milestones.
           </p>
         </div>
 
         {/* Organization Form Card */}
-        <div className="w-full p-6 sm:p-8 rounded-3xl bg-white dark:bg-[#15171C] border border-slate-200 dark:border-neutral-800 shadow-xl">
+        <div className="w-full p-6 sm:p-8 rounded-3xl bg-white dark:bg-[#15171C] border border-slate-200 dark:border-slate-800 shadow-xl">
           <form onSubmit={handleSubmit} className="space-y-5">
             
-            {/* Input Organization Name (Matching diagram: "Insert org name") */}
+            {/* Input Organization Name */}
             <div>
-              <label className="block text-xs font-bold text-neutral-900 dark:text-white uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-1.5">
                 Company / Organization Name
               </label>
               <div className="relative">
-                <Building2 className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+                <Building2 className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="e.g. Acme Corporation, TechWave Labs"
@@ -128,20 +146,14 @@ export default function OnboardingOrganizationPage() {
                   onChange={e => setOrgName(e.target.value)}
                   disabled={loading}
                   autoFocus
-                  className="w-full pl-10 pr-4 py-3 rounded-xl text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-600"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl text-sm bg-slate-50/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-600 transition-all placeholder:text-slate-400"
                 />
               </div>
-
-              {/* Workspace URL preview */}
-              <p className="mt-2 text-[11px] text-neutral-400 flex items-center gap-1 font-mono">
-                <span>Workspace URL:</span>
-                <span className="text-[#E44232]">flowsync.app/{slugPreview}</span>
-              </p>
             </div>
 
             {/* Team Size Pills */}
             <div>
-              <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
                 Team Size
               </label>
               <div className="grid grid-cols-4 gap-2">
@@ -154,8 +166,8 @@ export default function OnboardingOrganizationPage() {
                       py-2 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer
                       ${
                         size === val
-                          ? 'border-[#E44232] bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60 shadow-xs'
-                          : 'border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                          ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 shadow-xs'
+                          : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
                       }
                     `}
                   >
@@ -165,23 +177,54 @@ export default function OnboardingOrganizationPage() {
               </div>
             </div>
 
-            {/* Industry Selector */}
+            {/* Industry Selector - Custom Styled to match main box */}
             <div>
-              <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Industry
               </label>
-              <select
-                value={industry}
-                onChange={e => setIndustry(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-600"
-              >
-                <option value="Software & Technology">Software & Technology</option>
-                <option value="Design & Creative Agency">Design & Creative Agency</option>
-                <option value="Product & Engineering">Product & Engineering</option>
-                <option value="Finance & Operations">Finance & Operations</option>
-                <option value="Healthcare & Life Sciences">Healthcare & Life Sciences</option>
-                <option value="Other">Other</option>
-              </select>
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setIndustryOpen(!industryOpen)}
+                  className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-slate-50/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-600 transition-all cursor-pointer text-left font-medium"
+                  aria-haspopup="listbox"
+                  aria-expanded={industryOpen}
+                >
+                  <span>{industry}</span>
+                  <ChevronDown
+                    size={16}
+                    className={`text-slate-400 transition-transform duration-200 ${
+                      industryOpen ? 'rotate-180 text-blue-600 dark:text-blue-400' : ''
+                    }`}
+                  />
+                </button>
+
+                {industryOpen && (
+                  <div className="absolute left-0 right-0 mt-1.5 z-50 rounded-2xl bg-white dark:bg-[#15171C] border border-slate-200 dark:border-slate-800 shadow-xl p-1.5 space-y-0.5 animate-in fade-in-0 zoom-in-95 duration-150">
+                    {INDUSTRY_OPTIONS.map(opt => {
+                      const isSelected = industry === opt;
+                      return (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => {
+                            setIndustry(opt);
+                            setIndustryOpen(false);
+                          }}
+                          className={`w-full px-3 py-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-between transition-colors cursor-pointer text-left ${
+                            isSelected
+                              ? 'bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 font-semibold'
+                              : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/70 font-medium'
+                          }`}
+                        >
+                          <span>{opt}</span>
+                          {isSelected && <Check size={15} className="text-blue-600 dark:text-blue-400 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Error banner */}
@@ -205,10 +248,7 @@ export default function OnboardingOrganizationPage() {
                     <span>Initializing Workspace & Projects...</span>
                   </>
                 ) : (
-                  <>
-                    <span>Launch Organization & Go to Dashboard</span>
-                    <ArrowRight size={16} />
-                  </>
+                  <span>Go to Dashboard</span>
                 )}
               </button>
             </div>
@@ -220,4 +260,3 @@ export default function OnboardingOrganizationPage() {
     </div>
   );
 }
-
