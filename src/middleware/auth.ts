@@ -68,9 +68,11 @@ export function applyAuthMiddleware(request: NextRequest): NextResponse | null {
   const isInviteRoute  = pathname.startsWith('/invite');
   const isDocsRoute    = pathname.startsWith('/docs') || pathname.startsWith('/developers');
 
-  // Rule 1: Authenticated user accessing root ('/') or auth pages
-  // They are already logged in — send them straight into their workspace, preserving deep links!
-  if (sessionToken && (pathname === '/' || onAuthRoute)) {
+  // Rule 1: Authenticated user accessing root ('/')
+  // Send them directly to their workspace if active session token exists.
+  // Note: We deliberately do NOT redirect onAuthRoute (/auth/login, /auth/signup) here.
+  // The login component validates session client-side to prevent infinite redirect loops.
+  if (sessionToken && pathname === '/') {
     const appUrl = new URL('/app', request.url);
     if (search) {
       appUrl.search = search;

@@ -3,7 +3,7 @@
 import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import {
   Eye,
   EyeOff,
@@ -39,6 +39,22 @@ function LoginForm() {
 
   const callback = searchParams.get('callbackUrl');
   const targetUrl = callback && callback !== '/' && !callback.startsWith('/auth') ? callback : '/app';
+
+  const { data: session, status } = useSession();
+
+  // If already authenticated with a valid session, navigate forward according to onboarding status
+  React.useEffect(() => {
+    if (status === 'authenticated' && session?.user) {
+      const user = session.user as any;
+      if (!user.hasPaid) {
+        router.replace('/onboarding/plans');
+      } else if (!user.hasCompletedOnboarding || !user.teamId) {
+        router.replace('/onboarding/organization');
+      } else {
+        router.replace(targetUrl || '/app');
+      }
+    }
+  }, [status, session, targetUrl, router]);
 
   // Handle URL errors returned from NextAuth
   React.useEffect(() => {

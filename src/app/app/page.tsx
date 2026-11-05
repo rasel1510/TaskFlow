@@ -96,13 +96,6 @@ function AppContent() {
     }
   }, [searchParams, session?.user?.name]);
 
-  // Redirect to login page if unauthenticated
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.replace('/auth/login');
-    }
-  }, [status, router]);
-
   // Authoritative Payment & Company Setup Gates:
   // If registered user signs in without payment, ALWAYS redirect to Payment page (/onboarding/plans).
   // If payment is successful but company is not created, redirect to Company Creation (/onboarding/organization).
@@ -110,7 +103,7 @@ function AppContent() {
   useEffect(() => {
     if (status === 'loading') return;
     if (status === 'unauthenticated') {
-      router.replace('/auth/login');
+      window.location.replace('/auth/login');
       return;
     }
 
@@ -118,6 +111,10 @@ function AppContent() {
     async function verifyWorkspaceAccess() {
       try {
         const res = await fetch('/api/billing', { cache: 'no-store' });
+        if (res.status === 401) {
+          window.location.replace('/auth/login');
+          return;
+        }
         if (res.ok) {
           const json = await res.json();
           const { hasPaid, hasCompletedOnboarding, teamId } = json?.data || {};
@@ -143,8 +140,12 @@ function AppContent() {
         console.warn('Workspace verification network error:', err);
       }
 
-      // Fallback check from session token if billing endpoint had a network glitch
+      // Fallback check from session token if billing endpoint had a temporary glitch
       const user = session?.user as any;
+      if (!session || !user) {
+        window.location.replace('/auth/login');
+        return;
+      }
       if (!user?.hasPaid) {
         router.replace('/onboarding/plans');
         return;
