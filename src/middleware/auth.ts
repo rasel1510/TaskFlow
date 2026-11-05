@@ -63,31 +63,22 @@ export function applyAuthMiddleware(request: NextRequest): NextResponse | null {
   const sessionToken = getSessionToken(request);
   const onAuthRoute = isAuthRoute(pathname);
 
-  // Dedicated landing showcase route and invite onboarding route are always accessible
-  const isLandingRoute = pathname.startsWith('/landing');
-  const isInviteRoute  = pathname.startsWith('/invite');
-  const isDocsRoute    = pathname.startsWith('/docs') || pathname.startsWith('/developers');
+  // Public routes: root homepage ('/'), landing showcase, invite links, and developer docs
+  const isPublicRoute =
+    pathname === '/' ||
+    pathname.startsWith('/landing') ||
+    pathname.startsWith('/invite') ||
+    pathname.startsWith('/docs') ||
+    pathname.startsWith('/developers');
 
-  // Rule 1: Authenticated user accessing root ('/')
-  // Send them directly to their workspace if active session token exists.
-  // Note: We deliberately do NOT redirect onAuthRoute (/auth/login, /auth/signup) here.
-  // The login component validates session client-side to prevent infinite redirect loops.
-  if (sessionToken && pathname === '/') {
-    const appUrl = new URL('/app', request.url);
-    if (search) {
-      appUrl.search = search;
-    }
-    return NextResponse.redirect(appUrl);
-  }
-
-  // Rule 2: Unauthenticated user on protected route (like /app) → redirect to login with full callbackUrl
-  if (!sessionToken && !onAuthRoute && !isLandingRoute && !isInviteRoute && !isDocsRoute && pathname !== '/') {
+  // Protected routes (like /app) require authentication if no session token is present
+  if (!sessionToken && !onAuthRoute && !isPublicRoute) {
     const loginUrl = new URL('/auth/login', request.url);
     const fullCallback = pathname + (search || '');
     loginUrl.searchParams.set('callbackUrl', fullCallback);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Rule 3: Allow request to continue
+  // Allow all other requests to continue naturally
   return null;
 }

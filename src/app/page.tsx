@@ -16,7 +16,6 @@ export const metadata: Metadata = {
 export default async function HomePage(props: {
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const session = await auth();
   const searchParams = props.searchParams ? await props.searchParams : undefined;
   const taskId = searchParams?.task || searchParams?.taskId;
   const projectId = searchParams?.projectId;
@@ -26,15 +25,16 @@ export default async function HomePage(props: {
   if (projectId && typeof projectId === 'string') queryParts.push(`projectId=${encodeURIComponent(projectId)}`);
   const queryString = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
 
-  // If already authenticated, redirect straight to the workspace preserving deep links
-  if (session?.user) {
-    redirect(`/app${queryString}`);
-  }
-
-  // If not authenticated and a deep link was accessed, prompt login and return back
+  // Only redirect if an explicit deep link was accessed (e.g. /?task=123 or /?projectId=456)
   if (queryString) {
-    redirect(`/auth/login?callbackUrl=${encodeURIComponent(`/app${queryString}`)}`);
+    const session = await auth();
+    if (session?.user) {
+      redirect(`/app${queryString}`);
+    } else {
+      redirect(`/auth/login?callbackUrl=${encodeURIComponent(`/app${queryString}`)}`);
+    }
   }
 
+  // Root homepage ("/") displays the clean, professional Landing Page
   return <LandingPage />;
 }
