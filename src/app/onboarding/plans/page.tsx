@@ -148,13 +148,7 @@ export default function OnboardingPlansPage() {
           {/* 1. BASIC PLAN CARD */}
           <div className="rounded-3xl border border-blue-100 dark:border-blue-900/40 bg-white/95 dark:bg-slate-900/90 backdrop-blur-sm p-6 sm:p-8 flex flex-col justify-between shadow-[0_10px_30px_rgba(37,99,235,0.04)] hover:shadow-[0_20px_40px_rgba(37,99,235,0.08)] hover:border-blue-300 dark:hover:border-blue-800 transition-all">
             <div>
-              <div className="flex items-center justify-between">
-                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-50/70 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60">
-                  Starter Tier
-                </span>
-              </div>
-
-              <h3 className="text-xl sm:text-2xl font-bold text-slate-950 dark:text-white mt-4">
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-950 dark:text-white">
                 Basic Plan
               </h3>
               <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
