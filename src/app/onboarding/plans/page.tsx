@@ -158,10 +158,6 @@ export default function OnboardingPlansPage() {
           <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-slate-950 dark:text-white">
             Proceed to Pay & Choose Your Plan
           </h1>
-
-          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 max-w-xl mx-auto leading-relaxed">
-            Select the plan that fits your company size, or use a promotional code to activate instant workspace access.
-          </p>
         </div>
 
         {/* 2 Category Plans Grid */}
