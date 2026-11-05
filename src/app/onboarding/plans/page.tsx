@@ -96,7 +96,7 @@ export default function OnboardingPlansPage() {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        setPromoError(data.error || 'Invalid promo code. Try FLOWVIP or SUPERVISOR100');
+        setPromoError(data.error || 'Invalid promotion code. Please verify and try again.');
         return;
       }
 
@@ -266,72 +266,50 @@ export default function OnboardingPlansPage() {
 
         </div>
 
-        {/* Promo Code Section in FlowSync Blue */}
-        <div className="w-full max-w-xl mt-12 p-6 sm:p-7 rounded-2xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-blue-200/80 dark:border-blue-900/50 shadow-[0_10px_30px_rgba(37,99,235,0.06)]">
-          <div className="flex items-center gap-2 mb-2">
-            <Tag size={16} className="text-blue-600 dark:text-blue-400" />
-            <h4 className="text-sm font-bold text-slate-950 dark:text-white">
-              Insert Promo Code
-            </h4>
-          </div>
+        {/* Promotion Code Section — Mobbin Checkout Standard */}
+        <div className="w-full max-w-md mx-auto mt-8">
+          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs transition-all">
+            <div className="flex items-center justify-between mb-2.5">
+              <label htmlFor="promo-input" className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 cursor-pointer">
+                <Tag size={13} className="text-slate-400 dark:text-slate-500" />
+                <span>Promotion code</span>
+              </label>
+            </div>
 
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
-            Have an executive partner code, supervisor waiver, or student voucher? Enter it below to unlock Pro access immediately.
-          </p>
-
-          <form onSubmit={handleApplyPromo} className="flex flex-col sm:flex-row gap-2.5">
-            <input
-              type="text"
-              placeholder="e.g. FLOWVIP or SUPERVISOR100"
-              value={promoCode}
-              onChange={e => setPromoCode(e.target.value.toUpperCase())}
-              className="flex-1 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-blue-50/30 dark:bg-slate-950 border border-blue-200/80 dark:border-slate-700 font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600 transition-all text-slate-900 dark:text-white"
-            />
-            <button
-              type="submit"
-              disabled={promoLoading || !promoCode.trim()}
-              className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white transition-all disabled:opacity-50 shrink-0 cursor-pointer shadow-md shadow-blue-500/20"
-            >
-              {promoLoading ? 'Checking...' : 'Apply Code'}
-            </button>
-          </form>
-
-          {promoError && (
-            <p className="mt-2.5 text-xs text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1.5 animate-fadeIn">
-              <AlertCircle size={13} />
-              <span>{promoError}</span>
-            </p>
-          )}
-
-          {promoSuccess && (
-            <p className="mt-2.5 text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5 animate-fadeIn">
-              <Check size={14} strokeWidth={3} />
-              <span>{promoSuccess}</span>
-            </p>
-          )}
-
-          <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 flex flex-wrap items-center justify-between gap-2">
-            <span className="flex items-center gap-1.5">
-              <span>Valid test codes:</span>
+            <form onSubmit={handleApplyPromo} className="flex items-center gap-2">
+              <input
+                id="promo-input"
+                type="text"
+                placeholder="Enter code"
+                value={promoCode}
+                onChange={e => {
+                  setPromoCode(e.target.value.toUpperCase());
+                  if (promoError) setPromoError(null);
+                }}
+                className="flex-1 h-10 px-3.5 text-xs sm:text-sm bg-slate-50/70 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder:text-slate-400 font-medium tracking-wider focus:outline-none focus:ring-2 focus:ring-slate-950/10 dark:focus:ring-white/10 focus:border-slate-400 dark:focus:border-slate-600 transition-all uppercase"
+              />
               <button
-                type="button"
-                onClick={() => setPromoCode('FLOWVIP')}
-                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 font-mono font-semibold underline cursor-pointer"
+                type="submit"
+                disabled={promoLoading || !promoCode.trim()}
+                className="h-10 px-4 text-xs sm:text-sm font-semibold bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 rounded-xl disabled:opacity-40 transition-colors cursor-pointer shrink-0 shadow-xs"
               >
-                FLOWVIP
+                {promoLoading ? 'Applying...' : 'Apply'}
               </button>
-              <span>or</span>
-              <button
-                type="button"
-                onClick={() => setPromoCode('SUPERVISOR100')}
-                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 font-mono font-semibold underline cursor-pointer"
-              >
-                SUPERVISOR100
-              </button>
-            </span>
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/70 dark:border-blue-800/60">
-              100% Free Waiver
-            </span>
+            </form>
+
+            {promoError && (
+              <p className="mt-2.5 text-xs text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1.5 animate-fadeIn">
+                <AlertCircle size={13} className="shrink-0" />
+                <span>{promoError}</span>
+              </p>
+            )}
+
+            {promoSuccess && (
+              <p className="mt-2.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5 animate-fadeIn">
+                <Check size={14} strokeWidth={2.5} className="shrink-0" />
+                <span>{promoSuccess}</span>
+              </p>
+            )}
           </div>
         </div>
 
