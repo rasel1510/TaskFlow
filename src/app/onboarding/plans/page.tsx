@@ -119,7 +119,7 @@ export default function OnboardingPlansPage() {
       <div className="absolute top-1/3 -right-48 w-[400px] h-[400px] bg-indigo-500/10 blur-[140px] rounded-full pointer-events-none -z-10" />
 
       {/* Top Header with official FlowSync logo and stepper */}
-      <OnboardingHeader currentStep={1} onBack={handleBack} />
+      <OnboardingHeader currentStep={1} />
 
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-10 flex flex-col items-center">
 
