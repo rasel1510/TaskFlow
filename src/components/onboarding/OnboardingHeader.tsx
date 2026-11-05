@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Check, ShieldCheck, LogOut } from 'lucide-react';
+import { Check, LogOut } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 
 interface OnboardingHeaderProps {
@@ -82,13 +82,8 @@ export default function OnboardingHeader({ currentStep }: OnboardingHeaderProps)
           })}
         </div>
 
-        {/* Right side: Security badge & Sign out */}
-        <div className="flex items-center gap-2.5 sm:gap-4">
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
-            <ShieldCheck size={16} className="text-emerald-500" />
-            <span className="hidden md:inline">256-bit Encrypted Checkout</span>
-          </div>
-
+        {/* Right side: Sign out */}
+        <div className="flex items-center">
           <button
             type="button"
             onClick={async () => {
