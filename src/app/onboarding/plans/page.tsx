@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import OnboardingHeader from '@/components/onboarding/OnboardingHeader';
-import { Check, Sparkles, ArrowRight, ArrowLeft, Tag, AlertCircle } from 'lucide-react';
+import { Check, ArrowLeft, Tag, AlertCircle } from 'lucide-react';
 
 export default function OnboardingPlansPage() {
   const router = useRouter();
@@ -191,35 +191,21 @@ export default function OnboardingPlansPage() {
               className="mt-8 w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm border-2 border-blue-200 dark:border-blue-800/80 bg-blue-50/40 dark:bg-blue-950/20 hover:bg-blue-600 hover:border-blue-600 hover:text-white text-blue-700 dark:text-blue-300 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs"
             >
               <span>{basicLoading ? 'Activating...' : 'Select Basic Plan'}</span>
-              <ArrowRight size={14} />
             </button>
           </div>
 
           {/* 2. PRO PLAN CARD ($20 / month — Direct Stripe Hosted Gateway) */}
-          <div className="rounded-3xl border-2 border-blue-600 dark:border-blue-500 bg-white dark:bg-slate-900 p-6 sm:p-8 flex flex-col justify-between shadow-[0_20px_50px_rgba(37,99,235,0.16)] relative overflow-hidden ring-4 ring-blue-500/15">
-            {/* Top popular ribbon in FlowSync Blue */}
-            <div className="absolute top-0 right-0 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black tracking-wider uppercase py-1.5 px-4 rounded-bl-2xl shadow-sm flex items-center gap-1">
-              <Sparkles size={11} className="text-blue-200" />
-              <span>Recommended</span>
-            </div>
-
+          <div className="rounded-3xl border border-blue-100 dark:border-blue-900/40 bg-white/95 dark:bg-slate-900/90 backdrop-blur-sm p-6 sm:p-8 flex flex-col justify-between shadow-[0_10px_30px_rgba(37,99,235,0.04)] hover:shadow-[0_20px_40px_rgba(37,99,235,0.08)] hover:border-blue-300 dark:hover:border-blue-800 transition-all">
             <div>
-              <div className="flex items-center justify-between">
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800/60">
-                  Full Company Scale
-                </span>
-              </div>
-
-              <h3 className="text-xl sm:text-2xl font-bold text-slate-950 dark:text-white mt-4 flex items-center gap-2">
-                <span>Pro Plan</span>
-                <Sparkles size={18} className="text-blue-600 dark:text-blue-400" />
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-950 dark:text-white">
+                Pro Plan
               </h3>
               <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
                 For high-velocity companies requiring unlimited team scale, AI Copilot, and MCP tools.
               </p>
 
               <div className="mt-6 flex items-baseline gap-1.5">
-                <span className="text-4xl font-extrabold text-blue-600 dark:text-blue-400">$20</span>
+                <span className="text-4xl font-extrabold text-slate-950 dark:text-white">$20</span>
                 <span className="text-xs font-medium text-slate-500">/ month</span>
               </div>
 
@@ -266,10 +252,7 @@ export default function OnboardingPlansPage() {
                     <span>Connecting to Stripe Gateway...</span>
                   </>
                 ) : (
-                  <>
-                    <span>Pay $20 (Continue to Stripe Gateway)</span>
-                    <ArrowRight size={15} />
-                  </>
+                  <span>Select Pro Plan</span>
                 )}
               </button>
 
