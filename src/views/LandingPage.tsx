@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import {
   ArrowRight,
   ChevronDown,
@@ -226,7 +226,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
     if (onLaunchApp) {
       onLaunchApp();
     } else {
-      router.push(isAuthenticated ? '/app' : '/auth/login');
+      router.push(isAuthenticated ? '/onboarding/plans' : '/auth/login');
     }
   };
 
@@ -471,12 +471,30 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
               </div>
 
               {/* Right Action Button */}
-              <div className="flex items-center">
+              <div className="flex items-center gap-2 sm:gap-3">
+                {isAuthenticated && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await signOut({ callbackUrl: '/', redirectTo: '/' });
+                    }}
+                    className="inline-flex items-center justify-center gap-1.5 text-xs sm:text-[13px] font-semibold text-neutral-700 hover:text-red-600 dark:text-neutral-300 dark:hover:text-red-400 px-3 py-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                    title="Sign out of FlowSync"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                      <polyline points="16 17 21 12 16 7" />
+                      <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                    <span>Sign out</span>
+                  </button>
+                )}
+
                 <Link
-                  href={isAuthenticated ? '/app' : '/auth/login'}
+                  href={isAuthenticated ? '/onboarding/plans' : '/auth/login'}
                   className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-xl shadow-black/20 rounded-full px-6 py-2.5 text-xs sm:text-[13px] h-9 sm:h-10 tracking-tight cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  {isAuthenticated ? 'Go to Workspace' : 'Try FlowSync'}
+                  Try FlowSync
                 </Link>
               </div>
             </div>

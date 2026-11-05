@@ -2,7 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Check, ShieldCheck } from 'lucide-react';
+import { Check, ShieldCheck, LogOut } from 'lucide-react';
+import { signOut } from 'next-auth/react';
 
 interface OnboardingHeaderProps {
   currentStep: 1 | 2 | 3 | 4;
@@ -81,10 +82,24 @@ export default function OnboardingHeader({ currentStep }: OnboardingHeaderProps)
           })}
         </div>
 
-        {/* Security badge */}
-        <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
-          <ShieldCheck size={16} className="text-emerald-500" />
-          <span className="hidden md:inline">256-bit Encrypted Checkout</span>
+        {/* Right side: Security badge & Sign out */}
+        <div className="flex items-center gap-2.5 sm:gap-4">
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
+            <ShieldCheck size={16} className="text-emerald-500" />
+            <span className="hidden md:inline">256-bit Encrypted Checkout</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={async () => {
+              await signOut({ callbackUrl: '/', redirectTo: '/' });
+            }}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-red-600 dark:text-slate-300 dark:hover:text-red-400 hover:bg-red-50/80 dark:hover:bg-red-950/40 transition-colors cursor-pointer border border-slate-200/80 dark:border-slate-800"
+            title="Sign out of FlowSync"
+          >
+            <LogOut size={13} />
+            <span>Sign out</span>
+          </button>
         </div>
 
       </div>
