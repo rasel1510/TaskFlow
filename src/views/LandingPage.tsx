@@ -67,13 +67,6 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
   const counterRef = useRef<HTMLDivElement>(null);
   const [counters, setCounters] = useState({ users: 0, uptime: 0, tasks: 0 });
 
-  // Seamless redirect if authenticated
-  useEffect(() => {
-    if (status === 'authenticated' && typeof window !== 'undefined' && window.location.pathname === '/') {
-      router.replace('/app');
-    }
-  }, [status, router]);
-
   // Orbix Studio style continuous slow-motion scroll physics for navbar
   const navbarRef = useRef<HTMLDivElement>(null);
 

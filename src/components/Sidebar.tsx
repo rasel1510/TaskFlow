@@ -348,7 +348,7 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
             <div className="text-[11px] text-[rgba(17,17,17,0.45)] truncate">{userRole}</div>
           </div>
           <button
-            onClick={() => signOut({ callbackUrl: '/' })}
+            onClick={() => signOut({ callbackUrl: '/', redirectTo: '/' })}
             title="Sign Out"
             className={`md:opacity-0 md:group-hover:opacity-100 p-1 rounded hover:bg-[#E5E7EB] text-gray-500 hover:text-red-600 transition-all cursor-pointer md:${collapsed ? 'hidden' : 'block'}`}
           >
