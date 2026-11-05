@@ -112,139 +112,170 @@ export default function OnboardingPlansPage() {
   };
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-b from-[#F0F6FF] via-[#F8FAFC] to-[#EFF6FF] dark:from-[#0B1120] dark:via-[#0F172A] dark:to-[#0B1120] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors overflow-hidden">
+    <div className="relative min-h-screen bg-slate-50/60 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors overflow-hidden">
       
-      {/* Ambient background glow in FlowSync Blue */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[850px] h-[360px] bg-blue-500/10 blur-[130px] rounded-full pointer-events-none -z-10" />
-      <div className="absolute top-1/3 -right-48 w-[400px] h-[400px] bg-indigo-500/10 blur-[140px] rounded-full pointer-events-none -z-10" />
+      {/* Subtle ambient glow */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[720px] h-[280px] bg-blue-500/5 blur-[120px] rounded-full pointer-events-none -z-10" />
 
       {/* Top Header with official FlowSync logo and stepper */}
       <OnboardingHeader currentStep={1} />
 
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-10 flex flex-col items-center">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12 flex flex-col items-center">
 
         {/* Top Back Navigation Link */}
-        <div className="w-full max-w-5xl mb-3 sm:mb-4 flex items-center justify-start">
+        <div className="w-full max-w-4xl mb-6 flex items-center justify-start">
           <button
             type="button"
             onClick={handleBack}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-all cursor-pointer group"
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer group"
           >
-            <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+            <ArrowLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
             <span>Back</span>
           </button>
         </div>
 
-        {/* Hero Section */}
-        <div className="text-center max-w-2xl mx-auto">
-          <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-slate-950 dark:text-white">
-            Proceed to Pay & Choose Your Plan
+        {/* Hero Section — Mobbin Clean Hierarchy */}
+        <div className="text-center max-w-xl mx-auto mb-10">
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-950 dark:text-white">
+            Choose your plan
           </h1>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+            Select the plan that best fits your workflow. Start free or unlock full speed with Pro.
+          </p>
         </div>
 
-        {/* 2 Category Plans Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 w-full max-w-4xl mt-10">
+        {/* 2 Category Plans Grid — Perfectly Balanced Baselines */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 w-full max-w-4xl items-stretch">
 
           {/* 1. BASIC PLAN CARD */}
-          <div className="rounded-3xl border border-blue-100 dark:border-blue-900/40 bg-white/95 dark:bg-slate-900/90 backdrop-blur-sm p-6 sm:p-8 flex flex-col justify-between shadow-[0_10px_30px_rgba(37,99,235,0.04)] hover:shadow-[0_20px_40px_rgba(37,99,235,0.08)] hover:border-blue-300 dark:hover:border-blue-800 transition-all">
-            <div>
-              <h3 className="text-xl sm:text-2xl font-bold text-slate-950 dark:text-white">
-                Basic Plan
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
-                Ideal for individuals, solopreneurs, and small startup teams getting organized.
-              </p>
-
-              <div className="mt-6 flex items-baseline gap-1.5">
-                <span className="text-4xl font-extrabold text-slate-950 dark:text-white">$0</span>
-                <span className="text-xs font-medium text-slate-500">/ forever</span>
+          <div className="flex flex-col justify-between rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900/90 p-7 sm:p-8 shadow-xs hover:shadow-md transition-all">
+            <div className="flex flex-col flex-1">
+              <div>
+                <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-950 dark:text-white">
+                  Basic Plan
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed min-h-[38px]">
+                  Ideal for individuals, solopreneurs, and small startup teams getting organized.
+                </p>
               </div>
 
-              {/* Feature Checklist in FlowSync Blue */}
-              <ul className="mt-6 space-y-3 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
-                <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
+              <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800/80 flex items-baseline gap-1.5">
+                <span className="text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-950 dark:text-white">$0</span>
+                <span className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400">/ forever</span>
+              </div>
+
+              {/* Feature Checklist */}
+              <ul className="mt-6 space-y-3.5 text-xs sm:text-sm text-slate-700 dark:text-slate-300 flex-1">
+                <li className="flex items-center gap-3">
+                  <div className="w-4 h-4 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                    <Check size={11} className="text-slate-700 dark:text-slate-300" strokeWidth={2.5} />
+                  </div>
                   <span>Up to 5 active projects</span>
                 </li>
-                <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
+                <li className="flex items-center gap-3">
+                  <div className="w-4 h-4 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                    <Check size={11} className="text-slate-700 dark:text-slate-300" strokeWidth={2.5} />
+                  </div>
                   <span>Up to 5 team members & collaborators</span>
                 </li>
-                <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
+                <li className="flex items-center gap-3">
+                  <div className="w-4 h-4 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                    <Check size={11} className="text-slate-700 dark:text-slate-300" strokeWidth={2.5} />
+                  </div>
                   <span>Standard Kanban, List & Calendar views</span>
                 </li>
-                <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
+                <li className="flex items-center gap-3">
+                  <div className="w-4 h-4 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                    <Check size={11} className="text-slate-700 dark:text-slate-300" strokeWidth={2.5} />
+                  </div>
                   <span>Realtime task status updates</span>
                 </li>
-                <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
+                <li className="flex items-center gap-3">
+                  <div className="w-4 h-4 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                    <Check size={11} className="text-slate-700 dark:text-slate-300" strokeWidth={2.5} />
+                  </div>
                   <span>Community support</span>
                 </li>
               </ul>
             </div>
 
-            <button
-              onClick={handleSelectBasic}
-              disabled={basicLoading || proLoading}
-              className="mt-8 w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm border-2 border-blue-200 dark:border-blue-800/80 bg-blue-50/40 dark:bg-blue-950/20 hover:bg-blue-600 hover:border-blue-600 hover:text-white text-blue-700 dark:text-blue-300 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs"
-            >
-              <span>{basicLoading ? 'Activating...' : 'Select Basic Plan'}</span>
-            </button>
+            {/* CTA Button */}
+            <div className="mt-8 pt-4">
+              <button
+                onClick={handleSelectBasic}
+                disabled={basicLoading || proLoading}
+                className="w-full py-3 px-4 rounded-xl font-semibold text-xs sm:text-sm border border-slate-200 dark:border-slate-800 bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-900 dark:text-white transition-all cursor-pointer shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 disabled:opacity-50"
+              >
+                {basicLoading ? 'Activating...' : 'Select Basic Plan'}
+              </button>
+            </div>
           </div>
 
           {/* 2. PRO PLAN CARD ($20 / month — Direct Stripe Hosted Gateway) */}
-          <div className="rounded-3xl border border-blue-100 dark:border-blue-900/40 bg-white/95 dark:bg-slate-900/90 backdrop-blur-sm p-6 sm:p-8 flex flex-col justify-between shadow-[0_10px_30px_rgba(37,99,235,0.04)] hover:shadow-[0_20px_40px_rgba(37,99,235,0.08)] hover:border-blue-300 dark:hover:border-blue-800 transition-all">
-            <div>
-              <h3 className="text-xl sm:text-2xl font-bold text-slate-950 dark:text-white">
-                Pro Plan
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
-                For high-velocity companies requiring unlimited team scale, AI Copilot, and MCP tools.
-              </p>
-
-              <div className="mt-6 flex items-baseline gap-1.5">
-                <span className="text-4xl font-extrabold text-slate-950 dark:text-white">$20</span>
-                <span className="text-xs font-medium text-slate-500">/ month</span>
+          <div className="flex flex-col justify-between rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900/90 p-7 sm:p-8 shadow-xs hover:shadow-md transition-all">
+            <div className="flex flex-col flex-1">
+              <div>
+                <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-950 dark:text-white">
+                  Pro Plan
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed min-h-[38px]">
+                  For high-velocity companies requiring unlimited team scale, AI Copilot, and MCP tools.
+                </p>
               </div>
 
-              {/* Feature Checklist in FlowSync Blue */}
-              <ul className="mt-6 space-y-3 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
-                <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
+              <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800/80 flex items-baseline gap-1.5">
+                <span className="text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-950 dark:text-white">$20</span>
+                <span className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400">/ month</span>
+              </div>
+
+              {/* Feature Checklist */}
+              <ul className="mt-6 space-y-3.5 text-xs sm:text-sm text-slate-700 dark:text-slate-300 flex-1">
+                <li className="flex items-center gap-3">
+                  <div className="w-4 h-4 rounded-full bg-blue-50 dark:bg-blue-950/80 flex items-center justify-center shrink-0">
+                    <Check size={11} className="text-blue-600 dark:text-blue-400" strokeWidth={2.5} />
+                  </div>
                   <span>Unlimited projects & sprints</span>
                 </li>
-                <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
+                <li className="flex items-center gap-3">
+                  <div className="w-4 h-4 rounded-full bg-blue-50 dark:bg-blue-950/80 flex items-center justify-center shrink-0">
+                    <Check size={11} className="text-blue-600 dark:text-blue-400" strokeWidth={2.5} />
+                  </div>
                   <span>Unlimited company members & invites</span>
                 </li>
-                <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
+                <li className="flex items-center gap-3">
+                  <div className="w-4 h-4 rounded-full bg-blue-50 dark:bg-blue-950/80 flex items-center justify-center shrink-0">
+                    <Check size={11} className="text-blue-600 dark:text-blue-400" strokeWidth={2.5} />
+                  </div>
                   <span>AI Copilot autonomous sprint planner</span>
                 </li>
-                <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
+                <li className="flex items-center gap-3">
+                  <div className="w-4 h-4 rounded-full bg-blue-50 dark:bg-blue-950/80 flex items-center justify-center shrink-0">
+                    <Check size={11} className="text-blue-600 dark:text-blue-400" strokeWidth={2.5} />
+                  </div>
                   <span>FlowSync MCP Server for Claude & Cursor</span>
                 </li>
-                <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
+                <li className="flex items-center gap-3">
+                  <div className="w-4 h-4 rounded-full bg-blue-50 dark:bg-blue-950/80 flex items-center justify-center shrink-0">
+                    <Check size={11} className="text-blue-600 dark:text-blue-400" strokeWidth={2.5} />
+                  </div>
                   <span>Live SSE event streaming & audit logs</span>
                 </li>
-                <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
+                <li className="flex items-center gap-3">
+                  <div className="w-4 h-4 rounded-full bg-blue-50 dark:bg-blue-950/80 flex items-center justify-center shrink-0">
+                    <Check size={11} className="text-blue-600 dark:text-blue-400" strokeWidth={2.5} />
+                  </div>
                   <span>Official tax invoice & Stripe payment protection</span>
                 </li>
               </ul>
             </div>
 
-            {/* Pay $20 Primary Button -> Direct Stripe Payment Gateway */}
-            <div className="mt-8 space-y-2">
+            {/* CTA Button -> Direct Stripe Payment Gateway */}
+            <div className="mt-8 pt-4 space-y-2">
               <button
                 type="button"
                 onClick={handlePayWithStripe}
                 disabled={proLoading}
-                className="w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-75 text-white transition-all shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/35 hover:scale-[1.01] active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2"
+                className="w-full py-3 px-4 rounded-xl font-semibold text-xs sm:text-sm bg-blue-600 hover:bg-blue-700 active:scale-[0.99] disabled:opacity-75 text-white transition-all shadow-sm shadow-blue-600/20 cursor-pointer flex items-center justify-center gap-2"
               >
                 {proLoading ? (
                   <>
@@ -267,8 +298,8 @@ export default function OnboardingPlansPage() {
         </div>
 
         {/* Promotion Code Section — Mobbin Checkout Standard */}
-        <div className="w-full max-w-md mx-auto mt-8">
-          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs transition-all">
+        <div className="w-full max-w-md mx-auto mt-10">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs transition-all">
             <div className="flex items-center justify-between mb-2.5">
               <label htmlFor="promo-input" className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 cursor-pointer">
                 <Tag size={13} className="text-slate-400 dark:text-slate-500" />
@@ -311,18 +342,6 @@ export default function OnboardingPlansPage() {
               </p>
             )}
           </div>
-        </div>
-
-        {/* Bottom Back Button */}
-        <div className="w-full max-w-xl mt-8 mb-4 flex items-center justify-center">
-          <button
-            type="button"
-            onClick={handleBack}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white border border-slate-200 dark:border-slate-800 hover:bg-white dark:hover:bg-slate-900 shadow-xs transition-all cursor-pointer group"
-          >
-            <ArrowLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
-            <span>Back</span>
-          </button>
         </div>
 
       </main>

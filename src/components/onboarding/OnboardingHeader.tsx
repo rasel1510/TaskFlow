@@ -10,18 +10,18 @@ interface OnboardingHeaderProps {
 }
 
 const STEPS = [
-  { step: 1, label: 'Select Plan' },
-  { step: 2, label: 'Payment (Stripe)' },
+  { step: 1, label: 'Plan' },
+  { step: 2, label: 'Payment' },
   { step: 3, label: 'Confirmation' },
   { step: 4, label: 'Organization' },
 ];
 
 export default function OnboardingHeader({ currentStep }: OnboardingHeaderProps) {
   return (
-    <header className="w-full bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-blue-100/70 dark:border-slate-800/80 py-3.5 px-4 sm:px-8 sticky top-0 z-40 transition-colors">
+    <header className="w-full bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 py-3.5 px-4 sm:px-8 sticky top-0 z-40 transition-colors">
       <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
         
-        {/* Brand Logo — Exact FlowSync Logo from Landing Page */}
+        {/* Brand Logo — FlowSync */}
         <Link href="/" aria-label="FlowSync Home" className="flex items-center gap-2.5 group">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-black text-white dark:bg-white dark:text-black shadow-xs group-hover:scale-105 transition-transform duration-200">
             <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 50 50">
@@ -31,12 +31,12 @@ export default function OnboardingHeader({ currentStep }: OnboardingHeaderProps)
               <path d="M12.2792 33.593C16.4726 31.7278 19.3843 29.1194 18.7827 27.767C18.1812 26.4146 14.2942 26.8304 10.1008 28.6957C5.90744 30.5609 2.99571 33.1693 3.59726 34.5217C4.1988 35.8741 8.08584 35.4583 12.2792 33.593Z" />
             </svg>
           </div>
-          <span className="font-bold text-2xl text-black tracking-tighter transition-colors dark:text-white">
+          <span className="font-bold text-xl text-slate-950 tracking-tight transition-colors dark:text-white">
             FlowSync
           </span>
         </Link>
 
-        {/* Multi-step progress indicator in FlowSync Blue */}
+        {/* Multi-step progress indicator — Mobbin Standard */}
         <div className="hidden sm:flex items-center gap-2">
           {STEPS.map((s, idx) => {
             const isCompleted = currentStep > s.step;
@@ -47,22 +47,22 @@ export default function OnboardingHeader({ currentStep }: OnboardingHeaderProps)
                 <div className="flex items-center gap-1.5">
                   <div
                     className={`
-                      w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all
+                      w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition-all
                       ${
                         isCompleted
-                          ? 'bg-emerald-600 text-white shadow-xs'
+                          ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
                           : isCurrent
-                          ? 'bg-blue-600 text-white ring-4 ring-blue-500/20 shadow-xs shadow-blue-500/20'
+                          ? 'bg-blue-600 text-white ring-4 ring-blue-500/15 shadow-xs'
                           : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'
                       }
                     `}
                   >
-                    {isCompleted ? <Check size={13} strokeWidth={3} /> : s.step}
+                    {isCompleted ? <Check size={12} strokeWidth={2.5} /> : s.step}
                   </div>
                   <span
                     className={`
-                      text-xs font-medium transition-colors
-                      ${isCurrent ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}
+                      text-xs transition-colors
+                      ${isCurrent ? 'font-semibold text-slate-950 dark:text-white' : 'font-medium text-slate-500 dark:text-slate-400'}
                     `}
                   >
                     {s.label}
@@ -73,7 +73,7 @@ export default function OnboardingHeader({ currentStep }: OnboardingHeaderProps)
                   <div
                     className={`
                       w-6 h-0.5 rounded-full transition-colors
-                      ${isCompleted ? 'bg-emerald-500' : isCurrent ? 'bg-blue-200 dark:bg-blue-900/60' : 'bg-slate-200 dark:bg-slate-800'}
+                      ${isCompleted ? 'bg-slate-900 dark:bg-white' : isCurrent ? 'bg-blue-200 dark:bg-blue-900/60' : 'bg-slate-200 dark:bg-slate-800'}
                     `}
                   />
                 )}
@@ -89,10 +89,10 @@ export default function OnboardingHeader({ currentStep }: OnboardingHeaderProps)
             onClick={async () => {
               await signOut({ callbackUrl: '/', redirectTo: '/' });
             }}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-red-600 dark:text-slate-300 dark:hover:text-red-400 hover:bg-red-50/80 dark:hover:bg-red-950/40 transition-colors cursor-pointer border border-slate-200/80 dark:border-slate-800"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer border border-slate-200/80 dark:border-slate-800"
             title="Sign out of FlowSync"
           >
-            <LogOut size={13} />
+            <LogOut size={13} className="text-slate-400" />
             <span>Sign out</span>
           </button>
         </div>
