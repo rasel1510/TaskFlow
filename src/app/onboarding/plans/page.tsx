@@ -135,26 +135,8 @@ export default function OnboardingPlansPage() {
           </button>
         </div>
 
-        {/* Hero Section with Official Landing Page Logo & FlowSync Blue Accent */}
-        <div className="text-center max-w-2xl mx-auto space-y-3">
-          
-          {/* Centered Landing Page FlowSync Logo glyph in FlowSync Blue container */}
-          <div className="flex items-center justify-center mb-1">
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60 flex items-center justify-center shadow-xs transition-transform duration-200 hover:scale-105">
-              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 50 50">
-                <title>FlowSync Logo</title>
-                <path d="M27.5308 40.1395C27.5757 35.5502 26.4122 31.8182 24.9322 31.8037C23.4521 31.7893 22.2159 35.4979 22.1711 40.0871C22.1262 44.6764 23.2897 48.4085 24.7697 48.4229C26.2498 48.4374 27.486 44.7288 27.5308 40.1395Z" />
-                <path d="M18.947 39.0972C21.4661 35.2608 22.5052 31.4922 21.268 30.6798C20.0307 29.8674 16.9856 32.3188 14.4666 36.1552C11.9475 39.9916 10.9084 43.7601 12.1456 44.5726C13.3829 45.385 16.4279 42.9336 18.947 39.0972Z" />
-                <path d="M12.2792 33.593C16.4726 31.7278 19.3843 29.1194 18.7827 27.767C18.1812 26.4146 14.2942 26.8304 10.1008 28.6957C5.90744 30.5609 2.99571 33.1693 3.59726 34.5217C4.1988 35.8741 8.08584 35.4583 12.2792 33.593Z" />
-              </svg>
-            </div>
-          </div>
-
-          <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800/60 shadow-xs">
-            <Sparkles size={13} className="text-blue-600 dark:text-blue-400" />
-            <span>Workspace Plans & Pricing</span>
-          </span>
-
+        {/* Hero Section */}
+        <div className="text-center max-w-2xl mx-auto">
           <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-slate-950 dark:text-white">
             Proceed to Pay & Choose Your Plan
           </h1>
