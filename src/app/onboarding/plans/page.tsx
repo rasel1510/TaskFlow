@@ -210,28 +210,28 @@ export default function OnboardingPlansPage() {
               </div>
 
               {/* Feature Checklist in FlowSync Blue */}
-              <ul className="mt-6 space-y-3 text-xs sm:text-sm text-slate-700 dark:text-slate-200">
-                <li className="flex items-center gap-2.5 font-medium">
+              <ul className="mt-6 space-y-3 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
+                <li className="flex items-center gap-2.5">
                   <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
-                  <span><strong className="text-slate-950 dark:text-white">Unlimited</strong> projects & sprints</span>
+                  <span>Unlimited projects & sprints</span>
                 </li>
-                <li className="flex items-center gap-2.5 font-medium">
+                <li className="flex items-center gap-2.5">
                   <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
-                  <span><strong className="text-slate-950 dark:text-white">Unlimited</strong> company members & invites</span>
+                  <span>Unlimited company members & invites</span>
                 </li>
-                <li className="flex items-center gap-2.5 font-medium">
+                <li className="flex items-center gap-2.5">
                   <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
-                  <span><strong className="text-slate-950 dark:text-white">AI Copilot</strong> autonomous sprint planner</span>
+                  <span>AI Copilot autonomous sprint planner</span>
                 </li>
-                <li className="flex items-center gap-2.5 font-medium">
+                <li className="flex items-center gap-2.5">
                   <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
-                  <span><strong className="text-slate-950 dark:text-white">FlowSync MCP Server</strong> for Claude & Cursor</span>
+                  <span>FlowSync MCP Server for Claude & Cursor</span>
                 </li>
-                <li className="flex items-center gap-2.5 font-medium">
+                <li className="flex items-center gap-2.5">
                   <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
                   <span>Live SSE event streaming & audit logs</span>
                 </li>
-                <li className="flex items-center gap-2.5 font-medium">
+                <li className="flex items-center gap-2.5">
                   <Check size={16} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={2.5} />
                   <span>Official tax invoice & Stripe payment protection</span>
                 </li>
