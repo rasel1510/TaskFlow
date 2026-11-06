@@ -958,45 +958,46 @@ export default function ApiDocsView() {
   }, [searchQuery]);
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] dark:bg-[#0D0E12] text-neutral-900 dark:text-neutral-100 flex flex-col font-sans selection:bg-rose-500/20 selection:text-rose-600">
+    <div className="min-h-screen bg-white dark:bg-[#090D16] text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-blue-500/20 selection:text-blue-600">
       
       {/* =========================================================================
-          TOP NAVBAR (Developer Platform Header)
+          TOP NAVBAR (Developer Platform Header — Mobbin UI Standard)
           ========================================================================= */}
-      <header className="sticky top-0 z-40 bg-[#FAF7F0]/95 dark:bg-[#121316]/95 backdrop-blur-md border-b border-[#ECE5D8] dark:border-neutral-800 transition-colors">
+      <header className="sticky top-0 z-40 bg-white/85 dark:bg-slate-950/85 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors">
         <div className="max-w-[1700px] mx-auto px-4 sm:px-6 h-15 flex items-center justify-between gap-4">
           
-          {/* Left brand: Todoist-style FlowSync Developer */}
+          {/* Left brand: FlowSync Developer Platform with Official Logo */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileMenuOpen(prev => !prev)}
-              className="lg:hidden p-2 -ml-2 rounded-lg text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200/60 dark:hover:bg-neutral-800 transition-colors"
+              className="lg:hidden p-2 -ml-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               aria-label="Toggle Navigation"
             >
               {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
 
-            <Link href="/" className="flex items-center gap-2.5 group">
-              {/* FlowSync Red Logo Squircle */}
-              <div className="w-8 h-8 rounded-xl bg-[#E44232] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 7l8-4 8 4-8 4-8-4z" />
-                  <path d="M4 12l8 4 8-4" />
-                  <path d="M4 17l8 4 8-4" />
+            <Link href="/" aria-label="FlowSync Home" className="flex items-center gap-2.5 group">
+              {/* FlowSync Brand Logo — Exact from Landing Page */}
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-black text-white dark:bg-white dark:text-black shadow-xs group-hover:scale-105 transition-transform duration-200">
+                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 50 50">
+                  <title>FlowSync Logo</title>
+                  <path d="M27.5308 40.1395C27.5757 35.5502 26.4122 31.8182 24.9322 31.8037C23.4521 31.7893 22.2159 35.4979 22.1711 40.0871C22.1262 44.6764 23.2897 48.4085 24.7697 48.4229C26.2498 48.4374 27.486 44.7288 27.5308 40.1395Z" />
+                  <path d="M18.947 39.0972C21.4661 35.2608 22.5052 31.4922 21.268 30.6798C20.0307 29.8674 16.9856 32.3188 14.4666 36.1552C11.9475 39.9916 10.9084 43.7601 12.1456 44.5726C13.3829 45.385 16.4279 42.9336 18.947 39.0972Z" />
+                  <path d="M12.2792 33.593C16.4726 31.7278 19.3843 29.1194 18.7827 27.767C18.1812 26.4146 14.2942 26.8304 10.1008 28.6957C5.90744 30.5609 2.99571 33.1693 3.59726 34.5217C4.1988 35.8741 8.08584 35.4583 12.2792 33.593Z" />
                 </svg>
               </div>
 
-              <div className="flex items-baseline gap-1.5">
-                <span className="font-extrabold text-lg tracking-tight text-[#111111] dark:text-white">
-                  flowsync
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-lg text-slate-950 dark:text-white tracking-tight">
+                  FlowSync
                 </span>
-                <span className="text-sm font-semibold text-neutral-500 dark:text-neutral-400">
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                   Developer
                 </span>
               </div>
             </Link>
 
-            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#E44232]/10 text-[#E44232] dark:bg-[#E44232]/20 dark:text-rose-400 border border-[#E44232]/20">
+            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/60">
               v1.0 (REST & MCP)
             </span>
           </div>
@@ -1004,22 +1005,28 @@ export default function ApiDocsView() {
           {/* Center search shortcut indicator on larger screens */}
           <div className="hidden md:flex items-center flex-1 max-w-md mx-6">
             <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search API reference, endpoints, schemas..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-1.5 rounded-lg text-xs bg-white dark:bg-neutral-800/80 border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#E44232]/30 focus:border-[#E44232] transition-all"
+                className="w-full pl-9 pr-12 py-1.5 rounded-xl text-xs bg-slate-100/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
               />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
-                >
-                  <X size={14} />
-                </button>
-              )}
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                {searchQuery ? (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  >
+                    <X size={13} />
+                  </button>
+                ) : (
+                  <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded shadow-2xs">
+                    ⌘K
+                  </kbd>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1027,7 +1034,7 @@ export default function ApiDocsView() {
           <div className="flex items-center gap-2 sm:gap-3">
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200/60 dark:hover:bg-neutral-800 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
               <Home size={14} />
               <span className="hidden sm:inline">Landing</span>
@@ -1035,7 +1042,7 @@ export default function ApiDocsView() {
 
             <Link
               href="/app"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-[#111111] dark:bg-white text-white dark:text-neutral-950 hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-all shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-950 hover:bg-black dark:hover:bg-slate-200 transition-all shadow-xs"
             >
               <span>Go to App</span>
               <ArrowRight size={13} />
@@ -1050,31 +1057,31 @@ export default function ApiDocsView() {
       <div className="flex-1 flex max-w-[1700px] w-full mx-auto relative">
 
         {/* -----------------------------------------------------------------------
-            LEFT SIDEBAR (Matches uploaded screenshot 1 & 2 exactly)
+            LEFT SIDEBAR (Mobbin UI Minimalist Tree)
             ----------------------------------------------------------------------- */}
         <aside
           className={`
             fixed lg:sticky top-15 z-30 h-[calc(100vh-60px)] w-72 sm:w-80 shrink-0
-            bg-[#FAF7F0] dark:bg-[#121316] border-r border-[#ECE5D8] dark:border-neutral-800/80
+            bg-slate-50/70 dark:bg-[#0B0F17] border-r border-slate-200/80 dark:border-slate-800
             flex flex-col transition-all duration-300 ease-in-out
             ${mobileMenuOpen ? 'left-0 shadow-2xl' : '-left-full lg:left-0'}
           `}
         >
-          {/* Search box matching Image 1: [🔍 Search...] */}
-          <div className="p-4 border-b border-[#ECE5D8]/70 dark:border-neutral-800/70">
+          {/* Search box matching Mobbin clean pattern */}
+          <div className="p-3.5 border-b border-slate-200/80 dark:border-slate-800">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-lg text-sm bg-white dark:bg-neutral-900 border border-neutral-300/80 dark:border-neutral-700/80 text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#E44232]/30 focus:border-[#E44232] transition-all"
+                className="w-full pl-9 pr-3 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                 >
                   <X size={14} />
                 </button>
@@ -1101,29 +1108,29 @@ export default function ApiDocsView() {
                       }
                     }}
                     className={`
-                      group flex items-center justify-between px-3 py-2 rounded-lg text-[13.5px] font-semibold cursor-pointer transition-colors
+                      group flex items-center justify-between px-3 py-2 rounded-lg text-[13px] font-semibold cursor-pointer transition-colors
                       ${
                         section.items.some(i => i.id === selectedDocId)
-                          ? 'bg-[#F2ECE1] dark:bg-neutral-800/90 text-neutral-950 dark:text-white'
-                          : 'text-neutral-800 dark:text-neutral-300 hover:bg-[#F2ECE1]/60 dark:hover:bg-neutral-800/50'
+                          ? 'bg-slate-200/60 dark:bg-slate-800/80 text-slate-950 dark:text-white'
+                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/50'
                       }
                     `}
                   >
                     <div className="flex items-center gap-2 truncate">
                       <span className="truncate">{section.label}</span>
                       {section.badge && (
-                        <span className="text-[10px] px-1.5 py-0.2 rounded font-medium bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300">
+                        <span className="text-[10px] px-1.5 py-0.2 rounded font-medium bg-slate-200/80 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
                           {section.badge}
                         </span>
                       )}
                     </div>
 
                     {hasItems && (
-                      <span className="text-neutral-400 group-hover:text-neutral-600 dark:group-hover:text-neutral-200 transition-transform">
+                      <span className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-transform">
                         {isExpanded ? (
-                          <ChevronDown size={15} />
+                          <ChevronDown size={14} />
                         ) : (
-                          <ChevronRight size={15} />
+                          <ChevronRight size={14} />
                         )}
                       </span>
                     )}
@@ -1131,7 +1138,7 @@ export default function ApiDocsView() {
 
                   {/* Sub-items / Endpoints List */}
                   {isExpanded && hasItems && (
-                    <div className="mt-0.5 ml-2 pl-3 border-l border-neutral-200 dark:border-neutral-800 space-y-0.5 py-1">
+                    <div className="mt-0.5 ml-2 pl-3 border-l border-slate-200 dark:border-slate-800 space-y-0.5 py-1">
                       {section.items.map(item => {
                         const isSelected = selectedDocId === item.id;
 
@@ -1143,11 +1150,11 @@ export default function ApiDocsView() {
                               setMobileMenuOpen(false);
                             }}
                             className={`
-                              w-full text-left flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all
+                              w-full text-left flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer
                               ${
                                 isSelected
-                                  ? 'bg-[#E44232]/10 dark:bg-[#E44232]/20 font-bold text-[#E44232] dark:text-rose-400'
-                                  : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-neutral-200 hover:bg-neutral-200/40 dark:hover:bg-neutral-800/40'
+                                  ? 'bg-blue-50 text-blue-700 font-bold dark:bg-blue-950/50 dark:text-blue-400'
+                                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/40'
                               }
                             `}
                           >
@@ -1156,15 +1163,15 @@ export default function ApiDocsView() {
                             {item.method && (
                               <span
                                 className={`
-                                  ml-2 px-1.5 py-0.2 rounded text-[10px] font-extrabold uppercase shrink-0
+                                  ml-2 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase shrink-0
                                   ${
                                     item.method === 'GET'
-                                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/80 dark:text-blue-300'
+                                      ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60'
                                       : item.method === 'POST'
-                                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300'
+                                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60'
                                       : item.method === 'PATCH'
-                                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/80 dark:text-amber-300'
-                                      : 'bg-rose-100 text-rose-700 dark:bg-rose-950/80 dark:text-rose-300'
+                                      ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60'
+                                      : 'bg-rose-50 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-200/60 dark:border-rose-800/60'
                                   }
                                 `}
                               >
@@ -1181,58 +1188,60 @@ export default function ApiDocsView() {
             })}
           </nav>
 
-          {/* Sidebar Footer matching Image 2 watermark: "API docs by Redocly" */}
-          <div className="p-3 border-t border-[#ECE5D8] dark:border-neutral-800/80 text-[11px] text-neutral-400 dark:text-neutral-500 flex items-center justify-center gap-1.5">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E44232" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+          {/* Sidebar Footer with Official FlowSync Brand Icon */}
+          <div className="p-3 border-t border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-400 dark:text-slate-500 flex items-center justify-center gap-1.5">
+            <svg className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" fill="currentColor" viewBox="0 0 50 50">
+              <path d="M27.5308 40.1395C27.5757 35.5502 26.4122 31.8182 24.9322 31.8037C23.4521 31.7893 22.2159 35.4979 22.1711 40.0871C22.1262 44.6764 23.2897 48.4085 24.7697 48.4229C26.2498 48.4374 27.486 44.7288 27.5308 40.1395Z" />
+              <path d="M18.947 39.0972C21.4661 35.2608 22.5052 31.4922 21.268 30.6798C20.0307 29.8674 16.9856 32.3188 14.4666 36.1552C11.9475 39.9916 10.9084 43.7601 12.1456 44.5726C13.3829 45.385 16.4279 42.9336 18.947 39.0972Z" />
+              <path d="M12.2792 33.593C16.4726 31.7278 19.3843 29.1194 18.7827 27.767C18.1812 26.4146 14.2942 26.8304 10.1008 28.6957C5.90744 30.5609 2.99571 33.1693 3.59726 34.5217C4.1988 35.8741 8.08584 35.4583 12.2792 33.593Z" />
             </svg>
-            <span>API docs powered by <strong>FlowSync Platform</strong></span>
+            <span>Powered by <strong>FlowSync Platform</strong></span>
           </div>
         </aside>
 
         {/* -----------------------------------------------------------------------
-            CENTER DOCUMENTATION AREA
+            CENTER DOCUMENTATION AREA (Linear/Mobbin Standard)
             ----------------------------------------------------------------------- */}
         <main className="flex-1 min-w-0 p-5 sm:p-8 lg:p-10 xl:pr-6 max-w-4xl">
           
           {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-xs font-semibold text-neutral-400 mb-3 uppercase tracking-wider">
+          <div className="flex items-center gap-2 text-xs font-mono font-medium text-slate-400 mb-3 uppercase tracking-wider">
             <span>{currentDoc.category}</span>
-            <ChevronRight size={13} />
-            <span className="text-neutral-700 dark:text-neutral-300">{currentDoc.title}</span>
+            <ChevronRight size={13} className="text-slate-300 dark:text-slate-600" />
+            <span className="text-slate-700 dark:text-slate-300 font-semibold">{currentDoc.title}</span>
           </div>
 
           {/* Title & Badge */}
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-950 dark:text-white tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 dark:text-white tracking-tight">
               {currentDoc.title}
             </h1>
             {currentDoc.badge && (
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#E44232]/10 text-[#E44232] dark:bg-[#E44232]/20 dark:text-rose-400 border border-[#E44232]/20">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/60">
                 {currentDoc.badge}
               </span>
             )}
           </div>
 
           {/* Description */}
-          <p className="mt-3 text-sm sm:text-base text-neutral-600 dark:text-neutral-300 leading-relaxed font-normal">
+          <p className="mt-3 text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
             {currentDoc.description}
           </p>
 
           {/* Endpoint Route Card (if HTTP method defined) */}
           {currentDoc.method && currentDoc.path && (
-            <div className="mt-6 p-4 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-2xs flex items-center justify-between gap-3 flex-wrap">
+            <div className="mt-6 p-3.5 sm:p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3">
                 <span
                   className={`
-                    px-2.5 py-1 rounded-md text-xs font-black uppercase tracking-wider
+                    px-2.5 py-1 rounded-md text-xs font-mono font-bold uppercase tracking-wider
                     ${
                       currentDoc.method === 'GET'
-                        ? 'bg-blue-500 text-white'
+                        ? 'bg-blue-600 text-white'
                         : currentDoc.method === 'POST'
                         ? 'bg-emerald-600 text-white'
                         : currentDoc.method === 'PATCH'
-                        ? 'bg-amber-500 text-white'
+                        ? 'bg-amber-600 text-white'
                         : 'bg-rose-600 text-white'
                     }
                   `}
@@ -1240,14 +1249,14 @@ export default function ApiDocsView() {
                   {currentDoc.method}
                 </span>
 
-                <code className="text-sm font-mono font-semibold text-neutral-800 dark:text-neutral-200">
+                <code className="text-xs sm:text-sm font-mono font-semibold text-slate-900 dark:text-slate-100">
                   {currentDoc.path}
                 </code>
               </div>
 
               <button
                 onClick={() => handleCopyCode(`https://flowsync.app${currentDoc.path}`)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <Copy size={13} />
                 <span>Copy URL</span>
@@ -1256,19 +1265,20 @@ export default function ApiDocsView() {
           )}
 
           {/* Authentication Section */}
-          <div className="mt-8 pt-6 border-t border-neutral-200/80 dark:border-neutral-800">
-            <h2 className="text-base font-bold text-neutral-950 dark:text-white flex items-center gap-2">
-              <Shield className="w-4 h-4 text-[#E44232]" />
+          <div className="mt-8 pt-6 border-t border-slate-200/80 dark:border-slate-800">
+            <h2 className="text-sm font-bold text-slate-950 dark:text-white flex items-center gap-2">
+              <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               <span>Authentication</span>
             </h2>
-            <p className="mt-1.5 text-xs sm:text-sm text-neutral-600 dark:text-neutral-400">
-              Pass your personal API token in the <code className="text-xs font-mono bg-neutral-200/60 dark:bg-neutral-800 px-1 py-0.5 rounded text-neutral-800 dark:text-neutral-200">Authorization</code> request header.
+            <p className="mt-1.5 text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+              Pass your personal API token in the <code className="text-xs font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">Authorization</code> request header.
             </p>
-            <div className="mt-3 p-3 rounded-lg bg-neutral-100 dark:bg-neutral-900/90 font-mono text-xs text-neutral-700 dark:text-neutral-300 border border-neutral-200/70 dark:border-neutral-800 flex items-center justify-between">
-              <span>Authorization: Bearer flw_sec_live_948f2bb764831...</span>
+            <div className="mt-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-900 font-mono text-xs text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <span className="truncate mr-2">Authorization: Bearer flw_sec_live_948f2bb764831...</span>
               <button
                 onClick={() => handleCopyCode('Authorization: Bearer flw_sec_live_948f2bb764831...')}
-                className="text-neutral-400 hover:text-neutral-600 dark:hover:text-white"
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                title="Copy Authorization header"
               >
                 <Copy size={13} />
               </button>
@@ -1277,14 +1287,14 @@ export default function ApiDocsView() {
 
           {/* Parameters Table (Query / Path) */}
           {currentDoc.parameters && currentDoc.parameters.length > 0 && (
-            <div className="mt-8 pt-6 border-t border-neutral-200/80 dark:border-neutral-800">
-              <h2 className="text-base font-bold text-neutral-950 dark:text-white">
+            <div className="mt-8 pt-6 border-t border-slate-200/80 dark:border-slate-800">
+              <h2 className="text-sm font-bold text-slate-950 dark:text-white">
                 Request Parameters
               </h2>
 
-              <div className="mt-3 overflow-x-auto rounded-xl border border-neutral-200 dark:border-neutral-800">
+              <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
                 <table className="w-full text-left border-collapse text-xs">
-                  <thead className="bg-[#FAF7F0] dark:bg-neutral-900/90 border-b border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 font-semibold">
+                  <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-semibold">
                     <tr>
                       <th className="py-2.5 px-4">Parameter</th>
                       <th className="py-2.5 px-4">Type</th>
@@ -1292,30 +1302,30 @@ export default function ApiDocsView() {
                       <th className="py-2.5 px-4">Description</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800 font-normal">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-normal">
                     {currentDoc.parameters.map(param => (
-                      <tr key={param.name} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
-                        <td className="py-3 px-4 font-mono font-semibold text-neutral-900 dark:text-neutral-100">
+                      <tr key={param.name} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="py-3 px-4 font-mono font-semibold text-slate-900 dark:text-slate-100">
                           {param.name}
                         </td>
-                        <td className="py-3 px-4 text-neutral-500 font-mono">
+                        <td className="py-3 px-4 text-slate-500 font-mono">
                           {param.type}
                         </td>
                         <td className="py-3 px-4">
                           {param.required ? (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-400">
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/70 dark:text-rose-400 border border-rose-200/60 dark:border-rose-900/60">
                               REQUIRED
                             </span>
                           ) : (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
                               OPTIONAL
                             </span>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-neutral-600 dark:text-neutral-300">
+                        <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
                           {param.description}
                           {param.default && (
-                            <span className="block mt-0.5 text-neutral-400">
+                            <span className="block mt-0.5 text-slate-400">
                               Default: <code className="font-mono">{param.default}</code>
                             </span>
                           )}
@@ -1330,17 +1340,17 @@ export default function ApiDocsView() {
 
           {/* Request Body JSON Schema (if POST / PATCH) */}
           {currentDoc.requestBody && (
-            <div className="mt-8 pt-6 border-t border-neutral-200/80 dark:border-neutral-800">
-              <h2 className="text-base font-bold text-neutral-950 dark:text-white">
+            <div className="mt-8 pt-6 border-t border-slate-200/80 dark:border-slate-800">
+              <h2 className="text-sm font-bold text-slate-950 dark:text-white">
                 Request Body
               </h2>
-              <p className="mt-1 text-xs text-neutral-500">
+              <p className="mt-1 text-xs text-slate-500">
                 {currentDoc.requestBody.description || 'JSON object payload in application/json format.'}
               </p>
 
-              <div className="mt-3 overflow-x-auto rounded-xl border border-neutral-200 dark:border-neutral-800">
+              <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
                 <table className="w-full text-left border-collapse text-xs">
-                  <thead className="bg-[#FAF7F0] dark:bg-neutral-900/90 border-b border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 font-semibold">
+                  <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-semibold">
                     <tr>
                       <th className="py-2.5 px-4">Field</th>
                       <th className="py-2.5 px-4">Type</th>
@@ -1348,27 +1358,27 @@ export default function ApiDocsView() {
                       <th className="py-2.5 px-4">Description</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
                     {currentDoc.requestBody.fields.map(field => (
-                      <tr key={field.name} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
-                        <td className="py-3 px-4 font-mono font-semibold text-neutral-900 dark:text-neutral-100">
+                      <tr key={field.name} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="py-3 px-4 font-mono font-semibold text-slate-900 dark:text-slate-100">
                           {field.name}
                         </td>
-                        <td className="py-3 px-4 text-neutral-500 font-mono">
+                        <td className="py-3 px-4 text-slate-500 font-mono">
                           {field.type}
                         </td>
                         <td className="py-3 px-4">
                           {field.required ? (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-400">
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/70 dark:text-rose-400 border border-rose-200/60 dark:border-rose-900/60">
                               REQUIRED
                             </span>
                           ) : (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
                               OPTIONAL
                             </span>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-neutral-600 dark:text-neutral-300">
+                        <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
                           {field.description}
                         </td>
                       </tr>
@@ -1380,37 +1390,37 @@ export default function ApiDocsView() {
           )}
 
           {/* Response Definitions */}
-          <div className="mt-8 pt-6 border-t border-neutral-200/80 dark:border-neutral-800">
-            <h2 className="text-base font-bold text-neutral-950 dark:text-white">
+          <div className="mt-8 pt-6 border-t border-slate-200/80 dark:border-slate-800">
+            <h2 className="text-sm font-bold text-slate-950 dark:text-white">
               Responses
             </h2>
-            <div className="mt-3 p-3.5 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
+            <div className="mt-3 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                <span className="px-2 py-0.5 rounded-md text-xs font-mono font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                   {currentDoc.response.status}
                 </span>
-                <span className="text-xs sm:text-sm text-neutral-700 dark:text-neutral-300">
+                <span className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-medium">
                   {currentDoc.response.description}
                 </span>
               </div>
-              <span className="text-[11px] font-mono text-neutral-400">application/json</span>
+              <span className="text-[11px] font-mono text-slate-400">application/json</span>
             </div>
           </div>
 
           {/* Collapsible Mobile Code Preview if screen is small */}
           <div className="lg:hidden mt-8">
-            <div className="p-4 rounded-2xl bg-[#111111] text-white">
+            <div className="p-4 rounded-2xl bg-[#0B0F17] text-white border border-slate-800">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-neutral-300 uppercase tracking-wider">Example Code</span>
+                <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Example Code</span>
                 <button
                   onClick={() => handleCopyCode(currentDoc.snippets[activeCodeLang])}
-                  className="flex items-center gap-1 text-xs text-neutral-400 hover:text-white"
+                  className="flex items-center gap-1 text-xs text-slate-400 hover:text-white cursor-pointer"
                 >
                   {copiedCode ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
                   <span>{copiedCode ? 'Copied' : 'Copy'}</span>
                 </button>
               </div>
-              <pre className="text-xs font-mono text-neutral-200 overflow-x-auto p-3 rounded-lg bg-neutral-900 border border-neutral-800">
+              <pre className="text-xs font-mono text-slate-200 overflow-x-auto p-3 rounded-xl bg-slate-950 border border-slate-800">
                 {currentDoc.snippets[activeCodeLang]}
               </pre>
             </div>
@@ -1419,36 +1429,36 @@ export default function ApiDocsView() {
         </main>
 
         {/* -----------------------------------------------------------------------
-            RIGHT PANEL: CODE PLAYGROUND & LIVE TESTER ("Try It Out")
+            RIGHT PANEL: CODE PLAYGROUND & LIVE TESTER (Mobbin / Linear Studio)
             ----------------------------------------------------------------------- */}
         <aside className="hidden lg:block w-96 xl:w-[460px] shrink-0 sticky top-15 h-[calc(100vh-60px)] p-6 pl-2 overflow-y-auto custom-scrollbar">
           
-          <div className="rounded-2xl bg-[#111111] dark:bg-[#15171C] border border-neutral-800 text-white shadow-xl overflow-hidden flex flex-col">
+          <div className="rounded-2xl bg-[#0B0F17] border border-slate-800 text-slate-100 shadow-xl overflow-hidden flex flex-col">
             
             {/* Header: Language Switcher Tabs */}
-            <div className="px-4 py-3 bg-neutral-900/90 border-b border-neutral-800 flex items-center justify-between">
-              <div className="flex items-center gap-1.5 p-1 rounded-lg bg-neutral-800/80 text-xs font-semibold">
+            <div className="px-4 py-3 bg-slate-900/90 border-b border-slate-800/90 flex items-center justify-between">
+              <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-950/80 text-xs font-medium border border-slate-800/70">
                 {(['curl', 'typescript', 'python'] as const).map(lang => (
                   <button
                     key={lang}
                     onClick={() => setActiveCodeLang(lang)}
                     className={`
-                      px-2.5 py-1 rounded-md transition-colors capitalize text-xs
+                      px-2.5 py-1 rounded-md transition-all text-xs font-semibold cursor-pointer
                       ${
                         activeCodeLang === lang
-                          ? 'bg-[#E44232] text-white shadow-xs'
-                          : 'text-neutral-400 hover:text-white hover:bg-neutral-700/50'
+                          ? 'bg-slate-800 text-white shadow-2xs'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
                       }
                     `}
                   >
-                    {lang === 'curl' ? 'cURL' : lang}
+                    {lang === 'curl' ? 'cURL' : lang === 'typescript' ? 'TypeScript' : 'Python'}
                   </button>
                 ))}
               </div>
 
               <button
                 onClick={() => handleCopyCode(currentDoc.snippets[activeCodeLang])}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
                 title="Copy code snippet"
               >
                 {copiedCode ? (
@@ -1466,18 +1476,18 @@ export default function ApiDocsView() {
             </div>
 
             {/* Code Block Snippet */}
-            <div className="p-4 bg-[#0B0C0E] overflow-x-auto max-h-72">
-              <pre className="text-xs font-mono text-neutral-200 leading-relaxed">
+            <div className="p-4 bg-[#080B11] overflow-x-auto max-h-72">
+              <pre className="text-xs font-mono text-slate-200 leading-relaxed">
                 <code>{currentDoc.snippets[activeCodeLang]}</code>
               </pre>
             </div>
 
             {/* Interactive Runner ("Try It Out") */}
-            <div className="p-4 bg-neutral-900/60 border-t border-neutral-800">
-              <div className="flex items-center justify-between mb-3">
+            <div className="p-4 bg-slate-900/50 border-t border-slate-800/80">
+              <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <Play size={13} className="text-[#E44232]" />
-                  <span className="text-xs font-bold text-neutral-200 uppercase tracking-wider">
+                  <Play size={13} className="text-blue-400" />
+                  <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
                     Interactive Playground
                   </span>
                 </div>
@@ -1485,7 +1495,7 @@ export default function ApiDocsView() {
                 <button
                   onClick={handleRunSimulator}
                   disabled={isSimulating}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#E44232] hover:bg-[#D0392A] text-white disabled:opacity-50 transition-all shadow-xs"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 transition-all shadow-sm shadow-blue-600/30 active:scale-95 cursor-pointer"
                 >
                   {isSimulating ? (
                     <>
@@ -1501,15 +1511,15 @@ export default function ApiDocsView() {
                 </button>
               </div>
 
-              <div className="text-[11px] text-neutral-400 mb-2">
+              <div className="text-[11px] text-slate-400">
                 Simulates execution against FlowSync v1 API schema.
               </div>
             </div>
 
             {/* Response Preview Box */}
-            <div className="p-4 bg-[#0B0C0E] border-t border-neutral-800 flex-1 min-h-[180px]">
+            <div className="p-4 bg-[#080B11] border-t border-slate-800/80 flex-1 min-h-[180px]">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   Response (JSON)
                 </span>
 
@@ -1520,14 +1530,14 @@ export default function ApiDocsView() {
                     </span>
                   )}
                   {simulatedLatency && (
-                    <span className="text-[10px] font-mono text-neutral-400">
+                    <span className="text-[10px] font-mono text-slate-400">
                       {simulatedLatency}ms
                     </span>
                   )}
                 </div>
               </div>
 
-              <pre className="text-[11.5px] font-mono text-emerald-400/90 overflow-x-auto max-h-56 leading-snug">
+              <pre className="text-[11.5px] font-mono text-emerald-400/95 overflow-x-auto max-h-56 leading-snug">
                 {JSON.stringify(simulationResponse || currentDoc.response.body, null, 2)}
               </pre>
             </div>
@@ -1535,9 +1545,9 @@ export default function ApiDocsView() {
           </div>
 
           {/* Quick Help Card */}
-          <div className="mt-4 p-4 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-xs text-neutral-600 dark:text-neutral-400 shadow-2xs">
-            <h4 className="font-bold text-neutral-900 dark:text-white mb-1 flex items-center gap-1.5">
-              <Sparkles size={14} className="text-[#E44232]" />
+          <div className="mt-4 p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 shadow-2xs">
+            <h4 className="font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-1.5">
+              <Sparkles size={14} className="text-blue-600 dark:text-blue-400" />
               <span>Need custom SDK support?</span>
             </h4>
             <p className="leading-relaxed">
