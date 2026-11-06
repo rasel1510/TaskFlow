@@ -107,7 +107,6 @@ const NAV_SECTIONS: NavSection[] = [
   {
     id: 'flowsync-cli',
     label: 'FlowSync CLI',
-    badge: 'v1.0',
     items: [
       { id: 'cli-install', label: 'Installation & Setup' },
       { id: 'cli-auth', label: 'CLI Authentication' },
@@ -117,7 +116,6 @@ const NAV_SECTIONS: NavSection[] = [
   {
     id: 'flowsync-mcp',
     label: 'FlowSync MCP',
-    badge: 'AI Agents',
     items: [
       { id: 'mcp-overview', label: 'MCP Architecture (JSON-RPC)' },
       { id: 'mcp-rpc-call', label: 'tools/call (RPC)', method: 'POST' },
@@ -135,8 +133,7 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     id: 'sync',
-    label: 'Sync',
-    badge: 'Realtime',
+    label: 'Sync Engine',
     items: [
       { id: 'sync-overview', label: 'Realtime Sync Engine' },
       { id: 'sync-stream', label: 'Event Streaming (SSE)', method: 'GET' },
@@ -893,10 +890,7 @@ export default function ApiDocsView() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [activeCodeLang, setActiveCodeLang] = useState<'curl' | 'typescript' | 'python'>('curl');
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
-  const [isSimulating, setIsSimulating] = useState<boolean>(false);
-  const [simulationResponse, setSimulationResponse] = useState<any>(null);
-  const [simulatedStatus, setSimulatedStatus] = useState<number | null>(null);
-  const [simulatedLatency, setSimulatedLatency] = useState<number | null>(null);
+  const [copiedResponse, setCopiedResponse] = useState<boolean>(false);
 
   // Active document data
   const currentDoc: EndpointDoc = DOCS_CATALOG[selectedDocId] || DOCS_CATALOG['list-tasks'];
@@ -934,18 +928,11 @@ export default function ApiDocsView() {
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
-  // Run interactive "Try it out" simulator
-  const handleRunSimulator = () => {
-    setIsSimulating(true);
-    setSimulationResponse(null);
-
-    const latency = Math.floor(Math.random() * 35) + 25; // 25-60ms realistic speed
-    setTimeout(() => {
-      setIsSimulating(false);
-      setSimulationResponse(currentDoc.response.body);
-      setSimulatedStatus(currentDoc.response.status);
-      setSimulatedLatency(latency);
-    }, latency + 200);
+  // Copy response handler
+  const handleCopyResponse = (json: any) => {
+    navigator.clipboard.writeText(JSON.stringify(json, null, 2));
+    setCopiedResponse(true);
+    setTimeout(() => setCopiedResponse(false), 2000);
   };
 
   // Auto-expand section if searching
@@ -961,91 +948,54 @@ export default function ApiDocsView() {
     <div className="min-h-screen bg-white dark:bg-[#090D16] text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-blue-500/20 selection:text-blue-600">
       
       {/* =========================================================================
-          TOP NAVBAR (Developer Platform Header — Mobbin UI Standard)
+          TOP NAVBAR — Minimal, Noise-Free Header
           ========================================================================= */}
-      <header className="sticky top-0 z-40 bg-white/85 dark:bg-slate-950/85 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors">
-        <div className="max-w-[1700px] mx-auto px-4 sm:px-6 h-15 flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors">
+        <div className="max-w-[1700px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
           
-          {/* Left brand: FlowSync Developer Platform with Official Logo */}
+          {/* Brand */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileMenuOpen(prev => !prev)}
-              className="lg:hidden p-2 -ml-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              className="lg:hidden p-1.5 -ml-1 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               aria-label="Toggle Navigation"
             >
-              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
 
             <Link href="/" aria-label="FlowSync Home" className="flex items-center gap-2.5 group">
-              {/* FlowSync Brand Logo — Exact from Landing Page */}
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-black text-white dark:bg-white dark:text-black shadow-xs group-hover:scale-105 transition-transform duration-200">
-                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 50 50">
-                  <title>FlowSync Logo</title>
+              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-black text-white dark:bg-white dark:text-black shadow-xs group-hover:scale-105 transition-transform duration-200">
+                <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 50 50">
                   <path d="M27.5308 40.1395C27.5757 35.5502 26.4122 31.8182 24.9322 31.8037C23.4521 31.7893 22.2159 35.4979 22.1711 40.0871C22.1262 44.6764 23.2897 48.4085 24.7697 48.4229C26.2498 48.4374 27.486 44.7288 27.5308 40.1395Z" />
                   <path d="M18.947 39.0972C21.4661 35.2608 22.5052 31.4922 21.268 30.6798C20.0307 29.8674 16.9856 32.3188 14.4666 36.1552C11.9475 39.9916 10.9084 43.7601 12.1456 44.5726C13.3829 45.385 16.4279 42.9336 18.947 39.0972Z" />
                   <path d="M12.2792 33.593C16.4726 31.7278 19.3843 29.1194 18.7827 27.767C18.1812 26.4146 14.2942 26.8304 10.1008 28.6957C5.90744 30.5609 2.99571 33.1693 3.59726 34.5217C4.1988 35.8741 8.08584 35.4583 12.2792 33.593Z" />
                 </svg>
               </div>
-
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-lg text-slate-950 dark:text-white tracking-tight">
-                  FlowSync
-                </span>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                  Developer
-                </span>
-              </div>
+              <span className="font-bold text-base text-slate-950 dark:text-white tracking-tight">
+                FlowSync
+              </span>
+              <span className="text-slate-400 dark:text-slate-600 font-light">/</span>
+              <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                Documentation
+              </span>
             </Link>
-
-            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/60">
-              v1.0 (REST & MCP)
-            </span>
           </div>
 
-          {/* Center search shortcut indicator on larger screens */}
-          <div className="hidden md:flex items-center flex-1 max-w-md mx-6">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search API reference, endpoints, schemas..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-12 py-1.5 rounded-xl text-xs bg-slate-100/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-              />
-              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                {searchQuery ? (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                  >
-                    <X size={13} />
-                  </button>
-                ) : (
-                  <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded shadow-2xs">
-                    ⌘K
-                  </kbd>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Right action links */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          {/* Right Action Links */}
+          <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="text-xs font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
             >
-              <Home size={14} />
-              <span className="hidden sm:inline">Landing</span>
+              Landing
             </Link>
-
+            <div className="h-3.5 w-px bg-slate-200 dark:bg-slate-800" />
             <Link
               href="/app"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-950 hover:bg-black dark:hover:bg-slate-200 transition-all shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-900 dark:bg-white text-white dark:text-slate-950 hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors shadow-xs"
             >
               <span>Go to App</span>
-              <ArrowRight size={13} />
+              <ArrowRight size={12} />
             </Link>
           </div>
         </div>
@@ -1057,48 +1007,49 @@ export default function ApiDocsView() {
       <div className="flex-1 flex max-w-[1700px] w-full mx-auto relative">
 
         {/* -----------------------------------------------------------------------
-            LEFT SIDEBAR (Mobbin UI Minimalist Tree)
+            LEFT SIDEBAR — Single search input, quiet typography
             ----------------------------------------------------------------------- */}
         <aside
           className={`
-            fixed lg:sticky top-15 z-30 h-[calc(100vh-60px)] w-72 sm:w-80 shrink-0
-            bg-slate-50/70 dark:bg-[#0B0F17] border-r border-slate-200/80 dark:border-slate-800
+            fixed lg:sticky top-14 z-30 h-[calc(100vh-56px)] w-64 sm:w-72 shrink-0
+            bg-slate-50/50 dark:bg-[#0B0F17]/50 border-r border-slate-200/80 dark:border-slate-800
             flex flex-col transition-all duration-300 ease-in-out
-            ${mobileMenuOpen ? 'left-0 shadow-2xl' : '-left-full lg:left-0'}
+            ${mobileMenuOpen ? 'left-0 shadow-2xl bg-white dark:bg-slate-950' : '-left-full lg:left-0'}
           `}
         >
-          {/* Search box matching Mobbin clean pattern */}
-          <div className="p-3.5 border-b border-slate-200/80 dark:border-slate-800">
+          {/* Single clean search box */}
+          <div className="p-3 border-b border-slate-200/60 dark:border-slate-800/60">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder="Filter endpoints..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                className="w-full pl-8 pr-7 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-slate-400 dark:focus:border-slate-600 transition-colors"
               />
               {searchQuery && (
                 <button
+                  type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                 >
-                  <X size={14} />
+                  <X size={12} />
                 </button>
               )}
             </div>
           </div>
 
-          {/* Navigation Accordion Tree */}
-          <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5 custom-scrollbar">
+          {/* Navigation Tree */}
+          <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5 custom-scrollbar text-xs">
             {filteredSections.map(section => {
               const isExpanded = expandedSections[section.id];
               const hasItems = section.items && section.items.length > 0;
 
               return (
                 <div key={section.id} className="select-none">
-                  {/* Category Header with right chevron */}
-                  <div
+                  <button
+                    type="button"
                     onClick={() => {
                       if (hasItems) {
                         toggleSection(section.id);
@@ -1108,73 +1059,48 @@ export default function ApiDocsView() {
                       }
                     }}
                     className={`
-                      group flex items-center justify-between px-3 py-2 rounded-lg text-[13px] font-semibold cursor-pointer transition-colors
+                      w-full flex items-center justify-between px-2.5 py-1.5 rounded-md font-medium text-left transition-colors cursor-pointer
                       ${
                         section.items.some(i => i.id === selectedDocId)
-                          ? 'bg-slate-200/60 dark:bg-slate-800/80 text-slate-950 dark:text-white'
-                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/50'
+                          ? 'text-slate-900 dark:text-white font-semibold'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                       }
                     `}
                   >
-                    <div className="flex items-center gap-2 truncate">
-                      <span className="truncate">{section.label}</span>
-                      {section.badge && (
-                        <span className="text-[10px] px-1.5 py-0.2 rounded font-medium bg-slate-200/80 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-                          {section.badge}
-                        </span>
-                      )}
-                    </div>
-
+                    <span className="truncate">{section.label}</span>
                     {hasItems && (
-                      <span className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-transform">
-                        {isExpanded ? (
-                          <ChevronDown size={14} />
-                        ) : (
-                          <ChevronRight size={14} />
-                        )}
+                      <span className="text-slate-400">
+                        {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                       </span>
                     )}
-                  </div>
+                  </button>
 
-                  {/* Sub-items / Endpoints List */}
+                  {/* Endpoints */}
                   {isExpanded && hasItems && (
-                    <div className="mt-0.5 ml-2 pl-3 border-l border-slate-200 dark:border-slate-800 space-y-0.5 py-1">
+                    <div className="ml-2 pl-2 border-l border-slate-200 dark:border-slate-800/80 space-y-0.5 my-0.5">
                       {section.items.map(item => {
                         const isSelected = selectedDocId === item.id;
 
                         return (
                           <button
                             key={item.id}
+                            type="button"
                             onClick={() => {
                               setSelectedDocId(item.id);
                               setMobileMenuOpen(false);
                             }}
                             className={`
-                              w-full text-left flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer
+                              w-full text-left flex items-center justify-between px-2 py-1 rounded text-xs transition-colors cursor-pointer
                               ${
                                 isSelected
-                                  ? 'bg-blue-50 text-blue-700 font-bold dark:bg-blue-950/50 dark:text-blue-400'
-                                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/40'
+                                  ? 'bg-slate-200/70 dark:bg-slate-800 text-slate-950 dark:text-white font-semibold'
+                                  : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100/60 dark:hover:bg-slate-800/40'
                               }
                             `}
                           >
                             <span className="truncate">{item.label}</span>
-
                             {item.method && (
-                              <span
-                                className={`
-                                  ml-2 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase shrink-0
-                                  ${
-                                    item.method === 'GET'
-                                      ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60'
-                                      : item.method === 'POST'
-                                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60'
-                                      : item.method === 'PATCH'
-                                      ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60'
-                                      : 'bg-rose-50 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-200/60 dark:border-rose-800/60'
-                                  }
-                                `}
-                              >
+                              <span className="ml-2 font-mono text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-tight shrink-0 font-semibold">
                                 {item.method}
                               </span>
                             )}
@@ -1187,241 +1113,165 @@ export default function ApiDocsView() {
               );
             })}
           </nav>
-
-          {/* Sidebar Footer with Official FlowSync Brand Icon */}
-          <div className="p-3 border-t border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-400 dark:text-slate-500 flex items-center justify-center gap-1.5">
-            <svg className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" fill="currentColor" viewBox="0 0 50 50">
-              <path d="M27.5308 40.1395C27.5757 35.5502 26.4122 31.8182 24.9322 31.8037C23.4521 31.7893 22.2159 35.4979 22.1711 40.0871C22.1262 44.6764 23.2897 48.4085 24.7697 48.4229C26.2498 48.4374 27.486 44.7288 27.5308 40.1395Z" />
-              <path d="M18.947 39.0972C21.4661 35.2608 22.5052 31.4922 21.268 30.6798C20.0307 29.8674 16.9856 32.3188 14.4666 36.1552C11.9475 39.9916 10.9084 43.7601 12.1456 44.5726C13.3829 45.385 16.4279 42.9336 18.947 39.0972Z" />
-              <path d="M12.2792 33.593C16.4726 31.7278 19.3843 29.1194 18.7827 27.767C18.1812 26.4146 14.2942 26.8304 10.1008 28.6957C5.90744 30.5609 2.99571 33.1693 3.59726 34.5217C4.1988 35.8741 8.08584 35.4583 12.2792 33.593Z" />
-            </svg>
-            <span>Powered by <strong>FlowSync Platform</strong></span>
-          </div>
         </aside>
 
         {/* -----------------------------------------------------------------------
-            CENTER DOCUMENTATION AREA (Linear/Mobbin Standard)
+            CENTER DOCUMENTATION AREA — High-Signal Specs, Zero Boilerplate Noise
             ----------------------------------------------------------------------- */}
-        <main className="flex-1 min-w-0 p-5 sm:p-8 lg:p-10 xl:pr-6 max-w-4xl">
+        <main className="flex-1 min-w-0 p-6 sm:p-10 lg:p-12 max-w-3xl">
           
           {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-xs font-mono font-medium text-slate-400 mb-3 uppercase tracking-wider">
+          <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 mb-2 font-medium">
             <span>{currentDoc.category}</span>
-            <ChevronRight size={13} className="text-slate-300 dark:text-slate-600" />
-            <span className="text-slate-700 dark:text-slate-300 font-semibold">{currentDoc.title}</span>
+            <ChevronRight size={11} className="text-slate-300 dark:text-slate-600" />
+            <span className="text-slate-700 dark:text-slate-300">{currentDoc.title}</span>
           </div>
 
-          {/* Title & Badge */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 dark:text-white tracking-tight">
-              {currentDoc.title}
-            </h1>
-            {currentDoc.badge && (
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/60">
-                {currentDoc.badge}
-              </span>
-            )}
-          </div>
+          {/* Heading */}
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
+            {currentDoc.title}
+          </h1>
 
           {/* Description */}
-          <p className="mt-3 text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
             {currentDoc.description}
           </p>
 
-          {/* Endpoint Route Card (if HTTP method defined) */}
+          {/* Method & Path Header */}
           {currentDoc.method && currentDoc.path && (
-            <div className="mt-6 p-3.5 sm:p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-3">
-                <span
-                  className={`
-                    px-2.5 py-1 rounded-md text-xs font-mono font-bold uppercase tracking-wider
-                    ${
-                      currentDoc.method === 'GET'
-                        ? 'bg-blue-600 text-white'
-                        : currentDoc.method === 'POST'
-                        ? 'bg-emerald-600 text-white'
-                        : currentDoc.method === 'PATCH'
-                        ? 'bg-amber-600 text-white'
-                        : 'bg-rose-600 text-white'
-                    }
-                  `}
-                >
+            <div className="mt-6 flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <span className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold uppercase tracking-wider ${
+                  currentDoc.method === 'GET'
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                    : currentDoc.method === 'POST'
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                    : currentDoc.method === 'PATCH'
+                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                    : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
+                }`}>
                   {currentDoc.method}
                 </span>
-
-                <code className="text-xs sm:text-sm font-mono font-semibold text-slate-900 dark:text-slate-100">
+                <code className="text-xs font-mono font-medium text-slate-800 dark:text-slate-200">
                   {currentDoc.path}
                 </code>
               </div>
-
               <button
+                type="button"
                 onClick={() => handleCopyCode(`https://flowsync.app${currentDoc.path}`)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                className="text-xs font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white flex items-center gap-1 transition-colors cursor-pointer"
               >
-                <Copy size={13} />
-                <span>Copy URL</span>
+                <Copy size={12} />
+                <span>Copy</span>
               </button>
             </div>
           )}
 
-          {/* Authentication Section */}
-          <div className="mt-8 pt-6 border-t border-slate-200/80 dark:border-slate-800">
-            <h2 className="text-sm font-bold text-slate-950 dark:text-white flex items-center gap-2">
-              <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span>Authentication</span>
-            </h2>
-            <p className="mt-1.5 text-xs sm:text-sm text-slate-600 dark:text-slate-400">
-              Pass your personal API token in the <code className="text-xs font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">Authorization</code> request header.
-            </p>
-            <div className="mt-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-900 font-mono text-xs text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <span className="truncate mr-2">Authorization: Bearer flw_sec_live_948f2bb764831...</span>
-              <button
-                onClick={() => handleCopyCode('Authorization: Bearer flw_sec_live_948f2bb764831...')}
-                className="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                title="Copy Authorization header"
-              >
-                <Copy size={13} />
-              </button>
-            </div>
-          </div>
-
-          {/* Parameters Table (Query / Path) */}
+          {/* Query Parameters Schema */}
           {currentDoc.parameters && currentDoc.parameters.length > 0 && (
             <div className="mt-8 pt-6 border-t border-slate-200/80 dark:border-slate-800">
-              <h2 className="text-sm font-bold text-slate-950 dark:text-white">
-                Request Parameters
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
+                Query Parameters
               </h2>
-
-              <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-semibold">
-                    <tr>
-                      <th className="py-2.5 px-4">Parameter</th>
-                      <th className="py-2.5 px-4">Type</th>
-                      <th className="py-2.5 px-4">Status</th>
-                      <th className="py-2.5 px-4">Description</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-normal">
-                    {currentDoc.parameters.map(param => (
-                      <tr key={param.name} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="py-3 px-4 font-mono font-semibold text-slate-900 dark:text-slate-100">
-                          {param.name}
-                        </td>
-                        <td className="py-3 px-4 text-slate-500 font-mono">
-                          {param.type}
-                        </td>
-                        <td className="py-3 px-4">
-                          {param.required ? (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/70 dark:text-rose-400 border border-rose-200/60 dark:border-rose-900/60">
-                              REQUIRED
-                            </span>
-                          ) : (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                              OPTIONAL
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
-                          {param.description}
-                          {param.default && (
-                            <span className="block mt-0.5 text-slate-400">
-                              Default: <code className="font-mono">{param.default}</code>
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                {currentDoc.parameters.map(param => (
+                  <div key={param.name} className="py-3 flex flex-col gap-1 text-xs">
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">
+                        {param.name}
+                      </span>
+                      <span className="font-mono text-[11px] text-slate-400">
+                        {param.type}
+                      </span>
+                      <span className={`text-[10px] font-medium ${
+                        param.required ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'
+                      }`}>
+                        {param.required ? 'required' : 'optional'}
+                      </span>
+                    </div>
+                    <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
+                      {param.description}
+                      {param.default && (
+                        <span className="text-slate-400 ml-1">
+                          (Default: <code className="font-mono">{param.default}</code>)
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          {/* Request Body JSON Schema (if POST / PATCH) */}
+          {/* Request Body Schema */}
           {currentDoc.requestBody && (
             <div className="mt-8 pt-6 border-t border-slate-200/80 dark:border-slate-800">
-              <h2 className="text-sm font-bold text-slate-950 dark:text-white">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
                 Request Body
               </h2>
-              <p className="mt-1 text-xs text-slate-500">
-                {currentDoc.requestBody.description || 'JSON object payload in application/json format.'}
-              </p>
-
-              <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-semibold">
-                    <tr>
-                      <th className="py-2.5 px-4">Field</th>
-                      <th className="py-2.5 px-4">Type</th>
-                      <th className="py-2.5 px-4">Required</th>
-                      <th className="py-2.5 px-4">Description</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-                    {currentDoc.requestBody.fields.map(field => (
-                      <tr key={field.name} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="py-3 px-4 font-mono font-semibold text-slate-900 dark:text-slate-100">
-                          {field.name}
-                        </td>
-                        <td className="py-3 px-4 text-slate-500 font-mono">
-                          {field.type}
-                        </td>
-                        <td className="py-3 px-4">
-                          {field.required ? (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/70 dark:text-rose-400 border border-rose-200/60 dark:border-rose-900/60">
-                              REQUIRED
-                            </span>
-                          ) : (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                              OPTIONAL
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
-                          {field.description}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              {currentDoc.requestBody.description && (
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                  {currentDoc.requestBody.description}
+                </p>
+              )}
+              <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                {currentDoc.requestBody.fields.map(field => (
+                  <div key={field.name} className="py-3 flex flex-col gap-1 text-xs">
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">
+                        {field.name}
+                      </span>
+                      <span className="font-mono text-[11px] text-slate-400">
+                        {field.type}
+                      </span>
+                      <span className={`text-[10px] font-medium ${
+                        field.required ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'
+                      }`}>
+                        {field.required ? 'required' : 'optional'}
+                      </span>
+                    </div>
+                    <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
+                      {field.description}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          {/* Response Definitions */}
-          <div className="mt-8 pt-6 border-t border-slate-200/80 dark:border-slate-800">
-            <h2 className="text-sm font-bold text-slate-950 dark:text-white">
-              Responses
-            </h2>
-            <div className="mt-3 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="px-2 py-0.5 rounded-md text-xs font-mono font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                  {currentDoc.response.status}
-                </span>
-                <span className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-medium">
-                  {currentDoc.response.description}
-                </span>
-              </div>
-              <span className="text-[11px] font-mono text-slate-400">application/json</span>
-            </div>
-          </div>
-
-          {/* Collapsible Mobile Code Preview if screen is small */}
-          <div className="lg:hidden mt-8">
-            <div className="p-4 rounded-2xl bg-[#0B0F17] text-white border border-slate-800">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Example Code</span>
+          {/* Mobile Code Preview */}
+          <div className="lg:hidden mt-8 space-y-4">
+            <div className="rounded-xl bg-[#0B0F17] text-white border border-slate-800 overflow-hidden">
+              <div className="flex items-center justify-between px-3.5 py-2 bg-slate-900/80 border-b border-slate-800 text-xs">
+                <span className="font-medium text-slate-300">Request</span>
                 <button
+                  type="button"
                   onClick={() => handleCopyCode(currentDoc.snippets[activeCodeLang])}
-                  className="flex items-center gap-1 text-xs text-slate-400 hover:text-white cursor-pointer"
+                  className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-white"
                 >
-                  {copiedCode ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                  {copiedCode ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
                   <span>{copiedCode ? 'Copied' : 'Copy'}</span>
                 </button>
               </div>
-              <pre className="text-xs font-mono text-slate-200 overflow-x-auto p-3 rounded-xl bg-slate-950 border border-slate-800">
+              <pre className="text-xs font-mono text-slate-200 overflow-x-auto p-3.5 bg-[#0B0F17]">
                 {currentDoc.snippets[activeCodeLang]}
+              </pre>
+            </div>
+
+            <div className="rounded-xl bg-[#0B0F17] text-white border border-slate-800 overflow-hidden">
+              <div className="flex items-center justify-between px-3.5 py-2 bg-slate-900/80 border-b border-slate-800 text-xs">
+                <span className="font-medium text-slate-300">Response ({currentDoc.response.status})</span>
+                <button
+                  type="button"
+                  onClick={() => handleCopyResponse(currentDoc.response.body)}
+                  className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-white"
+                >
+                  {copiedResponse ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                  <span>{copiedResponse ? 'Copied' : 'Copy'}</span>
+                </button>
+              </div>
+              <pre className="text-xs font-mono text-emerald-400/90 overflow-x-auto p-3.5 bg-[#0B0F17]">
+                {JSON.stringify(currentDoc.response.body, null, 2)}
               </pre>
             </div>
           </div>
@@ -1429,132 +1279,99 @@ export default function ApiDocsView() {
         </main>
 
         {/* -----------------------------------------------------------------------
-            RIGHT PANEL: CODE PLAYGROUND & LIVE TESTER (Mobbin / Linear Studio)
+            RIGHT PANEL — Dual Split Explorer: Request + Response (Authoritative)
             ----------------------------------------------------------------------- */}
-        <aside className="hidden lg:block w-96 xl:w-[460px] shrink-0 sticky top-15 h-[calc(100vh-60px)] p-6 pl-2 overflow-y-auto custom-scrollbar">
-          
-          <div className="rounded-2xl bg-[#0B0F17] border border-slate-800 text-slate-100 shadow-xl overflow-hidden flex flex-col">
+        <aside className="hidden lg:block w-96 xl:w-[480px] shrink-0 sticky top-14 h-[calc(100vh-56px)] p-6 pl-2 overflow-y-auto custom-scrollbar">
+          <div className="space-y-4">
             
-            {/* Header: Language Switcher Tabs */}
-            <div className="px-4 py-3 bg-slate-900/90 border-b border-slate-800/90 flex items-center justify-between">
-              <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-950/80 text-xs font-medium border border-slate-800/70">
-                {(['curl', 'typescript', 'python'] as const).map(lang => (
-                  <button
-                    key={lang}
-                    onClick={() => setActiveCodeLang(lang)}
-                    className={`
-                      px-2.5 py-1 rounded-md transition-all text-xs font-semibold cursor-pointer
-                      ${
-                        activeCodeLang === lang
-                          ? 'bg-slate-800 text-white shadow-2xs'
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
-                      }
-                    `}
-                  >
-                    {lang === 'curl' ? 'cURL' : lang === 'typescript' ? 'TypeScript' : 'Python'}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                onClick={() => handleCopyCode(currentDoc.snippets[activeCodeLang])}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-                title="Copy code snippet"
-              >
-                {copiedCode ? (
-                  <>
-                    <Check size={13} className="text-emerald-400" />
-                    <span className="text-emerald-400">Copied</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy size={13} />
-                    <span>Copy</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* Code Block Snippet */}
-            <div className="p-4 bg-[#080B11] overflow-x-auto max-h-72">
-              <pre className="text-xs font-mono text-slate-200 leading-relaxed">
-                <code>{currentDoc.snippets[activeCodeLang]}</code>
-              </pre>
-            </div>
-
-            {/* Interactive Runner ("Try It Out") */}
-            <div className="p-4 bg-slate-900/50 border-t border-slate-800/80">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Play size={13} className="text-blue-400" />
-                  <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-                    Interactive Playground
-                  </span>
+            {/* Request Code Block */}
+            <div className="rounded-xl bg-[#0B0F17] border border-slate-800 text-slate-100 shadow-xs overflow-hidden">
+              <div className="px-3.5 py-2 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1 font-medium">
+                  {(['curl', 'typescript', 'python'] as const).map(lang => (
+                    <button
+                      key={lang}
+                      type="button"
+                      onClick={() => setActiveCodeLang(lang)}
+                      className={`
+                        px-2 py-0.5 rounded transition-colors text-xs cursor-pointer
+                        ${
+                          activeCodeLang === lang
+                            ? 'bg-slate-800 text-white font-medium'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }
+                      `}
+                    >
+                      {lang === 'curl' ? 'cURL' : lang === 'typescript' ? 'TypeScript' : 'Python'}
+                    </button>
+                  ))}
                 </div>
 
                 <button
-                  onClick={handleRunSimulator}
-                  disabled={isSimulating}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 transition-all shadow-sm shadow-blue-600/30 active:scale-95 cursor-pointer"
+                  type="button"
+                  onClick={() => handleCopyCode(currentDoc.snippets[activeCodeLang])}
+                  className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-white transition-colors cursor-pointer"
+                  title="Copy request code"
                 >
-                  {isSimulating ? (
+                  {copiedCode ? (
                     <>
-                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Sending...</span>
+                      <Check size={12} className="text-emerald-400" />
+                      <span className="text-emerald-400">Copied</span>
                     </>
                   ) : (
                     <>
-                      <Send size={12} />
-                      <span>Test Call</span>
+                      <Copy size={12} />
+                      <span>Copy</span>
                     </>
                   )}
                 </button>
               </div>
 
-              <div className="text-[11px] text-slate-400">
-                Simulates execution against FlowSync v1 API schema.
+              <div className="p-4 overflow-x-auto max-h-72 custom-scrollbar">
+                <pre className="text-xs font-mono text-slate-200 leading-relaxed">
+                  <code>{currentDoc.snippets[activeCodeLang]}</code>
+                </pre>
               </div>
             </div>
 
-            {/* Response Preview Box */}
-            <div className="p-4 bg-[#080B11] border-t border-slate-800/80 flex-1 min-h-[180px]">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                  Response (JSON)
-                </span>
-
+            {/* Response JSON Preview */}
+            <div className="rounded-xl bg-[#0B0F17] border border-slate-800 text-slate-100 shadow-xs overflow-hidden">
+              <div className="px-3.5 py-2 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
-                  {simulatedStatus && (
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-950 text-emerald-400 border border-emerald-800">
-                      HTTP {simulatedStatus}
-                    </span>
-                  )}
-                  {simulatedLatency && (
-                    <span className="text-[10px] font-mono text-slate-400">
-                      {simulatedLatency}ms
-                    </span>
-                  )}
+                  <span className="font-semibold text-slate-300 text-xs">Response</span>
+                  <span className="text-[10px] font-mono font-medium px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
+                    {currentDoc.response.status} {currentDoc.response.status === 200 ? 'OK' : 'Created'}
+                  </span>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleCopyResponse(currentDoc.response.body)}
+                  className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-white transition-colors cursor-pointer"
+                  title="Copy response JSON"
+                >
+                  {copiedResponse ? (
+                    <>
+                      <Check size={12} className="text-emerald-400" />
+                      <span className="text-emerald-400">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={12} />
+                      <span>Copy</span>
+                    </>
+                  )}
+                </button>
               </div>
 
-              <pre className="text-[11.5px] font-mono text-emerald-400/95 overflow-x-auto max-h-56 leading-snug">
-                {JSON.stringify(simulationResponse || currentDoc.response.body, null, 2)}
-              </pre>
+              <div className="p-4 overflow-x-auto max-h-80 custom-scrollbar">
+                <pre className="text-xs font-mono text-emerald-400/90 leading-relaxed">
+                  <code>{JSON.stringify(currentDoc.response.body, null, 2)}</code>
+                </pre>
+              </div>
             </div>
 
           </div>
-
-          {/* Quick Help Card */}
-          <div className="mt-4 p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 shadow-2xs">
-            <h4 className="font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-1.5">
-              <Sparkles size={14} className="text-blue-600 dark:text-blue-400" />
-              <span>Need custom SDK support?</span>
-            </h4>
-            <p className="leading-relaxed">
-              FlowSync offers official REST bindings, Prisma client direct adapters, and MCP JSON-RPC 2.0 streaming tools for AI engineers.
-            </p>
-          </div>
-
         </aside>
 
       </div>
