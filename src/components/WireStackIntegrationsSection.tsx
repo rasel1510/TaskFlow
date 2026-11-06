@@ -70,9 +70,6 @@ export default function WireStackIntegrationsSection() {
             <h2 className="text-3xl sm:text-4xl lg:text-[42px] font-bold tracking-tight text-[#111111] dark:text-white leading-[1.18]">
               Wire your stack in, and through, FlowSync
             </h2>
-            <p className="mt-3 text-sm sm:text-base text-neutral-600 dark:text-neutral-400 leading-relaxed font-normal">
-              FlowSync works with the tools your team already uses. Now all your tasks are in one place.
-            </p>
           </div>
 
           {/* 2-Column Split Cards Matching Reference Image */}
