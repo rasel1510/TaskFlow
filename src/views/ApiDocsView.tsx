@@ -19,7 +19,6 @@ import {
   Server,
   Zap,
   Cpu,
-  ArrowRight,
   FolderGit2,
   Menu,
   X,
@@ -1024,14 +1023,6 @@ export default function ApiDocsView() {
             >
               <Home size={14} />
               <span className="hidden sm:inline">Landing</span>
-            </Link>
-
-            <Link
-              href="/app"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-950 hover:bg-black dark:hover:bg-slate-200 transition-all shadow-xs"
-            >
-              <span>Go to App</span>
-              <ArrowRight size={13} />
             </Link>
           </div>
         </div>
