@@ -9,29 +9,10 @@ import {
   Copy,
   Check,
   Play,
-  Terminal,
-  Code2,
-  ExternalLink,
-  BookOpen,
-  Key,
   Shield,
-  Layers,
-  Server,
-  Zap,
-  Cpu,
-  FolderGit2,
   Menu,
   X,
-  FileText,
-  Clock,
   Send,
-  AlertCircle,
-  Database,
-  Hash,
-  Users,
-  CheckCircle2,
-  Sun,
-  Moon,
   Home,
 } from 'lucide-react';
 
@@ -88,120 +69,19 @@ interface NavSection {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                           COMPREHENSIVE DATASET                            */
+/*               CANONICAL FLOWSYNC SECTIONS & ENDPOINTS                      */
 /* -------------------------------------------------------------------------- */
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    id: 'developing-with-flowsync',
-    label: 'Developing with FlowSync',
+    id: 'getting-started',
+    label: 'Getting Started',
     items: [
-      { id: 'overview', label: 'Overview & Philosophy' },
-      { id: 'base-urls', label: 'Base URLs & Environments' },
-      { id: 'headers', label: 'HTTP Headers & Content-Type' },
-      { id: 'status-codes', label: 'HTTP Status Codes' },
-    ],
-  },
-  {
-    id: 'flowsync-cli',
-    label: 'FlowSync CLI',
-    badge: 'v1.0',
-    items: [
-      { id: 'cli-install', label: 'Installation & Setup' },
-      { id: 'cli-auth', label: 'CLI Authentication' },
-      { id: 'cli-commands', label: 'Core Commands' },
-    ],
-  },
-  {
-    id: 'flowsync-mcp',
-    label: 'FlowSync MCP',
-    badge: 'AI Agents',
-    items: [
-      { id: 'mcp-overview', label: 'MCP Architecture (JSON-RPC)' },
-      { id: 'mcp-rpc-call', label: 'tools/call (RPC)', method: 'POST' },
-      { id: 'mcp-tools-catalog', label: 'Available Agent Tools' },
-    ],
-  },
-  {
-    id: 'authorization',
-    label: 'Authorization',
-    items: [
-      { id: 'auth-tokens', label: 'Personal Access Tokens' },
-      { id: 'auth-oauth', label: 'OAuth 2.0 Integration' },
-      { id: 'auth-scopes', label: 'Permission Scopes' },
-    ],
-  },
-  {
-    id: 'sync',
-    label: 'Sync',
-    badge: 'Realtime',
-    items: [
-      { id: 'sync-overview', label: 'Realtime Sync Engine' },
-      { id: 'sync-stream', label: 'Event Streaming (SSE)', method: 'GET' },
-    ],
-  },
-  {
-    id: 'ids',
-    label: 'Ids',
-    items: [
-      { id: 'ids-format', label: 'Identifier Formats & CUID' },
-      { id: 'ids-task-numbers', label: 'Task Numbers (TF-108)' },
-    ],
-  },
-  {
-    id: 'workspace',
-    label: 'Workspace',
-    items: [
-      { id: 'workspace-members', label: 'List Team Members', method: 'GET' },
-      { id: 'workspace-invite', label: 'Invite Member', method: 'POST' },
-    ],
-  },
-  {
-    id: 'projects',
-    label: 'Projects',
-    items: [
-      { id: 'list-projects', label: 'List all projects', method: 'GET' },
-      { id: 'create-project', label: 'Create a new project', method: 'POST' },
-      { id: 'get-project', label: 'Get a project', method: 'GET' },
-      { id: 'update-project', label: 'Update a project', method: 'PATCH' },
-      { id: 'delete-project', label: 'Delete a project', method: 'DELETE' },
-    ],
-  },
-  {
-    id: 'colors',
-    label: 'Colors',
-    items: [
-      { id: 'colors-palette', label: 'Color Palettes & Themes' },
-    ],
-  },
-  {
-    id: 'project-icons',
-    label: 'Project icons',
-    items: [
-      { id: 'icons-catalog', label: 'Supported Icons & Badges' },
-    ],
-  },
-  {
-    id: 'comments',
-    label: 'Comments',
-    items: [
-      { id: 'list-comments', label: 'Get task comments', method: 'GET' },
-      { id: 'create-comment', label: 'Add comment to task', method: 'POST' },
-    ],
-  },
-  {
-    id: 'templates',
-    label: 'Templates',
-    items: [
-      { id: 'templates-catalog', label: 'Sprint & Kanban Templates' },
-    ],
-  },
-  {
-    id: 'sections',
-    label: 'Sections',
-    items: [
-      { id: 'list-milestones', label: 'List project milestones', method: 'GET' },
-      { id: 'create-milestone', label: 'Create milestone', method: 'POST' },
+      { id: 'overview', label: 'Overview & Architecture' },
+      { id: 'auth-tokens', label: 'Authentication & Tokens' },
+      { id: 'headers', label: 'HTTP Headers & Envelopes' },
+      { id: 'status-codes', label: 'Status Codes & Errors' },
+      { id: 'limits-rate', label: 'Rate Limits & Quotas' },
     ],
   },
   {
@@ -209,139 +89,69 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Tasks',
     items: [
       { id: 'list-tasks', label: 'List all tasks', method: 'GET' },
-      { id: 'create-task', label: 'Create a new task', method: 'POST' },
-      { id: 'get-task', label: 'Get a single task', method: 'GET' },
-      { id: 'update-task', label: 'Update task fields', method: 'PATCH' },
+      { id: 'create-task', label: 'Create a task', method: 'POST' },
+      { id: 'get-task', label: 'Get a task', method: 'GET' },
+      { id: 'update-task', label: 'Update task', method: 'PATCH' },
       { id: 'bulk-tasks', label: 'Bulk task operations', method: 'POST' },
       { id: 'delete-task', label: 'Delete task', method: 'DELETE' },
+      { id: 'task-comments', label: 'Task comments', method: 'GET' },
+      { id: 'task-activities', label: 'Audit history', method: 'GET' },
     ],
   },
   {
-    id: 'labels',
-    label: 'Labels',
+    id: 'projects',
+    label: 'Projects',
     items: [
-      { id: 'labels-overview', label: 'Labels & Task Tags' },
+      { id: 'list-projects', label: 'List all projects', method: 'GET' },
+      { id: 'create-project', label: 'Create a project', method: 'POST' },
+      { id: 'get-project', label: 'Get a project', method: 'GET' },
+      { id: 'update-project', label: 'Update project', method: 'PATCH' },
+      { id: 'delete-project', label: 'Delete project', method: 'DELETE' },
+      { id: 'project-members', label: 'Project collaborators', method: 'GET' },
+      { id: 'project-milestones', label: 'Project milestones', method: 'GET' },
+      { id: 'project-messages', label: 'Project discussions', method: 'GET' },
+      { id: 'sync-stream', label: 'Live event stream (SSE)', method: 'GET' },
     ],
   },
   {
-    id: 'folders',
-    label: 'Folders',
+    id: 'team',
+    label: 'Team & Workspace',
     items: [
-      { id: 'folders-overview', label: 'Project Organization' },
+      { id: 'workspace-members', label: 'List team members', method: 'GET' },
+      { id: 'workspace-invite', label: 'Invite collaborator', method: 'POST' },
+      { id: 'user-profile', label: 'User profile session', method: 'GET' },
     ],
   },
   {
-    id: 'uploads',
-    label: 'Uploads',
+    id: 'search',
+    label: 'Search',
     items: [
-      { id: 'uploads-attachments', label: 'File Attachments' },
+      { id: 'filters-search', label: 'Workspace instant search', method: 'GET' },
     ],
   },
   {
-    id: 'filters',
-    label: 'Filters',
+    id: 'reports',
+    label: 'Reports & Analytics',
     items: [
-      { id: 'filters-search', label: 'Search Tasks & Projects', method: 'GET' },
+      { id: 'reports-summary', label: 'Sprint velocity & summary', method: 'GET' },
+      { id: 'backups-export', label: 'Export workspace data', method: 'GET' },
     ],
   },
   {
-    id: 'reminders',
-    label: 'Reminders',
+    id: 'mcp',
+    label: 'AI & Model Context Protocol',
+    badge: 'MCP',
     items: [
-      { id: 'reminders-notifications', label: 'Notification Preferences', method: 'GET' },
-    ],
-  },
-  {
-    id: 'location-reminders',
-    label: 'Location reminders',
-    items: [
-      { id: 'location-reminders-geo', label: 'Geofencing Schemas' },
-    ],
-  },
-  {
-    id: 'due-dates',
-    label: 'Due dates',
-    items: [
-      { id: 'due-dates-natural', label: 'Natural Language & Relative Dates' },
-    ],
-  },
-  {
-    id: 'deadlines',
-    label: 'Deadlines',
-    items: [
-      { id: 'deadlines-escalation', label: 'Hard Deadlines & SLA Tracking' },
-    ],
-  },
-  {
-    id: 'user',
-    label: 'User',
-    items: [
-      { id: 'user-session', label: 'Current User Session', method: 'GET' },
-      { id: 'user-update', label: 'Update User Profile', method: 'PATCH' },
-    ],
-  },
-  {
-    id: 'activity',
-    label: 'Activity',
-    items: [
-      { id: 'activity-log', label: 'Task Audit History', method: 'GET' },
-    ],
-  },
-  {
-    id: 'backups',
-    label: 'Backups',
-    items: [
-      { id: 'backups-export', label: 'Workspace Export & Reports', method: 'GET' },
-    ],
-  },
-  {
-    id: 'emails',
-    label: 'Emails',
-    items: [
-      { id: 'emails-integration', label: 'Email-to-Task Ingestion' },
+      { id: 'mcp-overview', label: 'MCP Architecture (JSON-RPC)' },
+      { id: 'mcp-rpc-call', label: 'Agent tool execution', method: 'POST' },
+      { id: 'copilot-chat', label: 'Sprint Copilot AI', method: 'POST' },
     ],
   },
   {
     id: 'webhooks',
     label: 'Webhooks',
     items: [
-      { id: 'webhooks-events', label: 'Event Payloads & Subscriptions' },
-      { id: 'webhooks-signature', label: 'HMAC SHA-256 Signatures' },
-    ],
-  },
-  {
-    id: 'pagination',
-    label: 'Pagination',
-    items: [
-      { id: 'pagination-cursor', label: 'Cursor-based Pagination' },
-    ],
-  },
-  {
-    id: 'request-limits',
-    label: 'Request limits',
-    items: [
-      { id: 'limits-rate', label: 'Rate Limiting & 429 Handling' },
-    ],
-  },
-  {
-    id: 'url-schemes',
-    label: 'Url schemes',
-    items: [
-      { id: 'schemes-deeplinks', label: 'flowsync:// Deep Links' },
-    ],
-  },
-  {
-    id: 'migrating-from-v9',
-    label: 'Migrating from v9',
-    items: [
-      { id: 'migrating-v9-guide', label: 'Migration & Breaking Changes' },
-    ],
-  },
-  {
-    id: 'billing',
-    label: 'Billing',
-    items: [
-      { id: 'billing-plans', label: 'Plan Tiers & Quotas' },
+      { id: 'webhooks-events', label: 'Stripe webhook verification', method: 'POST' },
     ],
   },
 ];
@@ -354,48 +164,59 @@ const DOCS_CATALOG: Record<string, EndpointDoc> = {
   // 1. Overview
   overview: {
     id: 'overview',
-    title: 'Developing with FlowSync',
-    category: 'Developing with FlowSync',
-    badge: 'Guide',
+    title: 'Overview & Architecture',
+    category: 'Getting Started',
+    badge: 'Architecture',
     description:
-      'Welcome to the FlowSync Developer Platform. FlowSync offers a fully typed REST API and an official Model Context Protocol (MCP) server for automated task tracking, team project orchestration, and AI-native workflows. All API endpoints use standard HTTP verbs, return predictable JSON envelopes, and scale with O(1) complexity bounds.',
+      'FlowSync delivers an enterprise-grade project and task orchestration platform built on Next.js, Prisma, and PostgreSQL. Every endpoint returns predictable JSON envelopes, strictly enforces O(1) indexed lookups, and provides both standard REST endpoints and an official Model Context Protocol (MCP) server for Claude Desktop, Cursor, and autonomous AI agents.',
     snippets: {
-      curl: `# Test API connectivity with your live secret token\ncurl -X GET "https://flowsync.app/api/tasks?limit=1" \\\n  -H "Authorization: Bearer flw_sec_live_948f..."`,
-      typescript: `import { api } from '@/api';\n\n// Query the current workspace with typed responses\nconst tasks = await api.tasks.list({ limit: 1 });\nconsole.log(tasks.data);`,
-      python: `import requests\n\nres = requests.get(\n    "https://flowsync.app/api/tasks",\n    params={"limit": 1},\n    headers={"Authorization": "Bearer flw_sec_live_948f..."}\n)\nprint(res.json())`,
+      curl: `curl -X GET "https://flowsync.app/api/tasks?limit=5" \\\n  -H "Authorization: Bearer flw_sec_live_..."`,
+      typescript: `import { api } from '@/api';\n\n// Query workspace tasks with automatic ApiResponse<T> typing\nconst tasks = await api.tasks.list({ limit: 5 });\nconsole.log(tasks.data);`,
+      python: `import requests\n\nres = requests.get(\n    "https://flowsync.app/api/tasks",\n    params={"limit": 5},\n    headers={"Authorization": "Bearer flw_sec_live_..."}\n)\nprint(res.json()["data"])`,
     },
     response: {
       status: 200,
       description: 'Standard FlowSync ApiResponse envelope',
       body: {
         success: true,
-        data: [{ id: 'cmvvgwy7w0003tpn0pq5rip9i', taskNumber: 'TF-101', title: 'Welcome to FlowSync', status: 'done' }],
-        meta: { total: 1, page: 1, limit: 1 },
+        data: [
+          {
+            id: 'cmvvgwy7w0003tpn0pq5rip9i',
+            taskNumber: 'TF-108',
+            title: 'Welcome to FlowSync Workspace',
+            status: 'todo',
+            priority: 'high',
+          },
+        ],
+        meta: { total: 1, limit: 5, hasMore: false },
       },
     },
   },
 
-  // 2. Base URLs
-  'base-urls': {
-    id: 'base-urls',
-    title: 'Base URLs & Environments',
-    category: 'Developing with FlowSync',
-    badge: 'Environments',
+  // 2. Auth Tokens
+  'auth-tokens': {
+    id: 'auth-tokens',
+    title: 'Authentication & Tokens',
+    category: 'Getting Started',
+    badge: 'Security',
     description:
-      'The FlowSync API is hosted on high-availability edge networks with dedicated production and local staging environments. Always send your requests over HTTPS in production.',
+      'All FlowSync endpoints require authentication. In local browser sessions, authentication is automatically verified via secure HTTP-only cookies managed by NextAuth. For external integrations and developer CLI tools, pass your secret personal token in the Authorization header.',
     snippets: {
-      curl: `# Production Base URL\nhttps://flowsync.app/api\n\n# Local Development Base URL\nhttp://localhost:3000/api`,
-      typescript: `// Default base URL in @/api/client.ts\nconst API_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://flowsync.app';`,
-      python: `BASE_URL = "https://flowsync.app/api"`,
+      curl: `export FLOWSYNC_TOKEN="flw_sec_live_948f2bb764831"\n\ncurl -X GET https://flowsync.app/api/tasks \\\n  -H "Authorization: Bearer $FLOWSYNC_TOKEN"`,
+      typescript: `const token = process.env.FLOWSYNC_API_TOKEN;\n\nconst res = await fetch('https://flowsync.app/api/tasks', {\n  headers: { Authorization: \`Bearer \${token}\` }\n});\nconst payload = await res.json();`,
+      python: `import os, requests\n\ntoken = os.getenv("FLOWSYNC_API_TOKEN")\nres = requests.get(\n    "https://flowsync.app/api/tasks",\n    headers={"Authorization": f"Bearer {token}"}\n)\nprint(res.json())`,
     },
     response: {
       status: 200,
-      description: 'Environment metadata',
+      description: 'Authenticated token payload',
       body: {
-        environment: 'production',
-        apiVersion: 'v1.0.0',
-        region: 'aws-ap-southeast-1',
-        status: 'operational',
+        success: true,
+        data: {
+          authenticated: true,
+          userId: 'cmvr8921a0000tp10pq9abcd',
+          email: 'developer@flowsync.app',
+          role: 'ADMIN',
+        },
       },
     },
   },
@@ -403,47 +224,76 @@ const DOCS_CATALOG: Record<string, EndpointDoc> = {
   // 3. Headers
   headers: {
     id: 'headers',
-    title: 'HTTP Headers & Content-Type',
-    category: 'Developing with FlowSync',
+    title: 'HTTP Headers & Envelopes',
+    category: 'Getting Started',
     description:
-      'All mutation requests (POST, PATCH, PUT) must include `Content-Type: application/json`. Every request requires an `Authorization` header containing your Bearer token.',
+      'All mutation requests (POST, PATCH, DELETE) require Content-Type: application/json. Every API response is strictly wrapped in the unified FlowSync ApiResponse<T> envelope containing success, data, error, and pagination meta fields.',
     parameters: [
       { name: 'Authorization', type: 'string', required: true, description: "Bearer token prefixed with 'Bearer '" },
-      { name: 'Content-Type', type: 'string', required: true, description: 'Must be application/json for request bodies' },
-      { name: 'X-Idempotency-Key', type: 'string', required: false, description: 'Optional unique UUID to prevent double task creation' },
+      { name: 'Content-Type', type: 'string', required: true, description: 'Must be application/json for request payloads' },
     ],
     snippets: {
-      curl: `curl -X GET https://flowsync.app/api/tasks \\\n  -H "Authorization: Bearer flw_sec_live_948f..." \\\n  -H "Content-Type: application/json"`,
-      typescript: `const headers = {\n  'Authorization': 'Bearer flw_sec_live_948f...',\n  'Content-Type': 'application/json'\n};`,
-      python: `headers = {\n    "Authorization": "Bearer flw_sec_live_948f...",\n    "Content-Type": "application/json"\n}`,
+      curl: `curl -X POST https://flowsync.app/api/tasks \\\n  -H "Authorization: Bearer flw_sec_live_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"title": "Initialize sprint roadmap"}'`,
+      typescript: `interface ApiResponse<T> {\n  success: boolean;\n  data?: T;\n  error?: string;\n  meta?: { limit?: number; nextCursor?: string | null; hasMore?: boolean };\n}`,
+      python: `res = requests.post(\n    "https://flowsync.app/api/tasks",\n    headers={"Content-Type": "application/json"},\n    json={"title": "Initialize sprint roadmap"}\n)`,
     },
     response: {
       status: 200,
-      description: 'Standard header acknowledgment',
-      body: { success: true, message: 'Headers validated' },
+      description: 'Standard JSON response envelope',
+      body: {
+        success: true,
+        data: { id: 'cmvvgwy7w0003tpn0pq5rip9i', title: 'Initialize sprint roadmap' },
+        meta: { timestamp: '2026-11-06T18:00:00.000Z' },
+      },
     },
   },
 
   // 4. Status Codes
   'status-codes': {
     id: 'status-codes',
-    title: 'HTTP Status Codes',
-    category: 'Developing with FlowSync',
+    title: 'Status Codes & Errors',
+    category: 'Getting Started',
     description:
-      'FlowSync uses conventional HTTP response codes to indicate the success or failure of an API request. Codes in the 2xx range indicate success. Codes in the 4xx range indicate an error that failed given the information provided. Codes in the 5xx range indicate an error with FlowSync servers.',
+      'FlowSync uses standard HTTP response codes to communicate execution outcomes. 2xx indicates success, 4xx indicates client validation or authentication errors, and 5xx indicates upstream database or server exceptions.',
     snippets: {
-      curl: `# 200 OK - Request succeeded\n# 201 Created - Resource created successfully\n# 400 Bad Request - Missing required parameters\n# 401 Unauthorized - Invalid or expired API token\n# 404 Not Found - Resource does not exist\n# 429 Too Many Requests - Rate limit exceeded (60 req/min)`,
-      typescript: `if (response.status === 429) {\n  const retryAfter = response.headers.get('Retry-After');\n  console.warn(\`Rate limited. Backing off for \${retryAfter}s\`);\n}`,
-      python: `if res.status_code == 429:\n    retry_after = res.headers.get("Retry-After")\n    time.sleep(int(retry_after))`,
+      curl: `# 200 OK — Request succeeded\n# 201 Created — Resource created\n# 400 Bad Request — Invalid schema or missing required fields\n# 401 Unauthorized — Missing session or invalid Bearer token\n# 404 Not Found — Resource does not exist\n# 429 Too Many Requests — Rate limit exceeded`,
+      typescript: `try {\n  const res = await api.tasks.get('invalid-id');\n} catch (err) {\n  console.error('API Error:', err.message);\n}`,
+      python: `res = requests.get("https://flowsync.app/api/tasks/invalid-id")\nif not res.ok:\n    print(f"Error {res.status_code}: {res.json().get('error')}")`,
     },
     response: {
-      status: 200,
-      description: 'Status summary',
-      body: { success: true, code: 200, status: 'OK' },
+      status: 404,
+      description: 'Standard error envelope',
+      body: {
+        success: false,
+        error: 'Task not found in the authenticated workspace',
+        code: 'NOT_FOUND',
+      },
     },
   },
 
-  // 5. Tasks - List
+  // 5. Rate Limits
+  'limits-rate': {
+    id: 'limits-rate',
+    title: 'Rate Limits & Quotas',
+    category: 'Getting Started',
+    description:
+      'FlowSync enforces tier-based rate limiting to maintain sub-50ms latency across multi-tenant workloads. Unauthenticated requests are limited to 20 req/min; authenticated developer tokens permit up to 120 req/min with automatic Retry-After headers.',
+    snippets: {
+      curl: `# Response headers indicate real-time quota status\nHTTP/1.1 200 OK\nX-RateLimit-Limit: 120\nX-RateLimit-Remaining: 114\nX-RateLimit-Reset: 1793652000`,
+      typescript: `// Client-side automatic retry with backoff\nasync function fetchWithRetry(url: string, opts: RequestInit) {\n  const res = await fetch(url, opts);\n  if (res.status === 429) {\n    const retryAfter = Number(res.headers.get('Retry-After') || '2');\n    await new Promise(r => setTimeout(r, retryAfter * 1000));\n    return fetch(url, opts);\n  }\n  return res;\n}`,
+      python: `import time\nres = requests.get("https://flowsync.app/api/tasks")\nif res.status_code == 429:\n    wait = int(res.headers.get("Retry-After", 2))\n    time.sleep(wait)`,
+    },
+    response: {
+      status: 200,
+      description: 'Rate limit quota status',
+      body: {
+        success: true,
+        data: { limit: 120, remaining: 114, resetSeconds: 46 },
+      },
+    },
+  },
+
+  // 6. Tasks - List
   'list-tasks': {
     id: 'list-tasks',
     title: 'List all tasks',
@@ -451,7 +301,7 @@ const DOCS_CATALOG: Record<string, EndpointDoc> = {
     path: '/api/tasks',
     category: 'Tasks',
     description:
-      'Returns a paginated list of tasks in the authenticated workspace. Supports filtering by projectId, status, priority, and text search.',
+      'Returns a paginated list of tasks in the authenticated workspace. Supports high-performance filtering by projectId, status, priority, and search keyword with cursor pagination.',
     parameters: [
       { name: 'projectId', type: 'string', required: false, description: 'Filter tasks by project CUID' },
       { name: 'status', type: 'string', required: false, description: "'backlog' | 'todo' | 'in_progress' | 'in_review' | 'done'" },
@@ -461,13 +311,13 @@ const DOCS_CATALOG: Record<string, EndpointDoc> = {
       { name: 'cursor', type: 'string', required: false, description: 'Cursor token for pagination' },
     ],
     snippets: {
-      curl: `curl -X GET "https://flowsync.app/api/tasks?status=in_progress&priority=high&limit=10" \\\n  -H "Authorization: Bearer flw_sec_live_948f..."`,
+      curl: `curl -X GET "https://flowsync.app/api/tasks?limit=10" \\\n  -H "Authorization: Bearer flw_sec_live_..."`,
       typescript: `import { api } from '@/api';\n\nconst tasks = await api.tasks.list({\n  status: 'in_progress',\n  priority: 'high',\n  limit: 10\n});\nconsole.log(tasks.data);`,
-      python: `import requests\n\nres = requests.get(\n    "https://flowsync.app/api/tasks",\n    params={"status": "in_progress", "priority": "high", "limit": 10},\n    headers={"Authorization": "Bearer flw_sec_live_948f..."}\n)\nprint(res.json()["data"])`,
+      python: `import requests\n\nres = requests.get(\n    "https://flowsync.app/api/tasks",\n    params={"status": "in_progress", "limit": 10},\n    headers={"Authorization": "Bearer flw_sec_live_..."}\n)\nprint(res.json()["data"])`,
     },
     response: {
       status: 200,
-      description: 'Tasks array with pagination metadata',
+      description: 'Tasks array with cursor pagination metadata',
       body: {
         success: true,
         data: [
@@ -480,24 +330,22 @@ const DOCS_CATALOG: Record<string, EndpointDoc> = {
             dueDate: '2026-11-06T18:00:00.000Z',
             estimate: '4h',
             project: { id: 'cmvrr15pf0001tppke6b9d7az', name: 'Security Hardening' },
-            assignee: { name: 'Saif Bean', email: 'saif@example.com' },
           },
         ],
-        meta: { total: 1, limit: 10, nextCursor: null },
+        meta: { total: 1, limit: 10, nextCursor: null, hasMore: false },
       },
     },
   },
 
-  // 6. Tasks - Create
+  // 7. Tasks - Create
   'create-task': {
     id: 'create-task',
-    title: 'Create a new task',
+    title: 'Create a task',
     method: 'POST',
     path: '/api/tasks',
     category: 'Tasks',
     description:
-      'Creates a new task in the workspace. Automatically assigns a human-readable task number (e.g. TF-142) and triggers real-time state broadcast.',
-    parameters: [],
+      'Creates a new task in the workspace. Automatically assigns a human-readable task number (e.g. TF-142), updates project progress, and records an activity audit record.',
     requestBody: {
       description: 'Task creation payload',
       fields: [
@@ -505,57 +353,55 @@ const DOCS_CATALOG: Record<string, EndpointDoc> = {
         { name: 'description', type: 'string', required: false, description: 'Detailed Markdown task body' },
         { name: 'priority', type: 'string', required: false, description: "'low' | 'medium' | 'high' | 'urgent' (default: 'medium')" },
         { name: 'status', type: 'string', required: false, description: "'backlog' | 'todo' | 'in_progress' | 'in_review' | 'done'" },
-        { name: 'dueDate', type: 'string', required: false, description: "Due date in YYYY-MM-DD format" },
+        { name: 'dueDate', type: 'string', required: false, description: 'Due date in YYYY-MM-DD format' },
         { name: 'projectId', type: 'string', required: false, description: 'Target project CUID' },
         { name: 'estimate', type: 'string', required: false, description: "Time estimate (e.g. '2h', '3d')" },
       ],
       example: {
-        title: 'Design hero landing page',
+        title: 'Design API documentation page',
         priority: 'high',
         status: 'todo',
-        dueDate: '2026-11-06',
-        estimate: '6h',
+        dueDate: '2026-11-10',
+        estimate: '4h',
       },
     },
     snippets: {
-      curl: `curl -X POST https://flowsync.app/api/tasks \\\n  -H "Authorization: Bearer flw_sec_live_948f..." \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "title": "Design hero landing page",\n    "priority": "high",\n    "status": "todo",\n    "dueDate": "2026-11-06",\n    "estimate": "6h"\n  }'`,
-      typescript: `import { api } from '@/api';\n\nconst newTask = await api.tasks.create({\n  title: 'Design hero landing page',\n  priority: 'high',\n  status: 'todo',\n  dueDate: '2026-11-06',\n  estimate: '6h'\n});\nconsole.log(newTask.data.id, newTask.data.taskNumber);`,
-      python: `import requests\n\npayload = {\n    "title": "Design hero landing page",\n    "priority": "high",\n    "status": "todo",\n    "dueDate": "2026-11-06",\n    "estimate": "6h"\n}\nres = requests.post(\n    "https://flowsync.app/api/tasks",\n    json=payload,\n    headers={"Authorization": "Bearer flw_sec_live_948f..."}\n)\nprint(res.json())`,
+      curl: `curl -X POST https://flowsync.app/api/tasks \\\n  -H "Authorization: Bearer flw_sec_live_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "title": "Design API documentation page",\n    "priority": "high",\n    "status": "todo"\n  }'`,
+      typescript: `import { api } from '@/api';\n\nconst newTask = await api.tasks.create({\n  title: 'Design API documentation page',\n  priority: 'high',\n  status: 'todo'\n});\nconsole.log(newTask.data.taskNumber);`,
+      python: `import requests\n\nres = requests.post(\n    "https://flowsync.app/api/tasks",\n    json={"title": "Design API documentation page", "priority": "high"},\n    headers={"Authorization": "Bearer flw_sec_live_..."}\n)\nprint(res.json()["data"])`,
     },
     response: {
       status: 201,
-      description: 'Created task object',
+      description: 'Created task entity',
       body: {
         success: true,
         data: {
           id: 'cmvvgwy7w0003tpn0pq5rip9i',
           taskNumber: 'TF-142',
-          title: 'Design hero landing page',
+          title: 'Design API documentation page',
           status: 'todo',
           priority: 'high',
-          dueDate: '2026-11-06T12:00:00.000Z',
-          estimate: '6h',
-          createdAt: '2026-11-03T03:20:00.000Z',
+          createdAt: '2026-11-06T18:30:00.000Z',
         },
       },
     },
   },
 
-  // 7. Tasks - Get
+  // 8. Tasks - Get
   'get-task': {
     id: 'get-task',
-    title: 'Get a single task',
+    title: 'Get a task',
     method: 'GET',
     path: '/api/tasks/:id',
     category: 'Tasks',
     description: 'Retrieves complete details of a single task by its CUID or task number.',
     parameters: [
-      { name: 'id', type: 'string', required: true, description: 'Task CUID (e.g. cmvvgwy7w0003tpn0pq5rip9i) or task number' },
+      { name: 'id', type: 'string', required: true, description: 'Task CUID or taskNumber (e.g. TF-108)' },
     ],
     snippets: {
-      curl: `curl -X GET https://flowsync.app/api/tasks/cmvvgwy7w0003tpn0pq5rip9i \\\n  -H "Authorization: Bearer flw_sec_live_948f..."`,
+      curl: `curl -X GET https://flowsync.app/api/tasks/cmvvgwy7w0003tpn0pq5rip9i \\\n  -H "Authorization: Bearer flw_sec_live_..."`,
       typescript: `import { api } from '@/api';\n\nconst task = await api.tasks.get('cmvvgwy7w0003tpn0pq5rip9i');\nconsole.log(task.data);`,
-      python: `import requests\n\nres = requests.get(\n    "https://flowsync.app/api/tasks/cmvvgwy7w0003tpn0pq5rip9i",\n    headers={"Authorization": "Bearer flw_sec_live_948f..."}\n)\nprint(res.json())`,
+      python: `import requests\n\nres = requests.get(\n    "https://flowsync.app/api/tasks/cmvvgwy7w0003tpn0pq5rip9i",\n    headers={"Authorization": "Bearer flw_sec_live_..."}\n)\nprint(res.json())`,
     },
     response: {
       status: 200,
@@ -574,14 +420,14 @@ const DOCS_CATALOG: Record<string, EndpointDoc> = {
     },
   },
 
-  // 8. Tasks - Update
+  // 9. Tasks - Update
   'update-task': {
     id: 'update-task',
-    title: 'Update task fields',
+    title: 'Update task',
     method: 'PATCH',
     path: '/api/tasks/:id',
     category: 'Tasks',
-    description: 'Partially updates fields of an existing task. Triggers instant optimistic update and audit history log.',
+    description: 'Partially updates fields of an existing task. Triggers optimistic UI synchronization and logs an audit record.',
     parameters: [
       { name: 'id', type: 'string', required: true, description: 'Task CUID identifier' },
     ],
@@ -599,9 +445,9 @@ const DOCS_CATALOG: Record<string, EndpointDoc> = {
       },
     },
     snippets: {
-      curl: `curl -X PATCH https://flowsync.app/api/tasks/cmvvgwy7w0003tpn0pq5rip9i \\\n  -H "Authorization: Bearer flw_sec_live_948f..." \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "status": "done"\n  }'`,
+      curl: `curl -X PATCH https://flowsync.app/api/tasks/cmvvgwy7w0003tpn0pq5rip9i \\\n  -H "Authorization: Bearer flw_sec_live_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"status": "done"}'`,
       typescript: `import { api } from '@/api';\n\nconst updated = await api.tasks.update('cmvvgwy7w0003tpn0pq5rip9i', {\n  status: 'done'\n});`,
-      python: `import requests\n\nres = requests.patch(\n    "https://flowsync.app/api/tasks/cmvvgwy7w0003tpn0pq5rip9i",\n    json={"status": "done"},\n    headers={"Authorization": "Bearer flw_sec_live_948f..."}\n)\nprint(res.json())`,
+      python: `import requests\n\nres = requests.patch(\n    "https://flowsync.app/api/tasks/cmvvgwy7w0003tpn0pq5rip9i",\n    json={"status": "done"},\n    headers={"Authorization": "Bearer flw_sec_live_..."}\n)\nprint(res.json())`,
     },
     response: {
       status: 200,
@@ -611,27 +457,60 @@ const DOCS_CATALOG: Record<string, EndpointDoc> = {
         data: {
           id: 'cmvvgwy7w0003tpn0pq5rip9i',
           status: 'done',
-          updatedAt: '2026-11-03T03:22:10.000Z',
+          updatedAt: '2026-11-06T18:32:00.000Z',
         },
       },
     },
   },
 
-  // 9. Tasks - Delete
+  // 10. Tasks - Bulk
+  'bulk-tasks': {
+    id: 'bulk-tasks',
+    title: 'Bulk task operations',
+    method: 'POST',
+    path: '/api/tasks/bulk',
+    category: 'Tasks',
+    description: 'Executes batch operations (status change, priority change, reassignment, or deletion) across up to 100 tasks in a single atomic transaction.',
+    requestBody: {
+      description: 'Bulk mutation payload',
+      fields: [
+        { name: 'taskIds', type: 'array', required: true, description: 'Array of task CUID strings' },
+        { name: 'action', type: 'string', required: true, description: "'update_status' | 'update_priority' | 'delete'" },
+        { name: 'value', type: 'string', required: false, description: 'New status or priority value when updating' },
+      ],
+      example: {
+        taskIds: ['cmvvgwy7w0003tpn0pq5rip9i'],
+        action: 'update_status',
+        value: 'done',
+      },
+    },
+    snippets: {
+      curl: `curl -X POST https://flowsync.app/api/tasks/bulk \\\n  -H "Authorization: Bearer flw_sec_live_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"taskIds": ["cmv..."], "action": "update_status", "value": "done"}'`,
+      typescript: `const res = await fetch('/api/tasks/bulk', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({ taskIds: ['cmv...'], action: 'update_status', value: 'done' })\n});`,
+      python: `res = requests.post("https://flowsync.app/api/tasks/bulk", json={"taskIds": ["cmv..."], "action": "update_status", "value": "done"})`,
+    },
+    response: {
+      status: 200,
+      description: 'Bulk execution summary',
+      body: { success: true, count: 1, message: 'Updated 1 task successfully' },
+    },
+  },
+
+  // 11. Tasks - Delete
   'delete-task': {
     id: 'delete-task',
-    title: 'Delete a task',
+    title: 'Delete task',
     method: 'DELETE',
     path: '/api/tasks/:id',
     category: 'Tasks',
-    description: 'Permanently deletes a task from the workspace along with its comments and activity records.',
+    description: 'Permanently deletes a task from the workspace along with its associated comments and activity records.',
     parameters: [
       { name: 'id', type: 'string', required: true, description: 'Task CUID identifier' },
     ],
     snippets: {
-      curl: `curl -X DELETE https://flowsync.app/api/tasks/cmvvgwy7w0003tpn0pq5rip9i \\\n  -H "Authorization: Bearer flw_sec_live_948f..."`,
+      curl: `curl -X DELETE https://flowsync.app/api/tasks/cmvvgwy7w0003tpn0pq5rip9i \\\n  -H "Authorization: Bearer flw_sec_live_..."`,
       typescript: `import { api } from '@/api';\n\nawait api.tasks.delete('cmvvgwy7w0003tpn0pq5rip9i');`,
-      python: `import requests\n\nrequests.delete(\n    "https://flowsync.app/api/tasks/cmvvgwy7w0003tpn0pq5rip9i",\n    headers={"Authorization": "Bearer flw_sec_live_948f..."}\n)`,
+      python: `requests.delete("https://flowsync.app/api/tasks/cmvvgwy7w0003tpn0pq5rip9i")`,
     },
     response: {
       status: 200,
@@ -640,33 +519,100 @@ const DOCS_CATALOG: Record<string, EndpointDoc> = {
     },
   },
 
-  // 10. Projects - List
+  // 12. Tasks - Comments
+  'task-comments': {
+    id: 'task-comments',
+    title: 'Task comments',
+    method: 'GET',
+    path: '/api/tasks/:id/comments',
+    category: 'Tasks',
+    description: 'Returns chronological discussion comments and replies attached to a specific task.',
+    parameters: [
+      { name: 'id', type: 'string', required: true, description: 'Task CUID identifier' },
+    ],
+    snippets: {
+      curl: `curl -X GET https://flowsync.app/api/tasks/cmvvgwy7w0003tpn0pq5rip9i/comments \\\n  -H "Authorization: Bearer flw_sec_live_..."`,
+      typescript: `const comments = await fetch('/api/tasks/cmvvgwy7w0003tpn0pq5rip9i/comments');\nconst data = await comments.json();`,
+      python: `res = requests.get("https://flowsync.app/api/tasks/cmvvgwy7w0003tpn0pq5rip9i/comments")`,
+    },
+    response: {
+      status: 200,
+      description: 'Array of comments',
+      body: {
+        success: true,
+        data: [
+          {
+            id: 'cmvc8901a0001tp10pq9zzzz',
+            content: 'Verified cookie payload with automated tests.',
+            author: { name: 'Lead Architect', email: 'architect@flowsync.app' },
+            createdAt: '2026-11-06T18:34:00.000Z',
+          },
+        ],
+      },
+    },
+  },
+
+  // 13. Tasks - Activities
+  'task-activities': {
+    id: 'task-activities',
+    title: 'Audit history',
+    method: 'GET',
+    path: '/api/tasks/:id/activities',
+    category: 'Tasks',
+    description: 'Retrieves immutable audit trail activities for compliance, status changes, assignments, and priority adjustments.',
+    parameters: [
+      { name: 'id', type: 'string', required: true, description: 'Task CUID identifier' },
+    ],
+    snippets: {
+      curl: `curl -X GET https://flowsync.app/api/tasks/cmvvgwy7w0003tpn0pq5rip9i/activities \\\n  -H "Authorization: Bearer flw_sec_live_..."`,
+      typescript: `const history = await fetch('/api/tasks/cmvvgwy7w0003tpn0pq5rip9i/activities');\nconst log = await history.json();`,
+      python: `res = requests.get("https://flowsync.app/api/tasks/cmvvgwy7w0003tpn0pq5rip9i/activities")`,
+    },
+    response: {
+      status: 200,
+      description: 'Audit activity entries',
+      body: {
+        success: true,
+        data: [
+          {
+            id: 'cmva1234a0001tp10pq8aaaa',
+            action: 'STATUS_UPDATED',
+            from: 'todo',
+            to: 'in_progress',
+            createdAt: '2026-11-06T18:25:00.000Z',
+          },
+        ],
+      },
+    },
+  },
+
+  // 14. Projects - List
   'list-projects': {
     id: 'list-projects',
     title: 'List all projects',
     method: 'GET',
     path: '/api/projects',
     category: 'Projects',
-    description: 'Returns all projects in the workspace including task counts, completion percentage, and active status.',
+    description: 'Returns all workspace projects including completion percentage, active task counts, and lead assignments.',
     parameters: [
-      { name: 'search', type: 'string', required: false, description: 'Filter by project name' },
       { name: 'status', type: 'string', required: false, description: "'active' | 'archived' | 'completed'" },
+      { name: 'search', type: 'string', required: false, description: 'Filter projects by title' },
     ],
     snippets: {
-      curl: `curl -X GET https://flowsync.app/api/projects \\\n  -H "Authorization: Bearer flw_sec_live_948f..."`,
+      curl: `curl -X GET https://flowsync.app/api/projects \\\n  -H "Authorization: Bearer flw_sec_live_..."`,
       typescript: `import { api } from '@/api';\n\nconst projects = await api.projects.list();\nconsole.log(projects.data);`,
-      python: `import requests\n\nres = requests.get(\n    "https://flowsync.app/api/projects",\n    headers={"Authorization": "Bearer flw_sec_live_948f..."}\n)\nprint(res.json()["data"])`,
+      python: `import requests\n\nres = requests.get("https://flowsync.app/api/projects")\nprint(res.json()["data"])`,
     },
     response: {
       status: 200,
-      description: 'List of projects',
+      description: 'List of projects in workspace',
       body: {
         success: true,
         data: [
           {
             id: 'cmvrr15pf0001tppke6b9d7az',
             name: 'FlowSync Core Platform',
-            description: 'Core application engine & reactive sync services',
+            description: 'Core application engine and reactive sync services',
             color: '#2563EB',
             progress: 84,
             tasksCount: 38,
@@ -677,33 +623,31 @@ const DOCS_CATALOG: Record<string, EndpointDoc> = {
     },
   },
 
-  // 11. Projects - Create
+  // 15. Projects - Create
   'create-project': {
     id: 'create-project',
-    title: 'Create a new project',
+    title: 'Create a project',
     method: 'POST',
     path: '/api/projects',
     category: 'Projects',
-    description: 'Creates a new project in the workspace with customizable branding color, description, and icon.',
-    parameters: [],
+    description: 'Creates a new workspace project with custom color branding, milestone tracking, and task lists.',
     requestBody: {
-      description: 'Project details',
+      description: 'Project payload',
       fields: [
         { name: 'name', type: 'string', required: true, description: 'Project name' },
         { name: 'description', type: 'string', required: false, description: 'Project summary' },
-        { name: 'color', type: 'string', required: false, description: 'Hex color code (e.g. #2563EB)' },
-        { name: 'icon', type: 'string', required: false, description: 'Icon identifier name' },
+        { name: 'color', type: 'string', required: false, description: 'Hex color string (e.g. #2563EB)' },
       ],
       example: {
-        name: 'Mobile App Redesign',
-        description: 'New iOS and Android release',
+        name: 'Mobile Client v2',
+        description: 'Native iOS & Android offline workspace',
         color: '#10B981',
       },
     },
     snippets: {
-      curl: `curl -X POST https://flowsync.app/api/projects \\\n  -H "Authorization: Bearer flw_sec_live_948f..." \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "name": "Mobile App Redesign",\n    "color": "#10B981"\n  }'`,
-      typescript: `import { api } from '@/api';\n\nconst newProj = await api.projects.create({\n  name: 'Mobile App Redesign',\n  color: '#10B981'\n});`,
-      python: `import requests\n\nres = requests.post(\n    "https://flowsync.app/api/projects",\n    json={"name": "Mobile App Redesign", "color": "#10B981"},\n    headers={"Authorization": "Bearer flw_sec_live_948f..."}\n)\nprint(res.json())`,
+      curl: `curl -X POST https://flowsync.app/api/projects \\\n  -H "Authorization: Bearer flw_sec_live_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"name": "Mobile Client v2", "color": "#10B981"}'`,
+      typescript: `import { api } from '@/api';\n\nconst proj = await api.projects.create({\n  name: 'Mobile Client v2',\n  color: '#10B981'\n});`,
+      python: `res = requests.post("https://flowsync.app/api/projects", json={"name": "Mobile Client v2", "color": "#10B981"})`,
     },
     response: {
       status: 201,
@@ -712,7 +656,7 @@ const DOCS_CATALOG: Record<string, EndpointDoc> = {
         success: true,
         data: {
           id: 'cmvrr15pf0002tppke6b9d7az',
-          name: 'Mobile App Redesign',
+          name: 'Mobile Client v2',
           color: '#10B981',
           progress: 0,
           tasksCount: 0,
@@ -721,155 +665,495 @@ const DOCS_CATALOG: Record<string, EndpointDoc> = {
     },
   },
 
-  // 12. FlowSync MCP (JSON-RPC)
+  // 16. Projects - Get
+  'get-project': {
+    id: 'get-project',
+    title: 'Get a project',
+    method: 'GET',
+    path: '/api/projects/:id',
+    category: 'Projects',
+    description: 'Retrieves complete project details, including milestone count, assigned collaborators, and task breakdown.',
+    parameters: [
+      { name: 'id', type: 'string', required: true, description: 'Project CUID identifier' },
+    ],
+    snippets: {
+      curl: `curl -X GET https://flowsync.app/api/projects/cmvrr15pf0001tppke6b9d7az \\\n  -H "Authorization: Bearer flw_sec_live_..."`,
+      typescript: `import { api } from '@/api';\n\nconst project = await api.projects.get('cmvrr15pf0001tppke6b9d7az');`,
+      python: `res = requests.get("https://flowsync.app/api/projects/cmvrr15pf0001tppke6b9d7az")`,
+    },
+    response: {
+      status: 200,
+      description: 'Project details',
+      body: {
+        success: true,
+        data: {
+          id: 'cmvrr15pf0001tppke6b9d7az',
+          name: 'FlowSync Core Platform',
+          color: '#2563EB',
+          progress: 84,
+          tasksCount: 38,
+        },
+      },
+    },
+  },
+
+  // 17. Projects - Update
+  'update-project': {
+    id: 'update-project',
+    title: 'Update project',
+    method: 'PATCH',
+    path: '/api/projects/:id',
+    category: 'Projects',
+    description: 'Modifies an existing project name, description, color, or archived status.',
+    parameters: [
+      { name: 'id', type: 'string', required: true, description: 'Project CUID identifier' },
+    ],
+    requestBody: {
+      description: 'Fields to update',
+      fields: [
+        { name: 'name', type: 'string', required: false, description: 'New project name' },
+        { name: 'description', type: 'string', required: false, description: 'Updated summary' },
+        { name: 'color', type: 'string', required: false, description: 'New hex color' },
+      ],
+      example: { color: '#6366F1' },
+    },
+    snippets: {
+      curl: `curl -X PATCH https://flowsync.app/api/projects/cmvrr15pf0001tppke6b9d7az \\\n  -H "Authorization: Bearer flw_sec_live_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"color": "#6366F1"}'`,
+      typescript: `await api.projects.update('cmvrr15pf0001tppke6b9d7az', { color: '#6366F1' });`,
+      python: `requests.patch("https://flowsync.app/api/projects/cmvrr15pf0001tppke6b9d7az", json={"color": "#6366F1"})`,
+    },
+    response: {
+      status: 200,
+      description: 'Updated project entity',
+      body: { success: true, data: { id: 'cmvrr15pf0001tppke6b9d7az', color: '#6366F1' } },
+    },
+  },
+
+  // 18. Projects - Delete
+  'delete-project': {
+    id: 'delete-project',
+    title: 'Delete project',
+    method: 'DELETE',
+    path: '/api/projects/:id',
+    category: 'Projects',
+    description: 'Permanently deletes a project and cascades cleanup to linked tasks and milestones.',
+    parameters: [
+      { name: 'id', type: 'string', required: true, description: 'Project CUID identifier' },
+    ],
+    snippets: {
+      curl: `curl -X DELETE https://flowsync.app/api/projects/cmvrr15pf0001tppke6b9d7az \\\n  -H "Authorization: Bearer flw_sec_live_..."`,
+      typescript: `await api.projects.delete('cmvrr15pf0001tppke6b9d7az');`,
+      python: `requests.delete("https://flowsync.app/api/projects/cmvrr15pf0001tppke6b9d7az")`,
+    },
+    response: {
+      status: 200,
+      description: 'Deletion confirmation',
+      body: { success: true, message: 'Project deleted successfully' },
+    },
+  },
+
+  // 19. Projects - Collaborators
+  'project-members': {
+    id: 'project-members',
+    title: 'Project collaborators',
+    method: 'GET',
+    path: '/api/projects/:id/members',
+    category: 'Projects',
+    description: 'Lists team members assigned to collaborate on this project.',
+    parameters: [
+      { name: 'id', type: 'string', required: true, description: 'Project CUID identifier' },
+    ],
+    snippets: {
+      curl: `curl -X GET https://flowsync.app/api/projects/cmvrr15pf0001tppke6b9d7az/members \\\n  -H "Authorization: Bearer flw_sec_live_..."`,
+      typescript: `const members = await fetch('/api/projects/cmvrr15pf0001tppke6b9d7az/members');\nconst data = await members.json();`,
+      python: `res = requests.get("https://flowsync.app/api/projects/cmvrr15pf0001tppke6b9d7az/members")`,
+    },
+    response: {
+      status: 200,
+      description: 'List of project collaborators',
+      body: {
+        success: true,
+        data: [
+          { id: 'cmvr8921a0000tp10pq9abcd', name: 'Saif Bean', email: 'saif@flowsync.app', role: 'ADMIN' },
+        ],
+      },
+    },
+  },
+
+  // 20. Projects - Milestones
+  'project-milestones': {
+    id: 'project-milestones',
+    title: 'Project milestones',
+    method: 'GET',
+    path: '/api/projects/:id/milestones',
+    category: 'Projects',
+    description: 'Retrieves all roadmap milestones, deadline dates, and completion status for a project.',
+    parameters: [
+      { name: 'id', type: 'string', required: true, description: 'Project CUID identifier' },
+    ],
+    snippets: {
+      curl: `curl -X GET https://flowsync.app/api/projects/cmvrr15pf0001tppke6b9d7az/milestones \\\n  -H "Authorization: Bearer flw_sec_live_..."`,
+      typescript: `const milestones = await fetch('/api/projects/cmvrr15pf0001tppke6b9d7az/milestones');`,
+      python: `res = requests.get("https://flowsync.app/api/projects/cmvrr15pf0001tppke6b9d7az/milestones")`,
+    },
+    response: {
+      status: 200,
+      description: 'Milestones array',
+      body: {
+        success: true,
+        data: [
+          { id: 'cmvm1001a0000tp10pq9xxxx', title: 'Beta Release v1.0', targetDate: '2026-11-15', completed: true },
+        ],
+      },
+    },
+  },
+
+  // 21. Projects - Discussions
+  'project-messages': {
+    id: 'project-messages',
+    title: 'Project discussions',
+    method: 'GET',
+    path: '/api/projects/:id/messages',
+    category: 'Projects',
+    description: 'Retrieves team chat messages and discussions within a project.',
+    parameters: [
+      { name: 'id', type: 'string', required: true, description: 'Project CUID identifier' },
+    ],
+    snippets: {
+      curl: `curl -X GET https://flowsync.app/api/projects/cmvrr15pf0001tppke6b9d7az/messages \\\n  -H "Authorization: Bearer flw_sec_live_..."`,
+      typescript: `const chat = await fetch('/api/projects/cmvrr15pf0001tppke6b9d7az/messages');`,
+      python: `res = requests.get("https://flowsync.app/api/projects/cmvrr15pf0001tppke6b9d7az/messages")`,
+    },
+    response: {
+      status: 200,
+      description: 'Recent discussions',
+      body: {
+        success: true,
+        data: [
+          { id: 'cmvmsg01a0000tp10pq9yyyy', sender: 'Saif', message: 'Sprint demo deployment succeeded.' },
+        ],
+      },
+    },
+  },
+
+  // 22. Projects - SSE Real-time Stream
+  'sync-stream': {
+    id: 'sync-stream',
+    title: 'Live event stream (SSE)',
+    method: 'GET',
+    path: '/api/projects/:id/messages/stream',
+    category: 'Projects',
+    badge: 'Live',
+    description:
+      'High-throughput Server-Sent Events (SSE) connection streaming real-time status changes, new comments, and live message broadcasts to connected web clients.',
+    parameters: [
+      { name: 'id', type: 'string', required: true, description: 'Project CUID identifier' },
+    ],
+    snippets: {
+      curl: `curl -N -H "Accept: text/event-stream" \\\n  -H "Authorization: Bearer flw_sec_live_..." \\\n  https://flowsync.app/api/projects/cmvrr15pf0001tppke6b9d7az/messages/stream`,
+      typescript: `const sse = new EventSource('/api/projects/cmvrr15pf0001tppke6b9d7az/messages/stream');\nsse.onmessage = (e) => console.log('Live event:', JSON.parse(e.data));`,
+      python: `import requests\nres = requests.get("https://flowsync.app/api/projects/.../stream", stream=True)`,
+    },
+    response: {
+      status: 200,
+      description: 'Server-Sent Event packet',
+      body: {
+        type: 'task.updated',
+        data: { taskId: 'cmvvgwy7w0003tpn0pq5rip9i', status: 'done' },
+        timestamp: '2026-11-06T18:40:00.000Z',
+      },
+    },
+  },
+
+  // 23. Team - Members
+  'workspace-members': {
+    id: 'workspace-members',
+    title: 'List team members',
+    method: 'GET',
+    path: '/api/team/members',
+    category: 'Team & Workspace',
+    description: 'Lists all registered users in the organization with their assigned roles (ADMIN, MEMBER, VIEWER).',
+    parameters: [],
+    snippets: {
+      curl: `curl -X GET https://flowsync.app/api/team/members \\\n  -H "Authorization: Bearer flw_sec_live_..."`,
+      typescript: `const team = await fetch('/api/team/members');\nconst data = await team.json();`,
+      python: `res = requests.get("https://flowsync.app/api/team/members")`,
+    },
+    response: {
+      status: 200,
+      description: 'Team member roster',
+      body: {
+        success: true,
+        data: [
+          { id: 'cmvr8921a0000tp10pq9abcd', name: 'Saif Bean', email: 'saif@flowsync.app', role: 'ADMIN' },
+        ],
+      },
+    },
+  },
+
+  // 24. Team - Invite
+  'workspace-invite': {
+    id: 'workspace-invite',
+    title: 'Invite collaborator',
+    method: 'POST',
+    path: '/api/team/invite',
+    category: 'Team & Workspace',
+    description: 'Sends an email invitation with an onboarding link for a new member to join the workspace.',
+    requestBody: {
+      description: 'Invitation payload',
+      fields: [
+        { name: 'email', type: 'string', required: true, description: 'Collaborator email address' },
+        { name: 'role', type: 'string', required: false, description: "'ADMIN' | 'MEMBER' | 'VIEWER' (default: 'MEMBER')" },
+      ],
+      example: { email: 'teammate@company.com', role: 'MEMBER' },
+    },
+    snippets: {
+      curl: `curl -X POST https://flowsync.app/api/team/invite \\\n  -H "Authorization: Bearer flw_sec_live_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"email": "teammate@company.com", "role": "MEMBER"}'`,
+      typescript: `const res = await fetch('/api/team/invite', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({ email: 'teammate@company.com' })\n});`,
+      python: `res = requests.post("https://flowsync.app/api/team/invite", json={"email": "teammate@company.com"})`,
+    },
+    response: {
+      status: 200,
+      description: 'Invitation confirmation',
+      body: { success: true, message: 'Invitation sent to teammate@company.com' },
+    },
+  },
+
+  // 25. User Profile
+  'user-profile': {
+    id: 'user-profile',
+    title: 'User profile session',
+    method: 'GET',
+    path: '/api/users',
+    category: 'Team & Workspace',
+    description: 'Retrieves current user identity, organization affiliation, and permissions.',
+    parameters: [],
+    snippets: {
+      curl: `curl -X GET https://flowsync.app/api/users \\\n  -H "Authorization: Bearer flw_sec_live_..."`,
+      typescript: `const user = await fetch('/api/users');\nconst profile = await user.json();`,
+      python: `res = requests.get("https://flowsync.app/api/users")`,
+    },
+    response: {
+      status: 200,
+      description: 'User profile entity',
+      body: {
+        success: true,
+        data: { id: 'cmvr8921a0000tp10pq9abcd', email: 'saif@flowsync.app', name: 'Saif' },
+      },
+    },
+  },
+
+  // 26. Search
+  'filters-search': {
+    id: 'filters-search',
+    title: 'Workspace instant search',
+    method: 'GET',
+    path: '/api/search',
+    category: 'Search',
+    description: 'Executes indexed full-text search across all tasks (titles, descriptions, taskNumbers) and projects.',
+    parameters: [
+      { name: 'q', type: 'string', required: true, description: 'Search keyword query' },
+    ],
+    snippets: {
+      curl: `curl -X GET "https://flowsync.app/api/search?q=auth" \\\n  -H "Authorization: Bearer flw_sec_live_..."`,
+      typescript: `const res = await fetch('/api/search?q=auth');\nconst matches = await res.json();`,
+      python: `res = requests.get("https://flowsync.app/api/search", params={"q": "auth"})`,
+    },
+    response: {
+      status: 200,
+      description: 'Search results map',
+      body: {
+        success: true,
+        data: {
+          tasks: [{ id: 'cmvvgwy7w0003tpn0pq5rip9i', taskNumber: 'TF-108', title: 'Implement JWT rotation cookie' }],
+          projects: [{ id: 'cmvrr15pf0001tppke6b9d7az', name: 'FlowSync Core Platform' }],
+        },
+      },
+    },
+  },
+
+  // 27. Reports - Summary
+  'reports-summary': {
+    id: 'reports-summary',
+    title: 'Sprint velocity & summary',
+    method: 'GET',
+    path: '/api/reports/summary',
+    category: 'Reports & Analytics',
+    description: 'Returns real-time sprint analytics: completion rate, throughput, lead/cycle time in days, and overdue task count.',
+    parameters: [],
+    snippets: {
+      curl: `curl -X GET https://flowsync.app/api/reports/summary \\\n  -H "Authorization: Bearer flw_sec_live_..."`,
+      typescript: `const metrics = await fetch('/api/reports/summary');\nconst summary = await metrics.json();`,
+      python: `res = requests.get("https://flowsync.app/api/reports/summary")`,
+    },
+    response: {
+      status: 200,
+      description: 'Velocity analytics snapshot',
+      body: {
+        success: true,
+        data: {
+          totalTasks: 38,
+          completedTasks: 32,
+          completionRate: 84.2,
+          leadTimeDays: 3.2,
+          cycleTimeDays: 1.8,
+          throughputPerWeek: 14,
+        },
+      },
+    },
+  },
+
+  // 28. Reports - Export
+  'backups-export': {
+    id: 'backups-export',
+    title: 'Export workspace data',
+    method: 'GET',
+    path: '/api/reports/export',
+    category: 'Reports & Analytics',
+    description: 'Exports workspace tasks, projects, and milestone metrics as clean structured CSV or JSON backup files.',
+    parameters: [
+      { name: 'format', type: 'string', required: false, description: "'json' | 'csv' (default: 'json')", default: 'json' },
+    ],
+    snippets: {
+      curl: `curl -X GET "https://flowsync.app/api/reports/export?format=json" \\\n  -H "Authorization: Bearer flw_sec_live_..."`,
+      typescript: `const exportRes = await fetch('/api/reports/export?format=json');`,
+      python: `res = requests.get("https://flowsync.app/api/reports/export")`,
+    },
+    response: {
+      status: 200,
+      description: 'Export metadata',
+      body: {
+        success: true,
+        data: { exportedAt: '2026-11-06T18:45:00.000Z', totalRecords: 38 },
+      },
+    },
+  },
+
+  // 29. MCP Overview
+  'mcp-overview': {
+    id: 'mcp-overview',
+    title: 'MCP Architecture (JSON-RPC)',
+    category: 'AI & Model Context Protocol',
+    badge: 'Guide',
+    description:
+      'FlowSync natively implements Anthropic’s Model Context Protocol (MCP). AI assistants such as Claude Desktop and Cursor can directly query and orchestrate tasks, create sprints, and retrieve project status without custom glue code.',
+    snippets: {
+      curl: `# Test MCP server heartbeat\ncurl -X GET https://flowsync.app/api/mcp`,
+      typescript: `// Claude Desktop configuration in claude_desktop_config.json:\n{\n  "mcpServers": {\n    "flowsync": {\n      "command": "npx",\n      "args": ["-y", "flowsync-mcp@latest"]\n    }\n  }\n}`,
+      python: `# Connect to FlowSync via standard SSE or HTTP JSON-RPC transport`,
+    },
+    response: {
+      status: 200,
+      description: 'MCP Server Capabilities',
+      body: {
+        status: 'online',
+        protocol: 'model-context-protocol',
+        version: '1.0.0',
+        capabilities: ['tools', 'resources', 'prompts'],
+        endpoint: '/api/mcp',
+      },
+    },
+  },
+
+  // 30. MCP RPC Call
   'mcp-rpc-call': {
     id: 'mcp-rpc-call',
-    title: 'FlowSync MCP (JSON-RPC 2.0)',
+    title: 'Agent tool execution',
     method: 'POST',
     path: '/api/mcp',
-    category: 'FlowSync MCP',
-    badge: 'AI Agents',
+    category: 'AI & Model Context Protocol',
+    badge: 'JSON-RPC 2.0',
     description:
-      'Official Model Context Protocol (MCP) endpoint. Enables LLMs (Claude Desktop, Cursor, Gemini, OpenAI agents) to query, create, update, and batch-create tasks and projects programmatically using standardized tool calls.',
-    parameters: [],
+      'Executes registered agent tools (create_task, list_tasks, update_task, batch_create_tasks, list_projects, get_workspace_summary) using standardized JSON-RPC 2.0 specification.',
     requestBody: {
       description: 'JSON-RPC 2.0 tool invocation',
       fields: [
         { name: 'jsonrpc', type: 'string', required: true, description: 'Must be "2.0"' },
-        { name: 'id', type: 'number', required: true, description: 'Unique request correlation ID' },
-        { name: 'method', type: 'string', required: true, description: "'tools/list' | 'tools/call' | 'resources/list'" },
-        { name: 'params', type: 'object', required: false, description: 'Tool name and arguments map' },
+        { name: 'id', type: 'number', required: true, description: 'Request correlation identifier' },
+        { name: 'method', type: 'string', required: true, description: "'tools/list' | 'tools/call'" },
+        { name: 'params', type: 'object', required: false, description: 'Tool arguments map' },
       ],
       example: {
         jsonrpc: '2.0',
         id: 1,
-        method: 'tools/call',
-        params: {
-          name: 'create_task',
-          arguments: {
-            title: 'Fix auth cookie rotation',
-            priority: 'high',
-            status: 'todo',
-          },
-        },
+        method: 'tools/list',
+        params: {},
       },
     },
     snippets: {
-      curl: `curl -X POST https://flowsync.app/api/mcp \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "jsonrpc": "2.0",\n    "id": 1,\n    "method": "tools/call",\n    "params": {\n      "name": "create_task",\n      "arguments": {\n        "title": "Fix auth cookie rotation",\n        "priority": "high"\n      }\n    }\n  }'`,
-      typescript: `const rpcResponse = await fetch('https://flowsync.app/api/mcp', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({\n    jsonrpc: '2.0',\n    id: 1,\n    method: 'tools/call',\n    params: {\n      name: 'create_task',\n      arguments: { title: 'Fix auth cookie rotation', priority: 'high' }\n    }\n  })\n});\nconst result = await rpcResponse.json();`,
-      python: `import requests\n\nres = requests.post("https://flowsync.app/api/mcp", json={\n    "jsonrpc": "2.0",\n    "id": 1,\n    "method": "tools/call",\n    "params": {\n        "name": "create_task",\n        "arguments": {"title": "Fix auth cookie rotation", "priority": "high"}\n    }\n})\nprint(res.json()["result"])`,
+      curl: `curl -X POST https://flowsync.app/api/mcp \\\n  -H "Content-Type: application/json" \\\n  -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}'`,
+      typescript: `const rpcRes = await fetch('https://flowsync.app/api/mcp', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} })\n});`,
+      python: `res = requests.post("https://flowsync.app/api/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}})`,
     },
     response: {
       status: 200,
-      description: 'MCP standard JSON-RPC response',
+      description: 'MCP tool response',
       body: {
         jsonrpc: '2.0',
         id: 1,
         result: {
-          content: [
-            {
-              type: 'text',
-              text: 'Task #TF-143 created successfully with priority high.',
-            },
+          tools: [
+            { name: 'create_task', description: 'Creates a new task in the workspace' },
+            { name: 'list_tasks', description: 'Query tasks with filters' },
+            { name: 'update_task', description: 'Update task status or priority' },
+            { name: 'get_workspace_summary', description: 'Retrieve analytics snapshot' },
           ],
         },
       },
     },
   },
 
-  // 13. Authorization
-  'auth-tokens': {
-    id: 'auth-tokens',
-    title: 'Personal Access Tokens',
-    category: 'Authorization',
-    badge: 'Security',
-    description:
-      'Generate personal secret API tokens in FlowSync Settings → Developers. Personal tokens start with the prefix flw_sec_live_ and carry full access permissions of your user account. Keep your API tokens secret and never commit them to client-side frontend code or public repositories.',
+  // 31. AI Copilot
+  'copilot-chat': {
+    id: 'copilot-chat',
+    title: 'Sprint Copilot AI',
+    method: 'POST',
+    path: '/api/copilot',
+    category: 'AI & Model Context Protocol',
+    description: 'Interactive AI Copilot streaming assistance for roadmap planning, task estimation, and retrospective analysis.',
+    requestBody: {
+      description: 'Copilot query payload',
+      fields: [
+        { name: 'message', type: 'string', required: true, description: 'Natural language instruction' },
+      ],
+      example: { message: 'Summarize overdue tasks in current sprint' },
+    },
     snippets: {
-      curl: `export FLOWSYNC_API_TOKEN="flw_sec_live_948f2bb764831"\n\ncurl -X GET https://flowsync.app/api/tasks \\\n  -H "Authorization: Bearer $FLOWSYNC_API_TOKEN"`,
-      typescript: `const token = process.env.FLOWSYNC_API_TOKEN;\n\n// Send token in Authorization header\nconst res = await fetch('https://flowsync.app/api/tasks', {\n  headers: { Authorization: \`Bearer \${token}\` }\n});`,
-      python: `import os, requests\n\ntoken = os.getenv("FLOWSYNC_API_TOKEN")\nres = requests.get("https://flowsync.app/api/tasks", headers={"Authorization": f"Bearer {token}"})`,
+      curl: `curl -X POST https://flowsync.app/api/copilot \\\n  -H "Authorization: Bearer flw_sec_live_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"message": "Summarize overdue tasks"}'`,
+      typescript: `const res = await fetch('/api/copilot', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({ message: 'Summarize overdue tasks' })\n});`,
+      python: `res = requests.post("https://flowsync.app/api/copilot", json={"message": "Summarize overdue tasks"})`,
     },
     response: {
       status: 200,
-      description: 'Token validation response',
-      body: { success: true, authorized: true, user: 'saif@example.com' },
-    },
-  },
-
-  // 14. Realtime Sync & SSE
-  'sync-stream': {
-    id: 'sync-stream',
-    title: 'Real-time Event Streaming (SSE)',
-    method: 'GET',
-    path: '/api/projects/:id/messages/stream',
-    category: 'Sync',
-    badge: 'Live',
-    description:
-      'FlowSync provides a high-throughput Server-Sent Events (SSE) stream for instant real-time synchronization across connected team members, kanban cards, and live project chats.',
-    parameters: [
-      { name: 'id', type: 'string', required: true, description: 'Project CUID identifier' },
-    ],
-    snippets: {
-      curl: `curl -N -H "Accept: text/event-stream" \\\n  -H "Authorization: Bearer flw_sec_live_948f..." \\\n  https://flowsync.app/api/projects/cmvrr15pf0001tppke6b9d7az/messages/stream`,
-      typescript: `const eventSource = new EventSource('/api/projects/cmvrr15pf0001tppke6b9d7az/messages/stream');\n\neventSource.onmessage = (event) => {\n  const payload = JSON.parse(event.data);\n  console.log('Realtime event received:', payload);\n};`,
-      python: `import requests\n\nres = requests.get(\n    "https://flowsync.app/api/projects/cmvrr15pf0001tppke6b9d7az/messages/stream",\n    headers={"Accept": "text/event-stream"},\n    stream=True\n)\nfor line in res.iter_lines():\n    if line:\n        print(line.decode('utf-8'))`,
-    },
-    response: {
-      status: 200,
-      description: 'Streamed message chunks',
+      description: 'Copilot AI response',
       body: {
-        type: 'task.updated',
-        data: { taskId: 'cmvvgwy7w0003tpn0pq5rip9i', status: 'done', updatedBy: 'Saif Bean' },
-        timestamp: '2026-11-03T03:22:45.102Z',
+        success: true,
+        data: { reply: 'Currently 2 tasks are overdue. Recommend reallocating TF-108 to next sprint.' },
       },
     },
   },
 
-  // 15. Webhooks
+  // 32. Webhooks
   'webhooks-events': {
     id: 'webhooks-events',
-    title: 'Webhooks & Event Subscriptions',
+    title: 'Stripe webhook verification',
+    method: 'POST',
+    path: '/api/webhooks/stripe',
     category: 'Webhooks',
-    badge: 'Push',
-    description:
-      'Webhooks notify your external backend or serverless functions instantly whenever events happen inside FlowSync. Supported events include task.created, task.updated, task.deleted, and project.created.',
+    badge: 'Stripe',
+    description: 'Receives and cryptographically verifies Stripe invoice and payment intent events to immediately provision Pro licenses.',
+    parameters: [
+      { name: 'stripe-signature', type: 'string', required: true, description: 'HMAC signature header generated by Stripe' },
+    ],
     snippets: {
-      curl: `# Example incoming webhook payload received by your server\n{\n  "event": "task.updated",\n  "createdAt": "2026-11-03T03:25:00.000Z",\n  "data": {\n    "id": "cmvvgwy7w0003tpn0pq5rip9i",\n    "taskNumber": "TF-108",\n    "status": "done"\n  }\n}`,
-      typescript: `// Verify HMAC signature in Next.js / Express route\nimport crypto from 'crypto';\n\nfunction verifySignature(payload: string, signature: string, secret: string) {\n  const hash = crypto.createHmac('sha256', secret).update(payload).digest('hex');\n  return crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(signature));\n}`,
-      python: `import hmac, hashlib\n\ndef verify_signature(payload, signature, secret):\n    expected = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()\n    return hmac.compare_digest(expected, signature)`,
+      curl: `# Stripe CLI webhook forwarding command\nstripe listen --forward-to localhost:3000/api/webhooks/stripe`,
+      typescript: `// Verified with official stripe.webhooks.constructEvent(payload, sig, secret)`,
+      python: `# Verified with stripe.Webhook.construct_event(payload, sig, secret)`,
     },
     response: {
       status: 200,
-      description: 'Webhook delivery format',
-      body: {
-        event: 'task.completed',
-        timestamp: '2026-11-03T03:25:00.000Z',
-        data: { id: 'cmvvgwy7w0003tpn0pq5rip9i', completedBy: 'Saif Bean' },
-      },
-    },
-  },
-
-  // 16. Rate Limits
-  'limits-rate': {
-    id: 'limits-rate',
-    title: 'Rate Limits & 429 Handling',
-    category: 'Request limits',
-    description:
-      'To ensure fair usage and zero latency degradation for millions of users, FlowSync enforces per-token rate limits. Standard tier permits 60 requests per minute, while Enterprise permits up to 1,000 requests per minute.',
-    snippets: {
-      curl: `# Inspect returned rate limit headers on any response\nHTTP/1.1 200 OK\nX-RateLimit-Limit: 60\nX-RateLimit-Remaining: 57\nX-RateLimit-Reset: 1793652000`,
-      typescript: `// Automatic backoff example\nasync function fetchWithRetry(url: string, options: RequestInit) {\n  const res = await fetch(url, options);\n  if (res.status === 429) {\n    const retryAfter = Number(res.headers.get('Retry-After') || '2');\n    await new Promise(r => setTimeout(r, retryAfter * 1000));\n    return fetchWithRetry(url, options);\n  }\n  return res;\n}`,
-      python: `import time\n# Respect Retry-After header automatically in Python requests`,
-    },
-    response: {
-      status: 429,
-      description: 'Rate limit exceeded envelope',
-      body: {
-        success: false,
-        error: 'Too many requests. Please wait 2 seconds before retrying.',
-        code: 'RATE_LIMIT_EXCEEDED',
-      },
+      description: 'Webhook acknowledgment',
+      body: { received: true },
     },
   },
 };
@@ -882,11 +1166,14 @@ export default function ApiDocsView() {
   const [selectedDocId, setSelectedDocId] = useState<string>('list-tasks');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    'developing-with-flowsync': true,
+    'getting-started': true,
     tasks: true,
     projects: true,
-    'flowsync-mcp': true,
-    authorization: true,
+    team: true,
+    search: true,
+    reports: true,
+    mcp: true,
+    webhooks: true,
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [activeCodeLang, setActiveCodeLang] = useState<'curl' | 'typescript' | 'python'>('curl');
@@ -896,7 +1183,7 @@ export default function ApiDocsView() {
   const [simulatedStatus, setSimulatedStatus] = useState<number | null>(null);
   const [simulatedLatency, setSimulatedLatency] = useState<number | null>(null);
 
-  // Active document data
+  // Active document data (fallback gracefully to list-tasks if not found)
   const currentDoc: EndpointDoc = DOCS_CATALOG[selectedDocId] || DOCS_CATALOG['list-tasks'];
 
   // Toggle nav section accordion
@@ -932,18 +1219,73 @@ export default function ApiDocsView() {
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
-  // Run interactive "Try it out" simulator
-  const handleRunSimulator = () => {
+  // Run interactive "Test Call" against real FlowSync endpoint
+  const handleRunSimulator = async () => {
     setIsSimulating(true);
     setSimulationResponse(null);
+    setSimulatedStatus(null);
+    setSimulatedLatency(null);
 
-    const latency = Math.floor(Math.random() * 35) + 25; // 25-60ms realistic speed
-    setTimeout(() => {
-      setIsSimulating(false);
-      setSimulationResponse(currentDoc.response.body);
+    const startTime = performance.now();
+    try {
+      if (currentDoc.method && currentDoc.path) {
+        let fetchUrl = currentDoc.path;
+
+        // Substitute placeholder route parameters with real demo IDs if needed
+        if (fetchUrl.includes(':id')) {
+          fetchUrl = fetchUrl.replace(':id', 'demo-id');
+        }
+
+        const fetchOptions: RequestInit = {
+          method: currentDoc.method,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        };
+
+        if (currentDoc.method === 'POST' || currentDoc.method === 'PATCH') {
+          if (currentDoc.requestBody?.example) {
+            fetchOptions.body = JSON.stringify(currentDoc.requestBody.example);
+          } else if (currentDoc.id === 'mcp-rpc-call') {
+            fetchOptions.body = JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              method: 'tools/list',
+              params: {},
+            });
+          }
+        }
+
+        const res = await fetch(fetchUrl, fetchOptions);
+        const endTime = performance.now();
+        const latency = Math.round(endTime - startTime);
+
+        let data: any;
+        try {
+          data = await res.json();
+        } catch {
+          data = { statusText: res.statusText };
+        }
+
+        setSimulatedStatus(res.status);
+        setSimulatedLatency(latency);
+        setSimulationResponse(data);
+      } else {
+        // Informational doc (e.g. guide/overview)
+        const endTime = performance.now();
+        setSimulatedStatus(200);
+        setSimulatedLatency(Math.max(12, Math.round(endTime - startTime)));
+        setSimulationResponse(currentDoc.response.body);
+      }
+    } catch {
+      // In case of offline or network interruption, return realistic schema response
+      const endTime = performance.now();
       setSimulatedStatus(currentDoc.response.status);
-      setSimulatedLatency(latency);
-    }, latency + 200);
+      setSimulatedLatency(Math.max(18, Math.round(endTime - startTime)));
+      setSimulationResponse(currentDoc.response.body);
+    } finally {
+      setIsSimulating(false);
+    }
   };
 
   // Auto-expand section if searching
@@ -955,6 +1297,13 @@ export default function ApiDocsView() {
     }
   }, [searchQuery]);
 
+  // Reset simulator state when switching doc tabs
+  useEffect(() => {
+    setSimulationResponse(null);
+    setSimulatedStatus(null);
+    setSimulatedLatency(null);
+  }, [selectedDocId]);
+
   return (
     <div className="min-h-screen bg-white dark:bg-[#090D16] text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-blue-500/20 selection:text-blue-600">
       
@@ -964,7 +1313,7 @@ export default function ApiDocsView() {
       <header className="sticky top-0 z-40 bg-white/85 dark:bg-slate-950/85 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors">
         <div className="max-w-[1700px] mx-auto px-4 sm:px-6 h-15 flex items-center justify-between gap-4">
           
-          {/* Left brand: FlowSync Developer Platform with Official Logo */}
+          {/* Left brand: FlowSync with Official Logo */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileMenuOpen(prev => !prev)}
@@ -991,7 +1340,7 @@ export default function ApiDocsView() {
             </Link>
           </div>
 
-          {/* Center search shortcut indicator on larger screens */}
+          {/* Center search indicator on larger screens */}
           <div className="hidden md:flex items-center flex-1 max-w-md mx-6">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
@@ -1034,7 +1383,7 @@ export default function ApiDocsView() {
       <div className="flex-1 flex max-w-[1700px] w-full mx-auto relative">
 
         {/* -----------------------------------------------------------------------
-            LEFT SIDEBAR (Mobbin UI Minimalist Tree)
+            LEFT SIDEBAR (Noise-Free, Clean Hierarchy)
             ----------------------------------------------------------------------- */}
         <aside
           className={`
@@ -1406,7 +1755,7 @@ export default function ApiDocsView() {
         </main>
 
         {/* -----------------------------------------------------------------------
-            RIGHT PANEL: CODE PLAYGROUND & LIVE TESTER (Mobbin / Linear Studio)
+            RIGHT PANEL: LIVE PLAYGROUND (Connected to Real Local Endpoints)
             ----------------------------------------------------------------------- */}
         <aside className="hidden lg:block w-96 xl:w-[460px] shrink-0 sticky top-15 h-[calc(100vh-60px)] p-6 pl-2 overflow-y-auto custom-scrollbar">
           
@@ -1498,7 +1847,13 @@ export default function ApiDocsView() {
 
                 <div className="flex items-center gap-2">
                   {simulatedStatus && (
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-950 text-emerald-400 border border-emerald-800">
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border ${
+                      simulatedStatus >= 200 && simulatedStatus < 300
+                        ? 'bg-emerald-950 text-emerald-400 border-emerald-800'
+                        : simulatedStatus === 401 || simulatedStatus === 403
+                        ? 'bg-amber-950 text-amber-400 border-amber-800'
+                        : 'bg-rose-950 text-rose-400 border-rose-800'
+                    }`}>
                       HTTP {simulatedStatus}
                     </span>
                   )}
@@ -1510,7 +1865,7 @@ export default function ApiDocsView() {
                 </div>
               </div>
 
-              <pre className="text-[11.5px] font-mono text-emerald-400/95 overflow-x-auto max-h-56 leading-snug">
+              <pre className="text-[11.5px] font-mono text-emerald-400/95 overflow-x-auto max-h-64 leading-snug">
                 {JSON.stringify(simulationResponse || currentDoc.response.body, null, 2)}
               </pre>
             </div>
@@ -1524,4 +1879,3 @@ export default function ApiDocsView() {
     </div>
   );
 }
-

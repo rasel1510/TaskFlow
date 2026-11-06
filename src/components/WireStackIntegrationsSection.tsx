@@ -64,7 +64,7 @@ export default function WireStackIntegrationsSection() {
     <>
       <div className="section-content w-full h-full flex justify-center overflow-hidden">
         <div className="section-inner w-full max-w-7xl px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 md:pt-14 pb-[12vh] flex flex-col items-center">
-          
+
           {/* Main Section Header */}
           <div className="text-center max-w-3xl mx-auto mb-8 sm:mb-12">
             <h2 className="text-3xl sm:text-4xl lg:text-[42px] font-bold tracking-tight text-[#111111] dark:text-white leading-[1.18]">
@@ -74,7 +74,7 @@ export default function WireStackIntegrationsSection() {
 
           {/* 2-Column Split Cards Matching Reference Image */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 w-full max-w-5xl mx-auto items-stretch">
-            
+
             {/* =========================================================================
                 LEFT CARD: Create your perfect workflow
                 ========================================================================= */}
@@ -86,7 +86,7 @@ export default function WireStackIntegrationsSection() {
 
                 {/* Staggered App Integration Badges Cluster */}
                 <div className="flex flex-col items-center gap-3.5 sm:gap-4 my-2">
-                  
+
                   {/* Row 1: Two Wide Hero Pills (Claude + ChatGPT) */}
                   <div className="flex items-center justify-center gap-3 sm:gap-3.5 flex-wrap">
                     {/* Claude Pill */}
@@ -344,11 +344,10 @@ export default function WireStackIntegrationsSection() {
                     key={cat}
                     type="button"
                     onClick={() => setIntegrationFilter(cat)}
-                    className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                      integrationFilter === cat
-                        ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900'
-                        : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900'
-                    }`}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${integrationFilter === cat
+                      ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900'
+                      : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900'
+                      }`}
                   >
                     {cat}
                   </button>
@@ -414,7 +413,7 @@ export default function WireStackIntegrationsSection() {
                 </button>
               </div>
               <pre className="mt-3 text-[11px] leading-relaxed overflow-x-auto text-neutral-300">
-{`curl -X POST https://flowsync.app/api/tasks \\
+                {`curl -X POST https://flowsync.app/api/tasks \\
   -H "Authorization: Bearer flw_sec_live_..." \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -440,7 +439,7 @@ export default function WireStackIntegrationsSection() {
                 </button>
               </div>
               <pre className="mt-3 text-[11px] leading-relaxed overflow-x-auto text-neutral-300">
-{`curl https://flowsync.app/api/tasks?limit=20 \\
+                {`curl https://flowsync.app/api/tasks?limit=20 \\
   -H "Authorization: Bearer flw_sec_live_..."`}
               </pre>
             </div>
@@ -484,7 +483,7 @@ export default function WireStackIntegrationsSection() {
                 </button>
               </div>
               <pre className="mt-3 text-[11px] leading-relaxed overflow-x-auto text-neutral-300">
-{`{
+                {`{
   "mcpServers": {
     "flowsync": {
       "command": "npx",
