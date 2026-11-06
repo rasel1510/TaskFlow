@@ -1001,22 +1001,18 @@ export default function ApiDocsView() {
                 placeholder="Search API reference, endpoints, schemas..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-12 py-1.5 rounded-xl text-xs bg-slate-100/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                className="w-full pl-9 pr-8 py-1.5 rounded-xl text-xs bg-slate-100/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
               />
-              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                {searchQuery ? (
+              {searchQuery && (
+                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center">
                   <button
                     onClick={() => setSearchQuery('')}
                     className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                   >
                     <X size={13} />
                   </button>
-                ) : (
-                  <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded shadow-2xs">
-                    ⌘K
-                  </kbd>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
 

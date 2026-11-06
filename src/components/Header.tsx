@@ -350,9 +350,6 @@ export default function Header({
           <span className="flex-1 text-[13px] text-[#9CA3AF] select-none">
             Search tasks, projects, actions...
           </span>
-          <kbd className="text-[10px] text-[#9CA3AF] border border-[#E5E7EB] bg-white rounded px-1.5 py-0.5 font-mono shadow-xs">
-            ⌘K
-          </kbd>
         </button>
       </div>
 
