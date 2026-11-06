@@ -109,7 +109,6 @@ export default function StreamlineVelocitySection() {
     ];
     return {
       transform: transforms[hoveredBarIndex] || '',
-      boxShadow: '0 20px 30px -8px rgba(124, 58, 237, 0.38)',
     };
   };
 
@@ -137,7 +136,6 @@ export default function StreamlineVelocitySection() {
     ];
     return {
       transform: transforms[hoveredBarIndex] || '',
-      boxShadow: '0 20px 30px -8px rgba(245, 158, 11, 0.32)',
     };
   };
 
@@ -297,15 +295,19 @@ export default function StreamlineVelocitySection() {
               <div
                 style={{
                   ...getTlAvatarStyle(),
-                  transition: 'transform 1400ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 1400ms cubic-bezier(0.25, 1, 0.5, 1)',
+                  transition: 'transform 1400ms cubic-bezier(0.25, 1, 0.5, 1)',
                 }}
-                className={`anime-float-badge absolute bottom-4 -left-3 sm:left-4 z-20 flex items-center justify-center ${
+                className={`anime-float-badge absolute bottom-4 -left-3 sm:left-4 z-20 flex items-center justify-center rounded-full ${
                   hoveredBarIndex === null ? 'tf-idle-tl' : ''
                 }`}
               >
                 <div className="relative">
-                  {/* Avatar Circle */}
-                  <div className="h-12 w-12 sm:h-14 sm:w-14 overflow-hidden rounded-full border-2 border-white dark:border-slate-800 shadow-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                  {/* Avatar Circle — 100% Round with dynamic glow */}
+                  <div className={`h-12 w-12 sm:h-14 sm:w-14 overflow-hidden rounded-full border-2 border-white dark:border-slate-800 bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm transition-shadow duration-700 ${
+                    hoveredBarIndex !== null
+                      ? 'shadow-[0_16px_32px_-6px_rgba(124,58,237,0.45)]'
+                      : 'shadow-xl'
+                  }`}>
                     <span className="text-sm font-semibold tracking-tighter">TL</span>
                   </div>
                   {/* Top-Right Badge: Active Check */}
@@ -321,7 +323,7 @@ export default function StreamlineVelocitySection() {
               <div
                 style={{
                   ...getPmAvatarStyle(),
-                  transition: 'transform 1400ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 1400ms cubic-bezier(0.25, 1, 0.5, 1)',
+                  transition: 'transform 1400ms cubic-bezier(0.25, 1, 0.5, 1)',
                 }}
                 className={`anime-float-badge absolute -top-4 right-0 sm:right-2 z-30 flex flex-col items-center ${
                   hoveredBarIndex === null ? 'tf-idle-pm' : ''
@@ -332,8 +334,12 @@ export default function StreamlineVelocitySection() {
                   Sprint Lead
                   <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-1.5 w-1.5 rotate-45 bg-[#f2545b]" />
                 </div>
-                {/* Avatar with gold border */}
-                <div className="relative h-11 w-11 sm:h-12 sm:w-12 overflow-hidden rounded-full border-2 border-amber-400 bg-amber-100 dark:bg-amber-950/60 shadow-xl flex items-center justify-center text-amber-900 dark:text-amber-200 font-bold text-xs">
+                {/* Avatar with gold border — 100% Round with dynamic glow */}
+                <div className={`relative h-11 w-11 sm:h-12 sm:w-12 overflow-hidden rounded-full border-2 border-amber-400 bg-amber-100 dark:bg-amber-950/60 flex items-center justify-center text-amber-900 dark:text-amber-200 font-bold text-xs transition-shadow duration-700 ${
+                  hoveredBarIndex !== null
+                    ? 'shadow-[0_16px_32px_-6px_rgba(245,158,11,0.4)]'
+                    : 'shadow-xl'
+                }`}>
                   <span>PM</span>
                 </div>
               </div>
