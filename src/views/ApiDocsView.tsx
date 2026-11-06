@@ -986,19 +986,10 @@ export default function ApiDocsView() {
                 </svg>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-lg text-slate-950 dark:text-white tracking-tight">
-                  FlowSync
-                </span>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                  Developer
-                </span>
-              </div>
+              <span className="font-bold text-lg text-slate-950 dark:text-white tracking-tight">
+                FlowSync
+              </span>
             </Link>
-
-            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/60">
-              v1.0 (REST & MCP)
-            </span>
           </div>
 
           {/* Center search shortcut indicator on larger screens */}
