@@ -1461,7 +1461,7 @@ export default function ApiDocsView() {
 
             {/* Interactive Runner ("Try It Out") */}
             <div className="p-4 bg-slate-900/50 border-t border-slate-800/80">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Play size={13} className="text-blue-400" />
                   <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
@@ -1486,10 +1486,6 @@ export default function ApiDocsView() {
                     </>
                   )}
                 </button>
-              </div>
-
-              <div className="text-[11px] text-slate-400">
-                Simulates execution against FlowSync v1 API schema.
               </div>
             </div>
 
