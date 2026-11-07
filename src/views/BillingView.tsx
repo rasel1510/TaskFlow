@@ -78,8 +78,6 @@ export default function BillingView() {
   );
 
   const isPro = billing?.plan === 'pro';
-  const role = (session?.user as any)?.role || 'Admin';
-  const teamName = (session?.user as any)?.teamName || 'Your Company';
 
   return (
     <div className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-8 py-6 sm:py-8 space-y-8 animate-fadeIn">
@@ -87,21 +85,9 @@ export default function BillingView() {
       {/* ─── Page Header ─── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800/60 px-2.5 py-0.5 rounded-full">
-              {teamName}
-            </span>
-            <span className="text-xs text-slate-400 dark:text-slate-500">•</span>
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-              Admin Billing Portal
-            </span>
-          </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 dark:text-white tracking-tight">
-            Company Billing & Stripe Payments
+            Company Billing
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Manage your company subscription, view Stripe transaction history, and download official invoices.
-          </p>
         </div>
 
         <div className="flex items-center gap-2.5">
@@ -115,9 +101,8 @@ export default function BillingView() {
           </button>
           <a
             href="/onboarding/plans"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all cursor-pointer shadow-sm hover:shadow-md shadow-blue-500/20"
+            className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all cursor-pointer shadow-sm hover:shadow-md shadow-blue-500/20"
           >
-            <Sparkles size={13} />
             <span>Manage Plan</span>
           </a>
         </div>
