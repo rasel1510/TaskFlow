@@ -11,9 +11,7 @@ import {
   ShieldCheck,
   AlertCircle,
   ExternalLink,
-  ArrowUpRight,
   Clock,
-  Sparkles,
   RefreshCw,
   Search,
   Building2,
@@ -326,26 +324,6 @@ export default function BillingView() {
           </div>
         )}
 
-      </div>
-
-      {/* ─── Upgrade & Support Banner ─── */}
-      <div className="rounded-2xl p-6 bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h3 className="text-lg font-extrabold tracking-tight flex items-center gap-2">
-            <span>Need Custom Enterprise Billing or VAT Invoices?</span>
-            <Sparkles size={16} className="text-blue-200" />
-          </h3>
-          <p className="text-xs sm:text-sm text-blue-100 mt-1 max-w-xl">
-            FlowSync offers custom annual contracts, ACH bank transfers, and unified procurement invoicing for scaling teams.
-          </p>
-        </div>
-        <a
-          href="mailto:billing@flowsync.app"
-          className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-white text-blue-600 hover:bg-blue-50 transition-colors shrink-0 shadow-sm cursor-pointer"
-        >
-          <span>Contact Billing Team</span>
-          <ArrowUpRight size={14} />
-        </a>
       </div>
 
       {/* ─── Interactive Invoice Modal ─── */}
