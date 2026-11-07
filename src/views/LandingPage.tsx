@@ -306,32 +306,28 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
       if (ctx) ctx.revert();
 
       ctx = gsap.context(() => {
-        // Collect all panels inside slides wrapper
+        // Collect panels inside slides wrapper
         const panels = gsap.utils.toArray<HTMLElement>('.section', wrapper);
-        // Pop the trailing element leaving our active sections
-        panels.pop();
+        if (panels.length <= 1) return;
 
-        panels.forEach((panel) => {
-          // Get the element holding the content inside the panel
+        // In a stacked card deck, only cards that have another card sliding OVER them
+        // should pin and animate. The final card (Features) stays visible at full scale and opacity,
+        // transitioning smoothly directly into the FAQ section without an artificial blank gap.
+        for (let i = 0; i < panels.length - 1; i++) {
+          const panel = panels[i];
           const innerpanel = panel.querySelector<HTMLElement>('.section-inner');
-          if (!innerpanel) return;
+          if (!innerpanel) continue;
 
           // Clear previous inline styles before measurement
           panel.style.marginBottom = '';
           gsap.set(innerpanel, { clearProps: 'transform' });
           gsap.set(panel, { clearProps: 'transform,opacity' });
 
-          // Get the Height of the content inside the panel
           const panelHeight = innerpanel.offsetHeight;
-          // Get the window height
           const windowHeight = window.innerHeight;
-
           const difference = panelHeight - windowHeight;
-
-          // ratio (between 0 and 1) representing the portion of the overall animation that's for the fake-scrolling
           const fakeScrollRatio = difference > 0 ? difference / (difference + windowHeight) : 0;
 
-          // if we need to fake scroll (because the panel is taller than the window), add the appropriate amount of margin to the bottom so that the next element comes in at the proper time.
           if (fakeScrollRatio) {
             panel.style.marginBottom = panelHeight * fakeScrollRatio + 'px';
           }
@@ -348,7 +344,6 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
             },
           });
 
-          // fake scroll. We use 1 because that's what the rest of the timeline consists of (0.9 scale + 0.1 fade)
           if (fakeScrollRatio) {
             tl.to(innerpanel, {
               yPercent: -100,
@@ -358,9 +353,16 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
             });
           }
 
-          tl.fromTo(panel, { scale: 1, opacity: 1 }, { scale: 0.7, opacity: 0.5, duration: 0.9 })
+          tl.fromTo(panel, { scale: 1, opacity: 1 }, { scale: 0.88, opacity: 0.5, duration: 0.9 })
             .to(panel, { opacity: 0, duration: 0.1 });
-        });
+        }
+
+        // Final card (Features): ensure 0 margin and clean resting state
+        const lastPanel = panels[panels.length - 1];
+        if (lastPanel) {
+          lastPanel.style.marginBottom = '0px';
+          gsap.set(lastPanel, { clearProps: 'transform,opacity' });
+        }
       }, wrapper);
     };
 
@@ -381,25 +383,9 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
     };
   }, []);
 
-  // Update margins and refresh ScrollTrigger on accordion / tab changes
+  // Refresh ScrollTrigger on feature tab changes
   useEffect(() => {
     const timer = setTimeout(() => {
-      const wrapper = slidesWrapperRef.current;
-      if (!wrapper) return;
-      const panels = wrapper.querySelectorAll<HTMLElement>('.section');
-      panels.forEach((panel) => {
-        const innerpanel = panel.querySelector<HTMLElement>('.section-inner');
-        if (!innerpanel) return;
-        const panelHeight = innerpanel.offsetHeight;
-        const windowHeight = window.innerHeight;
-        const difference = panelHeight - windowHeight;
-        const fakeScrollRatio = difference > 0 ? difference / (difference + windowHeight) : 0;
-        if (fakeScrollRatio) {
-          panel.style.marginBottom = panelHeight * fakeScrollRatio + 'px';
-        } else {
-          panel.style.marginBottom = '0px';
-        }
-      });
       ScrollTrigger.refresh();
     }, 250);
 
@@ -726,7 +712,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
             className="section section-1 section-features w-full h-[calc(100vh-64px)] relative flex justify-center box-border overflow-hidden rounded-2xl sm:rounded-3xl border border-neutral-200/90 dark:border-neutral-800/80 bg-neutral-50/95 dark:bg-[#0e0f11] shadow-2xl backdrop-blur-sm"
           >
             <div className="section-content w-full h-full flex justify-center overflow-hidden">
-              <div className="section-inner w-full max-w-7xl px-6 pt-12 pb-[20vh] sm:pt-16 md:pt-20 flex flex-col items-center">
+              <div className="section-inner w-full max-w-7xl px-6 pt-12 pb-12 sm:pt-16 sm:pb-16 md:pt-20 flex flex-col items-center">
                 <div className="mb-12 text-center">
                   <h2 className="font-semibold text-3xl text-black tracking-tight sm:text-4xl lg:text-5xl dark:text-white">
                     Everything you need to succeed
@@ -941,9 +927,6 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
               </div>
             </div>
           </section>
-
-          {/* Dummy / Anchor element so panels.pop() pops this end-marker leaving section-0 & section-1 as active overscrolling panels */}
-          <div className="section section-end h-px w-full pointer-events-none opacity-0" />
         </div>
 
         {/* ─────────────────────────────────────────────────────────────────────────
@@ -951,7 +934,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
             ───────────────────────────────────────────────────────────────────────── */}
         <section
           id="faq"
-          className="relative w-full py-16 sm:py-24 md:py-28 px-4 sm:px-6 lg:px-8 select-none"
+          className="relative w-full pt-6 sm:pt-10 md:pt-12 pb-16 sm:pb-24 md:pb-28 px-4 sm:px-6 lg:px-8 select-none"
         >
           <div className="max-w-4xl mx-auto rounded-3xl border border-neutral-200/90 dark:border-neutral-800/90 bg-white dark:bg-[#111215] shadow-xl shadow-black/5 p-6 sm:p-10 md:p-14">
             <div className="mb-10 sm:mb-14 text-center">
