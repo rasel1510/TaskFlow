@@ -51,8 +51,6 @@ import {
   Layers,
   TrendingUp,
   Users,
-  CreditCard,
-  ShieldCheck,
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -432,71 +430,6 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
             </Card>
           </div>
         )}
-
-        {/* Company Subscription & Stripe Billing Widget */}
-        <Card className="shadow-none border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <div className="flex items-center gap-2">
-              <CreditCard className="size-4 text-blue-600 dark:text-blue-400" />
-              <CardTitle className="text-base font-semibold">Company Subscription & Billing</CardTitle>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onViewChange('billing')}
-              className="h-8 gap-1 text-xs text-primary hover:text-primary font-medium cursor-pointer"
-            >
-              <span>Manage Billing</span>
-              <ExternalLink className="size-3" />
-            </Button>
-          </CardHeader>
-          <CardContent className="pt-1">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-xl bg-muted/30 border border-border/50 text-xs">
-              <div>
-                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-                  Subscription Tier
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-sm text-foreground">
-                    {billing?.plan === 'pro' ? 'FlowSync Pro' : 'Basic Plan'}
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    {billing?.subscriptionStatus === 'active' ? 'Active' : 'Current'}
-                  </span>
-                </div>
-                <span className="text-[11px] text-muted-foreground mt-0.5 block">
-                  {billing?.plan === 'pro' ? '$20.00 / month • Auto-renew' : 'Free tier workspace'}
-                </span>
-              </div>
-
-              <div>
-                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-                  Payment Protection
-                </span>
-                <div className="flex items-center gap-1.5 font-medium text-foreground">
-                  <ShieldCheck className="size-3.5 text-blue-600 dark:text-blue-400" />
-                  <span>Stripe PCI-DSS Compliant</span>
-                </div>
-                <span className="text-[11px] text-muted-foreground mt-0.5 block">
-                  Encrypted recurring payment gateway
-                </span>
-              </div>
-
-              <div>
-                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-                  Latest Transaction
-                </span>
-                <div className="font-mono font-medium text-foreground">
-                  {billing?.invoices?.[0]?.invoiceNumber || 'INV-2026-4891'}
-                </div>
-                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5 block">
-                  ${billing?.invoices?.[0]?.amount ? billing.invoices[0].amount.toFixed(2) : '20.00'} USD • Paid
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* 2. Charts Row: Velocity Area Chart + The Circular Donut Figure */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
