@@ -53,7 +53,6 @@ import {
   Users,
   CreditCard,
   ShieldCheck,
-  Sparkles,
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -327,9 +326,8 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
                   <span>{companyName}</span>
                 </span>
               )}
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-600/10 dark:bg-blue-500/20 backdrop-blur-md text-blue-700 dark:text-blue-300 border border-blue-500/30 shadow-xs">
-                <Sparkles className="size-3 text-blue-600 dark:text-blue-400 shrink-0" />
-                <span>{billing?.plan?.toLowerCase() === 'pro' ? 'Pro' : 'Basic'}</span>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-600/10 dark:bg-blue-500/20 backdrop-blur-md text-blue-700 dark:text-blue-300 border border-blue-500/30 shadow-xs">
+                {billing?.plan?.toLowerCase() === 'pro' ? 'Pro' : 'Basic'}
               </span>
             </div>
           </div>
