@@ -32,6 +32,7 @@ import {
 import { animate, stagger } from 'animejs';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import Lenis from 'lenis';
 import { LiquidGlassCard, LiquidButton } from '@/components/kokonutui/liquid-glass-card';
 import PWAModal from '@/components/PWAModal';
 import TrustedBySection from '@/components/TrustedBySection';
@@ -113,8 +114,14 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
       const scrollY = window.scrollY || window.pageYOffset;
       // In the initial scroll (0-90px), the navbar moves up in slow motion and exits first
       const progress = Math.min(Math.max(scrollY / 90, 0), 1);
-      targetY = -progress * 110;
-      targetOpacity = Math.max(0, 1 - progress * 1.1);
+      const nextTargetY = -progress * 110;
+      const nextTargetOpacity = Math.max(0, 1 - progress * 1.1);
+
+      if (nextTargetY === targetY && nextTargetOpacity === targetOpacity && !isRunning) {
+        return;
+      }
+      targetY = nextTargetY;
+      targetOpacity = nextTargetOpacity;
 
       if (!isRunning) {
         isRunning = true;
@@ -239,6 +246,49 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
     }));
   };
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Google / Senior Staff Standard: Lenis Inertial Physics Smooth Scroll Engine
+  // ─────────────────────────────────────────────────────────────────────────
+  const lenisRef = useRef<Lenis | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    gsap.registerPlugin(ScrollTrigger);
+
+    const lenis = new Lenis({
+      duration: 1.15,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // Apple/Linear exponential deceleration curve
+      orientation: 'vertical',
+      gestureOrientation: 'vertical',
+      smoothWheel: true,
+      wheelMultiplier: 1.0,
+      touchMultiplier: 1.4,
+      infinite: false,
+    });
+
+    lenisRef.current = lenis;
+
+    // Synchronize Lenis with GSAP ScrollTrigger
+    lenis.on('scroll', ScrollTrigger.update);
+
+    const updateLenisTicker = (time: number) => {
+      lenis.raf(time * 1000);
+    };
+
+    gsap.ticker.add(updateLenisTicker);
+    gsap.ticker.lagSmoothing(0);
+
+    // Initial recalculation for pinned sections
+    ScrollTrigger.refresh();
+
+    return () => {
+      gsap.ticker.remove(updateLenisTicker);
+      lenis.destroy();
+      lenisRef.current = null;
+    };
+  }, []);
+
   // GSAP: Pinned Panels with Overscroll for Features and FAQ
   const slidesWrapperRef = useRef<HTMLDivElement>(null);
 
@@ -293,7 +343,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
               end: () => (fakeScrollRatio ? `+=${innerpanel.offsetHeight}` : 'bottom top'),
               pinSpacing: false,
               pin: true,
-              scrub: true,
+              scrub: 0.6,
               invalidateOnRefresh: true,
             },
           });
@@ -438,9 +488,9 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
           BACKGROUND AMBIENT LIQUID ORBS (Anime.js animated)
           ───────────────────────────────────────────────────────────────────────── */}
       <div className="pointer-events-none fixed inset-0 -z-20 overflow-hidden">
-        <div className="anime-orb-1 absolute -top-32 -left-32 h-[480px] w-[480px] rounded-full bg-blue-500/15 blur-[120px] dark:bg-blue-600/15" />
-        <div className="anime-orb-2 absolute top-1/3 -right-32 h-[520px] w-[520px] rounded-full bg-purple-500/15 blur-[130px] dark:bg-purple-600/15" />
-        <div className="anime-orb-3 absolute -bottom-32 left-1/4 h-[440px] w-[440px] rounded-full bg-pink-500/10 blur-[110px] dark:bg-pink-600/10" />
+        <div className="anime-orb-1 absolute -top-32 -left-32 h-[480px] w-[480px] rounded-full bg-blue-500/15 blur-[120px] dark:bg-blue-600/15 will-change-transform transform-gpu" />
+        <div className="anime-orb-2 absolute top-1/3 -right-32 h-[520px] w-[520px] rounded-full bg-purple-500/15 blur-[130px] dark:bg-purple-600/15 will-change-transform transform-gpu" />
+        <div className="anime-orb-3 absolute -bottom-32 left-1/4 h-[440px] w-[440px] rounded-full bg-pink-500/10 blur-[110px] dark:bg-pink-600/10 will-change-transform transform-gpu" />
       </div>
 
       {/* ─────────────────────────────────────────────────────────────────────────
@@ -502,7 +552,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
         </header>
       </div>
 
-      <main className="relative min-h-screen w-full overflow-x-clip scroll-smooth">
+      <main className="relative min-h-screen w-full overflow-x-clip">
         {/* ─────────────────────────────────────────────────────────────────────────
             2. HERO SECTION (Scenic Landscape Panoramic + Centered Editorial Design)
             ───────────────────────────────────────────────────────────────────────── */}
@@ -601,7 +651,13 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
               {/* Left Brand Icon */}
               <button
                 type="button"
-                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                onClick={() => {
+                  if (lenisRef.current) {
+                    lenisRef.current.scrollTo(0);
+                  } else {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
+                }}
                 className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors cursor-pointer"
                 title="FlowSync"
               >
@@ -621,8 +677,12 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
               <button
                 type="button"
                 onClick={() => {
-                  const el = document.getElementById('features');
-                  el?.scrollIntoView({ behavior: 'smooth' });
+                  if (lenisRef.current) {
+                    lenisRef.current.scrollTo('#features');
+                  } else {
+                    const el = document.getElementById('features');
+                    el?.scrollIntoView({ behavior: 'smooth' });
+                  }
                 }}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-white hover:text-neutral-300 transition-colors cursor-pointer"
               >

@@ -389,6 +389,7 @@ export default function CloudSky(props: Props) {
 
         let raf = 0
         let last = performance.now()
+        let isVisible = true
         // Each layer keeps its OWN accumulator, wrapped on the CPU. One shared
         // clock scaled per layer would jump every time Speed changed, because the
         // scale multiplies the whole elapsed time, not just what comes next.
@@ -399,6 +400,7 @@ export default function CloudSky(props: Props) {
         let leanY = 0
 
         const render = (now: number) => {
+            if (!isVisible) return
             const dt = Math.min(0.05, (now - last) / 1000)
             last = now
             const v = vRef.current
@@ -453,6 +455,19 @@ export default function CloudSky(props: Props) {
             raf = requestAnimationFrame(render)
         }
 
+        // Pause WebGL rendering loop when scrolled out of viewport to preserve 60-120fps scroll smoothness
+        const observer = new IntersectionObserver(([entry]) => {
+            const nextVisible = entry?.isIntersecting ?? false
+            if (nextVisible && !isVisible) {
+                isVisible = true
+                last = performance.now()
+                raf = requestAnimationFrame(render)
+            } else {
+                isVisible = nextVisible
+            }
+        }, { threshold: 0.02 })
+        observer.observe(canvas)
+
         // Restrict cursor tracking strictly to the target area (e.g. Sky Portion).
         // When cursor is inside the target area, calculate normalized canvas coordinates [-1, 1].
         // When cursor leaves the target area (or leaves window / scrolls), smoothly transition to idle.
@@ -498,6 +513,7 @@ export default function CloudSky(props: Props) {
         // StrictMode's mount -> cleanup -> mount would reuse a force-lost one.
         return () => {
             cancelAnimationFrame(raf)
+            observer.disconnect()
             window.removeEventListener("pointermove", track)
             window.removeEventListener("pointerleave", onLeave)
             window.removeEventListener("pointerup", onLeave)
