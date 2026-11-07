@@ -40,6 +40,7 @@ import StreamlineVelocitySection from '@/components/StreamlineVelocitySection';
 import WireStackIntegrationsSection from '@/components/WireStackIntegrationsSection';
 import Footer from '@/components/Footer';
 import CloudSky from '@/components/CloudSky';
+import AniwallFaqSection from '@/components/AniwallFaqSection';
 
 interface LandingPageProps {
   onLaunchApp?: () => void;
@@ -54,7 +55,6 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
   // Navigation states
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeFeatureIndex, setActiveFeatureIndex] = useState(0);
-  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
   const [isPWAModalOpen, setIsPWAModalOpen] = useState(false);
 
   // Hero interactive task demo states
@@ -425,46 +425,6 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
       accent: 'text-amber-500 dark:text-amber-400',
       description:
         'AI models analyze issue descriptions, link related GitHub pull requests, forecast completion velocity, and synthesize end-of-week release notes without extra work.',
-    },
-  ];
-
-  // FAQs matching Lume numbered format (001), (002), etc.
-  const faqs = [
-    {
-      number: '001',
-      question: 'How does context understanding work in FlowSync?',
-      answer:
-        'FlowSync maintains project context across tasks, documents, and sprints. It analyzes related issues, pull request links, and blocker dependencies, allowing teams to instantly see root causes and summarize weekly progress.',
-    },
-    {
-      number: '002',
-      question: 'Can I switch between or import from Jira, Linear, or Trello?',
-      answer:
-        'Yes. FlowSync includes one-click migration importers for Linear, Jira, and CSV datasets. Your team tags, assignees, priorities, and descriptions are preserved and organized instantly.',
-    },
-    {
-      number: '003',
-      question: 'What happens to my data and privacy?',
-      answer:
-        'Your data is encrypted both in transit (TLS 1.3) and at rest (AES-256). We never train public AI models on customer tasks or proprietary company code. Enterprise private clouds and on-premise deployments are fully supported.',
-    },
-    {
-      number: '004',
-      question: 'Does FlowSync work offline on mobile and desktop?',
-      answer:
-        'Yes! FlowSync is a fully featured Progressive Web App (PWA) with service-worker caching and offline sync. You can install it natively on iOS, Android, macOS, and Windows to work anywhere with zero latency.',
-    },
-    {
-      number: '005',
-      question: 'Can I switch between different AI models?',
-      answer:
-        'Yes. FlowSync integrates seamlessly with Anthropic Claude, OpenAI GPT, Google Gemini, and Grok. You can configure custom API keys or leverage our managed inference router for sprint generation.',
-    },
-    {
-      number: '006',
-      question: 'How do I invite teammates to my workspace?',
-      answer:
-        'You can invite collaborators directly by email or share a workspace invite link. Team members can be assigned Admin, Project Manager, or Member designations with granular permissions.',
     },
   ];
 
@@ -930,64 +890,9 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
         </div>
 
         {/* ─────────────────────────────────────────────────────────────────────────
-            4. FREQUENTLY ASKED QUESTIONS SECTION (Natural Flow — Outside Motion Effect)
+            4. ANIWALL EDITORIAL FAQ SECTION (With Authored Iridescent Helix)
             ───────────────────────────────────────────────────────────────────────── */}
-        <section
-          id="faq"
-          className="relative w-full pt-6 sm:pt-10 md:pt-12 pb-16 sm:pb-24 md:pb-28 px-4 sm:px-6 lg:px-8 select-none"
-        >
-          <div className="max-w-4xl mx-auto rounded-3xl border border-neutral-200/90 dark:border-neutral-800/90 bg-white dark:bg-[#111215] shadow-xl shadow-black/5 p-6 sm:p-10 md:p-14">
-            <div className="mb-10 sm:mb-14 text-center">
-              <h2 className="font-semibold text-2xl sm:text-3xl md:text-4xl text-neutral-950 tracking-tight dark:text-white">
-                Frequently asked questions
-              </h2>
-            </div>
-
-            <div className="w-full divide-y divide-neutral-200/90 dark:divide-neutral-800/90">
-              {faqs.map((faq, index) => {
-                const isOpen = openFaqIndex === index;
-
-                return (
-                  <div
-                    key={faq.number}
-                    className="group transition-colors"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setOpenFaqIndex(isOpen ? null : index)}
-                      className="flex w-full items-center justify-between py-5 sm:py-6 text-left cursor-pointer transition-colors"
-                      aria-expanded={isOpen}
-                    >
-                      <div className="flex items-center gap-4 sm:gap-6 pr-4">
-                        <span className="font-mono text-neutral-400 text-xs sm:text-[13px] tracking-wider transition-colors duration-200 group-hover:text-neutral-600 dark:text-neutral-500 dark:group-hover:text-neutral-400 shrink-0">
-                          ({faq.number})
-                        </span>
-                        <h3 className="font-medium text-sm sm:text-base tracking-tight text-neutral-900 dark:text-white transition-colors duration-200 group-hover:text-neutral-700 dark:group-hover:text-neutral-200">
-                          {faq.question}
-                        </h3>
-                      </div>
-                      <div className="flex h-6 w-6 shrink-0 items-center justify-center text-neutral-400 group-hover:text-neutral-700 dark:text-neutral-500 dark:group-hover:text-neutral-200 transition-colors">
-                        {isOpen ? (
-                          <Minus className="h-4 w-4" />
-                        ) : (
-                          <Plus className="h-4 w-4" />
-                        )}
-                      </div>
-                    </button>
-
-                    {isOpen && (
-                      <div className="pb-6 pl-10 sm:pl-12 pr-4 animate-in fade-in slide-in-from-top-1 duration-200">
-                        <p className="text-neutral-600 dark:text-neutral-400 text-xs sm:text-sm leading-relaxed tracking-tight max-w-2xl">
-                          {faq.answer}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
+        <AniwallFaqSection />
       </main>
 
       {/* ─────────────────────────────────────────────────────────────────────────
