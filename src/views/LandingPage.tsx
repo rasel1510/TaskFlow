@@ -404,7 +404,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
     }, 250);
 
     return () => clearTimeout(timer);
-  }, [openFaqIndex, activeFeatureIndex]);
+  }, [activeFeatureIndex]);
 
   // Feature items matching KokonutUI Lume template structure
   const features = [
@@ -942,69 +942,69 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
             </div>
           </section>
 
-          {/* 4. FAQ SECTION (Matching KokonutUI Lume (001) Numbered Style) */}
-          <section
-            id="faq"
-            className="section section-2 section-faq w-full h-[calc(100vh-64px)] relative flex justify-center box-border overflow-hidden rounded-2xl sm:rounded-3xl border border-neutral-200/90 dark:border-neutral-800/80 bg-white dark:bg-[#111215] shadow-2xl backdrop-blur-sm"
-          >
-            <div className="section-content w-full h-full flex justify-center overflow-hidden">
-              <div className="section-inner w-full max-w-3xl px-6 pt-12 pb-[20vh] sm:pt-16 md:pt-20 flex flex-col items-center">
-                <div className="mb-12 text-center">
-                  <h2 className="font-semibold text-2xl text-black tracking-tight sm:text-3xl dark:text-white">
-                    Frequently asked questions
-                  </h2>
-                </div>
-
-                <div className="w-full space-y-2">
-                  {faqs.map((faq, index) => {
-                    const isOpen = openFaqIndex === index;
-
-                    return (
-                      <div
-                        key={faq.number}
-                        className="group relative border-neutral-200 border-t dark:border-neutral-800 transition-colors"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setOpenFaqIndex(isOpen ? null : index)}
-                          className="relative flex w-full items-center justify-between py-4 text-left cursor-pointer"
-                          aria-expanded={isOpen}
-                        >
-                          <div className="flex items-center gap-4">
-                            <span className="font-mono text-neutral-400 text-xs transition-colors duration-200 group-hover:text-neutral-600 dark:text-neutral-500 dark:group-hover:text-neutral-400">
-                              ({faq.number})
-                            </span>
-                            <h3 className="font-medium text-sm tracking-tight transition-colors duration-200 group-hover:text-neutral-700 dark:group-hover:text-neutral-200 text-black dark:text-white">
-                              {faq.question}
-                            </h3>
-                          </div>
-                          <div className="flex h-6 w-6 shrink-0 items-center justify-center">
-                            {isOpen ? (
-                              <Minus className="h-4 w-4 text-neutral-400 transition-colors duration-200 group-hover:text-neutral-600 dark:text-neutral-500 dark:group-hover:text-neutral-400" />
-                            ) : (
-                              <Plus className="h-4 w-4 text-neutral-400 transition-colors duration-200 group-hover:text-neutral-600 dark:text-neutral-500 dark:group-hover:text-neutral-400" />
-                            )}
-                          </div>
-                        </button>
-
-                        {isOpen && (
-                          <div className="pb-4 pl-8 animate-in fade-in slide-in-from-top-1 duration-200">
-                            <p className="text-neutral-600 text-sm leading-relaxed tracking-tight dark:text-neutral-400">
-                              {faq.answer}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Dummy / Anchor element so panels.pop() pops this end-marker leaving section-1 & section-2 as active overscrolling panels */}
+          {/* Dummy / Anchor element so panels.pop() pops this end-marker leaving section-0 & section-1 as active overscrolling panels */}
           <div className="section section-end h-px w-full pointer-events-none opacity-0" />
         </div>
+
+        {/* ─────────────────────────────────────────────────────────────────────────
+            4. FREQUENTLY ASKED QUESTIONS SECTION (Natural Flow — Outside Motion Effect)
+            ───────────────────────────────────────────────────────────────────────── */}
+        <section
+          id="faq"
+          className="relative w-full py-16 sm:py-24 md:py-28 px-4 sm:px-6 lg:px-8 select-none"
+        >
+          <div className="max-w-4xl mx-auto rounded-3xl border border-neutral-200/90 dark:border-neutral-800/90 bg-white dark:bg-[#111215] shadow-xl shadow-black/5 p-6 sm:p-10 md:p-14">
+            <div className="mb-10 sm:mb-14 text-center">
+              <h2 className="font-semibold text-2xl sm:text-3xl md:text-4xl text-neutral-950 tracking-tight dark:text-white">
+                Frequently asked questions
+              </h2>
+            </div>
+
+            <div className="w-full divide-y divide-neutral-200/90 dark:divide-neutral-800/90">
+              {faqs.map((faq, index) => {
+                const isOpen = openFaqIndex === index;
+
+                return (
+                  <div
+                    key={faq.number}
+                    className="group transition-colors"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaqIndex(isOpen ? null : index)}
+                      className="flex w-full items-center justify-between py-5 sm:py-6 text-left cursor-pointer transition-colors"
+                      aria-expanded={isOpen}
+                    >
+                      <div className="flex items-center gap-4 sm:gap-6 pr-4">
+                        <span className="font-mono text-neutral-400 text-xs sm:text-[13px] tracking-wider transition-colors duration-200 group-hover:text-neutral-600 dark:text-neutral-500 dark:group-hover:text-neutral-400 shrink-0">
+                          ({faq.number})
+                        </span>
+                        <h3 className="font-medium text-sm sm:text-base tracking-tight text-neutral-900 dark:text-white transition-colors duration-200 group-hover:text-neutral-700 dark:group-hover:text-neutral-200">
+                          {faq.question}
+                        </h3>
+                      </div>
+                      <div className="flex h-6 w-6 shrink-0 items-center justify-center text-neutral-400 group-hover:text-neutral-700 dark:text-neutral-500 dark:group-hover:text-neutral-200 transition-colors">
+                        {isOpen ? (
+                          <Minus className="h-4 w-4" />
+                        ) : (
+                          <Plus className="h-4 w-4" />
+                        )}
+                      </div>
+                    </button>
+
+                    {isOpen && (
+                      <div className="pb-6 pl-10 sm:pl-12 pr-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                        <p className="text-neutral-600 dark:text-neutral-400 text-xs sm:text-sm leading-relaxed tracking-tight max-w-2xl">
+                          {faq.answer}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
       </main>
 
       {/* ─────────────────────────────────────────────────────────────────────────
