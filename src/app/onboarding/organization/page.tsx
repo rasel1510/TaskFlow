@@ -64,6 +64,12 @@ function OnboardingOrganizationContent() {
             return;
           }
 
+          // If user already created an organization, do not show organization creation page again: send directly to Dashboard (/app)
+          if ((json.data?.hasCompletedOnboarding && json.data?.teamId) || json.data?.teamId) {
+            router.replace('/app');
+            return;
+          }
+
           setCheckingPayment(false);
           return;
         }

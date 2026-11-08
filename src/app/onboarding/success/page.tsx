@@ -15,6 +15,7 @@ function OnboardingSuccessContent() {
   const [invoice, setInvoice] = useState<InvoiceData | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [hasTeam, setHasTeam] = useState(false);
 
   useEffect(() => {
     // If returning from Stripe Checkout with ?session_id=... verify with backend
@@ -26,6 +27,9 @@ function OnboardingSuccessContent() {
       .then(res => res.json())
       .then(data => {
         if (data.success && data.data) {
+          if (data.data.teamId || data.data.hasCompletedOnboarding) {
+            setHasTeam(true);
+          }
           const matched =
             data.data.invoices?.find((i: any) => i.id === invoiceId) ||
             data.data.invoices?.[0];
@@ -126,13 +130,13 @@ function OnboardingSuccessContent() {
           </div>
         </div>
 
-        {/* Primary CTA: "Create Organization Page" */}
+        {/* Primary CTA */}
         <div className="w-full mt-8">
           <button
-            onClick={() => router.push('/onboarding/organization')}
+            onClick={() => router.push(hasTeam ? '/app' : '/onboarding/organization')}
             className="w-full py-3.5 px-6 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/35 flex items-center justify-center gap-2 cursor-pointer"
           >
-            <span>Continue to Create Organization</span>
+            <span>{hasTeam ? 'Enter Company Dashboard' : 'Continue to Create Organization'}</span>
             <ArrowRight size={16} />
           </button>
         </div>

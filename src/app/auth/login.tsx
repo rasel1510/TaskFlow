@@ -46,12 +46,12 @@ function LoginForm() {
   React.useEffect(() => {
     if (status === 'authenticated' && session?.user) {
       const user = session.user as any;
-      if (!user.hasPaid) {
-        router.replace('/onboarding/plans');
-      } else if (!user.hasCompletedOnboarding || !user.teamId) {
+      if ((user.hasCompletedOnboarding && user.teamId) || user.teamId) {
+        router.replace(targetUrl || '/app');
+      } else if (user.hasPaid) {
         router.replace('/onboarding/organization');
       } else {
-        router.replace(targetUrl || '/app');
+        router.replace('/onboarding/plans');
       }
     }
   }, [status, session, targetUrl, router]);
@@ -100,43 +100,45 @@ function LoginForm() {
           const billingJson = await billingRes.json();
           const { hasPaid, hasCompletedOnboarding, teamId } = billingJson?.data || {};
 
-          // Rule 1: If user has not completed payment, ALWAYS redirect to Payment page
+          // Rule 1: If user already completed payment and has company -> Directly send to Company Dashboard (/app)
+          if ((hasCompletedOnboarding && teamId) || teamId) {
+            setSuccess('Redirecting to your company dashboard...');
+            setTimeout(() => {
+              router.replace(targetUrl || '/app');
+              router.refresh();
+            }, 400);
+            return;
+          }
+
+          // Rule 2: If user completed payment but has not created company -> Directly send to Company Creation page
+          if (hasPaid && (!hasCompletedOnboarding || !teamId)) {
+            setSuccess('Payment confirmed! Redirecting to company setup...');
+            setTimeout(() => {
+              router.replace('/onboarding/organization');
+              router.refresh();
+            }, 400);
+            return;
+          }
+
+          // Rule 3: If user has not completed payment -> Redirect to Payment page
           if (!hasPaid) {
             setSuccess('Payment required. Redirecting to payment options...');
             setTimeout(() => {
               router.replace('/onboarding/plans');
               router.refresh();
-            }, 600);
+            }, 400);
             return;
           }
-
-          // Rule 2: If user completed payment and hasn't created company, directly send to Company Creation page
-          if (!hasCompletedOnboarding || !teamId) {
-            setSuccess('Payment confirmed! Redirecting to company setup...');
-            setTimeout(() => {
-              router.replace('/onboarding/organization');
-              router.refresh();
-            }, 600);
-            return;
-          }
-
-          // Rule 3: Payment completed and company setup done -> Send to Company Dashboard (/app)
-          setSuccess('Redirecting to your company dashboard...');
-          setTimeout(() => {
-            router.replace(targetUrl || '/app');
-            router.refresh();
-          }, 600);
-          return;
         }
       } catch (checkErr) {
         console.warn('Billing check error on login:', checkErr);
       }
 
-      // Safe default: redirect unverified logins to payment options
+      // Safe default: send directly to Dashboard
       setTimeout(() => {
-        router.replace('/onboarding/plans');
+        router.replace(targetUrl || '/app');
         router.refresh();
-      }, 700);
+      }, 500);
     } catch (err: unknown) {
       console.error('Sign in error:', err);
       setError('Unable to sign in. Please verify your credentials and try again.');

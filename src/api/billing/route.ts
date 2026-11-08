@@ -188,7 +188,7 @@ export async function GET(req: Request) {
         billingCycle: user.billingCycle || 'monthly',
         subscriptionStatus: user.subscriptionStatus || 'active',
         failedPaymentAttempts: user.failedPaymentAttempts || 0,
-        hasCompletedOnboarding: Boolean(user.hasCompletedOnboarding && user.teamId),
+        hasCompletedOnboarding: Boolean((user.hasCompletedOnboarding && user.teamId) || user.teamId),
         paymentMethod,
         invoices: user.invoices,
       },

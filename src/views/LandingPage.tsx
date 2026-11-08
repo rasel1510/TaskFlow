@@ -229,11 +229,28 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
     }
   };
 
+  const getTryFlowSyncHref = () => {
+    if (!isAuthenticated) {
+      return '/auth/login?callbackUrl=/app';
+    }
+    const user = session?.user as any;
+    // If admin/user has already created an organization and paid, send directly to Dashboard (/app)
+    if ((user?.hasCompletedOnboarding && user?.teamId) || user?.teamId) {
+      return '/app';
+    }
+    // If user has paid but has not set up company yet, go to organization setup
+    if (user?.hasPaid) {
+      return '/onboarding/organization';
+    }
+    // Default for authenticated users to enter workspace
+    return '/app';
+  };
+
   const handleLaunch = () => {
     if (onLaunchApp) {
       onLaunchApp();
     } else {
-      router.push(isAuthenticated ? '/onboarding/plans' : '/auth/login');
+      router.push(getTryFlowSyncHref());
     }
   };
 
@@ -527,7 +544,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
                 )}
 
                 <Link
-                  href={isAuthenticated ? '/onboarding/plans' : '/auth/login'}
+                  href={getTryFlowSyncHref()}
                   className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-xl shadow-black/20 rounded-full px-6 py-2.5 text-xs sm:text-[13px] h-9 sm:h-10 tracking-tight cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
                 >
                   Try FlowSync

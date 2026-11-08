@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import OnboardingHeader from '@/components/onboarding/OnboardingHeader';
 import { Check, ArrowLeft, Tag, AlertCircle } from 'lucide-react';
@@ -8,6 +8,7 @@ import { Check, ArrowLeft, Tag, AlertCircle } from 'lucide-react';
 export default function OnboardingPlansPage() {
   const router = useRouter();
 
+  const [verifyingStatus, setVerifyingStatus] = useState(true);
   const [promoCode, setPromoCode] = useState('');
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError, setPromoError] = useState<string | null>(null);
@@ -16,6 +17,43 @@ export default function OnboardingPlansPage() {
   const [basicLoading, setBasicLoading] = useState(false);
   const [proLoading, setProLoading] = useState(false);
   const [proError, setProError] = useState<string | null>(null);
+
+  // If user already paid, prevent paying again: redirect directly to /app or organization setup
+  useEffect(() => {
+    let isMounted = true;
+    async function checkExistingStatus() {
+      try {
+        const res = await fetch('/api/billing', { cache: 'no-store' });
+        if (res.ok) {
+          const json = await res.json();
+          const { hasPaid, hasCompletedOnboarding, teamId } = json?.data || {};
+
+          // If already paid AND completed company setup, never show plans again: directly send to Dashboard (/app)
+          if (hasPaid && ((hasCompletedOnboarding && teamId) || teamId)) {
+            router.replace('/app');
+            return;
+          }
+
+          // If already paid but company setup pending, redirect directly to organization setup
+          if (hasPaid && (!hasCompletedOnboarding || !teamId)) {
+            router.replace('/onboarding/organization');
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('[OnboardingPlans] Status check error:', err);
+      } finally {
+        if (isMounted) {
+          setVerifyingStatus(false);
+        }
+      }
+    }
+
+    checkExistingStatus();
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
 
   // Navigate back safely to previous page (signup or login or home)
   const handleBack = () => {
@@ -110,6 +148,17 @@ export default function OnboardingPlansPage() {
       setPromoLoading(false);
     }
   };
+
+  if (verifyingStatus) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-[#F0F6FF] via-[#F8FAFC] to-[#EFF6FF] dark:from-[#0B1120] dark:via-[#0F172A] dark:to-[#0B1120] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
+          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Verifying subscription status...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen bg-slate-50/60 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors overflow-hidden">

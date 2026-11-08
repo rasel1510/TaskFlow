@@ -93,7 +93,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               teamName: dbUser.team?.name,
               plan: dbUser.plan,
               hasPaid,
-              hasCompletedOnboarding: Boolean(dbUser.hasCompletedOnboarding && dbUser.teamId),
+              hasCompletedOnboarding: Boolean((dbUser.hasCompletedOnboarding && dbUser.teamId) || dbUser.teamId),
             };
           }
         } catch {
@@ -183,7 +183,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               Boolean(freshUser.invoices && freshUser.invoices.some(inv => inv.status === 'paid')) ||
               freshUser.plan === 'pro' ||
               freshUser.plan === 'basic';
-            token.hasCompletedOnboarding = Boolean(freshUser.hasCompletedOnboarding && freshUser.teamId);
+            token.hasCompletedOnboarding = Boolean(
+              (freshUser.hasCompletedOnboarding && freshUser.teamId) || freshUser.teamId
+            );
             token.lastSynced = now;
           }
         } catch {
@@ -204,7 +206,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as { teamName?: string }).teamName = (token.teamName as string) || '';
         (session.user as any).plan = token.plan || 'free';
         (session.user as any).hasPaid = Boolean(token.hasPaid);
-        (session.user as any).hasCompletedOnboarding = Boolean(token.hasCompletedOnboarding && token.teamId);
+        (session.user as any).hasCompletedOnboarding = Boolean(
+          (token.hasCompletedOnboarding && token.teamId) || token.teamId
+        );
       }
       return session;
     },

@@ -29,13 +29,27 @@ export default function OnboardingPaymentPage() {
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [isLockedOut, setIsLockedOut] = useState(false);
 
-  // Fetch current user failed attempts on mount
+  // Fetch current user failed attempts on mount and prevent duplicate payment
   useEffect(() => {
-    fetch('/api/billing')
+    fetch('/api/billing', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
         if (data.success && data.data) {
-          const attempts = data.data.failedPaymentAttempts || 0;
+          const { hasPaid, hasCompletedOnboarding, teamId, failedPaymentAttempts } = data.data;
+
+          // If already paid and company created, send directly to Dashboard
+          if (hasPaid && ((hasCompletedOnboarding && teamId) || teamId)) {
+            router.replace('/app');
+            return;
+          }
+
+          // If already paid, send directly to organization setup
+          if (hasPaid) {
+            router.replace('/onboarding/organization');
+            return;
+          }
+
+          const attempts = failedPaymentAttempts || 0;
           setFailedAttempts(attempts);
           if (attempts >= 5) {
             setIsLockedOut(true);
@@ -44,7 +58,7 @@ export default function OnboardingPaymentPage() {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [router]);
 
   // Format Card Number input (xxxx xxxx xxxx xxxx)
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
