@@ -616,11 +616,11 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
                 baseColor="#B4D2F0"
                 accentColor="#FFFFFF"
                 density={100}
-                speed={64}
+                speed={14}
                 size={130}
                 clouds={{ cirrus: 100, shadow: 70, softness: 200 }}
                 sun={{ x: 100, y: 100, glow: "#FFFFFF" }}
-                pointer={{ wind: 300, damping: 50, parallax: 300 }}
+                pointer={{ wind: 15, damping: 35, parallax: 25 }}
               />
             </div>
 

@@ -390,6 +390,7 @@ export default function CloudSky(props: Props) {
         let raf = 0
         let last = performance.now()
         let isVisible = true
+        let isFirstFrame = true
         // Each layer keeps its OWN accumulator, wrapped on the CPU. One shared
         // clock scaled per layer would jump every time Speed changed, because the
         // scale multiplies the whole elapsed time, not just what comes next.
@@ -401,7 +402,12 @@ export default function CloudSky(props: Props) {
 
         const render = (now: number) => {
             if (!isVisible) return
-            const dt = Math.min(0.05, (now - last) / 1000)
+            if (isFirstFrame) {
+                last = now
+                isFirstFrame = false
+            }
+            // Strict frame-delta clamp (max 0.025s) prevents animation speed surges when returning from other pages
+            const dt = Math.min(0.025, Math.max(0, (now - last) / 1000))
             last = now
             const v = vRef.current
             const p = ptrRef.current
@@ -411,9 +417,9 @@ export default function CloudSky(props: Props) {
             leanX += ((p.inside ? p.x : 0) - leanX) * k
             leanY += ((p.inside ? p.y : 0) - leanY) * k
 
-            // The pointer's horizontal offset ADDS to the wind, so dragging one
-            // way speeds the drift and the other way reverses it.
-            const gust = 1 + leanX * (v.wind as number)
+            // Clamped organic wind gust: prevents jarring acceleration or fast rushes
+            const rawGust = 1 + leanX * (v.wind as number) * 0.25
+            const gust = Math.max(0.85, Math.min(1.18, rawGust))
             const rate = (v.speed as number) * gust
             nearX = (nearX - NEAR_DRIFT * rate * dt) % 1000
             farX = (farX - FAR_DRIFT * rate * dt) % 1000
@@ -460,6 +466,7 @@ export default function CloudSky(props: Props) {
             const nextVisible = entry?.isIntersecting ?? false
             if (nextVisible && !isVisible) {
                 isVisible = true
+                isFirstFrame = true
                 last = performance.now()
                 raf = requestAnimationFrame(render)
             } else {
@@ -467,6 +474,23 @@ export default function CloudSky(props: Props) {
             }
         }, { threshold: 0.02 })
         observer.observe(canvas)
+
+        // Reset delta time and cursor inertia when returning from background tabs or previous routes
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                isVisible = false
+            } else {
+                isVisible = true
+                isFirstFrame = true
+                last = performance.now()
+                ptrRef.current.inside = false
+                leanX = 0
+                leanY = 0
+                cancelAnimationFrame(raf)
+                raf = requestAnimationFrame(render)
+            }
+        }
+        document.addEventListener("visibilitychange", handleVisibilityChange)
 
         // Restrict cursor tracking strictly to the target area (e.g. Sky Portion).
         // When cursor is inside the target area, calculate normalized canvas coordinates [-1, 1].
@@ -514,6 +538,7 @@ export default function CloudSky(props: Props) {
         return () => {
             cancelAnimationFrame(raf)
             observer.disconnect()
+            document.removeEventListener("visibilitychange", handleVisibilityChange)
             window.removeEventListener("pointermove", track)
             window.removeEventListener("pointerleave", onLeave)
             window.removeEventListener("pointerup", onLeave)
