@@ -854,4 +854,369 @@ export async function sendProjectInviteEmail({
   }
 }
 
+// ---------------------------------------------------------------------------
+// Login Security Notification Email Dispatcher
+// ---------------------------------------------------------------------------
+export interface SendLoginNotificationParams {
+  to: string;
+  name?: string;
+  loginMethod?: string;
+  timestamp?: Date;
+}
+
+export async function sendLoginNotificationEmail({
+  to,
+  name,
+  loginMethod = 'FlowSync Authentication',
+  timestamp = new Date(),
+}: SendLoginNotificationParams): Promise<MailResult> {
+  const from = getSenderAddress();
+  const transporter = getSmtpTransporter();
+  const formattedDate = timestamp.toUTCString();
+  const greeting = name ? `Hi ${name.split(' ')[0]},` : 'Hello,';
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security Alert: New Sign-In to FlowSync</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #F9FAFB;
+      color: #111111;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrapper {
+      width: 100%;
+      background-color: #F9FAFB;
+      padding: 40px 16px;
+      box-sizing: border-box;
+    }
+    .container {
+      max-width: 520px;
+      margin: 0 auto;
+      background: #ffffff;
+      border: 1px solid #E5E7EB;
+      border-radius: 16px;
+      padding: 36px 32px;
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      background-color: #0F172A;
+      border-radius: 10px;
+      display: inline-block;
+      text-align: center;
+      line-height: 36px;
+      color: #ffffff;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    .brand-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: #111111;
+      letter-spacing: -0.5px;
+      display: inline-block;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #111111;
+      margin: 0 0 12px 0;
+      letter-spacing: -0.4px;
+    }
+    p {
+      font-size: 14px;
+      line-height: 22px;
+      color: #4B5563;
+      margin: 0 0 16px 0;
+    }
+    .card {
+      background-color: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin: 20px 0;
+    }
+    .badge {
+      display: inline-block;
+      background: #ECFDF5;
+      color: #059669;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      border: 1px solid #A7F3D0;
+    }
+    .footer {
+      border-top: 1px solid #F3F4F6;
+      padding-top: 20px;
+      margin-top: 28px;
+      font-size: 12px;
+      line-height: 18px;
+      color: #9CA3AF;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+      <div class="brand">
+        <div class="brand-icon">✓</div>
+        <span class="brand-name">FlowSync</span>
+      </div>
+
+      <h1>Security Alert: New Sign-In</h1>
+      <p>${greeting}</p>
+      <p>We detected a new sign-in to your FlowSync account associated with <strong>${to}</strong>.</p>
+
+      <div class="card">
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+          <tr style="border-bottom: 1px solid #EDF2F7;">
+            <td style="padding: 8px 0; color: #64748B; font-weight: 500;">Method</td>
+            <td style="padding: 8px 0; color: #0F172A; font-weight: 600; text-align: right;">${loginMethod}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #EDF2F7;">
+            <td style="padding: 8px 0; color: #64748B; font-weight: 500;">Timestamp</td>
+            <td style="padding: 8px 0; color: #0F172A; font-weight: 600; text-align: right;">${formattedDate}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #64748B; font-weight: 500;">Status</td>
+            <td style="padding: 8px 0; text-align: right;"><span class="badge">Authenticated</span></td>
+          </tr>
+        </table>
+      </div>
+
+      <p style="font-size: 13px; color: #64748B;">If this was you, you can safely disregard this message. If you did not sign in or suspect unauthorized access, please update your credentials immediately.</p>
+
+      <div class="footer">
+        © ${new Date().getFullYear()} FlowSync Technologies Inc. All rights reserved.<br>
+        High-Performance Task & Project Management Infrastructure.
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+
+  if (!transporter) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`📨 [SMTP DEV] Login notification simulated for ${to} (${loginMethod})`);
+    }
+    return { success: true, devMode: true };
+  }
+
+  try {
+    const info = await transporter.sendMail({
+      from,
+      to,
+      subject: 'Security Alert: New Sign-In to your FlowSync Account',
+      text: `We detected a new sign-in to your FlowSync account (${to}) on ${formattedDate} via ${loginMethod}. If this was not you, please secure your account immediately.`,
+      html,
+    });
+    return { success: true, messageId: info.messageId, devMode: false };
+  } catch (error) {
+    console.error('[SMTP ERROR] Failed to send login notification:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to send login notification' };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Signup Welcome Notification Email Dispatcher
+// ---------------------------------------------------------------------------
+export interface SendSignupNotificationParams {
+  to: string;
+  name?: string;
+  signupMethod?: string;
+}
+
+export async function sendSignupNotificationEmail({
+  to,
+  name,
+  signupMethod = 'FlowSync Platform',
+}: SendSignupNotificationParams): Promise<MailResult> {
+  const from = getSenderAddress();
+  const transporter = getSmtpTransporter();
+  const greeting = name ? `Hi ${name.split(' ')[0]},` : 'Hello,';
+  const appUrl = process.env.APP_URL || process.env.NEXTAUTH_URL || 'https://flow-sync-ruby.vercel.app';
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to FlowSync</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #F9FAFB;
+      color: #111111;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrapper {
+      width: 100%;
+      background-color: #F9FAFB;
+      padding: 40px 16px;
+      box-sizing: border-box;
+    }
+    .container {
+      max-width: 520px;
+      margin: 0 auto;
+      background: #ffffff;
+      border: 1px solid #E5E7EB;
+      border-radius: 16px;
+      padding: 36px 32px;
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      background-color: #0075FF;
+      border-radius: 10px;
+      display: inline-block;
+      text-align: center;
+      line-height: 36px;
+      color: #ffffff;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    .brand-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: #111111;
+      letter-spacing: -0.5px;
+      display: inline-block;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #111111;
+      margin: 0 0 12px 0;
+      letter-spacing: -0.4px;
+    }
+    p {
+      font-size: 14px;
+      line-height: 22px;
+      color: #4B5563;
+      margin: 0 0 16px 0;
+    }
+    .btn-container {
+      margin: 28px 0;
+      text-align: center;
+    }
+    .btn {
+      display: inline-block;
+      background-color: #0075FF;
+      color: #ffffff !important;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      padding: 12px 28px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0, 117, 255, 0.25);
+    }
+    .feature-list {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin: 20px 0;
+    }
+    .feature-item {
+      font-size: 13px;
+      color: #334155;
+      padding: 6px 0;
+    }
+    .footer {
+      border-top: 1px solid #F3F4F6;
+      padding-top: 20px;
+      margin-top: 28px;
+      font-size: 12px;
+      line-height: 18px;
+      color: #9CA3AF;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+      <div class="brand">
+        <div class="brand-icon">✓</div>
+        <span class="brand-name">FlowSync</span>
+      </div>
+
+      <h1>Welcome to FlowSync 🎉</h1>
+      <p>${greeting}</p>
+      <p>Thank you for creating your FlowSync account (via <strong>${signupMethod}</strong>). We're excited to help you and your team streamline project execution and task coordination.</p>
+
+      <div class="feature-list">
+        <div class="feature-item">⚡ <strong>Agile Kanban & Backlog:</strong> Real-time task orchestration.</div>
+        <div class="feature-item">👥 <strong>Multi-Tenant Teams:</strong> Isolated workspace security.</div>
+        <div class="feature-item">📈 <strong>Velocity Analytics:</strong> Team performance insights.</div>
+      </div>
+
+      <div class="btn-container">
+        <a href="${appUrl}/app" class="btn">Launch FlowSync Workspace</a>
+      </div>
+
+      <p style="font-size: 13px; color: #64748B;">Need help getting started? Check your workspace settings or reply directly to this email.</p>
+
+      <div class="footer">
+        © ${new Date().getFullYear()} FlowSync Technologies Inc. All rights reserved.<br>
+        High-Performance Task & Project Management Infrastructure.
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+
+  if (!transporter) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`📨 [SMTP DEV] Welcome email simulated for ${to} (${signupMethod})`);
+    }
+    return { success: true, devMode: true };
+  }
+
+  try {
+    const info = await transporter.sendMail({
+      from,
+      to,
+      subject: 'Welcome to FlowSync – Your Workspace is Ready',
+      text: `Welcome to FlowSync! Your account (${to}) has been created via ${signupMethod}. Launch your workspace here: ${appUrl}/app`,
+      html,
+    });
+    return { success: true, messageId: info.messageId, devMode: false };
+  } catch (error) {
+    console.error('[SMTP ERROR] Failed to send welcome email:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to send welcome email' };
+  }
+}
+
 

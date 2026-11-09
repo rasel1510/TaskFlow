@@ -407,7 +407,7 @@ export default function SignupPage() {
               type="button"
               onClick={() => {
                 setLoading(true);
-                signIn('google', { callbackUrl: '/app' });
+                signIn('google', { callbackUrl: '/app', prompt: 'select_account' });
               }}
               disabled={loading}
               className="w-full flex items-center justify-center gap-2.5 py-2.5 px-4 bg-white hover:bg-gray-50 text-gray-700 font-semibold text-xs rounded-xl border border-gray-200 shadow-2xs hover:border-gray-300 transition-all cursor-pointer active:scale-[0.99] disabled:opacity-60 mb-4"
@@ -433,13 +433,8 @@ export default function SignupPage() {
               <span>Sign up with Google</span>
             </button>
 
-            {/* Divider */}
-            <div className="relative flex items-center justify-center mb-4">
-              <div className="border-t border-gray-200 w-full" />
-              <span className="bg-white px-2.5 text-[10.5px] font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                or sign up with email
-              </span>
-            </div>
+            {/* Line Divider */}
+            <div className="w-full border-t border-gray-200 mb-4" />
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Full Name */}

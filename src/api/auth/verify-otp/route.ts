@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyOtp } from '@/lib/verification';
 import { issueResetToken } from '@/lib/resetTokenStore';
+import { sendSignupNotificationEmail } from '@/lib/mail';
 
 const VerifyOtpSchema = z.object({
   email: z.string().email('Please provide a valid email address'),
@@ -52,6 +53,12 @@ export async function POST(req: Request) {
         message: 'Code verified. You may now set a new password.',
       });
     }
+
+    // For signup flow, dispatch welcome notification email asynchronously
+    sendSignupNotificationEmail({
+      to: email,
+      signupMethod: 'Email & Password',
+    }).catch(err => console.error('[Signup OTP welcome email error]:', err));
 
     return NextResponse.json({
       success: true,

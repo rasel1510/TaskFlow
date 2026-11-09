@@ -4,6 +4,7 @@ import Google from 'next-auth/providers/google';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
 import { findStoredUserByEmail } from '@/data/userStore';
+import { sendLoginNotificationEmail, sendSignupNotificationEmail } from '@/lib/mail';
 
 // Prevent localhost NEXTAUTH_URL from corrupting Vercel serverless requests
 if (process.env.NODE_ENV === 'production' && process.env.NEXTAUTH_URL?.includes('localhost')) {
@@ -51,6 +52,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       clientId: process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID || '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || process.env.AUTH_GOOGLE_SECRET || '',
       allowDangerousEmailAccountLinking: true,
+      authorization: {
+        params: {
+          prompt: 'select_account',
+          access_type: 'offline',
+          response_type: 'code',
+        },
+      },
     }),
     Credentials({
       name: 'Credentials',
@@ -151,6 +159,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           });
 
           // 2. If new user signing in with Google, auto-provision user account
+          const isNewGoogleUser = !dbUser;
           if (!dbUser) {
             dbUser = await prisma.user.create({
               data: {
@@ -170,6 +179,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 invoices: { select: { id: true, status: true }, take: 5 },
               },
             });
+
+            // Dispatch welcome signup notification email
+            sendSignupNotificationEmail({
+              to: email,
+              name: dbUser.name,
+              signupMethod: 'Google OAuth 2.0',
+            }).catch(err => console.error('[Google signup email notification error]:', err));
           } else {
             // Update emailVerified / avatar if needed
             if (!dbUser.emailVerified || (!dbUser.avatar && user.image)) {
@@ -185,6 +201,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 },
               });
             }
+
+            // Dispatch sign-in security notification email
+            sendLoginNotificationEmail({
+              to: email,
+              name: dbUser.name || user.name || undefined,
+              loginMethod: 'Google OAuth 2.0',
+            }).catch(err => console.error('[Google login email notification error]:', err));
           }
 
           // Populate the user object so `jwt` callback attaches DB properties
@@ -209,6 +232,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           console.error('[Google OAuth signIn callback error]:', oauthErr);
           return false;
         }
+      }
+
+      // Credentials login notification
+      if (account?.provider === 'credentials' && user?.email) {
+        sendLoginNotificationEmail({
+          to: user.email,
+          name: user.name || undefined,
+          loginMethod: 'Email & Password',
+        }).catch(err => console.error('[Credentials login email notification error]:', err));
       }
 
       return true;
