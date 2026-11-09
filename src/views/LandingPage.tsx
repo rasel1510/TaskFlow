@@ -56,12 +56,12 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
   const [activeFeatureIndex, setActiveFeatureIndex] = useState(0);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
   const [isPWAModalOpen, setIsPWAModalOpen] = useState(false);
-  const [isLaunching, setIsLaunching] = useState(false);
 
   // Pre-warm destination routes in memory for instantaneous 1-click transition
   useEffect(() => {
-    router.prefetch('/app');
     router.prefetch('/auth/login');
+    router.prefetch('/app');
+    router.prefetch('/onboarding/organization');
   }, [router]);
 
   // Hero interactive task demo states
@@ -238,7 +238,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
 
   const getTryFlowSyncHref = () => {
     if (!isAuthenticated) {
-      return '/auth/login?callbackUrl=/app';
+      return '/auth/login';
     }
     const user = session?.user as any;
     // If admin/user has already created an organization and paid, send directly to Dashboard (/app)
@@ -254,22 +254,12 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
   };
 
   const handleTryFlowSyncClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    if (isLaunching) return;
-    setIsLaunching(true);
-
     if (onLaunchApp) {
+      e.preventDefault();
       onLaunchApp();
       return;
     }
-
-    const target = getTryFlowSyncHref();
-    router.push(target);
-
-    // Fail-safe: Ensure navigation completes smoothly within 650ms if client prefetch suspended
-    setTimeout(() => {
-      window.location.assign(target);
-    }, 650);
+    // Allow Next.js <Link> native instant client router transition to execute without blocking
   };
 
   const handleLaunch = () => {
@@ -571,20 +561,13 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
 
                 <Link
                   href={getTryFlowSyncHref()}
+                  prefetch={true}
+                  onMouseEnter={() => router.prefetch(getTryFlowSyncHref())}
+                  onTouchStart={() => router.prefetch(getTryFlowSyncHref())}
                   onClick={handleTryFlowSyncClick}
-                  aria-busy={isLaunching}
-                  className={`inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-xl shadow-black/20 rounded-full px-6 py-2.5 text-xs sm:text-[13px] h-9 sm:h-10 tracking-tight cursor-pointer hover:scale-[1.02] active:scale-[0.98] select-none relative z-50 pointer-events-auto ${
-                    isLaunching ? 'opacity-85 pointer-events-none' : ''
-                  }`}
+                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-xl shadow-black/20 rounded-full px-6 py-2.5 text-xs sm:text-[13px] h-9 sm:h-10 tracking-tight cursor-pointer hover:scale-[1.02] active:scale-[0.98] select-none relative z-50 pointer-events-auto"
                 >
-                  {isLaunching ? (
-                    <>
-                      <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white dark:border-black border-t-transparent" />
-                      <span>Opening...</span>
-                    </>
-                  ) : (
-                    <span>Try FlowSync</span>
-                  )}
+                  <span>Try FlowSync</span>
                 </Link>
               </div>
             </div>
