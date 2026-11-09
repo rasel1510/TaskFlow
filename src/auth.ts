@@ -1,5 +1,6 @@
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
+import Google from 'next-auth/providers/google';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
 import { findStoredUserByEmail } from '@/data/userStore';
@@ -46,6 +47,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     error: '/auth/login',
   },
   providers: [
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID || '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || process.env.AUTH_GOOGLE_SECRET || '',
+      allowDangerousEmailAccountLinking: true,
+    }),
     Credentials({
       name: 'Credentials',
       credentials: {
@@ -129,7 +135,82 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async signIn() {
+    async signIn({ user, account, profile }) {
+      if (account?.provider === 'google') {
+        const email = user.email?.toLowerCase().trim();
+        if (!email) return false;
+
+        try {
+          // 1. Check if user already exists in database
+          let dbUser = await prisma.user.findUnique({
+            where: { email },
+            include: {
+              team: { select: { id: true, name: true, slug: true } },
+              invoices: { select: { id: true, status: true }, take: 5 },
+            },
+          });
+
+          // 2. If new user signing in with Google, auto-provision user account
+          if (!dbUser) {
+            dbUser = await prisma.user.create({
+              data: {
+                email,
+                name: user.name || profile?.name || email.split('@')[0],
+                avatar:
+                  user.image ||
+                  (profile as any)?.picture ||
+                  `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(email)}`,
+                role: 'Admin',
+                emailVerified: new Date(),
+                plan: 'free',
+                hasCompletedOnboarding: false,
+              },
+              include: {
+                team: { select: { id: true, name: true, slug: true } },
+                invoices: { select: { id: true, status: true }, take: 5 },
+              },
+            });
+          } else {
+            // Update emailVerified / avatar if needed
+            if (!dbUser.emailVerified || (!dbUser.avatar && user.image)) {
+              dbUser = await prisma.user.update({
+                where: { id: dbUser.id },
+                data: {
+                  emailVerified: dbUser.emailVerified || new Date(),
+                  avatar: dbUser.avatar || user.image || undefined,
+                },
+                include: {
+                  team: { select: { id: true, name: true, slug: true } },
+                  invoices: { select: { id: true, status: true }, take: 5 },
+                },
+              });
+            }
+          }
+
+          // Populate the user object so `jwt` callback attaches DB properties
+          const hasPaid =
+            Boolean(dbUser.invoices && dbUser.invoices.some(inv => inv.status === 'paid')) ||
+            dbUser.plan === 'pro' ||
+            dbUser.plan === 'basic';
+
+          user.id = dbUser.id;
+          (user as any).role = dbUser.role || 'Member';
+          (user as any).avatar = dbUser.avatar || user.image;
+          (user as any).teamId = dbUser.teamId;
+          (user as any).teamName = dbUser.team?.name;
+          (user as any).plan = dbUser.plan || 'free';
+          (user as any).hasPaid = hasPaid;
+          (user as any).hasCompletedOnboarding = Boolean(
+            (dbUser.hasCompletedOnboarding && dbUser.teamId) || dbUser.teamId
+          );
+
+          return true;
+        } catch (oauthErr) {
+          console.error('[Google OAuth signIn callback error]:', oauthErr);
+          return false;
+        }
+      }
+
       return true;
     },
     async jwt({ token, user, trigger, session }) {
