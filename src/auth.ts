@@ -6,9 +6,11 @@ import prisma from '@/lib/prisma';
 import { findStoredUserByEmail } from '@/data/userStore';
 import { sendLoginNotificationEmail, sendSignupNotificationEmail } from '@/lib/mail';
 
-// Prevent localhost NEXTAUTH_URL from corrupting Vercel serverless requests
-if (process.env.NODE_ENV === 'production' && process.env.NEXTAUTH_URL?.includes('localhost')) {
-  delete process.env.NEXTAUTH_URL;
+// Prevent non-https or localhost NEXTAUTH_URL from corrupting production/Vercel serverless requests
+if (process.env.NODE_ENV === 'production') {
+  if (process.env.NEXTAUTH_URL && !process.env.NEXTAUTH_URL.startsWith('https://')) {
+    delete process.env.NEXTAUTH_URL;
+  }
 }
 if (process.env.VERCEL_URL && !process.env.AUTH_URL) {
   process.env.AUTH_TRUST_HOST = 'true';
