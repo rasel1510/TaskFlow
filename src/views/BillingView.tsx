@@ -10,7 +10,6 @@ import {
   ShieldCheck,
   RefreshCw,
   Search,
-  Lock,
 } from 'lucide-react';
 import InvoiceModal, { InvoiceData } from '@/components/onboarding/InvoiceModal';
 
@@ -111,10 +110,6 @@ export default function BillingView() {
               <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                 Active Plan
               </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Active
-              </span>
             </div>
 
             <div>
@@ -144,10 +139,6 @@ export default function BillingView() {
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                 Payment Gateway
-              </span>
-              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 border border-blue-200/60 dark:border-blue-900/60 px-2 py-0.5 rounded-md">
-                <Lock size={10} />
-                <span>Stripe Test Mode</span>
               </span>
             </div>
 
@@ -179,9 +170,6 @@ export default function BillingView() {
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                 Billing History
-              </span>
-              <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/60 px-2 py-0.5 rounded-md">
-                All Time
               </span>
             </div>
 

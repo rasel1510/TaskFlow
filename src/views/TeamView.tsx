@@ -19,12 +19,7 @@ import {
   RefreshCw,
   ChevronDown,
   X,
-  Sparkles,
   ShieldAlert,
-  Lock,
-  Eye,
-  EyeOff,
-  Send,
 } from 'lucide-react';
 
 interface TeamMember {
@@ -898,7 +893,6 @@ export default function TeamView() {
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-[#111111]">Invite to {data.team.name}</h3>
-                  <p className="text-[11px] text-gray-500">Collaborate with new managers and members</p>
                 </div>
               </div>
               <button
@@ -971,15 +965,14 @@ export default function TeamView() {
                 <label className="block text-xs font-semibold text-[#111111] mb-1.5">
                   Work Email Address
                 </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <div>
                   <input
                     type="email"
                     required
                     placeholder="colleague@company.com"
                     value={inviteEmail}
                     onChange={e => setInviteEmail(e.target.value)}
-                    className="w-full pl-9 pr-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all shadow-xs"
+                    className="w-full px-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all shadow-xs"
                   />
                 </div>
               </div>
@@ -1007,10 +1000,7 @@ export default function TeamView() {
                         className="mt-0.5 text-[#2563EB] focus:ring-[#2563EB]"
                       />
                       <div className="flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-                          <span className="text-xs font-semibold text-[#111111]">Admin</span>
-                        </div>
+                        <span className="text-xs font-semibold text-[#111111]">Admin</span>
                         <p className="text-[11px] text-gray-500 mt-0.5">
                           Full administrative governance, security settings, and team management.
                         </p>
@@ -1035,10 +1025,7 @@ export default function TeamView() {
                         className="mt-0.5 text-[#2563EB] focus:ring-[#2563EB]"
                       />
                       <div className="flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <Briefcase className="w-3.5 h-3.5 text-[#2563EB]" />
-                          <span className="text-xs font-semibold text-[#111111]">Project Manager</span>
-                        </div>
+                        <span className="text-xs font-semibold text-[#111111]">Project Manager</span>
                         <p className="text-[11px] text-gray-500 mt-0.5">
                           Can create projects, manage roadmaps, assign tasks, and invite members.
                         </p>
@@ -1062,10 +1049,7 @@ export default function TeamView() {
                       className="mt-0.5 text-[#2563EB] focus:ring-[#2563EB]"
                     />
                     <div className="flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <Users className="w-3.5 h-3.5 text-emerald-600" />
-                        <span className="text-xs font-semibold text-[#111111]">Member</span>
-                      </div>
+                      <span className="text-xs font-semibold text-[#111111]">Member</span>
                       <p className="text-[11px] text-gray-500 mt-0.5">
                         Can participate in projects, work on assigned tasks, and submit updates.
                       </p>
@@ -1083,14 +1067,12 @@ export default function TeamView() {
                   <button
                     type="button"
                     onClick={() => setInvitePassword(generateRandomPassword())}
-                    className="text-[11px] font-medium text-[#2563EB] hover:text-[#1D4ED8] flex items-center gap-1 cursor-pointer"
+                    className="text-[11px] font-medium text-[#2563EB] hover:text-[#1D4ED8] hover:underline cursor-pointer"
                   >
-                    <RefreshCw className="w-3 h-3" />
-                    <span>Generate New</span>
+                    Generate New
                   </button>
                 </div>
                 <div className="relative">
-                  <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input
                     type={showInvitePassword ? 'text' : 'password'}
                     required
@@ -1098,14 +1080,14 @@ export default function TeamView() {
                     placeholder="Initial account password"
                     value={invitePassword}
                     onChange={e => setInvitePassword(e.target.value)}
-                    className="w-full pl-9 pr-10 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs font-mono text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all shadow-xs"
+                    className="w-full px-3.5 pr-14 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs font-mono text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all shadow-xs"
                   />
                   <button
                     type="button"
                     onClick={() => setShowInvitePassword(!showInvitePassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-gray-500 hover:text-gray-800 cursor-pointer select-none"
                   >
-                    {showInvitePassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    {showInvitePassword ? 'Hide' : 'Show'}
                   </button>
                 </div>
               </div>
@@ -1122,18 +1104,15 @@ export default function TeamView() {
                 <button
                   type="submit"
                   disabled={sendingInvite}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-xl transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+                  className="px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-xl transition-all shadow-sm disabled:opacity-50 cursor-pointer"
                 >
                   {sendingInvite ? (
-                    <>
+                    <span className="flex items-center gap-1.5">
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Sending Invitation...</span>
-                    </>
+                      <span>Sending...</span>
+                    </span>
                   ) : (
-                    <>
-                      <Send className="w-3.5 h-3.5" />
-                      <span>Send</span>
-                    </>
+                    'Send'
                   )}
                 </button>
               </div>

@@ -40,6 +40,8 @@ import StreamlineVelocitySection from '@/components/StreamlineVelocitySection';
 import WireStackIntegrationsSection from '@/components/WireStackIntegrationsSection';
 import Footer from '@/components/Footer';
 import CloudSky from '@/components/CloudSky';
+import TactileShaderButton from '@/components/ui/TactileShaderButton';
+import '@designcodeio/threeui/style.css';
 
 interface LandingPageProps {
   onLaunchApp?: () => void;
@@ -559,16 +561,15 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
                   </button>
                 )}
 
-                <Link
+                <TactileShaderButton
                   href={getTryFlowSyncHref()}
                   prefetch={true}
                   onMouseEnter={() => router.prefetch(getTryFlowSyncHref())}
                   onTouchStart={() => router.prefetch(getTryFlowSyncHref())}
                   onClick={handleTryFlowSyncClick}
-                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-xl shadow-black/20 rounded-full px-6 py-2.5 text-xs sm:text-[13px] h-9 sm:h-10 tracking-tight cursor-pointer hover:scale-[1.02] active:scale-[0.98] select-none relative z-50 pointer-events-auto"
                 >
                   <span>Try FlowSync</span>
-                </Link>
+                </TactileShaderButton>
               </div>
             </div>
           </div>
@@ -634,7 +635,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
             </h1>
 
             {/* 3. Subtitle */}
-            <p className="anime-hero-fade max-w-2xl text-sm sm:text-base md:text-[16.5px] text-neutral-700 dark:text-neutral-300 leading-relaxed font-normal">
+            <p className="anime-hero-fade max-w-2xl text-sm sm:text-base md:text-[16.5px] text-black-700 dark:text-neutral-700 leading-relaxed font-normal">
               Empower any team to plan, track, and execute tasks and projects with effortless efficiency. Streamline workflows, eliminate bottlenecks, and ship high-impact work faster.
             </p>
 
