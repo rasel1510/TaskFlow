@@ -21,6 +21,7 @@ import Reports from '@/views/Reports';
 import Settings from '@/views/Settings';
 import BillingView from '@/views/BillingView';
 import TeamView from '@/views/TeamView';
+import SuperAdminView from '@/views/SuperAdminView';
 import { TaskProvider } from '@/context/TaskContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
@@ -40,7 +41,8 @@ type View =
   | 'reports'
   | 'billing'
   | 'settings'
-  | 'inbox';
+  | 'inbox'
+  | 'super-admin';
 
 function AppContent() {
   const { data: session, status } = useSession();
@@ -322,6 +324,8 @@ function AppContent() {
         return <TeamView />;
       case 'settings':
         return <Settings />;
+      case 'super-admin':
+        return <SuperAdminView onSwitchWorkspace={() => setView('dashboard')} />;
       default:
         return null;
     }

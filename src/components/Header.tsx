@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSession, signOut } from 'next-auth/react';
+import { isSuperAdmin } from '@/lib/permissions';
 
 interface HeaderNotificationItem {
   id: string;
@@ -19,7 +20,19 @@ interface HeaderNotificationItem {
   meta?: string;
 }
 
-type View = 'dashboard' | 'tasks' | 'kanban' | 'projects' | 'team' | 'calendar' | 'timeline' | 'reports' | 'billing' | 'settings' | 'inbox';
+type View =
+  | 'dashboard'
+  | 'tasks'
+  | 'kanban'
+  | 'projects'
+  | 'team'
+  | 'calendar'
+  | 'timeline'
+  | 'reports'
+  | 'billing'
+  | 'settings'
+  | 'inbox'
+  | 'super-admin';
 
 const pageTitles: Record<View, string> = {
   dashboard: 'Dashboard',
@@ -33,6 +46,7 @@ const pageTitles: Record<View, string> = {
   billing: 'Company Billing',
   settings: 'Settings',
   inbox: 'Inbox',
+  'super-admin': 'Platform Console',
 };
 
 
@@ -273,7 +287,16 @@ export default function Header({
   const currentName = customName || session?.user?.name || 'User';
   const userName = currentName;
   const userEmail = session?.user?.email || '';
-  const userRole = customRole || (session?.user as { role?: string })?.role || 'Member';
+  const isSuperAdminUser =
+    Boolean((session?.user as any)?.isSuperAdmin) ||
+    isSuperAdmin({
+      email: session?.user?.email,
+      role: customRole || (session?.user as any)?.role,
+      teamName: (session?.user as any)?.teamName,
+    });
+  const userRole = isSuperAdminUser
+    ? 'Super Admin'
+    : (customRole || (session?.user as { role?: string })?.role || 'Member');
   const userAvatar =
     customAvatar ||
     (session?.user as { avatar?: string })?.avatar ||
@@ -336,7 +359,30 @@ export default function Header({
 
 
       {/* Search — desktop only (triggers Command Palette) */}
-      <div className="hidden md:flex flex-1 justify-center">
+      <div className="hidden md:flex flex-1 items-center justify-center gap-3">
+        {/* Impersonation indicator for Super Admin */}
+        {isSuperAdminUser && (session?.user as any)?.teamName && (session?.user as any)?.teamName.toLowerCase() !== 'flowsync' && (
+          <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-900 text-xs shadow-2xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+            <span className="truncate max-w-[200px]">
+              Inspecting <strong>{(session?.user as any)?.teamName}</strong>
+            </span>
+            <button
+              onClick={async () => {
+                await fetch('/api/admin/impersonate', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ targetTeamId: null }),
+                });
+                window.location.reload();
+              }}
+              className="ml-1 text-[11px] font-bold text-amber-800 underline hover:text-amber-950 cursor-pointer shrink-0"
+            >
+              Exit to FlowSync
+            </button>
+          </div>
+        )}
+
         <button
           type="button"
           onClick={onOpenCommandPalette}
@@ -652,10 +698,30 @@ export default function Header({
                 <div className="px-4 py-3 border-b border-[#E5E7EB]">
                   <p className="text-[13px] font-semibold text-[#111111] truncate">{userName}</p>
                   <p className="text-[11px] text-[rgba(17,17,17,0.5)] truncate">{userEmail}</p>
-                  <span className="inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-[#2563EB]">
+                  <span
+                    className={`inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                      isSuperAdminUser
+                        ? 'bg-amber-500/10 text-amber-700 border border-amber-500/20'
+                        : 'bg-blue-50 text-[#2563EB]'
+                    }`}
+                  >
                     {userRole}
                   </span>
                 </div>
+
+                {isSuperAdminUser && (
+                  <div className="p-1 border-b border-amber-100 bg-amber-50/40">
+                    <button
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        onNavigate?.('super-admin');
+                      }}
+                      className="w-full flex items-center px-3 py-2 rounded-lg text-[13px] text-amber-900 hover:bg-amber-100/60 transition-colors font-semibold text-left cursor-pointer"
+                    >
+                      <span>Platform Console</span>
+                    </button>
+                  </div>
+                )}
 
                 {expertiseRequired && (
                   <div className="p-2 border-b border-red-100 bg-red-50/70">

@@ -10,6 +10,7 @@ interface DatePickerProps {
   min?: string;
   max?: string;
   align?: 'left' | 'right';
+  direction?: 'up' | 'down' | 'auto';
 }
 
 const MONTH_NAMES = [
@@ -47,9 +48,10 @@ export default function DatePicker({
   placeholder = 'Select date',
   className = '',
   align = 'left',
+  direction = 'auto',
 }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [dropUp, setDropUp] = useState(false);
+  const [dropUp, setDropUp] = useState(direction === 'up');
   const [effectiveAlign, setEffectiveAlign] = useState<'left' | 'right'>(align);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -75,48 +77,53 @@ export default function DatePicker({
     }
   }, [value]);
 
+  // Keep dropUp in sync if direction prop changes
+  useEffect(() => {
+    if (direction === 'up') {
+      setDropUp(true);
+    } else if (direction === 'down') {
+      setDropUp(false);
+    }
+  }, [direction]);
+
   const checkPlacement = useCallback(() => {
-    if (!containerRef.current) return { isDropUp: false, hAlign: align };
+    if (!containerRef.current) {
+      return { isDropUp: direction === 'up', hAlign: align };
+    }
+
+    let isDropUp: boolean;
+    if (direction === 'up') {
+      isDropUp = true;
+    } else if (direction === 'down') {
+      isDropUp = false;
+    } else {
+      const rect = containerRef.current.getBoundingClientRect();
+      const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+      const calendarHeight = 220;
+      const spaceBelow = viewportHeight - rect.bottom - 12;
+      const spaceAbove = rect.top - 12;
+
+      // Always prefer dropping down unless viewport below is too small AND space above is sufficient
+      isDropUp = spaceBelow < calendarHeight && spaceAbove >= calendarHeight;
+    }
+
     const rect = containerRef.current.getBoundingClientRect();
-    const scrollContainer =
-      containerRef.current.closest('form') ||
-      containerRef.current.closest('.overflow-y-auto') ||
-      containerRef.current.closest('[role="dialog"]');
-
-    const bottomBoundary = scrollContainer
-      ? scrollContainer.getBoundingClientRect().bottom
-      : window.innerHeight;
-    const spaceBelow = Math.max(0, bottomBoundary - rect.bottom - 8);
-
-    const topBoundary = scrollContainer
-      ? scrollContainer.getBoundingClientRect().top
-      : 0;
-    const spaceAbove = Math.max(0, rect.top - topBoundary - 8);
-
-    // Standard compact calendar height is ~275px
-    const calendarHeight = 275;
-    const isDropUp = spaceBelow < calendarHeight && (spaceAbove >= 180 || spaceAbove > spaceBelow);
+    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
 
     // Horizontal placement check
     let hAlign: 'left' | 'right' = align;
-    const rightBoundary = scrollContainer
-      ? scrollContainer.getBoundingClientRect().right
-      : window.innerWidth;
-    const leftBoundary = scrollContainer
-      ? scrollContainer.getBoundingClientRect().left
-      : 0;
+    const popoverWidth = 236;
+    const spaceToRight = viewportWidth - rect.left - 12;
+    const spaceToLeft = rect.right - 12;
 
-    const spaceToRight = rightBoundary - rect.left;
-    const spaceToLeft = rect.right - leftBoundary;
-
-    if (hAlign === 'left' && spaceToRight < 280 && spaceToLeft >= 280) {
+    if (hAlign === 'left' && spaceToRight < popoverWidth && spaceToLeft >= popoverWidth) {
       hAlign = 'right';
-    } else if (hAlign === 'right' && spaceToLeft < 280 && spaceToRight >= 280) {
+    } else if (hAlign === 'right' && spaceToLeft < popoverWidth && spaceToRight >= popoverWidth) {
       hAlign = 'left';
     }
 
     return { isDropUp, hAlign };
-  }, [align]);
+  }, [align, direction]);
 
   // Recalculate placement on open, scroll, or resize
   useEffect(() => {
@@ -273,15 +280,15 @@ export default function DatePicker({
           }
           setIsOpen(!isOpen);
         }}
-        className={`w-full max-w-full flex items-center justify-between text-[15px] sm:text-[13px] border rounded-lg px-3 py-2.5 sm:py-2 bg-white transition-all min-h-[42px] sm:min-h-0 cursor-pointer ${
+        className={`w-full max-w-full flex items-center justify-between text-xs sm:text-sm border rounded-xl px-3.5 py-2.5 sm:py-2 bg-white dark:bg-neutral-900 transition-all cursor-pointer ${
           isOpen
-            ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]'
-            : 'border-[#E5E7EB] hover:border-[#CBD5E1]'
+            ? 'border-[#2563EB] ring-2 ring-[#DBEAFE] dark:ring-blue-900/40'
+            : 'border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700'
         } ${className}`}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
       >
-        <span className={value ? 'text-[#111111] font-medium truncate' : 'text-[#9CA3AF] truncate'}>
+        <span className={value ? 'text-neutral-900 dark:text-neutral-100 font-medium truncate' : 'text-neutral-400 truncate'}>
           {value ? formatDisplayDate(value) : placeholder}
         </span>
         <svg
@@ -293,7 +300,7 @@ export default function DatePicker({
           strokeWidth="1.8"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className={`shrink-0 ml-2 transition-colors ${isOpen ? 'text-[#2563EB]' : 'text-gray-400'}`}
+          className={`shrink-0 ml-2 transition-colors ${isOpen ? 'text-[#2563EB]' : 'text-neutral-400'}`}
         >
           <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
           <line x1="16" y1="2" x2="16" y2="6" />
@@ -305,27 +312,27 @@ export default function DatePicker({
       {/* Calendar Dropdown */}
       {isOpen && (
         <div
-          className={`absolute ${dropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} z-50 bg-white border border-[#E5E7EB] rounded-xl shadow-2xl p-2.5 sm:p-3 select-none animate-in fade-in zoom-in-95 duration-100 left-0 right-0 w-full sm:w-[280px] ${
+          className={`absolute ${dropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} z-50 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl p-2 select-none animate-in fade-in zoom-in-95 duration-100 left-0 right-0 w-full sm:w-[236px] ${
             effectiveAlign === 'left' ? 'sm:left-0 sm:right-auto' : 'sm:left-auto sm:right-0'
           }`}
           role="dialog"
           aria-label="Calendar date picker"
         >
           {/* Header */}
-          <div className="flex items-center justify-between mb-2.5 px-1">
-            <span className="text-[13.5px] font-semibold text-[#111111]">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <span className="text-xs font-semibold text-neutral-800 dark:text-neutral-100">
               {MONTH_NAMES[viewMonth]} {viewYear}
             </span>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5">
               <button
                 type="button"
                 onClick={handlePrevMonth}
-                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer"
+                className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors cursor-pointer"
                 aria-label="Previous month"
               >
                 <svg
-                  width="14"
-                  height="14"
+                  width="13"
+                  height="13"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -339,12 +346,12 @@ export default function DatePicker({
               <button
                 type="button"
                 onClick={handleNextMonth}
-                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer"
+                className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors cursor-pointer"
                 aria-label="Next month"
               >
                 <svg
-                  width="14"
-                  height="14"
+                  width="13"
+                  height="13"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -359,21 +366,21 @@ export default function DatePicker({
           </div>
 
           {/* Weekday Labels */}
-          <div className="grid grid-cols-7 gap-1 text-center mb-1">
+          <div className="grid grid-cols-7 gap-0.5 text-center mb-1">
             {WEEKDAYS.map((wd, i) => (
-              <span key={i} className="text-[11px] font-semibold text-slate-400 py-0.5">
+              <span key={i} className="text-[10px] font-medium text-neutral-400 dark:text-neutral-500 py-0.5">
                 {wd}
               </span>
             ))}
           </div>
 
           {/* Days Grid */}
-          <div className="grid grid-cols-7 gap-1">
+          <div className="grid grid-cols-7 gap-0.5">
             {/* Previous month days */}
             {prevMonthDays.map((d, i) => (
               <div
                 key={`prev-${i}`}
-                className="h-7.5 sm:h-7 flex items-center justify-center text-[12px] text-slate-300 pointer-events-none"
+                className="h-6.5 flex items-center justify-center text-[11px] text-neutral-300 dark:text-neutral-600 pointer-events-none select-none"
               >
                 {d}
               </div>
@@ -391,12 +398,12 @@ export default function DatePicker({
                   key={`cur-${d}`}
                   type="button"
                   onClick={() => handleSelectDay(d)}
-                  className={`h-7.5 sm:h-7 rounded-lg flex items-center justify-center text-[12.5px] transition-all cursor-pointer ${
+                  className={`h-6.5 rounded-md flex items-center justify-center text-[11.5px] transition-all cursor-pointer ${
                     isSelected
                       ? 'bg-[#2563EB] text-white font-semibold shadow-xs'
                       : isToday
-                      ? 'border border-[#2563EB] text-[#2563EB] font-bold hover:bg-blue-50'
-                      : 'text-[#111111] hover:bg-slate-100 active:bg-slate-200'
+                      ? 'border border-[#2563EB] text-[#2563EB] font-semibold hover:bg-blue-50 dark:hover:bg-blue-950/30'
+                      : 'text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 active:bg-neutral-200 dark:active:bg-neutral-700'
                   }`}
                 >
                   {d}
@@ -408,7 +415,7 @@ export default function DatePicker({
             {nextMonthDays.map((d, i) => (
               <div
                 key={`next-${i}`}
-                className="h-7.5 sm:h-7 flex items-center justify-center text-[12px] text-slate-300 pointer-events-none"
+                className="h-6.5 flex items-center justify-center text-[11px] text-neutral-300 dark:text-neutral-600 pointer-events-none select-none"
               >
                 {d}
               </div>
@@ -416,18 +423,18 @@ export default function DatePicker({
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-between pt-2 mt-2 border-t border-slate-100 text-[12px]">
+          <div className="flex items-center justify-between pt-1.5 mt-1.5 border-t border-neutral-100 dark:border-neutral-800 text-[11px]">
             <button
               type="button"
               onClick={handleClear}
-              className="text-slate-500 hover:text-slate-900 font-medium transition-colors cursor-pointer px-1 py-0.5"
+              className="text-neutral-400 hover:text-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-300 font-medium transition-colors cursor-pointer px-1 py-0.5 rounded"
             >
               Clear
             </button>
             <button
               type="button"
               onClick={handleToday}
-              className="text-[#2563EB] hover:text-[#1D4ED8] font-semibold transition-colors cursor-pointer px-1 py-0.5"
+              className="text-[#2563EB] hover:text-[#1D4ED8] dark:text-blue-400 dark:hover:text-blue-300 font-semibold transition-colors cursor-pointer px-1 py-0.5 rounded"
             >
               Today
             </button>

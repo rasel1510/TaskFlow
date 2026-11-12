@@ -106,22 +106,21 @@ export default function CreateProjectModal({ onClose, onSuccess }: CreateProject
       <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] transition-opacity" onClick={onClose} />
 
       {/* Modal Card */}
-      <div className="relative w-full max-w-xl bg-white rounded-t-2xl sm:rounded-xl shadow-2xl border-t sm:border border-[#E5E7EB] z-10 flex flex-col max-h-[92dvh] sm:max-h-[90vh] pb-safe overscroll-contain animate-in fade-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
+      <div className="relative w-full max-w-lg bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200/90 dark:border-neutral-800 z-10 flex flex-col overflow-visible animate-in fade-in zoom-in-95 duration-150">
         {/* Mobile drag handle */}
         <div className="flex justify-center pt-2.5 pb-1 sm:hidden shrink-0">
-          <div className="w-10 h-1 rounded-full bg-[#E5E7EB]" />
+          <div className="w-10 h-1 rounded-full bg-neutral-200 dark:bg-neutral-700" />
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[#E5E7EB] bg-white shrink-0">
+        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 rounded-t-2xl shrink-0">
           <div>
-            <h2 className="text-[16px] sm:text-[17px] font-bold text-[#111111]">Create New Project</h2>
-            <p className="text-[11.5px] text-gray-500 mt-0.5">Define project scope and schedule</p>
+            <h2 className="text-base font-semibold text-neutral-900 dark:text-white tracking-tight">Create New Project</h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F3F4F6] active:bg-[#E5E7EB] text-[rgba(17,17,17,0.5)] hover:text-[#111111] transition-colors cursor-pointer"
+            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors cursor-pointer"
             aria-label="Close"
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
@@ -132,17 +131,17 @@ export default function CreateProjectModal({ onClose, onSuccess }: CreateProject
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 pb-6 space-y-4 overflow-y-auto overscroll-contain flex-1">
+        <form id="create-project-form" onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 overflow-visible flex-1">
           {errorMsg && (
-            <div className="p-3 bg-[#FEF2F2] border border-[#FECACA] rounded-lg text-[12.5px] text-[#DC2626]">
+            <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 rounded-xl text-xs text-red-600 dark:text-red-400">
               {errorMsg}
             </div>
           )}
 
           {/* Project Name */}
           <div>
-            <label className="block text-[12.5px] font-semibold text-[#111111] mb-1.5">
-              Project Name <span className="text-[#DC2626]">*</span>
+            <label className="block text-xs font-semibold text-neutral-900 dark:text-neutral-100 mb-1.5">
+              Project Name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -150,38 +149,44 @@ export default function CreateProjectModal({ onClose, onSuccess }: CreateProject
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="e.g. Website Redesign"
-              className="w-full px-3 py-2.5 sm:py-2 text-[15px] sm:text-[13px] border border-[#E5E7EB] rounded-lg outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] bg-white transition-all text-[#111111] placeholder-[#9CA3AF] min-h-[42px] sm:min-h-0"
+              className="w-full px-3.5 py-2.5 text-sm border border-neutral-200 dark:border-neutral-800 rounded-xl outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 bg-white dark:bg-neutral-900 transition-all text-neutral-900 dark:text-white placeholder:text-neutral-400 shadow-2xs"
             />
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-[12.5px] font-semibold text-[#111111] mb-1.5">
-              Description <span className="text-[11px] font-normal text-[rgba(17,17,17,0.4)]">(Optional)</span>
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-neutral-900 dark:text-neutral-100">
+                Description
+              </label>
+              <span className="text-[11px] text-neutral-400">Optional</span>
+            </div>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
               placeholder="What is this project about?"
-              rows={2}
-              className="w-full px-3 py-2 sm:py-2 text-[14px] sm:text-[13px] border border-[#E5E7EB] rounded-lg outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] bg-white transition-all text-[#111111] placeholder-[#9CA3AF] resize-none"
+              rows={3}
+              className="w-full px-3.5 py-2.5 text-sm border border-neutral-200 dark:border-neutral-800 rounded-xl outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 bg-white dark:bg-neutral-900 transition-all text-neutral-900 dark:text-white placeholder:text-neutral-400 resize-none shadow-2xs"
             />
           </div>
 
           {/* Color theme & Due date row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
             {/* Color theme */}
             <div>
-              <label className="block text-[12.5px] font-semibold text-[#111111] mb-2">Color Theme</label>
-              <div className="flex items-center gap-2.5">
+              <label className="block text-xs font-semibold text-neutral-900 dark:text-neutral-100 mb-2">
+                Color Theme
+              </label>
+              <div className="flex items-center gap-2 pt-0.5">
                 {COLOR_PRESETS.map(preset => (
                   <button
                     key={preset.hex}
                     type="button"
                     onClick={() => setColor(preset.hex)}
-                    className={`w-7 h-7 rounded-full transition-transform flex items-center justify-center cursor-pointer ${
-                      color === preset.hex ? 'ring-2 ring-offset-2 ring-[#111111] scale-110' : 'hover:scale-105'
-                    }`}
+                    className={`w-7 h-7 rounded-full transition-all duration-150 flex items-center justify-center cursor-pointer ${color === preset.hex
+                      ? 'ring-2 ring-offset-2 ring-neutral-900 dark:ring-white scale-105 shadow-xs'
+                      : 'hover:scale-105 opacity-85 hover:opacity-100'
+                      }`}
                     style={{ backgroundColor: preset.hex }}
                     title={preset.name}
                   >
@@ -196,30 +201,35 @@ export default function CreateProjectModal({ onClose, onSuccess }: CreateProject
             </div>
 
             {/* Due date */}
-            <div className="relative z-30">
-              <label className="block text-[12.5px] font-semibold text-[#111111] mb-1.5">Target Due Date</label>
+            <div className="relative">
+              <label className="block text-xs font-semibold text-neutral-900 dark:text-neutral-100 mb-1.5">
+                Target Due Date
+              </label>
               <DatePicker
                 value={dueDate}
                 onChange={setDueDate}
                 placeholder="Select target due date"
+                align="right"
+                direction="up"
               />
             </div>
           </div>
 
           {/* Modal Footer */}
-          <div className="flex items-center justify-end gap-2.5 pt-4 pb-1 border-t border-[#E5E7EB] shrink-0">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-neutral-100 dark:border-neutral-800 shrink-0">
             <button
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 text-[14px] sm:text-[13px] font-medium text-[rgba(17,17,17,0.7)] hover:bg-[#F3F4F6] active:bg-[#E5E7EB] rounded-xl sm:rounded-lg transition-colors min-h-[42px] sm:min-h-0 flex items-center justify-center cursor-pointer"
+              className="px-4 py-2 text-xs font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 border border-neutral-200 dark:border-neutral-800 rounded-xl transition-colors cursor-pointer shrink-0"
             >
               Cancel
             </button>
             <button
               type="submit"
+              form="create-project-form"
               disabled={submitting || !name.trim()}
-              className="flex-1 sm:flex-none px-5 py-2.5 sm:py-2 text-[14px] sm:text-[13px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] active:bg-[#1E40AF] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl sm:rounded-lg transition-colors flex items-center justify-center gap-1.5 min-h-[42px] sm:min-h-0 shadow-sm cursor-pointer"
+              className="px-5 py-2 text-xs font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] active:bg-[#1E40AF] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-xs cursor-pointer whitespace-nowrap shrink-0 flex items-center justify-center min-w-[110px]"
             >
               {submitting ? 'Creating...' : 'Create Project'}
             </button>
@@ -229,3 +239,4 @@ export default function CreateProjectModal({ onClose, onSuccess }: CreateProject
     </div>
   );
 }
+

@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
 import { findStoredUserByEmail } from '@/data/userStore';
 import { sendLoginNotificationEmail, sendSignupNotificationEmail } from '@/lib/mail';
+import { isSuperAdmin } from '@/lib/permissions';
 
 // Prevent non-https or localhost NEXTAUTH_URL from corrupting production/Vercel serverless requests
 if (process.env.NODE_ENV === 'production') {
@@ -259,6 +260,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.plan = (user as any).plan || 'free';
         token.hasPaid = Boolean((user as any).hasPaid);
         token.hasCompletedOnboarding = Boolean((user as any).hasCompletedOnboarding);
+        token.isSuperAdmin = isSuperAdmin({
+          email: user.email,
+          role: token.role as string,
+          teamName: token.teamName as string,
+        });
       }
 
       if (trigger === 'update' && session) {
@@ -266,6 +272,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (session.avatar) token.avatar = session.avatar;
         if (session.role) token.role = session.role;
         if (session.teamName) token.teamName = session.teamName;
+        token.isSuperAdmin = isSuperAdmin({
+          email: token.email as string,
+          role: token.role as string,
+          teamName: token.teamName as string,
+        });
       }
 
       // Sync latest user details from DB so token stays fresh across reloads
@@ -277,6 +288,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const freshUser = await prisma.user.findUnique({
             where: { id: token.id as string },
             select: {
+              email: true,
               name: true,
               role: true,
               avatar: true,
@@ -301,6 +313,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             token.hasCompletedOnboarding = Boolean(
               (freshUser.hasCompletedOnboarding && freshUser.teamId) || freshUser.teamId
             );
+            token.isSuperAdmin = isSuperAdmin({
+              email: freshUser.email,
+              role: freshUser.role,
+              teamName: freshUser.team?.name,
+            });
             token.lastSynced = now;
           }
         } catch {
@@ -324,6 +341,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as any).hasCompletedOnboarding = Boolean(
           (token.hasCompletedOnboarding && token.teamId) || token.teamId
         );
+        (session.user as any).isSuperAdmin = Boolean(token.isSuperAdmin) || isSuperAdmin({
+          email: session.user.email,
+          role: (session.user as any).role,
+          teamName: (session.user as any).teamName,
+        });
       }
       return session;
     },

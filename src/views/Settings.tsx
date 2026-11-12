@@ -162,12 +162,12 @@ const DEFAULT_NOTIF_PREFS: NotificationPreferences = {
 /* ─────────────── nav ─────────────── */
 
 const navItems: { id: Section; label: string; group: string }[] = [
-  { id: 'profile',       label: 'Profile',      group: 'Account' },
-  { id: 'security',      label: 'Security',     group: 'Account' },
-  { id: 'workspace',     label: 'General',      group: 'Workspace' },
-  { id: 'billing',       label: 'Billing & Plan', group: 'Workspace' },
-  { id: 'members',       label: 'Members',      group: 'Workspace' },
-  { id: 'notifications', label: 'Notifications',group: 'Workspace' },
+  { id: 'profile', label: 'Profile', group: 'Account' },
+  { id: 'security', label: 'Security', group: 'Account' },
+  { id: 'workspace', label: 'General', group: 'Workspace' },
+  { id: 'billing', label: 'Billing & Plan', group: 'Workspace' },
+  { id: 'members', label: 'Members', group: 'Workspace' },
+  { id: 'notifications', label: 'Notifications', group: 'Workspace' },
 ];
 const groups = ['Account', 'Workspace'];
 
@@ -267,11 +267,11 @@ export default function Settings() {
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileFetching, setProfileFetching] = useState(false);
 
-  const [pName, setPName]           = useState('');
-  const [secName, setSecName]       = useState('');
+  const [pName, setPName] = useState('');
+  const [secName, setSecName] = useState('');
   const [secNameLoading, setSecNameLoading] = useState(false);
-  const [pRole, setPRole]           = useState('');
-  const [pAvatar, setPAvatar]       = useState('');
+  const [pRole, setPRole] = useState('');
+  const [pAvatar, setPAvatar] = useState('');
   const [pExpertise, setPExpertise] = useState<string[]>([]);
   const [customSkill, setCustomSkill] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -420,8 +420,8 @@ export default function Settings() {
       } else {
         const detailMsg = json.error?.details
           ? Object.entries(json.error.details)
-              .map(([f, msg]) => `${f}: ${msg}`)
-              .join('; ')
+            .map(([f, msg]) => `${f}: ${msg}`)
+            .join('; ')
           : json.error?.message ?? 'Failed to save profile';
         toast.error(detailMsg);
       }
@@ -471,11 +471,11 @@ export default function Settings() {
   };
 
   /* ─────────── 3.2 Password state ─────────── */
-  const [currPw, setCurrPw]     = useState('');
-  const [newPw, setNewPw]       = useState('');
+  const [currPw, setCurrPw] = useState('');
+  const [newPw, setNewPw] = useState('');
   const [confirmPw, setConfirmPw] = useState('');
   const [pwLoading, setPwLoading] = useState(false);
-  const [pwError, setPwError]   = useState('');
+  const [pwError, setPwError] = useState('');
 
   const handleChangePassword = async () => {
     setPwError('');
@@ -571,7 +571,7 @@ export default function Settings() {
         setProfile(prev => (prev ? { ...prev, role: trimmedTitle } : null));
         try {
           await updateSession?.({ role: trimmedTitle });
-        } catch {}
+        } catch { }
       }
 
       window.dispatchEvent(
@@ -711,7 +711,7 @@ export default function Settings() {
         const parsed = JSON.parse(raw);
         setNotifPrefs(prev => ({ ...prev, ...parsed }));
       }
-    } catch {}
+    } catch { }
 
     // 2. Fetch server persisted preferences
     fetch('/api/notifications/preferences')
@@ -721,10 +721,10 @@ export default function Settings() {
           setNotifPrefs(prev => ({ ...prev, ...json.data }));
           try {
             localStorage.setItem(NOTIF_KEY, JSON.stringify({ ...DEFAULT_NOTIF_PREFS, ...json.data }));
-          } catch {}
+          } catch { }
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       isMounted = false;
@@ -812,11 +812,10 @@ export default function Settings() {
           <button
             key={item.id}
             onClick={() => setSection(item.id)}
-            className={`px-3 py-1.5 rounded-lg text-[12.5px] font-medium whitespace-nowrap transition-colors shrink-0 flex items-center gap-1.5 ${
-              section === item.id
-                ? 'bg-white text-[#2563EB] shadow-2xs font-semibold'
-                : 'text-[rgba(17,17,17,0.55)] hover:text-[#111111]'
-            }`}
+            className={`px-3 py-1.5 rounded-lg text-[12.5px] font-medium whitespace-nowrap transition-colors shrink-0 flex items-center gap-1.5 ${section === item.id
+              ? 'bg-white text-[#2563EB] shadow-2xs font-semibold'
+              : 'text-[rgba(17,17,17,0.55)] hover:text-[#111111]'
+              }`}
           >
             <span>{item.label}</span>
             {item.id === 'profile' && isExpertiseUnset && (
@@ -839,11 +838,10 @@ export default function Settings() {
                 <button
                   key={item.id}
                   onClick={() => setSection(item.id)}
-                  className={`w-full flex items-center justify-between text-left px-3 py-2 rounded-lg text-[13px] font-medium mb-0.5 transition-colors ${
-                    section === item.id
-                      ? 'bg-[#EFF6FF] text-[#2563EB]'
-                      : 'text-[rgba(17,17,17,0.65)] hover:bg-[#F3F4F6] hover:text-[#111111]'
-                  }`}
+                  className={`w-full flex items-center justify-between text-left px-3 py-2 rounded-lg text-[13px] font-medium mb-0.5 transition-colors ${section === item.id
+                    ? 'bg-[#EFF6FF] text-[#2563EB]'
+                    : 'text-[rgba(17,17,17,0.65)] hover:bg-[#F3F4F6] hover:text-[#111111]'
+                    }`}
                 >
                   <span>{item.label}</span>
                   {item.id === 'profile' && isExpertiseUnset && (
@@ -912,7 +910,7 @@ export default function Settings() {
                     <FieldLabel>Work Email</FieldLabel>
                     <TextInput
                       value={profile?.email ?? session?.user?.email ?? ''}
-                      onChange={() => {}}
+                      onChange={() => { }}
                       type="email"
                       disabled
                     />
@@ -999,18 +997,16 @@ export default function Settings() {
                             key={opt.id}
                             type="button"
                             onClick={() => toggleExpertise(opt.id)}
-                            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl border text-left transition-all duration-150 cursor-pointer select-none ${
-                              isSelected
-                                ? 'border-[#2563EB] bg-white ring-1 ring-[#2563EB] shadow-2xs'
-                                : 'border-[#E5E7EB] bg-white hover:border-gray-300 hover:bg-[#F9FAFB]'
-                            }`}
+                            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl border text-left transition-all duration-150 cursor-pointer select-none ${isSelected
+                              ? 'border-[#2563EB] bg-white ring-1 ring-[#2563EB] shadow-2xs'
+                              : 'border-[#E5E7EB] bg-white hover:border-gray-300 hover:bg-[#F9FAFB]'
+                              }`}
                           >
                             <div
-                              className={`w-4.5 h-4.5 rounded-[4px] border flex items-center justify-center shrink-0 transition-colors ${
-                                isSelected
-                                  ? 'bg-[#2563EB] border-[#2563EB] text-white'
-                                  : 'border-gray-300 bg-white'
-                              }`}
+                              className={`w-4.5 h-4.5 rounded-[4px] border flex items-center justify-center shrink-0 transition-colors ${isSelected
+                                ? 'bg-[#2563EB] border-[#2563EB] text-white'
+                                : 'border-gray-300 bg-white'
+                                }`}
                             >
                               {isSelected && (
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -1088,11 +1084,10 @@ export default function Settings() {
                                   key={suggestion}
                                   type="button"
                                   onClick={() => addCustomExpertise(suggestion)}
-                                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-md text-left text-[12.5px] transition-colors cursor-pointer ${
-                                    isActive
-                                      ? 'bg-[#EFF6FF] text-[#2563EB] font-semibold'
-                                      : 'text-gray-700 hover:bg-[#F3F4F6] hover:text-gray-900'
-                                  }`}
+                                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-md text-left text-[12.5px] transition-colors cursor-pointer ${isActive
+                                    ? 'bg-[#EFF6FF] text-[#2563EB] font-semibold'
+                                    : 'text-gray-700 hover:bg-[#F3F4F6] hover:text-gray-900'
+                                    }`}
                                 >
                                   <span>{suggestion}</span>
                                   <span className="text-[11px] text-[#2563EB] font-medium">+ Add</span>
@@ -1150,10 +1145,7 @@ export default function Settings() {
 
             {/* Update Name (Similar to Password) */}
             <div className="border border-[#E5E7EB] rounded-xl p-5 mb-5 bg-white">
-              <h3 className="text-[14px] font-semibold text-[#111111] mb-1">Update Name</h3>
-              <p className="text-[12.5px] text-[rgba(17,17,17,0.5)] mb-4">
-                Change your full name. This updates your dashboard greeting, assigned tasks, and workspace profile.
-              </p>
+              <h3 className="text-[14px] font-semibold text-[#111111] mb-4">Update Name</h3>
               <div className="space-y-4">
                 <div>
                   <FieldLabel>Full Name</FieldLabel>
@@ -1283,9 +1275,8 @@ export default function Settings() {
                   members.map((u, i) => (
                     <div
                       key={u.id}
-                      className={`flex items-center gap-4 px-5 py-3.5 hover:bg-[#F9FAFB] transition-colors ${
-                        i < members.length - 1 ? 'border-b border-[#F3F4F6]' : ''
-                      }`}
+                      className={`flex items-center gap-4 px-5 py-3.5 hover:bg-[#F9FAFB] transition-colors ${i < members.length - 1 ? 'border-b border-[#F3F4F6]' : ''
+                        }`}
                     >
                       <div className="flex-1 flex items-center gap-3 min-w-0">
                         <div className="w-8 h-8 rounded-full bg-[#2563EB] flex items-center justify-center text-[11px] font-bold text-white shrink-0">
@@ -1366,9 +1357,8 @@ export default function Settings() {
                   {invites.map((inv, idx) => (
                     <div
                       key={inv.id}
-                      className={`flex items-center gap-4 px-5 py-3.5 hover:bg-[#F9FAFB] transition-colors ${
-                        idx < invites.length - 1 ? 'border-b border-[#F3F4F6]' : ''
-                      }`}
+                      className={`flex items-center gap-4 px-5 py-3.5 hover:bg-[#F9FAFB] transition-colors ${idx < invites.length - 1 ? 'border-b border-[#F3F4F6]' : ''
+                        }`}
                     >
                       <div className="flex-1 min-w-0">
                         <div className="text-[13px] font-medium text-[#111111] truncate">{inv.email}</div>
@@ -1492,11 +1482,10 @@ export default function Settings() {
                               key={r.id}
                               type="button"
                               onClick={() => setInviteRole(r.id as any)}
-                              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                                inviteRole === r.id
-                                  ? 'border-[#2563EB] bg-blue-50/50 ring-1 ring-[#2563EB]'
-                                  : 'border-[#E5E7EB] hover:border-gray-300 bg-white'
-                              }`}
+                              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${inviteRole === r.id
+                                ? 'border-[#2563EB] bg-blue-50/50 ring-1 ring-[#2563EB]'
+                                : 'border-[#E5E7EB] hover:border-gray-300 bg-white'
+                                }`}
                             >
                               <div className="text-xs font-semibold text-gray-900">{r.label}</div>
                               <div className="text-[10px] text-gray-500 mt-0.5 leading-tight">{r.desc}</div>
@@ -1665,16 +1654,14 @@ export default function Settings() {
                     <button
                       type="button"
                       onClick={() => toggleNotif(key as keyof NotificationPreferences)}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                        notifPrefs[key as keyof NotificationPreferences] ? 'bg-[#2563EB]' : 'bg-[#E5E7EB]'
-                      }`}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${notifPrefs[key as keyof NotificationPreferences] ? 'bg-[#2563EB]' : 'bg-[#E5E7EB]'
+                        }`}
                       role="switch"
                       aria-checked={!!notifPrefs[key as keyof NotificationPreferences]}
                     >
                       <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                          notifPrefs[key as keyof NotificationPreferences] ? 'translate-x-4' : 'translate-x-0'
-                        }`}
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${notifPrefs[key as keyof NotificationPreferences] ? 'translate-x-4' : 'translate-x-0'
+                          }`}
                       />
                     </button>
                   </div>
@@ -1709,16 +1696,14 @@ export default function Settings() {
                     <button
                       type="button"
                       onClick={() => toggleNotif(key as keyof NotificationPreferences)}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                        notifPrefs[key as keyof NotificationPreferences] ? 'bg-[#2563EB]' : 'bg-[#E5E7EB]'
-                      }`}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${notifPrefs[key as keyof NotificationPreferences] ? 'bg-[#2563EB]' : 'bg-[#E5E7EB]'
+                        }`}
                       role="switch"
                       aria-checked={!!notifPrefs[key as keyof NotificationPreferences]}
                     >
                       <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                          notifPrefs[key as keyof NotificationPreferences] ? 'translate-x-4' : 'translate-x-0'
-                        }`}
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${notifPrefs[key as keyof NotificationPreferences] ? 'translate-x-4' : 'translate-x-0'
+                          }`}
                       />
                     </button>
                   </div>
@@ -1753,16 +1738,14 @@ export default function Settings() {
                     <button
                       type="button"
                       onClick={() => toggleNotif(key as keyof NotificationPreferences)}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                        notifPrefs[key as keyof NotificationPreferences] ? 'bg-[#2563EB]' : 'bg-[#E5E7EB]'
-                      }`}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${notifPrefs[key as keyof NotificationPreferences] ? 'bg-[#2563EB]' : 'bg-[#E5E7EB]'
+                        }`}
                       role="switch"
                       aria-checked={!!notifPrefs[key as keyof NotificationPreferences]}
                     >
                       <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                          notifPrefs[key as keyof NotificationPreferences] ? 'translate-x-4' : 'translate-x-0'
-                        }`}
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${notifPrefs[key as keyof NotificationPreferences] ? 'translate-x-4' : 'translate-x-0'
+                          }`}
                       />
                     </button>
                   </div>
@@ -1802,8 +1785,8 @@ export default function Settings() {
             <div className="space-y-4">
               {[
                 { label: 'Workspace Name', value: 'FlowSync Inc.' },
-                { label: 'Workspace URL',  value: 'flowsync.app' },
-                { label: 'Industry',       value: 'Software / Technology' },
+                { label: 'Workspace URL', value: 'flowsync.app' },
+                { label: 'Industry', value: 'Software / Technology' },
               ].map(({ label, value }) => (
                 <div key={label}>
                   <FieldLabel>{label}</FieldLabel>
@@ -1821,7 +1804,6 @@ export default function Settings() {
               </button>
             </div>
             <div className="mt-8 pt-6 border-t border-[#F3F4F6]">
-              <div className="text-[14px] font-semibold text-[#DC2626] mb-2">Danger Zone</div>
               <div className="border border-[#FECACA] rounded-xl p-4">
                 <div className="text-[13px] font-medium text-[#111111] mb-0.5">Delete Workspace</div>
                 <div className="text-[12px] text-[rgba(17,17,17,0.5)] mb-3">
@@ -1834,6 +1816,9 @@ export default function Settings() {
             </div>
           </div>
         )}
+
+
+
 
         {/* ── Admin Edit Member Job Title Modal ── */}
         {isAdmin && editingTitleMember && (
@@ -1893,11 +1878,10 @@ export default function Settings() {
                         key={preset}
                         type="button"
                         onClick={() => setMemberJobTitleInput(preset)}
-                        className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
-                          memberJobTitleInput.toLowerCase() === preset.toLowerCase()
-                            ? 'bg-[#2563EB] text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${memberJobTitleInput.toLowerCase() === preset.toLowerCase()
+                          ? 'bg-[#2563EB] text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
                       >
                         {preset}
                       </button>

@@ -1,8 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useTaskContext } from '@/context/TaskContext';
+import { isSuperAdmin } from '@/lib/permissions';
 
-type View = 'dashboard' | 'tasks' | 'kanban' | 'projects' | 'team' | 'calendar' | 'timeline' | 'reports' | 'billing' | 'settings' | 'inbox';
+type View =
+  | 'dashboard'
+  | 'tasks'
+  | 'kanban'
+  | 'projects'
+  | 'team'
+  | 'calendar'
+  | 'timeline'
+  | 'reports'
+  | 'billing'
+  | 'settings'
+  | 'inbox'
+  | 'super-admin';
 
 interface SidebarProps {
   currentView: View;
@@ -118,7 +131,16 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
 
   const currentName = customName || session?.user?.name || 'User';
   const userName = currentName;
-  const userRole = customRole || (session?.user as { role?: string })?.role || 'Member';
+  const isSuperAdminUser =
+    Boolean((session?.user as any)?.isSuperAdmin) ||
+    isSuperAdmin({
+      email: session?.user?.email,
+      role: customRole || (session?.user as any)?.role,
+      teamName: (session?.user as any)?.teamName,
+    });
+  const userRole = isSuperAdminUser
+    ? 'Super Admin'
+    : (customRole || (session?.user as { role?: string })?.role || 'Member');
   const userAvatar =
     customAvatar ||
     (session?.user as { avatar?: string })?.avatar ||
@@ -242,6 +264,30 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-2 px-2">
+        {/* Super Admin Platform Operations */}
+        {isSuperAdminUser && (
+          <div className="mb-2 pb-2 border-b border-neutral-100">
+            <button
+              onClick={() => handleNavigate('super-admin')}
+              title="Platform Console"
+              className={`w-full flex items-center justify-center md:justify-start px-3 py-2.5 md:py-2 rounded-lg text-[13.5px] font-semibold transition-all relative group cursor-pointer ${
+                currentView === 'super-admin'
+                  ? 'bg-amber-500/15 text-amber-900 border border-amber-500/30 shadow-xs'
+                  : 'text-amber-700 hover:bg-amber-500/10'
+              }`}
+            >
+              <span className={`flex-1 text-left ${collapsed ? 'md:hidden' : 'block'}`}>
+                Platform Console
+              </span>
+              {collapsed && (
+                <span className="hidden md:block text-[10.5px] font-bold tracking-tight text-center w-full">
+                  Console
+                </span>
+              )}
+            </button>
+          </div>
+        )}
+
         {navItems.map(item => {
           const active = currentView === item.id;
           const effectiveBadge =
