@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifySuperAdmin } from '@/lib/superadmin';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const authCheck = await verifySuperAdmin();
   if (!authCheck.authorized) {
@@ -61,8 +63,7 @@ export async function GET() {
 
       // Determine company plan tier
       const hasPro = team.members.some(m => m.plan === 'pro');
-      const hasEnterprise = team.members.some(m => m.plan === 'enterprise');
-      const plan = hasEnterprise ? 'enterprise' : hasPro ? 'pro' : 'free';
+      const plan = hasPro ? 'pro' : 'free';
 
       // Determine company subscription status
       const isSuspended = team.members.some(m => m.subscriptionStatus === 'suspended');

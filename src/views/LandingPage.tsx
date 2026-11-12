@@ -481,7 +481,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
       number: '003',
       question: 'What happens to my data and privacy?',
       answer:
-        'Your data is encrypted both in transit (TLS 1.3) and at rest (AES-256). We never train public AI models on customer tasks or proprietary company code. Enterprise private clouds and on-premise deployments are fully supported.',
+        'Your data is encrypted both in transit (TLS 1.3) and at rest (AES-256). We never train public AI models on customer tasks or proprietary company code. Dedicated private clouds and on-premise deployments are fully supported.',
     },
     {
       number: '004',

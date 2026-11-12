@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifySuperAdmin } from '@/lib/superadmin';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const authCheck = await verifySuperAdmin();
   if (!authCheck.authorized) {

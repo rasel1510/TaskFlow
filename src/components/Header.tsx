@@ -360,29 +360,6 @@ export default function Header({
 
       {/* Search — desktop only (triggers Command Palette) */}
       <div className="hidden md:flex flex-1 items-center justify-center gap-3">
-        {/* Impersonation indicator for Super Admin */}
-        {isSuperAdminUser && (session?.user as any)?.teamName && (session?.user as any)?.teamName.toLowerCase() !== 'flowsync' && (
-          <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-900 text-xs shadow-2xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
-            <span className="truncate max-w-[200px]">
-              Inspecting <strong>{(session?.user as any)?.teamName}</strong>
-            </span>
-            <button
-              onClick={async () => {
-                await fetch('/api/admin/impersonate', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ targetTeamId: null }),
-                });
-                window.location.reload();
-              }}
-              className="ml-1 text-[11px] font-bold text-amber-800 underline hover:text-amber-950 cursor-pointer shrink-0"
-            >
-              Exit to FlowSync
-            </button>
-          </div>
-        )}
-
         <button
           type="button"
           onClick={onOpenCommandPalette}

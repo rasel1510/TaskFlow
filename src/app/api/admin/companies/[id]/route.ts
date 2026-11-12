@@ -1,2 +1,1 @@
-export { GET, PATCH, DELETE } from '@/api/admin/companies/[id]/route';
-
+export { GET, PATCH, DELETE, dynamic } from '@/api/admin/companies/[id]/route';

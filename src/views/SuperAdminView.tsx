@@ -41,7 +41,7 @@ interface CompanyItem {
   isPlatformOwner: boolean;
   createdAt: string;
   updatedAt: string;
-  plan: 'free' | 'pro' | 'enterprise';
+  plan: 'free' | 'pro';
   status: 'active' | 'past_due' | 'suspended';
   membersCount: number;
   projectsCount: number;
@@ -106,11 +106,7 @@ interface PlatformMetrics {
 
 type TabType = 'companies' | 'users' | 'invoices' | 'system';
 
-export default function SuperAdminView({
-  onSwitchWorkspace,
-}: {
-  onSwitchWorkspace?: (teamId: string | null) => void;
-}) {
+export default function SuperAdminView() {
   const { data: session } = useSession();
   const toast = useToast();
 
@@ -124,14 +120,12 @@ export default function SuperAdminView({
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
-  const [planFilter, setPlanFilter] = useState<'all' | 'pro' | 'free' | 'enterprise'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended'>('all');
 
   // Modals & Selected items
   const [inspectingCompany, setInspectingCompany] = useState<CompanyItem | null>(null);
   const [editingCompany, setEditingCompany] = useState<CompanyItem | null>(null);
   const [editCompanyName, setEditCompanyName] = useState('');
-  const [editCompanyPlan, setEditCompanyPlan] = useState<'free' | 'pro' | 'enterprise'>('free');
+  const [editCompanyPlan, setEditCompanyPlan] = useState<'free' | 'pro'>('free');
   const [editCompanyStatus, setEditCompanyStatus] = useState<'active' | 'suspended'>('active');
   const [updatingCompany, setUpdatingCompany] = useState(false);
 
@@ -201,19 +195,15 @@ export default function SuperAdminView({
   const filteredCompanies = useMemo(() => {
     return companies.filter(c => {
       const q = searchQuery.toLowerCase().trim();
-      const matchesSearch =
+      return (
         !q ||
         c.name.toLowerCase().includes(q) ||
         c.slug.toLowerCase().includes(q) ||
         c.owner?.name.toLowerCase().includes(q) ||
-        c.owner?.email.toLowerCase().includes(q);
-
-      const matchesPlan = planFilter === 'all' || c.plan === planFilter;
-      const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
-
-      return matchesSearch && matchesPlan && matchesStatus;
+        c.owner?.email.toLowerCase().includes(q)
+      );
     });
-  }, [companies, searchQuery, planFilter, statusFilter]);
+  }, [companies, searchQuery]);
 
   // Filtered users
   const filteredUsers = useMemo(() => {
@@ -318,29 +308,6 @@ export default function SuperAdminView({
       toast.error(err.message || 'User update failed');
     } finally {
       setUpdatingUser(false);
-    }
-  };
-
-  // Handle workspace switch (impersonation/live inspection)
-  const handleSwitchWorkspace = async (targetTeamId: string | null) => {
-    try {
-      const res = await fetch('/api/admin/impersonate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetTeamId }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.error?.message || 'Failed to switch workspace');
-      }
-      toast.success(json.message);
-      if (onSwitchWorkspace) {
-        onSwitchWorkspace(targetTeamId);
-      }
-      // Reload page to refresh all tenant queries in context
-      window.location.reload();
-    } catch (err: any) {
-      toast.error(err.message || 'Workspace switch failed');
     }
   };
 
@@ -477,41 +444,37 @@ export default function SuperAdminView({
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setActiveTab('companies')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                activeTab === 'companies'
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${activeTab === 'companies'
                   ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 shadow-xs'
                   : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
-              }`}
+                }`}
             >
               Registered Companies ({companies.length})
             </button>
             <button
               onClick={() => setActiveTab('users')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                activeTab === 'users'
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${activeTab === 'users'
                   ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 shadow-xs'
                   : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
-              }`}
+                }`}
             >
               Global Users ({users.length})
             </button>
             <button
               onClick={() => setActiveTab('invoices')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                activeTab === 'invoices'
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${activeTab === 'invoices'
                   ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 shadow-xs'
                   : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
-              }`}
+                }`}
             >
               Billing & Invoices ({invoices.length})
             </button>
             <button
               onClick={() => setActiveTab('system')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                activeTab === 'system'
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${activeTab === 'system'
                   ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 shadow-xs'
                   : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
-              }`}
+                }`}
             >
               System Health
             </button>
@@ -532,43 +495,6 @@ export default function SuperAdminView({
         {/* ─── TAB 1: REGISTERED COMPANIES ─── */}
         {activeTab === 'companies' && (
           <div className="space-y-4">
-            {/* Filter controls */}
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">
-                Filter Plan:
-              </span>
-              {(['all', 'pro', 'free', 'enterprise'] as const).map(tier => (
-                <button
-                  key={tier}
-                  onClick={() => setPlanFilter(tier)}
-                  className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all cursor-pointer capitalize ${
-                    planFilter === tier
-                      ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-semibold'
-                      : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
-                  }`}
-                >
-                  {tier}
-                </button>
-              ))}
-
-              <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider ml-4">
-                Status:
-              </span>
-              {(['all', 'active', 'suspended'] as const).map(st => (
-                <button
-                  key={st}
-                  onClick={() => setStatusFilter(st)}
-                  className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all cursor-pointer capitalize ${
-                    statusFilter === st
-                      ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-semibold'
-                      : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
-                  }`}
-                >
-                  {st}
-                </button>
-              ))}
-            </div>
-
             {/* Companies Table */}
             <div className="bg-white dark:bg-neutral-900 border border-neutral-200/90 dark:border-neutral-800 rounded-2xl shadow-xs overflow-hidden">
               <table className="w-full text-left border-collapse">
@@ -621,13 +547,10 @@ export default function SuperAdminView({
                       {/* Plan */}
                       <td className="py-3.5 px-4">
                         <span
-                          className={`px-2 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wide ${
-                            company.plan === 'pro'
+                          className={`px-2 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wide ${company.plan === 'pro'
                               ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60'
-                              : company.plan === 'enterprise'
-                              ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-900/60'
                               : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400'
-                          }`}
+                            }`}
                         >
                           {company.plan}
                         </span>
@@ -651,16 +574,14 @@ export default function SuperAdminView({
                       {/* Status */}
                       <td className="py-3.5 px-4">
                         <span
-                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium ${
-                            company.status === 'active'
+                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium ${company.status === 'active'
                               ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
                               : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400'
-                          }`}
+                            }`}
                         >
                           <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              company.status === 'active' ? 'bg-emerald-500' : 'bg-red-500'
-                            }`}
+                            className={`w-1.5 h-1.5 rounded-full ${company.status === 'active' ? 'bg-emerald-500' : 'bg-red-500'
+                              }`}
                           />
                           {company.status === 'active' ? 'Active' : 'Suspended'}
                         </span>
@@ -697,13 +618,6 @@ export default function SuperAdminView({
                           >
                             Manage Tier
                           </button>
-                          <button
-                            onClick={() => handleSwitchWorkspace(company.id)}
-                            className="px-2.5 py-1 text-[11px] font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded-lg transition-colors cursor-pointer"
-                            title="Switch into this company workspace"
-                          >
-                            Switch Into
-                          </button>
                           {!company.isPlatformOwner && (
                             <button
                               onClick={() => setDeletingCompany(company)}
@@ -729,6 +643,7 @@ export default function SuperAdminView({
             </div>
           </div>
         )}
+
 
         {/* ─── TAB 2: GLOBAL USERS ─── */}
         {activeTab === 'users' && (
@@ -785,15 +700,14 @@ export default function SuperAdminView({
 
                     <td className="py-3 px-4">
                       <span
-                        className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${
-                          user.role === 'Super Admin'
+                        className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${user.role === 'Super Admin'
                             ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
                             : user.role === 'Admin'
-                            ? 'bg-purple-500/10 text-purple-600'
-                            : user.role === 'Project Manager'
-                            ? 'bg-blue-500/10 text-blue-600'
-                            : 'bg-emerald-500/10 text-emerald-600'
-                        }`}
+                              ? 'bg-purple-500/10 text-purple-600'
+                              : user.role === 'Project Manager'
+                                ? 'bg-blue-500/10 text-blue-600'
+                                : 'bg-emerald-500/10 text-emerald-600'
+                          }`}
                       >
                         {user.role}
                       </span>
@@ -805,11 +719,10 @@ export default function SuperAdminView({
 
                     <td className="py-3 px-4">
                       <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${
-                          user.subscriptionStatus === 'active'
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${user.subscriptionStatus === 'active'
                             ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
                             : 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400'
-                        }`}
+                          }`}
                       >
                         {user.subscriptionStatus}
                       </span>
@@ -942,7 +855,6 @@ export default function SuperAdminView({
                 <li>Instant tier management: upgrade or downgrade any company between Free and Pro.</li>
                 <li>Company suspension / deactivation controls for safety and contract enforcement.</li>
                 <li>Global user governance: promote users, adjust designations, or revoke access.</li>
-                <li>Live workspace inspection / impersonation without password resets.</li>
                 <li>Permanent protection of the primary FlowSync Super Admin account and headquarters.</li>
               </ul>
             </div>
@@ -1022,16 +934,6 @@ export default function SuperAdminView({
 
             <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-neutral-100 dark:border-neutral-800 shrink-0">
               <button
-                onClick={() => {
-                  const companyId = inspectingCompany.id;
-                  setInspectingCompany(null);
-                  handleSwitchWorkspace(companyId);
-                }}
-                className="px-4 py-2 text-xs font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-xl transition-colors cursor-pointer"
-              >
-                Switch Into Workspace
-              </button>
-              <button
                 onClick={() => setInspectingCompany(null)}
                 className="px-4 py-2 text-xs font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 border border-neutral-200 dark:border-neutral-800 rounded-xl transition-colors cursor-pointer"
               >
@@ -1070,7 +972,6 @@ export default function SuperAdminView({
                 >
                   <option value="free">Free Plan</option>
                   <option value="pro">Pro Plan ($20/mo)</option>
-                  <option value="enterprise">Enterprise Plan</option>
                 </select>
               </div>
 
@@ -1139,7 +1040,6 @@ export default function SuperAdminView({
                 >
                   <option value="free">Free</option>
                   <option value="pro">Pro</option>
-                  <option value="enterprise">Enterprise</option>
                 </select>
               </div>
 

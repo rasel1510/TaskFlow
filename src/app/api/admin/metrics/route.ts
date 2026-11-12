@@ -1,2 +1,1 @@
-export { GET } from '@/api/admin/metrics/route';
-
+export { GET, dynamic } from '@/api/admin/metrics/route';

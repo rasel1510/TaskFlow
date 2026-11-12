@@ -854,7 +854,7 @@ export default function DeveloperPlatformSection() {
       <div className="mt-12 text-center">
         <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full border border-neutral-200 dark:border-neutral-800 bg-neutral-50/80 dark:bg-neutral-900/60 text-xs text-neutral-600 dark:text-neutral-400 shadow-xs">
           <Server className="h-4 w-4 text-neutral-500" />
-          <span>Need custom webhooks or enterprise rate limits?</span>
+          <span>Need custom webhooks or custom rate limits?</span>
           <Link
             href="/auth/login"
             className="font-semibold text-neutral-950 dark:text-white hover:underline inline-flex items-center gap-1"

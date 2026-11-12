@@ -325,7 +325,7 @@ function AppContent() {
       case 'settings':
         return <Settings />;
       case 'super-admin':
-        return <SuperAdminView onSwitchWorkspace={() => setView('dashboard')} />;
+        return <SuperAdminView />;
       default:
         return null;
     }

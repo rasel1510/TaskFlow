@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifySuperAdmin } from '@/lib/superadmin';
+
+export const dynamic = 'force-dynamic';
 import { normalizeDesignation } from '@/lib/permissions';
 
 export async function PATCH(

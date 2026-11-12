@@ -1820,6 +1820,7 @@ export default function Settings() {
 
 
 
+
         {/* ── Admin Edit Member Job Title Modal ── */}
         {isAdmin && editingTitleMember && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
