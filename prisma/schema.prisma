@@ -58,6 +58,7 @@ model TeamInvitation {
   email       String
   role        String       @default("MEMBER")
   token       String       @unique
+  initialPassword String?
   status      InviteStatus @default(pending)
   invitedById String
   invitedBy   User         @relation("SentTeamInvites", fields: [invitedById], references: [id], onDelete: Cascade)

@@ -54,6 +54,7 @@ export async function GET() {
             role: true,
             status: true,
             token: true,
+            initialPassword: true,
             expiresAt: true,
             createdAt: true,
             invitedBy: {

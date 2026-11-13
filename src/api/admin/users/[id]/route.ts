@@ -66,7 +66,7 @@ export async function PATCH(
       updateData.role = normalizeDesignation(role);
     }
 
-    if (plan && ['free', 'pro', 'enterprise'].includes(plan.toLowerCase())) {
+    if (plan && ['free', 'pro'].includes(plan.toLowerCase())) {
       updateData.plan = plan.toLowerCase();
     }
 

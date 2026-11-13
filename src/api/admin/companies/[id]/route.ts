@@ -92,7 +92,7 @@ export async function PATCH(
     }
 
     // 2. Cascade plan change to all company members
-    if (plan && ['free', 'pro', 'enterprise'].includes(plan.toLowerCase())) {
+    if (plan && ['free', 'pro'].includes(plan.toLowerCase())) {
       await prisma.user.updateMany({
         where: { teamId: id },
         data: { plan: plan.toLowerCase() },

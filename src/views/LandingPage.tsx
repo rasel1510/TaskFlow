@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import {
   ArrowRight,
   ChevronDown,
@@ -240,7 +240,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
 
   const getTryFlowSyncHref = () => {
     if (!isAuthenticated) {
-      return '/auth/login';
+      return '/auth/signup';
     }
     const user = session?.user as any;
     // If admin/user has already created an organization and paid, send directly to Dashboard (/app)
@@ -543,22 +543,13 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
 
               {/* Right Action Button */}
               <div className="flex items-center gap-2 sm:gap-3">
-                {isAuthenticated && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await signOut({ callbackUrl: '/', redirectTo: '/' });
-                    }}
-                    className="inline-flex items-center justify-center gap-1.5 text-xs sm:text-[13px] font-semibold text-neutral-700 hover:text-red-600 dark:text-neutral-300 dark:hover:text-red-400 px-3 py-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-                    title="Sign out of FlowSync"
+                {!isAuthenticated && (
+                  <Link
+                    href="/auth/login"
+                    className="inline-flex items-center justify-center text-xs sm:text-[13px] font-semibold text-neutral-700 hover:text-black dark:text-neutral-300 dark:hover:text-white px-3 py-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                      <polyline points="16 17 21 12 16 7" />
-                      <line x1="21" y1="12" x2="9" y2="12" />
-                    </svg>
-                    <span>Sign out</span>
-                  </button>
+                    Log in
+                  </Link>
                 )}
 
                 <TactileShaderButton
@@ -568,7 +559,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
                   onTouchStart={() => router.prefetch(getTryFlowSyncHref())}
                   onClick={handleTryFlowSyncClick}
                 >
-                  <span>Try FlowSync</span>
+                  <span>{isAuthenticated ? 'Open Dashboard' : 'Try FlowSync'}</span>
                 </TactileShaderButton>
               </div>
             </div>
@@ -651,6 +642,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
                     5.0
                   </span>
                 </div>
+
 
                 {/* 5 Coral Red Stars + Reviews */}
                 <div className="flex flex-col items-start justify-center leading-none">

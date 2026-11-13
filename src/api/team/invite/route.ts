@@ -47,6 +47,7 @@ export async function GET() {
         role: true,
         status: true,
         token: true,
+        initialPassword: true,
         expiresAt: true,
         createdAt: true,
         invitedBy: {
@@ -225,6 +226,7 @@ export async function POST(req: NextRequest) {
         email,
         role,
         token,
+        initialPassword: givenPassword,
         status: 'pending',
         invitedById: userId,
         expiresAt,
