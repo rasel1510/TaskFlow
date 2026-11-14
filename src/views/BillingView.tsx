@@ -274,9 +274,16 @@ export default function BillingView() {
                         })}
                       </td>
 
-                      {/* Plan */}
+                      {/* Plan & Customer Details */}
                       <td className="py-3.5 px-5 text-slate-900 dark:text-white font-semibold">
-                        {inv.planName || 'FlowSync Pro'}
+                        <div>{inv.planName || 'FlowSync Pro'}</div>
+                        {(inv.customerName || inv.customerLocation) && (
+                          <div className="text-[10.5px] text-slate-400 font-normal flex items-center gap-1 mt-0.5">
+                            <span>{inv.customerName || 'Customer'}</span>
+                            <span>•</span>
+                            <span>{inv.customerLocation || 'Global'}</span>
+                          </div>
+                        )}
                       </td>
 
                       {/* Amount */}

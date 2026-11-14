@@ -1,13 +1,14 @@
 'use client';
 
 import React from 'react';
-import { Printer, CreditCard } from 'lucide-react';
+import { Printer, CreditCard, MapPin } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
 } from '@/components/ui/dialog';
 
 export interface InvoiceData {
+  id?: string;
   invoiceNumber: string;
   amount: number;
   currency?: string;
@@ -20,6 +21,7 @@ export interface InvoiceData {
   createdAt: string | Date;
   customerName?: string;
   customerEmail?: string;
+  customerLocation?: string;
 }
 
 interface InvoiceModalProps {
@@ -108,11 +110,15 @@ export default function InvoiceModal({ open, onClose, invoice }: InvoiceModalPro
               <span className="text-[10px] font-medium uppercase tracking-wider text-neutral-400 block mb-1">
                 Billed To
               </span>
-              <p className="font-medium text-neutral-900 dark:text-white">
+              <p className="font-semibold text-neutral-900 dark:text-white">
                 {invoice.customerName || 'FlowSync Customer'}
               </p>
               <p className="text-neutral-400 text-[11px] mt-0.5">
                 {invoice.customerEmail || 'Customer Workspace'}
+              </p>
+              <p className="text-neutral-500 dark:text-neutral-400 text-[11px] mt-1 flex items-center gap-1 font-medium">
+                <MapPin size={11} className="text-neutral-400 shrink-0" />
+                <span>{invoice.customerLocation || 'Global'}</span>
               </p>
             </div>
 

@@ -3,7 +3,17 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import OnboardingHeader from '@/components/onboarding/OnboardingHeader';
-import { Building2, AlertCircle, ArrowLeft } from 'lucide-react';
+import {
+  Building2,
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle2,
+  X,
+  FileText,
+  MapPin,
+  ShieldCheck,
+} from 'lucide-react';
+import InvoiceModal, { InvoiceData } from '@/components/onboarding/InvoiceModal';
 import {
   Select,
   SelectContent,
@@ -32,6 +42,9 @@ function OnboardingOrganizationContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkingPayment, setCheckingPayment] = useState(true);
+  const [invoice, setInvoice] = useState<InvoiceData | null>(null);
+  const [showPaymentToast, setShowPaymentToast] = useState(false);
+  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
 
   // Navigate back safely
   const handleBack = () => {
@@ -39,6 +52,13 @@ function OnboardingOrganizationContent() {
       router.back();
     } else {
       router.push('/onboarding/plans');
+    }
+  };
+
+  const handleDismissToast = () => {
+    setShowPaymentToast(false);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('flowsync_dismissed_payment_toast', 'true');
     }
   };
 
@@ -68,6 +88,19 @@ function OnboardingOrganizationContent() {
           if ((json.data?.hasCompletedOnboarding && json.data?.teamId) || json.data?.teamId) {
             router.replace('/app');
             return;
+          }
+
+          // Retrieve latest invoice and show persistent bottom-right payment toast
+          if (json.data?.invoices && json.data.invoices.length > 0) {
+            const latest = json.data.latestInvoice || json.data.invoices[0];
+            setInvoice(latest);
+
+            const isFromPayment = Boolean(sessionId || searchParams.get('payment_success') || searchParams.get('invoiceId'));
+            const dismissed = typeof window !== 'undefined' && sessionStorage.getItem('flowsync_dismissed_payment_toast');
+
+            if (isFromPayment || (!dismissed && latest.status === 'paid')) {
+              setShowPaymentToast(true);
+            }
           }
 
           setCheckingPayment(false);
@@ -275,6 +308,102 @@ function OnboardingOrganizationContent() {
         </div>
 
       </main>
+
+      {/* ─────────────────────────────────────────────────────────────
+          Bottom Right Persistent Toast: Payment Success & Invoice
+          ───────────────────────────────────────────────────────────── */}
+      {showPaymentToast && invoice && (
+        <aside
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-5 right-5 z-50 w-[calc(100vw-2.5rem)] sm:w-[380px] bg-white dark:bg-[#15171C] border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-[0_16px_48px_-12px_rgba(0,0,0,0.18),0_0_1px_1px_rgba(0,0,0,0.06)] p-4 sm:p-4.5 backdrop-blur-xl transition-all select-none animate-in fade-in slide-in-from-bottom-4 duration-300"
+        >
+          {/* Header Row: Status Badge + Close Button */}
+          <div className="flex items-start justify-between gap-3 mb-2.5">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-200/70 dark:border-emerald-800/60 shrink-0">
+                <CheckCircle2 size={16} />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white tracking-tight">
+                    Payment Successful
+                  </h3>
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
+                    ${(invoice.amount || 20).toFixed(2)} Paid
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Pro subscription confirmed via Stripe
+                </p>
+              </div>
+            </div>
+
+            {/* Cross Button to dismiss toast */}
+            <button
+              type="button"
+              onClick={handleDismissToast}
+              className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+              title="Dismiss notification"
+              aria-label="Close notification"
+            >
+              <X size={15} />
+            </button>
+          </div>
+
+          {/* Mini Invoice Card with Name and Location */}
+          <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 text-[11.5px] space-y-1.5 mb-3">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 text-[10.5px]">Invoice #</span>
+              <span className="font-mono font-semibold text-slate-900 dark:text-white">
+                #{invoice.invoiceNumber}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 text-[10.5px]">Billed To</span>
+              <span className="font-medium text-slate-900 dark:text-white truncate max-w-[200px]">
+                {invoice.customerName || 'FlowSync Customer'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 text-[10.5px]">Location</span>
+              <span className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1 truncate max-w-[200px]">
+                <MapPin size={10} className="text-slate-400 shrink-0" />
+                <span className="truncate">{invoice.customerLocation || 'Global'}</span>
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 text-[10.5px]">Payment Channel</span>
+              <span className="font-medium text-slate-700 dark:text-slate-300">
+                {invoice.brand?.toUpperCase() || 'Card'} •••• {invoice.last4 || '4242'}
+              </span>
+            </div>
+          </div>
+
+          {/* Footer: View Full Invoice Button + Permanent Storage Indicator */}
+          <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+            <span className="text-[10px] text-slate-400 flex items-center gap-1">
+              <ShieldCheck size={11} className="text-emerald-500 shrink-0" />
+              <span>Full receipt saved in Billing</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setInvoiceModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-colors cursor-pointer"
+            >
+              <FileText size={12} />
+              <span>View Invoice</span>
+            </button>
+          </div>
+        </aside>
+      )}
+
+      {/* Interactive Printable Tax Invoice Modal */}
+      <InvoiceModal
+        open={invoiceModalOpen}
+        onClose={() => setInvoiceModalOpen(false)}
+        invoice={invoice}
+      />
     </div>
   );
 }

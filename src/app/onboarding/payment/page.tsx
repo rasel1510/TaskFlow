@@ -143,8 +143,8 @@ export default function OnboardingPaymentPage() {
         return;
       }
 
-      // Success! Move to Confirmation Step (Success Page)
-      router.push(`/onboarding/success?invoiceId=${data.data.invoice.id}`);
+      // Success! Move to Organization Creation Page directly with payment_success flag
+      router.push(`/onboarding/organization?payment_success=true&invoiceId=${data.data.invoice.id}`);
     } catch {
       setErrorMsg('Network error communicating with payment gateway.');
     } finally {

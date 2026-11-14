@@ -129,6 +129,14 @@ export async function GET(req: Request) {
             },
           });
 
+          const custDetails = (checkoutSession as any).customer_details;
+          const custAddress = custDetails?.address || (typeof checkoutSession.customer === 'object' ? (checkoutSession.customer as any)?.address : null);
+          const customerName = custDetails?.name || (typeof checkoutSession.customer === 'object' ? (checkoutSession.customer as any)?.name : null) || user.name || user.email?.split('@')[0] || 'FlowSync Customer';
+          const customerEmail = custDetails?.email || user.email || undefined;
+          const customerLocation = custAddress
+            ? [custAddress.city, custAddress.state, custAddress.country].filter(Boolean).join(', ') || custAddress.country || 'Global'
+            : 'Global';
+
           if (!existingInvoice) {
             const amountTotal = checkoutSession.amount_total ? checkoutSession.amount_total / 100 : 20.0;
             const invoiceNumber =
@@ -148,6 +156,9 @@ export async function GET(req: Request) {
                 paymentMethod: 'stripe',
                 last4: '4242',
                 brand: 'visa',
+                customerName,
+                customerEmail,
+                customerLocation,
               },
             });
 
@@ -158,6 +169,15 @@ export async function GET(req: Request) {
               take: 20,
             });
             user.invoices = updatedInvoices;
+          } else if (!existingInvoice.customerName || !existingInvoice.customerLocation) {
+            await prisma.invoice.update({
+              where: { id: existingInvoice.id },
+              data: {
+                customerName: existingInvoice.customerName || customerName,
+                customerEmail: existingInvoice.customerEmail || customerEmail,
+                customerLocation: existingInvoice.customerLocation || customerLocation,
+              },
+            });
           }
         }
       } catch (stripeErr: any) {
@@ -165,8 +185,15 @@ export async function GET(req: Request) {
       }
     }
 
+    const mappedInvoices = (user.invoices || []).map(inv => ({
+      ...inv,
+      customerName: (inv as any).customerName || user.name || user.email?.split('@')[0] || 'FlowSync Customer',
+      customerLocation: (inv as any).customerLocation || 'Global',
+      customerEmail: (inv as any).customerEmail || user.email,
+    }));
+
     // Default mock payment method if user has a Pro plan or invoices
-    const latestInvoice = user.invoices[0];
+    const latestInvoice = mappedInvoices[0];
     const paymentMethod = {
       brand: latestInvoice?.brand || 'visa',
       last4: latestInvoice?.last4 || '4242',
@@ -175,7 +202,7 @@ export async function GET(req: Request) {
     };
 
     const hasPaid =
-      Boolean(user.invoices && user.invoices.some(inv => inv.status === 'paid')) ||
+      Boolean(mappedInvoices && mappedInvoices.some(inv => inv.status === 'paid')) ||
       user.plan === 'pro' ||
       user.plan === 'basic';
 
@@ -190,7 +217,8 @@ export async function GET(req: Request) {
         failedPaymentAttempts: user.failedPaymentAttempts || 0,
         hasCompletedOnboarding: Boolean((user.hasCompletedOnboarding && user.teamId) || user.teamId),
         paymentMethod,
-        invoices: user.invoices,
+        invoices: mappedInvoices,
+        latestInvoice: latestInvoice || null,
       },
     });
   } catch (err: any) {
@@ -342,6 +370,9 @@ export async function POST(req: Request) {
           paymentMethod: 'promo_code',
           last4: 'FREE',
           brand: 'promo',
+          customerName: user.name || user.email?.split('@')[0] || 'FlowSync Customer',
+          customerEmail: user.email,
+          customerLocation: 'Global',
         },
       });
 
@@ -496,6 +527,8 @@ export async function POST(req: Request) {
       }
 
       const invoiceNumber = generateInvoiceNumber();
+      const customerLocation = [zip, 'US'].filter(Boolean).join(', ') || 'Global';
+      const customerName = String(name || user.name || user.email?.split('@')[0] || 'FlowSync Customer');
       const invoice = await prisma.invoice.create({
         data: {
           userId: user.id,
@@ -508,6 +541,9 @@ export async function POST(req: Request) {
           paymentMethod: 'stripe',
           last4: finalLast4,
           brand: finalBrand,
+          customerName,
+          customerEmail: user.email,
+          customerLocation,
         },
       });
 

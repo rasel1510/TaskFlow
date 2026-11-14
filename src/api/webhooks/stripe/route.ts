@@ -69,6 +69,13 @@ export async function POST(req: Request) {
             const amountTotal = session.amount_total ? session.amount_total / 100 : 20.0;
             const invoiceNumber = (typeof session.invoice === 'string' ? session.invoice : null) || generateInvoiceNumber();
 
+            const custDetails = (session as any).customer_details;
+            const custAddress = custDetails?.address;
+            const customerName = custDetails?.name || user.name || user.email?.split('@')[0] || 'FlowSync Customer';
+            const customerLocation = custAddress
+              ? [custAddress.city, custAddress.state, custAddress.country].filter(Boolean).join(', ') || custAddress.country || 'Global'
+              : 'Global';
+
             await prisma.invoice.create({
               data: {
                 userId: user.id,
@@ -81,6 +88,9 @@ export async function POST(req: Request) {
                 paymentMethod: 'stripe',
                 last4: '4242',
                 brand: 'visa',
+                customerName,
+                customerEmail: user.email,
+                customerLocation,
               },
             });
           }
@@ -113,6 +123,12 @@ export async function POST(req: Request) {
             const invoiceNumber = invoice.number || generateInvoiceNumber();
             const existing = await prisma.invoice.findUnique({ where: { invoiceNumber } });
             if (!existing) {
+              const custName = invoice.customer_name || user.name || 'FlowSync Customer';
+              const custAddress = invoice.customer_address;
+              const customerLocation = custAddress
+                ? [custAddress.city, custAddress.state, custAddress.country].filter(Boolean).join(', ') || custAddress.country || 'Global'
+                : 'Global';
+
               await prisma.invoice.create({
                 data: {
                   userId: user.id,
@@ -125,6 +141,9 @@ export async function POST(req: Request) {
                   paymentMethod: 'stripe',
                   last4: '4242',
                   brand: 'visa',
+                  customerName: custName,
+                  customerEmail: customerEmail || user.email,
+                  customerLocation,
                 },
               });
             }
