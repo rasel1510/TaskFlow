@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import {
   ArrowRight,
   ChevronDown,
@@ -255,7 +255,13 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
     return '/app';
   };
 
-  const handleTryFlowSyncClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+  const handleTryFlowSyncClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (isAuthenticated) {
+      e.preventDefault();
+      await signOut({ callbackUrl: '/', redirectTo: '/' });
+      return;
+    }
+
     if (onLaunchApp) {
       e.preventDefault();
       onLaunchApp();
@@ -541,25 +547,24 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
                 </Link>
               </div>
 
-              {/* Right Action Button */}
-              <div className="flex items-center gap-2 sm:gap-3">
-                {!isAuthenticated && (
-                  <Link
-                    href="/auth/login"
-                    className="inline-flex items-center justify-center text-xs sm:text-[13px] font-semibold text-neutral-700 hover:text-black dark:text-neutral-300 dark:hover:text-white px-3 py-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-                  >
-                    Log in
-                  </Link>
-                )}
-
+              {/* Right Action Button - Single Dynamic Button */}
+              <div className="flex items-center">
                 <TactileShaderButton
-                  href={getTryFlowSyncHref()}
-                  prefetch={true}
-                  onMouseEnter={() => router.prefetch(getTryFlowSyncHref())}
-                  onTouchStart={() => router.prefetch(getTryFlowSyncHref())}
+                  href={isAuthenticated ? '#' : getTryFlowSyncHref()}
+                  prefetch={!isAuthenticated}
+                  onMouseEnter={() => {
+                    if (!isAuthenticated) {
+                      router.prefetch(getTryFlowSyncHref());
+                    }
+                  }}
+                  onTouchStart={() => {
+                    if (!isAuthenticated) {
+                      router.prefetch(getTryFlowSyncHref());
+                    }
+                  }}
                   onClick={handleTryFlowSyncClick}
                 >
-                  <span>{isAuthenticated ? 'Open Dashboard' : 'Try FlowSync'}</span>
+                  <span>{isAuthenticated ? 'Signout' : 'Try FlowSync'}</span>
                 </TactileShaderButton>
               </div>
             </div>
