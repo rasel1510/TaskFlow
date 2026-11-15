@@ -90,17 +90,21 @@ function OnboardingOrganizationContent() {
             return;
           }
 
-          // Retrieve latest invoice and show persistent bottom-right payment toast
-          if (json.data?.invoices && json.data.invoices.length > 0) {
-            const latest = json.data.latestInvoice || json.data.invoices[0];
-            setInvoice(latest);
+          // Only Pro users who completed Stripe payment receive an invoice and payment toast
+          const isProPlan = json.data?.plan === 'pro';
+          if (isProPlan && json.data?.latestInvoice) {
+            setInvoice(json.data.latestInvoice);
 
             const isFromPayment = Boolean(sessionId || searchParams.get('payment_success') || searchParams.get('invoiceId'));
             const dismissed = typeof window !== 'undefined' && sessionStorage.getItem('flowsync_dismissed_payment_toast');
 
-            if (isFromPayment || (!dismissed && latest.status === 'paid')) {
+            if (isFromPayment || (!dismissed && json.data.latestInvoice.status === 'paid')) {
               setShowPaymentToast(true);
             }
+          } else {
+            // Free / Basic users never receive invoices or payment success toasts
+            setInvoice(null);
+            setShowPaymentToast(false);
           }
 
           setCheckingPayment(false);

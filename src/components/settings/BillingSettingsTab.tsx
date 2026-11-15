@@ -99,35 +99,62 @@ export default function BillingSettingsTab() {
             </div>
           </div>
 
-          <button
-            onClick={() => setUpdateCardOpen(true)}
-            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 transition-colors cursor-pointer"
-          >
-            Update Card
-          </button>
+          {isPro && (
+            <button
+              onClick={() => setUpdateCardOpen(true)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 transition-colors cursor-pointer"
+            >
+              Update Card
+            </button>
+          )}
         </div>
 
         {/* Card visualization */}
-        <div className="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="px-2.5 py-1.5 rounded bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 font-bold text-xs font-mono text-neutral-700 dark:text-neutral-200 tracking-wider">
-              {billingData?.paymentMethod?.brand?.toUpperCase() || 'VISA'}
+        {isPro && billingData?.paymentMethod ? (
+          <div className="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="px-2.5 py-1.5 rounded bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 font-bold text-xs font-mono text-neutral-700 dark:text-neutral-200 tracking-wider">
+                {billingData.paymentMethod.brand?.toUpperCase() || 'VISA'}
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-mono font-semibold text-neutral-900 dark:text-white">
+                  •••• •••• •••• {billingData.paymentMethod.last4}
+                </p>
+                <p className="text-[11px] text-neutral-400">
+                  Expires {billingData.paymentMethod.expMonth || 12} / {billingData.paymentMethod.expYear || 2028} • Default billing method
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs sm:text-sm font-mono font-semibold text-neutral-900 dark:text-white">
-                •••• •••• •••• {billingData?.paymentMethod?.last4 || '4242'}
-              </p>
-              <p className="text-[11px] text-neutral-400">
-                Expires 12 / 2028 • Default billing method
-              </p>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-1.5 text-xs text-neutral-400">
-            <ShieldCheck size={14} className="text-emerald-500" />
-            <span className="hidden sm:inline">Stripe Verified</span>
+            <div className="flex items-center gap-1.5 text-xs text-neutral-400">
+              <ShieldCheck size={14} className="text-emerald-500" />
+              <span className="hidden sm:inline">Stripe Verified</span>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-neutral-200/70 dark:bg-neutral-800 flex items-center justify-center text-neutral-500">
+                <CreditCard size={15} />
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-semibold text-neutral-900 dark:text-white">
+                  No Payment Method Required
+                </p>
+                <p className="text-[11px] text-neutral-400">
+                  You are using the free Basic Plan. No card is charged.
+                </p>
+              </div>
+            </div>
+
+            <a
+              href="/onboarding/plans"
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#2563EB] hover:bg-[#1D4ED8] text-white transition-colors"
+            >
+              Upgrade to Pro
+            </a>
+          </div>
+        )}
 
         {/* Update Card Drawer / Modal */}
         {updateCardOpen && (
@@ -256,7 +283,7 @@ export default function BillingSettingsTab() {
           </div>
 
           <span className="text-xs text-neutral-400">
-            {billingData?.invoices?.length || 1} recorded
+            {billingData?.invoices?.length || 0} recorded
           </span>
         </div>
 
@@ -306,36 +333,11 @@ export default function BillingSettingsTab() {
                   </tr>
                 ))
               ) : (
-                /* Fallback initial invoice row if no past invoices created yet */
-                <tr className="hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors">
-                  <td className="py-3 px-4 font-mono font-bold text-neutral-900 dark:text-white">
-                    INV-2026-4891
-                  </td>
-                  <td className="py-3 px-4 text-neutral-500">
-                    Nov 3, 2026
-                  </td>
-                  <td className="py-3 px-4 font-bold text-neutral-900 dark:text-white">
-                    $20.00 USD
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300">
-                      PAID
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <button
-                      onClick={() => handleOpenInvoice({
-                        invoiceNumber: 'INV-2026-4891',
-                        amount: 20.0,
-                        status: 'paid',
-                        planName: 'Pro Plan',
-                        createdAt: new Date(),
-                      })}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-[#2563EB] dark:text-blue-400 hover:underline cursor-pointer"
-                    >
-                      <Download size={12} />
-                      <span>View Invoice</span>
-                    </button>
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-neutral-400 text-xs">
+                    {isPro
+                      ? 'No invoices recorded yet.'
+                      : 'You are currently on the free Basic Plan. No invoices or payment charges apply.'}
                   </td>
                 </tr>
               )}

@@ -185,26 +185,37 @@ export async function GET(req: Request) {
       }
     }
 
-    const mappedInvoices = (user.invoices || []).map(inv => ({
-      ...inv,
-      customerName: (inv as any).customerName || user.name || user.email?.split('@')[0] || 'FlowSync Customer',
-      customerLocation: (inv as any).customerLocation || 'Global',
-      customerEmail: (inv as any).customerEmail || user.email,
-    }));
+    const isPro = user.plan === 'pro';
 
-    // Default mock payment method if user has a Pro plan or invoices
-    const latestInvoice = mappedInvoices[0];
-    const paymentMethod = {
-      brand: latestInvoice?.brand || 'visa',
-      last4: latestInvoice?.last4 || '4242',
-      expMonth: 12,
-      expYear: 2028,
-    };
+    // Free and Basic plan users do not have Stripe billing or invoices
+    const mappedInvoices = isPro
+      ? (user.invoices || [])
+          .filter(inv => inv.status === 'paid' && (inv.amount || 0) > 0)
+          .map(inv => ({
+            ...inv,
+            customerName: (inv as any).customerName || user.name || user.email?.split('@')[0] || 'FlowSync Customer',
+            customerLocation: (inv as any).customerLocation || 'Global',
+            customerEmail: (inv as any).customerEmail || user.email,
+          }))
+      : [];
+
+    const latestInvoice = isPro && mappedInvoices.length > 0 ? mappedInvoices[0] : null;
+
+    // Payment method only exists for Pro users who have paid via Stripe
+    const paymentMethod = isPro && latestInvoice
+      ? {
+          brand: latestInvoice?.brand || 'visa',
+          last4: latestInvoice?.last4 || '4242',
+          expMonth: 12,
+          expYear: 2028,
+        }
+      : null;
 
     const hasPaid =
-      Boolean(mappedInvoices && mappedInvoices.some(inv => inv.status === 'paid')) ||
-      user.plan === 'pro' ||
-      user.plan === 'basic';
+      isPro ||
+      user.plan === 'basic' ||
+      user.plan === 'free' ||
+      Boolean(mappedInvoices && mappedInvoices.length > 0);
 
     return NextResponse.json({
       success: true,
@@ -212,13 +223,13 @@ export async function GET(req: Request) {
         plan: user.plan || 'free',
         hasPaid,
         teamId: user.teamId,
-        billingCycle: user.billingCycle || 'monthly',
+        billingCycle: isPro ? (user.billingCycle || 'monthly') : 'free',
         subscriptionStatus: user.subscriptionStatus || 'active',
         failedPaymentAttempts: user.failedPaymentAttempts || 0,
         hasCompletedOnboarding: Boolean((user.hasCompletedOnboarding && user.teamId) || user.teamId),
         paymentMethod,
         invoices: mappedInvoices,
-        latestInvoice: latestInvoice || null,
+        latestInvoice,
       },
     });
   } catch (err: any) {

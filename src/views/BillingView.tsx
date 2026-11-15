@@ -142,26 +142,42 @@ export default function BillingView() {
               </span>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-200/70 dark:border-blue-800/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 shadow-2xs">
-                <CreditCard size={18} />
-              </div>
-              <div>
-                <div className="font-mono text-[13.5px] font-semibold text-slate-900 dark:text-white tracking-wider">
-                  •••• •••• •••• {billing?.paymentMethod?.last4 || '4242'}
+            {isPro && billing?.paymentMethod ? (
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-200/70 dark:border-blue-800/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 shadow-2xs">
+                  <CreditCard size={18} />
                 </div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Expires {billing?.paymentMethod?.expMonth || 12}/{billing?.paymentMethod?.expYear || 2028} • {billing?.paymentMethod?.brand?.toUpperCase() || 'VISA'}
+                <div>
+                  <div className="font-mono text-[13.5px] font-semibold text-slate-900 dark:text-white tracking-wider">
+                    •••• •••• •••• {billing.paymentMethod.last4}
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Expires {billing.paymentMethod.expMonth}/{billing.paymentMethod.expYear} • {billing.paymentMethod.brand.toUpperCase()}
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 flex items-center justify-center shrink-0 shadow-2xs">
+                  <CreditCard size={18} />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                    No Payment Method Needed
+                  </div>
+                  <div className="text-xs text-slate-400 mt-0.5">
+                    Free Plan • No credit card required
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11.5px] text-slate-500 dark:text-slate-400">
               <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
                 <ShieldCheck size={13} />
-                PCI Level 1 Protected
+                {isPro ? 'PCI Level 1 Protected' : 'Free Tier Active'}
               </span>
-              <span className="text-slate-400 dark:text-slate-500">256-bit SSL</span>
+              <span className="text-slate-400 dark:text-slate-500">{isPro ? '256-bit SSL' : 'Zero Charges'}</span>
             </div>
           </div>
 
@@ -183,8 +199,8 @@ export default function BillingView() {
             </div>
 
             <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11.5px] text-slate-500 dark:text-slate-400">
-              <span>Status: Up to date</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-medium">100% Tax Compliant</span>
+              <span>Status: {isPro ? 'Up to date' : 'Free Workspace'}</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-medium">{isPro ? '100% Tax Compliant' : 'Zero Invoices'}</span>
             </div>
           </div>
 
@@ -238,7 +254,9 @@ export default function BillingView() {
               <span className="max-w-xs text-slate-400 dark:text-slate-500">
                 {searchQuery
                   ? 'No invoices match your search query.'
-                  : 'When payments are processed via Stripe, your official tax invoices will be generated here.'}
+                  : isPro
+                    ? 'When payments are processed via Stripe, your official tax invoices will be generated here.'
+                    : 'You are on the Free Basic Plan. No invoices or payment charges apply to your workspace.'}
               </span>
             </div>
           ) : (
