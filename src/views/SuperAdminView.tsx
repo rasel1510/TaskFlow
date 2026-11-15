@@ -1079,13 +1079,13 @@ export default function SuperAdminView() {
       {deletingCompany && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px]">
           <div className="relative w-full max-w-sm bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200/90 dark:border-neutral-800 p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <h3 className="text-sm font-semibold text-red-600">Delete Company?</h3>
+            <h3 className="text-sm font-semibold text-red-600">Delete Company & Entire History?</h3>
             <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
-              Are you sure you want to delete{' '}
+              Are you sure you want to permanently delete{' '}
               <span className="font-semibold text-neutral-900 dark:text-white">
                 {deletingCompany.name}
               </span>
-              ? All associated projects and member affiliations will be removed from this tenant.
+              ? This will completely purge the entire history of this company, including all projects, tasks, comments, activity logs, invitations, and member associations. This action cannot be undone.
             </p>
 
             <div className="flex items-center justify-end gap-2.5 pt-2">

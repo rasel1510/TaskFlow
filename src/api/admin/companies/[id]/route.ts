@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifySuperAdmin } from '@/lib/superadmin';
+import { isSuperAdmin } from '@/lib/permissions';
+import redisCache from '@/lib/redis';
 
 export const dynamic = 'force-dynamic';
 
@@ -133,7 +135,15 @@ export async function DELETE(
   const { id } = await params;
 
   try {
-    const existingTeam = await prisma.team.findUnique({ where: { id } });
+    const existingTeam = await prisma.team.findUnique({
+      where: { id },
+      include: {
+        members: {
+          select: { id: true, email: true, role: true },
+        },
+      },
+    });
+
     if (!existingTeam) {
       return NextResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Company not found' } },
@@ -141,8 +151,10 @@ export async function DELETE(
       );
     }
 
-    // Protection rule: FlowSync platform owner company can never be deleted
-    if (existingTeam.name.toLowerCase().trim() === 'flowsync') {
+    // Protection rule: FlowSync platform owner organization can never be deleted
+    const teamNameLower = existingTeam.name.toLowerCase().trim();
+    const teamSlugLower = existingTeam.slug.toLowerCase().trim();
+    if (teamNameLower === 'flowsync' || teamSlugLower === 'flowsync') {
       return NextResponse.json(
         {
           success: false,
@@ -155,25 +167,150 @@ export async function DELETE(
       );
     }
 
-    // Dissolve team association for users
-    await prisma.user.updateMany({
+    // Identify member users
+    const members = existingTeam.members || [];
+    const nonSuperAdminMemberIds = members
+      .filter((m) => !isSuperAdmin({ email: m.email, role: m.role }))
+      .map((m) => m.id);
+    const superAdminMemberIds = members
+      .filter((m) => isSuperAdmin({ email: m.email, role: m.role }))
+      .map((m) => m.id);
+
+    // Retrieve all project IDs under this company
+    const companyProjects = await prisma.project.findMany({
       where: { teamId: id },
-      data: { teamId: null },
+      select: { id: true },
+    });
+    const projectIds = companyProjects.map((p) => p.id);
+
+    // Retrieve all task IDs across these projects
+    const companyTasks = projectIds.length > 0
+      ? await prisma.task.findMany({
+          where: { projectId: { in: projectIds } },
+          select: { id: true },
+        })
+      : [];
+    const taskIds = companyTasks.map((t) => t.id);
+
+    // Deep atomic purge: completely eliminate the entire history of this company
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete notifications pointing to any tasks in this company
+      if (taskIds.length > 0) {
+        await tx.notification.deleteMany({
+          where: { taskId: { in: taskIds } },
+        });
+      }
+
+      // 2. Delete task comments and break circular reply references
+      if (taskIds.length > 0) {
+        await tx.comment.updateMany({
+          where: { taskId: { in: taskIds }, replyToId: { not: null } },
+          data: { replyToId: null },
+        });
+        await tx.comment.deleteMany({
+          where: { taskId: { in: taskIds } },
+        });
+      }
+
+      // 3. Delete task activity logs (task audit trail / history)
+      if (taskIds.length > 0) {
+        await tx.activity.deleteMany({
+          where: { taskId: { in: taskIds } },
+        });
+      }
+
+      // 4. Delete tasks in company projects
+      if (projectIds.length > 0) {
+        await tx.task.deleteMany({
+          where: { projectId: { in: projectIds } },
+        });
+      }
+
+      // 5. Delete project memberships, invitations, and join requests
+      if (projectIds.length > 0) {
+        await tx.projectMember.deleteMany({
+          where: { projectId: { in: projectIds } },
+        });
+        await tx.projectInvitation.deleteMany({
+          where: { projectId: { in: projectIds } },
+        });
+        await tx.projectJoinRequest.deleteMany({
+          where: { projectId: { in: projectIds } },
+        });
+      }
+
+      // 6. Delete all projects for this company
+      if (projectIds.length > 0) {
+        await tx.project.deleteMany({
+          where: { id: { in: projectIds } },
+        });
+      }
+
+      // 7. Delete all pending, accepted, or expired team invitations
+      await tx.teamInvitation.deleteMany({
+        where: { teamId: id },
+      });
+
+      // 8. Purge notifications for company members (excluding platform Super Admin)
+      if (nonSuperAdminMemberIds.length > 0) {
+        await tx.notification.deleteMany({
+          where: { userId: { in: nonSuperAdminMemberIds } },
+        });
+      }
+
+      // 9. Reset non-superadmin members cleanly so they don't have orphan team states
+      if (nonSuperAdminMemberIds.length > 0) {
+        await tx.user.updateMany({
+          where: { id: { in: nonSuperAdminMemberIds } },
+          data: {
+            teamId: null,
+            hasCompletedOnboarding: false,
+            role: 'Member',
+          },
+        });
+      }
+
+      // 10. Detach Super Admin users without affecting their superadmin privileges
+      if (superAdminMemberIds.length > 0) {
+        await tx.user.updateMany({
+          where: { id: { in: superAdminMemberIds } },
+          data: { teamId: null },
+        });
+      }
+
+      // 11. Permanently delete the company record itself
+      await tx.team.delete({
+        where: { id },
+      });
     });
 
-    // Delete team
-    await prisma.team.delete({
-      where: { id },
-    });
+    // 12. Invalidate all affected Redis & L1 memory caches
+    try {
+      await Promise.allSettled([
+        redisCache.delPattern('team:*'),
+        redisCache.delPattern('projects:*'),
+        redisCache.delPattern('tasks:*'),
+        redisCache.delPattern('notifs:*'),
+        redisCache.delPattern('admin:metrics:*'),
+        redisCache.delPattern('admin:companies:*'),
+        redisCache.delPattern('admin:users:*'),
+        redisCache.delPattern('reports:*'),
+        ...members.map((m) => redisCache.del(`tenant:${m.id}`)),
+        ...members.map((m) => redisCache.del(`user:${m.id}`)),
+        ...projectIds.map((pId) => redisCache.delPattern(`project:${pId}:*`)),
+      ]);
+    } catch (cacheErr) {
+      console.warn('[Admin Company DELETE Cache Invalidation Warning]:', cacheErr);
+    }
 
     return NextResponse.json({
       success: true,
-      message: `Company "${existingTeam.name}" has been deleted from the platform`,
+      message: `Company "${existingTeam.name}" and its entire history have been permanently deleted`,
     });
   } catch (error) {
     console.error('[Admin Company DELETE Error]:', error);
     return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to delete company' } },
+      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to delete company and history' } },
       { status: 500 }
     );
   }
