@@ -139,6 +139,8 @@ export default function SuperAdminView() {
   // Delete modal
   const [deletingCompany, setDeletingCompany] = useState<CompanyItem | null>(null);
   const [isDeletingCompany, setIsDeletingCompany] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<PlatformUser | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
 
   // Fetch all Super Admin platform data
   const loadPlatformData = async () => {
@@ -308,6 +310,28 @@ export default function SuperAdminView() {
       toast.error(err.message || 'User update failed');
     } finally {
       setUpdatingUser(false);
+    }
+  };
+
+  // Handle user deletion
+  const handleDeleteUser = async () => {
+    if (!deletingUser) return;
+    setIsDeletingUser(true);
+    try {
+      const res = await fetch(`/api/admin/users/${deletingUser.id}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error?.message || 'Failed to delete user');
+      }
+      toast.success(json.message || 'User deleted successfully');
+      setDeletingUser(null);
+      await loadPlatformData();
+    } catch (err: any) {
+      toast.error(err.message || 'Delete failed');
+    } finally {
+      setIsDeletingUser(false);
     }
   };
 
@@ -733,17 +757,28 @@ export default function SuperAdminView() {
                     </td>
 
                     <td className="py-3 px-4 text-right">
-                      <button
-                        onClick={() => {
-                          setEditingUser(user);
-                          setEditUserRole(user.role);
-                          setEditUserPlan(user.plan);
-                          setEditUserStatus(user.subscriptionStatus);
-                        }}
-                        className="px-2.5 py-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-colors cursor-pointer"
-                      >
-                        Edit User
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => {
+                            setEditingUser(user);
+                            setEditUserRole(user.role);
+                            setEditUserPlan(user.plan);
+                            setEditUserStatus(user.subscriptionStatus);
+                          }}
+                          className="px-2.5 py-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-colors cursor-pointer"
+                        >
+                          Edit User
+                        </button>
+                        {!user.isSuperAdmin && (
+                          <button
+                            onClick={() => setDeletingUser(user)}
+                            className="px-2 py-1 text-[11px] font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
+                            title="Delete user account"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1102,6 +1137,39 @@ export default function SuperAdminView() {
                 className="px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all shadow-xs cursor-pointer"
               >
                 {isDeletingCompany ? 'Deleting...' : 'Delete Company'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: DELETE USER ─── */}
+      {deletingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px]">
+          <div className="relative w-full max-w-sm bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200/90 dark:border-neutral-800 p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <h3 className="text-sm font-semibold text-red-600">Delete User Account?</h3>
+            <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+              Are you sure you want to permanently delete{' '}
+              <span className="font-semibold text-neutral-900 dark:text-white">
+                {deletingUser.name}
+              </span>{' '}
+              ({deletingUser.email})? All associated personal data, notifications, and invoices will be permanently removed. This action cannot be undone.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                onClick={() => setDeletingUser(null)}
+                disabled={isDeletingUser}
+                className="px-4 py-2 text-xs font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 border border-neutral-200 dark:border-neutral-800 rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteUser}
+                disabled={isDeletingUser}
+                className="px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all shadow-xs cursor-pointer"
+              >
+                {isDeletingUser ? 'Deleting...' : 'Delete User'}
               </button>
             </div>
           </div>
