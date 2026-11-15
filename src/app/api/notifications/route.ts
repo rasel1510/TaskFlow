@@ -3,4 +3,5 @@
  *
  * Re-exports GET and PATCH from src/api/notifications/route.ts.
  */
+export const dynamic = 'force-dynamic';
 export { GET, PATCH, POST } from '@/api/notifications/route';
