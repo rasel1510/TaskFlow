@@ -1085,7 +1085,7 @@ export default function SuperAdminView() {
               <span className="font-semibold text-neutral-900 dark:text-white">
                 {deletingCompany.name}
               </span>
-              ? This will completely purge the entire history of this company, including all projects, tasks, comments, activity logs, invitations, and member associations. This action cannot be undone.
+              ? This will completely purge the entire history of this company, including all projects, tasks, comments, activity logs, invoices, invitations, and member accounts from the entire platform. This action cannot be undone.
             </p>
 
             <div className="flex items-center justify-end gap-2.5 pt-2">

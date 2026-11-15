@@ -169,9 +169,13 @@ export async function DELETE(
 
     // Identify member users
     const members = existingTeam.members || [];
-    const nonSuperAdminMemberIds = members
-      .filter((m) => !isSuperAdmin({ email: m.email, role: m.role }))
-      .map((m) => m.id);
+    const nonSuperAdminMembers = members.filter(
+      (m) => !isSuperAdmin({ email: m.email, role: m.role })
+    );
+    const nonSuperAdminMemberIds = nonSuperAdminMembers.map((m) => m.id);
+    const nonSuperAdminEmails = nonSuperAdminMembers
+      .map((m) => m.email?.toLowerCase().trim())
+      .filter((email): email is string => Boolean(email));
     const superAdminMemberIds = members
       .filter((m) => isSuperAdmin({ email: m.email, role: m.role }))
       .map((m) => m.id);
@@ -251,26 +255,57 @@ export async function DELETE(
         where: { teamId: id },
       });
 
-      // 8. Purge notifications for company members (excluding platform Super Admin)
+      // 8. Purge notifications for company members
       if (nonSuperAdminMemberIds.length > 0) {
         await tx.notification.deleteMany({
           where: { userId: { in: nonSuperAdminMemberIds } },
         });
       }
 
-      // 9. Reset non-superadmin members cleanly so they don't have orphan team states
+      // 9. Purge invoices and billing records for company members
       if (nonSuperAdminMemberIds.length > 0) {
-        await tx.user.updateMany({
-          where: { id: { in: nonSuperAdminMemberIds } },
-          data: {
-            teamId: null,
-            hasCompletedOnboarding: false,
-            role: 'Member',
-          },
+        await tx.invoice.deleteMany({
+          where: { userId: { in: nonSuperAdminMemberIds } },
         });
       }
 
-      // 10. Detach Super Admin users without affecting their superadmin privileges
+      // 10. Purge any email verification codes for company members
+      if (nonSuperAdminEmails.length > 0) {
+        await tx.verificationCode.deleteMany({
+          where: { email: { in: nonSuperAdminEmails } },
+        });
+      }
+
+      // 11. Clean up stray comments, memberships, and task assignments for company members
+      if (nonSuperAdminMemberIds.length > 0) {
+        await tx.comment.deleteMany({
+          where: { userId: { in: nonSuperAdminMemberIds } },
+        });
+        await tx.projectMember.deleteMany({
+          where: { userId: { in: nonSuperAdminMemberIds } },
+        });
+        await tx.projectJoinRequest.deleteMany({
+          where: { userId: { in: nonSuperAdminMemberIds } },
+        });
+        await tx.task.updateMany({
+          where: {
+            OR: [
+              { assigneeId: { in: nonSuperAdminMemberIds } },
+              { creatorId: { in: nonSuperAdminMemberIds } },
+            ],
+          },
+          data: { assigneeId: null, creatorId: null },
+        });
+      }
+
+      // 12. Completely delete all member accounts belonging to this company from the platform
+      if (nonSuperAdminMemberIds.length > 0) {
+        await tx.user.deleteMany({
+          where: { id: { in: nonSuperAdminMemberIds } },
+        });
+      }
+
+      // 13. Detach Super Admin users (if attached to this company) without deleting their superadmin privileges
       if (superAdminMemberIds.length > 0) {
         await tx.user.updateMany({
           where: { id: { in: superAdminMemberIds } },
@@ -278,7 +313,7 @@ export async function DELETE(
         });
       }
 
-      // 11. Permanently delete the company record itself
+      // 14. Permanently delete the company record itself
       await tx.team.delete({
         where: { id },
       });
