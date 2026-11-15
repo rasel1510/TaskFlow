@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import {
   ArrowRight,
   ChevronDown,
@@ -255,13 +255,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
     return '/app';
   };
 
-  const handleTryFlowSyncClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
-    if (isAuthenticated) {
-      e.preventDefault();
-      await signOut({ callbackUrl: '/', redirectTo: '/' });
-      return;
-    }
-
+  const handleTryFlowSyncClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (onLaunchApp) {
       e.preventDefault();
       onLaunchApp();
@@ -550,21 +544,13 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
               {/* Right Action Button - Single Dynamic Button */}
               <div className="flex items-center">
                 <TactileShaderButton
-                  href={isAuthenticated ? '#' : getTryFlowSyncHref()}
-                  prefetch={!isAuthenticated}
-                  onMouseEnter={() => {
-                    if (!isAuthenticated) {
-                      router.prefetch(getTryFlowSyncHref());
-                    }
-                  }}
-                  onTouchStart={() => {
-                    if (!isAuthenticated) {
-                      router.prefetch(getTryFlowSyncHref());
-                    }
-                  }}
+                  href={getTryFlowSyncHref()}
+                  prefetch={true}
+                  onMouseEnter={() => router.prefetch(getTryFlowSyncHref())}
+                  onTouchStart={() => router.prefetch(getTryFlowSyncHref())}
                   onClick={handleTryFlowSyncClick}
                 >
-                  <span>{isAuthenticated ? 'Signout' : 'Try FlowSync'}</span>
+                  <span>{isAuthenticated ? 'Open Dashboard' : 'Try FlowSync'}</span>
                 </TactileShaderButton>
               </div>
             </div>
