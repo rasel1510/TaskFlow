@@ -174,7 +174,7 @@ export default function BillingView() {
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                 {isPro
-                  ? 'Full team collaboration, unlimited projects, and priority support.'
+                  ? 'Full team collaboration, AI Copilot, and FlowSync MCP Server enabled.'
                   : 'Free tier with up to 5 projects and standard Kanban board.'}
               </p>
             </div>

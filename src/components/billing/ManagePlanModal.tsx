@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import {
   X,
   Check,
+  Sparkles,
   CreditCard,
   ExternalLink,
   ArrowRight,
@@ -104,6 +105,7 @@ export default function ManagePlanModal({
       if (data.success && data.data?.url) {
         window.location.href = data.data.url;
       } else {
+        // Fallback message for test environment or promo-upgraded users without card
         setErrorMsg(
           data.error ||
             'Stripe Customer Portal is currently unavailable in test mode. Your active Pro subscription is managed securely.'
@@ -169,7 +171,7 @@ export default function ManagePlanModal({
 
       const data = await res.json();
       if (data.success) {
-        setPromoSuccess('Coupon verified! You have been upgraded to Pro.');
+        setPromoSuccess('🎉 Coupon verified! You have been upgraded to FlowSync Pro.');
         onSuccess('pro');
         setTimeout(() => {
           onClose();
@@ -187,26 +189,27 @@ export default function ManagePlanModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs overflow-y-auto animate-fadeIn">
       <div
-        className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200/90 dark:border-slate-800 overflow-hidden my-auto transition-all"
+        className="relative w-full max-w-3xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200/90 dark:border-slate-800 overflow-hidden my-auto transition-all"
         onClick={e => e.stopPropagation()}
       >
-        {/* ─── Top Header Bar (Mobbin Minimalist Pattern) ─── */}
-        <div className="px-5 sm:px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <h2 className="text-sm sm:text-base font-semibold text-slate-900 dark:text-white">
-            Manage Plan
+        {/* ─── Top Header Bar ─── */}
+        <div className="px-5 sm:px-7 py-5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+            Manage Subscription & Plan
           </h2>
+
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
             aria-label="Close modal"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
 
         {/* ─── Alerts / Feedback Banners ─── */}
         {errorMsg && (
-          <div className="mx-5 sm:mx-6 mt-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-rose-700 dark:text-rose-300 text-xs flex items-center justify-between">
+          <div className="mx-5 sm:mx-7 mt-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-rose-700 dark:text-rose-300 text-xs flex items-center justify-between">
             <div className="flex items-center gap-2">
               <AlertTriangle size={15} className="shrink-0" />
               <span>{errorMsg}</span>
@@ -218,7 +221,7 @@ export default function ManagePlanModal({
         )}
 
         {successMsg && (
-          <div className="mx-5 sm:mx-6 mt-4 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
+          <div className="mx-5 sm:mx-7 mt-4 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
             <CheckCircle2 size={15} className="shrink-0 text-emerald-500" />
             <span>{successMsg}</span>
           </div>
@@ -226,7 +229,7 @@ export default function ManagePlanModal({
 
         {/* ─── Downgrade Confirmation Warning (If Triggered) ─── */}
         {showDowngradeConfirm && (
-          <div className="mx-5 sm:mx-6 mt-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 space-y-3">
+          <div className="mx-5 sm:mx-7 mt-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 space-y-3">
             <div className="flex items-start gap-2.5">
               <AlertTriangle size={18} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <div>
@@ -234,7 +237,7 @@ export default function ManagePlanModal({
                   Are you sure you want to downgrade to Basic?
                 </h4>
                 <p className="text-[11.5px] text-amber-800/90 dark:text-amber-300/90 mt-1 leading-relaxed">
-                  Your workspace will switch to the Free Basic Plan. Project creation will be limited to 5 projects. Your existing project data will remain safe.
+                  Your workspace will immediately switch to the Free Basic Plan. FlowSync AI Copilot, MCP Server integrations, and unlimited project creation will be restricted. Your existing project data will remain safe.
                 </p>
               </div>
             </div>
@@ -260,39 +263,41 @@ export default function ManagePlanModal({
         )}
 
         {/* ─── Side-by-Side Plans Comparison (Mobbin UI Architecture) ─── */}
-        <div className="p-5 sm:p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="p-5 sm:p-7">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             
             {/* ═══ CARD 1: Basic Plan ($0) ═══ */}
             <div
-              className={`rounded-xl p-5 border flex flex-col justify-between transition-all duration-150 ${
+              className={`rounded-xl p-5 border relative flex flex-col justify-between transition-all duration-200 ${
                 !isPro
-                  ? 'border-blue-600 dark:border-blue-500 bg-slate-50/60 dark:bg-slate-950/50 shadow-xs'
+                  ? 'border-blue-600 dark:border-blue-500 bg-slate-50/60 dark:bg-slate-950/50 shadow-xs ring-1 ring-blue-600/20'
                   : 'border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900/60'
               }`}
             >
-              <div>
-                <div className="flex items-center justify-between">
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Basic Plan</h3>
-                  {!isPro && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                      Current Plan
-                    </span>
-                  )}
-                </div>
+              {!isPro && (
+                <span className="absolute -top-3 right-5 bg-blue-600 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-xs flex items-center gap-1">
+                  <CheckCircle2 size={11} />
+                  Current Plan
+                </span>
+              )}
 
-                <div className="mt-2">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-extrabold text-slate-900 dark:text-white">$0</span>
+              <div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Basic Plan</h3>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">$0</span>
                     <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">/ forever</span>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
-                    Free for small teams and personal projects.
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+                    Essential features for individuals and small teams starting their project workflows.
                   </p>
                 </div>
 
                 {/* Features List */}
-                <div className="mt-5 space-y-2 pt-4 border-t border-slate-100 dark:border-slate-800/80">
+                <div className="mt-5 space-y-2.5 pt-4 border-t border-slate-100 dark:border-slate-800/80">
+                  <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                    Included Features
+                  </div>
                   <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-300">
                     <li className="flex items-center gap-2">
                       <Check size={14} className="text-emerald-500 shrink-0" />
@@ -304,11 +309,19 @@ export default function ManagePlanModal({
                     </li>
                     <li className="flex items-center gap-2">
                       <Check size={14} className="text-emerald-500 shrink-0" />
-                      <span>Unlimited task assignments</span>
+                      <span>Unlimited team task assignments</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <Check size={14} className="text-emerald-500 shrink-0" />
-                      <span>Community support</span>
+                      <span>Standard community support</span>
+                    </li>
+                    <li className="flex items-center gap-2 text-slate-400 dark:text-slate-500 line-through">
+                      <X size={14} className="shrink-0" />
+                      <span>TaskFlow AI Copilot</span>
+                    </li>
+                    <li className="flex items-center gap-2 text-slate-400 dark:text-slate-500 line-through">
+                      <X size={14} className="shrink-0" />
+                      <span>FlowSync MCP Server</span>
                     </li>
                   </ul>
                 </div>
@@ -321,7 +334,7 @@ export default function ManagePlanModal({
                     disabled
                     className="w-full py-2.5 px-4 rounded-lg text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 cursor-default"
                   >
-                    Current Plan
+                    Active Plan
                   </button>
                 ) : (
                   <button
@@ -336,15 +349,15 @@ export default function ManagePlanModal({
 
             {/* ═══ CARD 2: Pro Plan ($20 / month) — Highlighted ═══ */}
             <div
-              className={`rounded-xl p-5 border-2 relative flex flex-col justify-between transition-all duration-150 ${
+              className={`rounded-xl p-5 border-2 relative flex flex-col justify-between transition-all duration-200 ${
                 isPro
-                  ? 'border-emerald-600 dark:border-emerald-500 bg-white dark:bg-slate-900 shadow-sm'
-                  : 'border-[#2563EB] bg-white dark:bg-slate-900 shadow-sm ring-1 ring-blue-600/30'
+                  ? 'border-emerald-600 dark:border-emerald-500 bg-gradient-to-b from-emerald-50/20 via-white to-white dark:from-emerald-950/20 dark:via-slate-900 dark:to-slate-900 shadow-sm'
+                  : 'border-[#2563EB] bg-gradient-to-b from-blue-50/40 via-white to-white dark:from-blue-950/20 dark:via-slate-900 dark:to-slate-900 shadow-md ring-1 ring-blue-600/30'
               }`}
             >
               {/* Floating Pill on Top */}
               <span
-                className={`absolute -top-3 right-4 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-xs flex items-center gap-1 ${
+                className={`absolute -top-3 right-5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-xs flex items-center gap-1 ${
                   isPro
                     ? 'bg-emerald-600 text-white'
                     : 'bg-[#2563EB] text-white'
@@ -356,47 +369,54 @@ export default function ManagePlanModal({
                     Current Plan
                   </>
                 ) : (
-                  'Recommended'
+                  <>
+                    <Sparkles size={11} />
+                    Most Popular
+                  </>
                 )}
               </span>
 
               <div>
-                <div className="flex items-center justify-between">
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Pro Plan</h3>
-                </div>
-
-                <div className="mt-2">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-extrabold text-slate-900 dark:text-white">$20.00</span>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pro Plan</h3>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">$20.00</span>
                     <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">/ month</span>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
-                    For teams that need unlimited projects and full collaboration.
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+                    Full power for growing teams: unlimited capacity, AI Copilot, MCP Server, and priority support.
                   </p>
                 </div>
 
                 {/* Features List */}
-                <div className="mt-5 space-y-2 pt-4 border-t border-slate-100 dark:border-slate-800/80">
+                <div className="mt-5 space-y-2.5 pt-4 border-t border-slate-100 dark:border-slate-800/80">
+                  <div className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                    Everything in Basic, plus:
+                  </div>
                   <ul className="space-y-2 text-xs text-slate-700 dark:text-slate-200">
                     <li className="flex items-center gap-2">
-                      <Check size={14} className="text-blue-600 shrink-0" />
-                      <span className="font-medium text-slate-900 dark:text-white">Unlimited projects & sprints</span>
+                      <Check size={14} className="text-[#2563EB] shrink-0" />
+                      <span className="font-semibold text-slate-900 dark:text-white">Unlimited projects & sprints</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check size={14} className="text-blue-600 shrink-0" />
-                      <span>Unlimited team members & roles</span>
+                      <Check size={14} className="text-[#2563EB] shrink-0" />
+                      <span className="font-semibold text-slate-900 dark:text-white">TaskFlow AI Copilot Autopilot</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check size={14} className="text-blue-600 shrink-0" />
-                      <span>Custom project permissions</span>
+                      <Check size={14} className="text-[#2563EB] shrink-0" />
+                      <span>FlowSync MCP Server Integration</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check size={14} className="text-blue-600 shrink-0" />
-                      <span>Tax-compliant Stripe invoices</span>
+                      <Check size={14} className="text-[#2563EB] shrink-0" />
+                      <span>Unlimited company members & roles</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check size={14} className="text-blue-600 shrink-0" />
-                      <span>Priority support</span>
+                      <Check size={14} className="text-[#2563EB] shrink-0" />
+                      <span>Tax-compliant Stripe invoices & receipts</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check size={14} className="text-[#2563EB] shrink-0" />
+                      <span>Dedicated 24/7 priority engineering support</span>
                     </li>
                   </ul>
                 </div>
@@ -448,24 +468,25 @@ export default function ManagePlanModal({
 
           </div>
 
-          {/* ═══ Promo Code Redemption (Mobbin Minimalist Pattern) ═══ */}
+          {/* ═══ Promo Code Redemption Accordion (Mobbin Style) ═══ */}
           {!isPro && (
             <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
               {!showPromo ? (
                 <button
                   type="button"
                   onClick={() => setShowPromo(true)}
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                 >
                   <Gift size={13} />
-                  <span>Have a promo code?</span>
+                  <span>Have a promo coupon or discount code? Click here to redeem</span>
                   <ChevronDown size={13} />
                 </button>
               ) : (
                 <form onSubmit={handleApplyPromo} className="space-y-2 animate-fadeIn">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                      Redeem Promo Code
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <Gift size={13} className="text-blue-600" />
+                      <span>Redeem Promotional Voucher</span>
                     </label>
                     <button
                       type="button"
@@ -479,7 +500,7 @@ export default function ManagePlanModal({
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="e.g. FLOWVIP"
+                      placeholder="e.g. FLOWVIP or SUPERVISOR100"
                       value={promoCode}
                       onChange={e => setPromoCode(e.target.value.toUpperCase())}
                       className="flex-1 px-3 py-2 rounded-lg text-xs font-mono bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-900 dark:text-white uppercase placeholder:text-slate-400"
@@ -490,7 +511,7 @@ export default function ManagePlanModal({
                       className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white transition-colors disabled:opacity-50 cursor-pointer shrink-0 flex items-center gap-1.5"
                     >
                       {promoLoading && <Loader2 size={12} className="animate-spin" />}
-                      <span>Apply</span>
+                      <span>Apply Voucher</span>
                     </button>
                   </div>
 
