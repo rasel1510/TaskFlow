@@ -69,7 +69,7 @@ function AppContent() {
     }
   }, []);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [projectDetailTab, setProjectDetailTab] = useState<'overview' | 'tasks' | 'milestones' | 'members' | 'messages' | 'settings'>('overview');
+  const [projectDetailTab, setProjectDetailTab] = useState<'overview' | 'tasks' | 'about' | 'milestones' | 'members' | 'messages' | 'settings'>('overview');
   const [showCreateTask, setShowCreateTask] = useState(false);
   const [createTaskDate, setCreateTaskDate] = useState<string | undefined>(undefined);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -239,7 +239,7 @@ function AppContent() {
 
   const handleOpenProject = (
     projectId: string,
-    tab: 'overview' | 'tasks' | 'milestones' | 'members' | 'messages' | 'settings' = 'overview'
+    tab: 'overview' | 'tasks' | 'about' | 'milestones' | 'members' | 'messages' | 'settings' = 'overview'
   ) => {
     setSelectedProjectId(projectId);
     setProjectDetailTab(tab);

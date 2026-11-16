@@ -17,7 +17,7 @@ export interface NotificationItem {
 
 interface InboxProps {
   onTaskClick: (taskId: string) => void;
-  onProjectClick?: (projectId: string, tab?: 'overview' | 'tasks' | 'milestones' | 'members' | 'messages' | 'settings') => void;
+  onProjectClick?: (projectId: string, tab?: 'overview' | 'tasks' | 'about' | 'milestones' | 'members' | 'messages' | 'settings') => void;
   onNavigate?: (view: any) => void;
 }
 

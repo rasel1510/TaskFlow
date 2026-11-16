@@ -6,7 +6,6 @@ import { statusColors, priorityColors, type ProjectHealth, type Status, type Pri
 import { useToast } from '@/components/ui/Toast';
 import { LIFECYCLE_STATE_CONFIG, validateLifecycleTransition, type ProjectLifecycleState } from '@/lib/projectLifecycle';
 import { ROLE_DESCRIPTIONS, type ProjectRole, normalizeDesignation } from '@/lib/permissions';
-import type { MilestoneRecord } from '@/api/projects/[id]/milestones/route';
 import type { MemberRecord } from '@/api/projects/[id]/members/route';
 import type { ProjectInvitationRecord } from '@/api/projects/[id]/invitations/route';
 import type { ProjectMessage } from '@/api/projects/[id]/messages/route';
@@ -62,7 +61,7 @@ interface ProjectDetailProps {
   onBack: () => void;
   onTaskClick: (taskId: string) => void;
   onCreateTask?: (projectId: string) => void;
-  initialTab?: 'overview' | 'tasks' | 'milestones' | 'members' | 'messages' | 'settings';
+  initialTab?: 'overview' | 'tasks' | 'about' | 'milestones' | 'members' | 'messages' | 'settings';
 }
 
 function getTwoLetterCapital(name?: string | null, fallbackAvatar?: string | null): string {
@@ -176,7 +175,7 @@ function ProjectDetailSkeleton({ onBack }: { onBack: () => void }) {
 
         {/* Tabs switcher skeleton */}
         <div className="flex items-center gap-4 sm:gap-5 mt-5 sm:mt-6 border-b border-[#F3F4F6]">
-          {['Overview', 'Tasks', 'Roadmap', 'Team', 'Messages'].map((tab, idx) => (
+          {['Overview', 'Tasks', 'About', 'Team', 'Messages'].map((tab, idx) => (
             <div key={idx} className="pb-2.5">
               <div className="h-4 w-16 bg-gray-200 rounded" />
             </div>
@@ -220,7 +219,9 @@ export default function ProjectDetail({
 }: ProjectDetailProps) {
   const [project, setProject] = useState<ProjectData | null>(() => cachedProjectDetails.get(projectId) || null);
   const [loading, setLoading] = useState(() => !cachedProjectDetails.has(projectId));
-  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'milestones' | 'members' | 'messages' | 'settings'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'about' | 'members' | 'messages' | 'settings'>(
+    initialTab === 'milestones' ? 'about' : (initialTab as any) || 'overview'
+  );
   const [taskSearch, setTaskSearch] = useState('');
   const [taskStatusFilter, setTaskStatusFilter] = useState('all');
 
@@ -234,13 +235,6 @@ export default function ProjectDetail({
   const [lightboxImage, setLightboxImage] = useState<{ url: string; name?: string } | null>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Milestones state
-  const [milestones, setMilestones] = useState<MilestoneRecord[]>([]);
-  const [milestonesLoading, setMilestonesLoading] = useState(false);
-  const [newMilestoneTitle, setNewMilestoneTitle] = useState('');
-  const [newMilestoneDate, setNewMilestoneDate] = useState('');
-  const [addingMilestone, setAddingMilestone] = useState(false);
 
   // Members state
   const [members, setMembers] = useState<MemberRecord[]>([]);
@@ -365,16 +359,6 @@ export default function ProjectDetail({
       setLoading(false);
     }
   }, [projectId, onBack, toast]);
-
-  const fetchMilestones = useCallback(async () => {
-    setMilestonesLoading(true);
-    try {
-      const res = await fetch(`/api/projects/${projectId}/milestones`);
-      const json = await res.json();
-      if (json.success) setMilestones(json.data || []);
-    } catch (e) { console.warn('[ProjectDetail] Milestones fetch error:', e); }
-    finally { setMilestonesLoading(false); }
-  }, [projectId]);
 
   const fetchMembers = useCallback(async () => {
     setMembersLoading(true);
@@ -619,7 +603,7 @@ export default function ProjectDetail({
 
   useEffect(() => {
     if (initialTab) {
-      setActiveTab(initialTab);
+      setActiveTab(initialTab === 'milestones' ? 'about' : initialTab);
     }
   }, [initialTab]);
 
@@ -636,7 +620,6 @@ export default function ProjectDetail({
   }, [activeTab]);
 
   useEffect(() => {
-    if (activeTab === 'milestones') fetchMilestones();
     if (activeTab === 'members') {
       fetchMembers();
       fetchJoinRequests();
@@ -646,7 +629,7 @@ export default function ProjectDetail({
       fetchMessages();
       fetchMembers();
     }
-  }, [activeTab, fetchMilestones, fetchMembers, fetchJoinRequests, fetchInvitations]);
+  }, [activeTab, fetchMembers, fetchJoinRequests, fetchInvitations]);
 
   const fetchMessages = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -937,40 +920,6 @@ export default function ProjectDetail({
     }
   };
 
-  const handleAddMilestone = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMilestoneTitle.trim()) return;
-    setAddingMilestone(true);
-    try {
-      const res = await fetch(`/api/projects/${projectId}/milestones`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: newMilestoneTitle.trim(), targetDate: newMilestoneDate || undefined }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        setMilestones(prev => [...prev, json.data]);
-        setNewMilestoneTitle('');
-        setNewMilestoneDate('');
-        toast.success('Milestone added');
-      } else {
-        toast.error(json.error?.message || 'Failed to add milestone');
-      }
-    } catch { toast.error('Failed to add milestone'); }
-    finally { setAddingMilestone(false); }
-  };
-
-  const handleToggleMilestone = async (ms: MilestoneRecord) => {
-    const res = await fetch(`/api/projects/${projectId}/milestones`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: ms.id, milestoneId: ms.id, completed: !ms.completed }),
-    }).catch(() => null);
-    if (res?.ok) {
-      setMilestones(prev => prev.map(m => m.id === ms.id ? { ...m, completed: !m.completed, progress: !m.completed ? 100 : m.progress } : m));
-    }
-  };
-
   if (loading && !project) {
     return <ProjectDetailSkeleton onBack={onBack} />;
   }
@@ -1069,7 +1018,7 @@ export default function ProjectDetail({
           {([
             { key: 'overview', label: 'Overview' },
             { key: 'tasks', label: `Tasks (${project.totalTasks})` },
-            { key: 'milestones', label: 'Roadmap' },
+            { key: 'about', label: 'About' },
             { key: 'members', label: 'Team' },
             { key: 'messages', label: `Messages${messages.length > 0 ? ` (${messages.length})` : ''}` },
           ] as { key: typeof activeTab; label: string }[]).map(({ key, label }) => (
@@ -1119,11 +1068,70 @@ export default function ProjectDetail({
         {/* Tab 1: Overview */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            {/* Description & Metadata */}
+            {/* Recent Tasks */}
+            <div className="p-5 rounded-2xl border border-[#E5E7EB] bg-white space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-[15px] font-semibold text-[#111111]">Recent Tasks</h3>
+                  <p className="text-[12px] text-[rgba(17,17,17,0.5)]">Latest task activity and progress in this project</p>
+                </div>
+                <button
+                  onClick={() => setActiveTab('tasks')}
+                  className="text-[12px] font-medium text-[#2563EB] hover:underline cursor-pointer"
+                >
+                  View all ({project.totalTasks})
+                </button>
+              </div>
+
+              {project.tasks.length === 0 ? (
+                <div className="py-8 text-center text-[13px] text-[rgba(17,17,17,0.45)]">
+                  No tasks created yet in this project.
+                </div>
+              ) : (
+                <div className="divide-y divide-[#F3F4F6]">
+                  {project.tasks.slice(0, 6).map(task => {
+                    const statusCfg = statusColors[task.status as Status] || { bg: '#F3F4F6', text: '#6B7280', label: task.status };
+                    return (
+                      <div
+                        key={task.id}
+                        onClick={() => onTaskClick(task.id)}
+                        className="flex items-center justify-between py-2.5 px-2 hover:bg-[#F9FAFB] rounded-lg cursor-pointer transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="text-[13px] font-medium text-[#111111] truncate">
+                            {task.title}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span
+                            className="px-2 py-0.5 rounded text-[11px] font-medium"
+                            style={{ backgroundColor: statusCfg.bg, color: statusCfg.text }}
+                          >
+                            {statusCfg.label}
+                          </span>
+                          {task.assignee && (
+                            <span className="w-6 h-6 rounded-full bg-[#E5E7EB] flex items-center justify-center text-[9px] font-bold text-[#111111]">
+                              {task.assignee.avatar}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 3: About */}
+        {activeTab === 'about' && (
+          <div className="space-y-6">
+            {/* Description & Project Lead */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2 p-5 rounded-2xl border border-[#E5E7EB] bg-white space-y-3">
                 <h3 className="text-[15px] font-semibold text-[#111111]">About this project</h3>
-                <p className="text-[13.5px] text-[rgba(17,17,17,0.7)] leading-relaxed">
+                <p className="text-[13.5px] text-[rgba(17,17,17,0.7)] leading-relaxed whitespace-pre-wrap">
                   {project.description || 'No description provided.'}
                 </p>
 
@@ -1166,116 +1174,6 @@ export default function ProjectDetail({
                 )}
               </div>
             </div>
-
-            {/* Recent Tasks */}
-            <div className="p-5 rounded-2xl border border-[#E5E7EB] bg-white space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[15px] font-semibold text-[#111111]">Recent Tasks</h3>
-                <button
-                  onClick={() => setActiveTab('tasks')}
-                  className="text-[12px] font-medium text-[#2563EB] hover:underline"
-                >
-                  View all ({project.totalTasks})
-                </button>
-              </div>
-
-              <div className="divide-y divide-[#F3F4F6]">
-                {project.tasks.slice(0, 5).map(task => {
-                  const statusCfg = statusColors[task.status as Status] || { bg: '#F3F4F6', text: '#6B7280', label: task.status };
-                  return (
-                    <div
-                      key={task.id}
-                      onClick={() => onTaskClick(task.id)}
-                      className="flex items-center justify-between py-2.5 px-2 hover:bg-[#F9FAFB] rounded-lg cursor-pointer transition-colors"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="text-[13px] font-medium text-[#111111] truncate">
-                          {task.title}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span
-                          className="px-2 py-0.5 rounded text-[11px] font-medium"
-                          style={{ backgroundColor: statusCfg.bg, color: statusCfg.text }}
-                        >
-                          {statusCfg.label}
-                        </span>
-                        {task.assignee && (
-                          <span className="w-6 h-6 rounded-full bg-[#E5E7EB] flex items-center justify-center text-[9px] font-bold text-[#111111]">
-                            {task.assignee.avatar}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Tab 3: Milestones / Roadmap (Step 4.9) */}
-        {activeTab === 'milestones' && (
-          <div className="space-y-5">
-            <div className="flex items-center justify-between">
-              <h3 className="text-[16px] font-semibold text-[#111111]">Sprint Milestones &amp; Roadmap</h3>
-              <span className="text-[12px] text-[rgba(17,17,17,0.4)]">{milestones.filter(m => m.completed).length}/{milestones.length} completed</span>
-            </div>
-            <form onSubmit={handleAddMilestone} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-              <input type="text" placeholder="New milestone title..." value={newMilestoneTitle}
-                onChange={e => setNewMilestoneTitle(e.target.value)}
-                className="flex-1 text-[13px] px-3 py-2 border border-[#E5E7EB] rounded-lg outline-none focus:border-[#2563EB]" />
-              <div className="w-full sm:w-44 shrink-0">
-                <DatePicker
-                  value={newMilestoneDate}
-                  onChange={setNewMilestoneDate}
-                  placeholder="Target date"
-                />
-              </div>
-              <button type="submit" disabled={addingMilestone || !newMilestoneTitle.trim()}
-                className="px-4 py-2 bg-[#2563EB] text-white text-[12.5px] font-medium rounded-lg disabled:opacity-50 shrink-0">
-                {addingMilestone ? 'Adding...' : '+ Add'}
-              </button>
-            </form>
-            {milestonesLoading ? (
-              <div className="py-10 text-center text-[13px] text-[rgba(17,17,17,0.4)]">Loading milestones...</div>
-            ) : milestones.length === 0 ? (
-              <div className="py-10 text-center text-[13px] text-[rgba(17,17,17,0.4)]">No milestones yet. Add your first sprint milestone above.</div>
-            ) : (
-              <div className="space-y-3">
-                {milestones.map(ms => (
-                  <div key={ms.id} className={`p-4 rounded-xl border ${ms.completed ? 'border-[#D1FAE5] bg-[#ECFDF5]' : 'border-[#E5E7EB] bg-white'}`}>
-                    <div className="flex items-start gap-3">
-                      <button onClick={() => handleToggleMilestone(ms)}
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${ms.completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-[#D1D5DB] hover:border-[#2563EB]'}`}>
-                        {ms.completed && (
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        )}
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`text-[14px] font-semibold ${ms.completed ? 'line-through text-[rgba(17,17,17,0.4)]' : 'text-[#111111]'}`}>{ms.title}</span>
-                          {ms.targetDate && (
-                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#F3F4F6] text-[rgba(17,17,17,0.5)]">
-                              Due {new Date(ms.targetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                            </span>
-                          )}
-                        </div>
-                        {ms.description && <p className="text-[12px] text-[rgba(17,17,17,0.5)] mt-0.5">{ms.description}</p>}
-                        <div className="mt-2 flex items-center gap-3">
-                          <div className="flex-1 h-1.5 rounded-full bg-[#F3F4F6] overflow-hidden">
-                            <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${ms.progress}%` }} />
-                          </div>
-                          <span className="text-[11px] font-semibold text-[rgba(17,17,17,0.5)] shrink-0">{ms.progress}%</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         )}
 
