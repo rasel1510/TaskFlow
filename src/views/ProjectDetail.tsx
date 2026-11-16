@@ -1038,36 +1038,34 @@ export default function ProjectDetail({
 
       {/* Main Tab Content */}
       <div className="flex-1 p-4 sm:p-6 max-w-6xl w-full mx-auto space-y-5 sm:space-y-6">
-        {/* KPI Metric Cards — shown when not in Messages tab */}
-        {activeTab !== 'messages' && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFB]">
-              <span className="text-[12px] font-medium text-[rgba(17,17,17,0.5)]">Total Tasks</span>
-              <div className="text-[22px] font-bold text-[#111111] mt-1">{project.totalTasks}</div>
-            </div>
-            <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFB]">
-              <span className="text-[12px] font-medium text-[rgba(17,17,17,0.5)]">Completed</span>
-              <div className="text-[22px] font-bold text-[#16A34A] mt-1">
-                {project.completedTasks}
-                <span className="text-[12px] font-normal text-[rgba(17,17,17,0.4)] ml-1.5">
-                  ({project.completionRate}%)
-                </span>
-              </div>
-            </div>
-            <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFB]">
-              <span className="text-[12px] font-medium text-[rgba(17,17,17,0.5)]">In Progress</span>
-              <div className="text-[22px] font-bold text-[#2563EB] mt-1">{project.inProgressTasks}</div>
-            </div>
-            <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFB]">
-              <span className="text-[12px] font-medium text-[rgba(17,17,17,0.5)]">Overdue</span>
-              <div className="text-[22px] font-bold text-[#DC2626] mt-1">{project.overdueTasks}</div>
-            </div>
-          </div>
-        )}
-
         {/* Tab 1: Overview */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
+            {/* KPI Metric Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFB]">
+                <span className="text-[12px] font-medium text-[rgba(17,17,17,0.5)]">Total Tasks</span>
+                <div className="text-[22px] font-bold text-[#111111] mt-1">{project.totalTasks}</div>
+              </div>
+              <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFB]">
+                <span className="text-[12px] font-medium text-[rgba(17,17,17,0.5)]">Completed</span>
+                <div className="text-[22px] font-bold text-[#16A34A] mt-1">
+                  {project.completedTasks}
+                  <span className="text-[12px] font-normal text-[rgba(17,17,17,0.4)] ml-1.5">
+                    ({project.completionRate}%)
+                  </span>
+                </div>
+              </div>
+              <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFB]">
+                <span className="text-[12px] font-medium text-[rgba(17,17,17,0.5)]">In Progress</span>
+                <div className="text-[22px] font-bold text-[#2563EB] mt-1">{project.inProgressTasks}</div>
+              </div>
+              <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFB]">
+                <span className="text-[12px] font-medium text-[rgba(17,17,17,0.5)]">Overdue</span>
+                <div className="text-[22px] font-bold text-[#DC2626] mt-1">{project.overdueTasks}</div>
+              </div>
+            </div>
+
             {/* Recent Tasks */}
             <div className="p-5 rounded-2xl border border-[#E5E7EB] bg-white space-y-3">
               <div className="flex items-center justify-between">
