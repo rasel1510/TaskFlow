@@ -1119,20 +1119,6 @@ export default function ProjectDetail({
         {/* Tab 1: Overview */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            {/* Progress bar */}
-            <div className="p-5 rounded-2xl border border-[#E5E7EB] bg-white space-y-2">
-              <div className="flex items-center justify-between text-[13px]">
-                <span className="font-semibold text-[#111111]">Overall Progress</span>
-                <span className="font-bold text-[#2563EB]">{project.completionRate}%</span>
-              </div>
-              <div className="w-full h-2.5 rounded-full bg-[#F3F4F6] overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-500 ease-out"
-                  style={{ width: `${project.completionRate}%`, backgroundColor: project.color }}
-                />
-              </div>
-            </div>
-
             {/* Description & Metadata */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2 p-5 rounded-2xl border border-[#E5E7EB] bg-white space-y-3">
