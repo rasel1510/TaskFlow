@@ -28,9 +28,9 @@ export default function OnboardingPlansPage() {
           const json = await res.json();
           const { hasPaid, hasCompletedOnboarding, teamId } = json?.data || {};
 
-          // If already paid AND completed company setup, never show plans again: directly send to Dashboard (/app)
+          // If already paid AND completed company setup, redirect to Company Billing with Manage Plan open
           if (hasPaid && ((hasCompletedOnboarding && teamId) || teamId)) {
-            router.replace('/app');
+            router.replace('/app?view=billing&manage=true');
             return;
           }
 

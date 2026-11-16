@@ -120,6 +120,14 @@ export async function GET(req: Request) {
             },
           });
 
+          // Cascade Pro plan to all members in company/team
+          if (user.teamId) {
+            await prisma.user.updateMany({
+              where: { teamId: user.teamId },
+              data: { plan: 'pro' },
+            });
+          }
+
           // 2. Ensure paid Invoice is recorded in database
           const existingInvoice = await prisma.invoice.findFirst({
             where: {
@@ -297,6 +305,13 @@ export async function POST(req: Request) {
 
       console.log(`[Stripe Checkout] Creating session with Price: ${priceId}, BaseURL: ${baseUrl}`);
 
+      const successUrl = body.returnUrl || (user.teamId
+        ? `${baseUrl}/app?view=billing&payment_success=true&session_id={CHECKOUT_SESSION_ID}`
+        : `${baseUrl}/onboarding/organization?session_id={CHECKOUT_SESSION_ID}`);
+      const cancelUrl = body.cancelUrl || (user.teamId
+        ? `${baseUrl}/app?view=billing`
+        : `${baseUrl}/onboarding/plans`);
+
       const checkoutSession = await stripe.checkout.sessions.create({
         customer: stripeCustomerId || undefined,
         customer_email: stripeCustomerId ? undefined : (user.email || undefined),
@@ -308,8 +323,8 @@ export async function POST(req: Request) {
         ],
         mode: 'subscription',
         billing_address_collection: 'auto',
-        success_url: `${baseUrl}/onboarding/organization?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl}/onboarding/plans`,
+        success_url: successUrl,
+        cancel_url: cancelUrl,
         metadata: {
           userId: user.id,
           userEmail: user.email,
@@ -329,6 +344,93 @@ export async function POST(req: Request) {
         data: {
           url: checkoutSession.url,
           sessionId: checkoutSession.id,
+        },
+      });
+    }
+
+    /* ------------------------------------------------------------------------
+       ACTION: CREATE STRIPE CUSTOMER PORTAL SESSION (PRO PLAN MANAGEMENT)
+       ------------------------------------------------------------------------ */
+    if (action === 'create_customer_portal_session') {
+      let stripeCustomerId = user.stripeCustomerId;
+
+      if (!stripeCustomerId && user.email) {
+        try {
+          const existing = await stripe.customers.list({ email: user.email, limit: 1 });
+          if (existing.data.length > 0) {
+            stripeCustomerId = existing.data[0].id;
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { stripeCustomerId },
+            });
+          }
+        } catch (custErr) {
+          console.warn('[Stripe Portal] Customer lookup non-critical:', custErr);
+        }
+      }
+
+      if (!stripeCustomerId) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'No active Stripe customer found for this account. If you redeemed a promotion, your workspace has direct Pro access without card billing.',
+          },
+          { status: 400 }
+        );
+      }
+
+      const baseUrl = getBaseUrl(req);
+      try {
+        const portalSession = await stripe.billingPortal.sessions.create({
+          customer: stripeCustomerId,
+          return_url: `${baseUrl}/app?view=billing`,
+        });
+
+        return NextResponse.json({
+          success: true,
+          data: {
+            url: portalSession.url,
+          },
+        });
+      } catch (portalErr: any) {
+        console.warn('[Stripe Customer Portal Error]:', portalErr.message || portalErr);
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              portalErr.message ||
+              'Stripe Customer Portal is currently in test mode or not activated in your Stripe dashboard.',
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    /* ------------------------------------------------------------------------
+       ACTION: DOWNGRADE TO BASIC PLAN ($0)
+       ------------------------------------------------------------------------ */
+    if (action === 'downgrade_to_basic') {
+      const updated = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          plan: 'basic',
+          subscriptionStatus: 'active',
+          failedPaymentAttempts: 0,
+        },
+      });
+
+      if (user.teamId) {
+        await prisma.user.updateMany({
+          where: { teamId: user.teamId },
+          data: { plan: 'basic' },
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          plan: updated.plan,
+          message: 'Workspace downgraded to Basic Plan successfully.',
         },
       });
     }
@@ -395,6 +497,13 @@ export async function POST(req: Request) {
           failedPaymentAttempts: 0,
         },
       });
+
+      if (user.teamId) {
+        await prisma.user.updateMany({
+          where: { teamId: user.teamId },
+          data: { plan: 'pro' },
+        });
+      }
 
       return NextResponse.json({
         success: true,

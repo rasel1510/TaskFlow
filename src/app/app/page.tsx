@@ -78,12 +78,13 @@ function AppContent() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isVerifying, setIsVerifying] = useState(true);
 
-  // Handle post-invite onboarding and deep linking to project or task
+  // Handle post-invite onboarding and deep linking to project, task, or specific view (e.g. billing)
   useEffect(() => {
     if (searchParams) {
       const isOnboardingParam = searchParams.get('onboarding') === 'true';
       const targetPid = searchParams.get('projectId');
       const targetTaskId = searchParams.get('task') || searchParams.get('taskId');
+      const targetView = searchParams.get('view') as View;
 
       if (isOnboardingParam || session?.user?.name === 'New Member') {
         setShowOnboarding(true);
@@ -94,6 +95,9 @@ function AppContent() {
       }
       if (targetTaskId) {
         setSelectedTask(targetTaskId);
+      }
+      if (targetView && ['dashboard', 'tasks', 'kanban', 'projects', 'project-detail', 'team', 'calendar', 'timeline', 'reports', 'billing', 'settings', 'inbox', 'super-admin'].includes(targetView)) {
+        setView(targetView);
       }
     }
   }, [searchParams, session?.user?.name]);

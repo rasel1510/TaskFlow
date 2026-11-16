@@ -10,8 +10,11 @@ import {
   ShieldCheck,
   RefreshCw,
   Search,
+  Sparkles,
+  Zap,
 } from 'lucide-react';
 import InvoiceModal, { InvoiceData } from '@/components/onboarding/InvoiceModal';
+import ManagePlanModal from '@/components/billing/ManagePlanModal';
 
 interface BillingData {
   plan: string;
@@ -36,6 +39,8 @@ export default function BillingView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceData | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [managePlanOpen, setManagePlanOpen] = useState(false);
+  const [successBanner, setSuccessBanner] = useState<string | null>(null);
 
   const fetchBilling = async () => {
     setLoading(true);
@@ -56,6 +61,36 @@ export default function BillingView() {
 
   useEffect(() => {
     fetchBilling();
+
+    // Check URL parameters for Stripe checkout returns or direct manage trigger
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const sessionId = params.get('session_id');
+      const isPaymentSuccess = params.get('payment_success') === 'true';
+      const openManage = params.get('manage') === 'true';
+
+      if (openManage) {
+        setManagePlanOpen(true);
+      }
+
+      if (sessionId && isPaymentSuccess) {
+        // Trigger verification with session_id
+        fetch(`/api/billing?session_id=${encodeURIComponent(sessionId)}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              setSuccessBanner('🎉 Welcome to Pro! Your workspace has been successfully upgraded to the Pro Plan.');
+              fetchBilling();
+            }
+          })
+          .catch(err => console.error('Verification error:', err))
+          .finally(() => {
+            // Clean URL query parameters
+            const cleanUrl = window.location.pathname;
+            window.history.replaceState({}, '', cleanUrl);
+          });
+      }
+    }
   }, []);
 
   const handleViewInvoice = (inv: InvoiceData) => {
@@ -92,14 +127,30 @@ export default function BillingView() {
               <RefreshCw size={13} className={loading ? 'animate-spin text-blue-600' : ''} />
               <span>Refresh</span>
             </button>
-            <a
-              href="/onboarding/plans"
+            <button
+              onClick={() => setManagePlanOpen(true)}
               className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] transition-all cursor-pointer shadow-xs"
             >
               <span>Manage Plan</span>
-            </a>
+            </button>
           </div>
         </div>
+
+        {/* ─── Success Banner (e.g. from Stripe Checkout Return) ─── */}
+        {successBanner && (
+          <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs flex items-center justify-between shadow-xs animate-fadeIn">
+            <div className="flex items-center gap-2.5">
+              <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span className="font-semibold">{successBanner}</span>
+            </div>
+            <button
+              onClick={() => setSuccessBanner(null)}
+              className="text-xs font-bold underline hover:opacity-80 cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {/* ─── 3 Top Stats Cards (Mobbin UI Architecture) ─── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
@@ -129,8 +180,13 @@ export default function BillingView() {
             </div>
 
             <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11.5px] text-slate-500 dark:text-slate-400">
-              <span>Billing cycle: Monthly</span>
-              <span className="font-semibold text-slate-700 dark:text-slate-300">Renews in 30 days</span>
+              <span>Billing cycle: {isPro ? 'Monthly ($20/mo)' : 'Free ($0/mo)'}</span>
+              <button
+                onClick={() => setManagePlanOpen(true)}
+                className="font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+              >
+                {isPro ? 'Manage plan' : 'Upgrade to Pro'}
+              </button>
             </div>
           </div>
 
@@ -350,6 +406,23 @@ export default function BillingView() {
           open={modalOpen}
           onClose={() => setModalOpen(false)}
           invoice={selectedInvoice}
+        />
+
+        {/* ─── Mobbin-Inspired Manage Plan & Subscription Modal ─── */}
+        <ManagePlanModal
+          open={managePlanOpen}
+          onClose={() => setManagePlanOpen(false)}
+          currentPlan={billing?.plan || 'free'}
+          billingCycle={billing?.billingCycle}
+          paymentMethod={billing?.paymentMethod}
+          onSuccess={newPlan => {
+            fetchBilling();
+            setSuccessBanner(
+              newPlan === 'pro'
+                ? '🎉 Congratulations! Your workspace has been upgraded to FlowSync Pro.'
+                : 'Workspace plan updated to Basic.'
+            );
+          }}
         />
 
       </div>

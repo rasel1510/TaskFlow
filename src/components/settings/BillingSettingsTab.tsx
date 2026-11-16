@@ -17,12 +17,14 @@ import {
   Download,
 } from 'lucide-react';
 import InvoiceModal, { InvoiceData } from '@/components/onboarding/InvoiceModal';
+import ManagePlanModal from '@/components/billing/ManagePlanModal';
 
 export default function BillingSettingsTab() {
   const [loading, setLoading] = useState(true);
   const [billingData, setBillingData] = useState<any>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceData | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [managePlanOpen, setManagePlanOpen] = useState(false);
   const [updateCardOpen, setUpdateCardOpen] = useState(false);
   const [newCardNumber, setNewCardNumber] = useState('');
   const [updateMsg, setUpdateMsg] = useState<string | null>(null);
@@ -147,12 +149,12 @@ export default function BillingSettingsTab() {
               </div>
             </div>
 
-            <a
-              href="/onboarding/plans"
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#2563EB] hover:bg-[#1D4ED8] text-white transition-colors"
+            <button
+              onClick={() => setManagePlanOpen(true)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#2563EB] hover:bg-[#1D4ED8] text-white transition-colors cursor-pointer"
             >
               Upgrade to Pro
-            </a>
+            </button>
           </div>
         )}
 
@@ -229,13 +231,13 @@ export default function BillingSettingsTab() {
             </div>
           </div>
 
-          <Link
-            href="/onboarding/plans"
-            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#E44232]/10 text-[#E44232] hover:bg-[#E44232]/20 transition-colors flex items-center gap-1"
+          <button
+            onClick={() => setManagePlanOpen(true)}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#2563EB]/10 text-[#2563EB] hover:bg-[#2563EB]/20 transition-colors flex items-center gap-1 cursor-pointer"
           >
-            <span>Change Plan</span>
+            <span>Manage Plan</span>
             <ArrowRight size={12} />
-          </Link>
+          </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1">
@@ -351,6 +353,18 @@ export default function BillingSettingsTab() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         invoice={selectedInvoice}
+      />
+
+      {/* Manage Plan & Subscription Modal (Mobbin UI Pattern) */}
+      <ManagePlanModal
+        open={managePlanOpen}
+        onClose={() => setManagePlanOpen(false)}
+        currentPlan={billingData?.plan || 'free'}
+        billingCycle={billingData?.billingCycle}
+        paymentMethod={billingData?.paymentMethod}
+        onSuccess={() => {
+          fetchBilling();
+        }}
       />
 
     </div>
