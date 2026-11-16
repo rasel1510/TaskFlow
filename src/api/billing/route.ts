@@ -275,6 +275,18 @@ export async function POST(req: Request) {
        ACTION: CREATE STRIPE CHECKOUT SESSION (OFFICIAL HOSTED PAYMENT GATEWAY)
        ------------------------------------------------------------------------ */
     if (action === 'create_checkout_session') {
+      // Guard: Pro plan users cannot pay again
+      if (user.plan === 'pro') {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'You are using it currently.',
+            alreadyPro: true,
+          },
+          { status: 400 }
+        );
+      }
+
       let stripeCustomerId = user.stripeCustomerId;
 
       if (!stripeCustomerId && user.email) {

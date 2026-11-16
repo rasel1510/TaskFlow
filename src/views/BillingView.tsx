@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import InvoiceModal, { InvoiceData } from '@/components/onboarding/InvoiceModal';
 import ManagePlanModal from '@/components/billing/ManagePlanModal';
+import { useToast } from '@/components/ui/Toast';
 
 interface BillingData {
   plan: string;
@@ -34,6 +35,7 @@ interface BillingData {
 
 export default function BillingView() {
   const { data: session } = useSession();
+  const toast = useToast();
   const [billing, setBilling] = useState<BillingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -79,8 +81,22 @@ export default function BillingView() {
           .then(res => res.json())
           .then(data => {
             if (data.success) {
-              setSuccessBanner('🎉 Welcome to Pro! Your workspace has been successfully upgraded to the Pro Plan.');
-              fetchBilling();
+              setSuccessBanner('🎉 You are upgraded to pro plan!');
+              toast.success('You are upgraded to pro plan', { title: 'Payment Successful' });
+
+              if (data.data) {
+                setBilling(data.data);
+                // Also give invoice too! Automatically open newly generated invoice modal
+                if (data.data.latestInvoice) {
+                  setSelectedInvoice(data.data.latestInvoice);
+                  setModalOpen(true);
+                } else if (data.data.invoices && data.data.invoices.length > 0) {
+                  setSelectedInvoice(data.data.invoices[0]);
+                  setModalOpen(true);
+                }
+              } else {
+                fetchBilling();
+              }
             }
           })
           .catch(err => console.error('Verification error:', err))
@@ -417,11 +433,13 @@ export default function BillingView() {
           paymentMethod={billing?.paymentMethod}
           onSuccess={newPlan => {
             fetchBilling();
-            setSuccessBanner(
-              newPlan === 'pro'
-                ? '🎉 Congratulations! Your workspace has been upgraded to FlowSync Pro.'
-                : 'Workspace plan updated to Basic.'
-            );
+            if (newPlan === 'pro') {
+              setSuccessBanner('🎉 You are upgraded to pro plan!');
+              toast.success('You are upgraded to pro plan', { title: 'Payment Successful' });
+            } else {
+              setSuccessBanner('Workspace plan updated to Basic.');
+              toast.info('Workspace plan updated to Basic.');
+            }
           }}
         />
 

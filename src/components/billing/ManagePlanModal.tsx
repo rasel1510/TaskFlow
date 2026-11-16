@@ -6,14 +6,15 @@ import {
   Check,
   Sparkles,
   CreditCard,
-  ExternalLink,
   ArrowRight,
   Loader2,
   AlertTriangle,
   Gift,
   CheckCircle2,
   ChevronDown,
+  Info,
 } from 'lucide-react';
+import { useToast } from '@/components/ui/Toast';
 
 interface ManagePlanModalProps {
   open: boolean;
@@ -38,6 +39,7 @@ export default function ManagePlanModal({
   onSuccess,
 }: ManagePlanModalProps) {
   const isPro = currentPlan === 'pro';
+  const toast = useToast();
 
   const [loadingCheckout, setLoadingCheckout] = useState(false);
   const [loadingPortal, setLoadingPortal] = useState(false);
@@ -56,13 +58,29 @@ export default function ManagePlanModal({
   // General feedback
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [infoMsg, setInfoMsg] = useState<string | null>(null);
 
   if (!open) return null;
 
+  // ─── Pro user tries to pay again: Notify they are already using it ───
+  const handleProPaymentAttempt = () => {
+    toast.info('You are using it currently', { title: 'Active Plan' });
+    setInfoMsg('You are using it currently.');
+    setTimeout(() => {
+      setInfoMsg(null);
+    }, 4000);
+  };
+
   // ─── 1. Action: Upgrade to Pro via Stripe Checkout ───
   const handleUpgradeToPro = async () => {
+    if (isPro) {
+      handleProPaymentAttempt();
+      return;
+    }
+
     setLoadingCheckout(true);
     setErrorMsg(null);
+    setInfoMsg(null);
     try {
       const res = await fetch('/api/billing', {
         method: 'POST',
@@ -75,6 +93,12 @@ export default function ManagePlanModal({
       });
 
       const data = await res.json();
+      if (data.alreadyPro) {
+        toast.info('You are using it currently', { title: 'Active Plan' });
+        setInfoMsg('You are using it currently.');
+        setLoadingCheckout(false);
+        return;
+      }
       if (data.success && data.data?.url) {
         window.location.href = data.data.url;
       } else {
@@ -108,7 +132,7 @@ export default function ManagePlanModal({
         // Fallback message for test environment or promo-upgraded users without card
         setErrorMsg(
           data.error ||
-            'Stripe Customer Portal is currently unavailable in test mode. Your active Pro subscription is managed securely.'
+          'Stripe Customer Portal is currently unavailable in test mode. Your active Pro subscription is managed securely.'
         );
         setLoadingPortal(false);
       }
@@ -171,7 +195,7 @@ export default function ManagePlanModal({
 
       const data = await res.json();
       if (data.success) {
-        setPromoSuccess('🎉 Coupon verified! You have been upgraded to FlowSync Pro.');
+        setPromoSuccess('🎉 You are upgraded to pro plan!');
         onSuccess('pro');
         setTimeout(() => {
           onClose();
@@ -195,7 +219,7 @@ export default function ManagePlanModal({
         {/* ─── Top Header Bar ─── */}
         <div className="px-5 sm:px-7 py-5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
           <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-            Manage Subscription & Plan
+            Manage Plan
           </h2>
 
           <button
@@ -208,6 +232,18 @@ export default function ManagePlanModal({
         </div>
 
         {/* ─── Alerts / Feedback Banners ─── */}
+        {infoMsg && (
+          <div className="mx-5 sm:mx-7 mt-4 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 text-xs flex items-center justify-between shadow-2xs animate-fadeIn">
+            <div className="flex items-center gap-2">
+              <Info size={15} className="shrink-0 text-blue-600 dark:text-blue-400" />
+              <span className="font-medium">{infoMsg}</span>
+            </div>
+            <button onClick={() => setInfoMsg(null)} className="text-xs font-semibold underline ml-2 cursor-pointer">
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {errorMsg && (
           <div className="mx-5 sm:mx-7 mt-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-rose-700 dark:text-rose-300 text-xs flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -265,14 +301,13 @@ export default function ManagePlanModal({
         {/* ─── Side-by-Side Plans Comparison (Mobbin UI Architecture) ─── */}
         <div className="p-5 sm:p-7">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            
+
             {/* ═══ CARD 1: Basic Plan ($0) ═══ */}
             <div
-              className={`rounded-xl p-5 border relative flex flex-col justify-between transition-all duration-200 ${
-                !isPro
+              className={`rounded-xl p-5 border relative flex flex-col justify-between transition-all duration-200 ${!isPro
                   ? 'border-blue-600 dark:border-blue-500 bg-slate-50/60 dark:bg-slate-950/50 shadow-xs ring-1 ring-blue-600/20'
                   : 'border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900/60'
-              }`}
+                }`}
             >
               {!isPro && (
                 <span className="absolute -top-3 right-5 bg-blue-600 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-xs flex items-center gap-1">
@@ -349,19 +384,17 @@ export default function ManagePlanModal({
 
             {/* ═══ CARD 2: Pro Plan ($20 / month) — Highlighted ═══ */}
             <div
-              className={`rounded-xl p-5 border-2 relative flex flex-col justify-between transition-all duration-200 ${
-                isPro
+              className={`rounded-xl p-5 border-2 relative flex flex-col justify-between transition-all duration-200 ${isPro
                   ? 'border-emerald-600 dark:border-emerald-500 bg-gradient-to-b from-emerald-50/20 via-white to-white dark:from-emerald-950/20 dark:via-slate-900 dark:to-slate-900 shadow-sm'
                   : 'border-[#2563EB] bg-gradient-to-b from-blue-50/40 via-white to-white dark:from-blue-950/20 dark:via-slate-900 dark:to-slate-900 shadow-md ring-1 ring-blue-600/30'
-              }`}
+                }`}
             >
               {/* Floating Pill on Top */}
               <span
-                className={`absolute -top-3 right-5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-xs flex items-center gap-1 ${
-                  isPro
+                className={`absolute -top-3 right-5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-xs flex items-center gap-1 ${isPro
                     ? 'bg-emerald-600 text-white'
                     : 'bg-[#2563EB] text-white'
-                }`}
+                  }`}
               >
                 {isPro ? (
                   <>
@@ -438,29 +471,18 @@ export default function ManagePlanModal({
                     ) : (
                       <>
                         <CreditCard size={14} />
-                        <span>Upgrade to Pro — $20/mo</span>
+                        <span>Go to payment</span>
                         <ArrowRight size={13} />
                       </>
                     )}
                   </button>
                 ) : (
                   <button
-                    onClick={handleManageStripePortal}
-                    disabled={loadingPortal}
-                    className="w-full py-2.5 px-4 rounded-lg text-xs font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] transition-all cursor-pointer shadow-xs flex items-center justify-center gap-2 disabled:opacity-60"
+                    onClick={handleProPaymentAttempt}
+                    className="w-full py-2.5 px-4 rounded-lg text-xs font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] transition-all cursor-pointer shadow-xs flex items-center justify-center gap-2"
                   >
-                    {loadingPortal ? (
-                      <>
-                        <Loader2 size={13} className="animate-spin" />
-                        <span>Opening Stripe...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CreditCard size={14} />
-                        <span>Manage Stripe Subscription</span>
-                        <ExternalLink size={13} />
-                      </>
-                    )}
+                    <CreditCard size={14} />
+                    <span>Go to payment</span>
                   </button>
                 )}
               </div>
