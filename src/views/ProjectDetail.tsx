@@ -12,7 +12,25 @@ import type { ProjectMessage } from '@/api/projects/[id]/messages/route';
 import DatePicker from '@/components/ui/DatePicker';
 import AddProjectMembersModal from '@/components/AddProjectMembersModal';
 import { RadialTaskMenu } from '@/components/RadialTaskMenu';
-import { Calendar, Plus, UserPlus, Users, X } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Calendar,
+  ChevronRight,
+  Copy,
+  Edit2,
+  EyeOff,
+  Filter,
+  MoreHorizontal,
+  Plus,
+  Settings,
+  Sparkles,
+  Trash2,
+  UserPlus,
+  Users,
+  X,
+} from 'lucide-react';
 
 interface ProjectTask {
   id: string;
@@ -261,15 +279,33 @@ export default function ProjectDetail({
   const [taskToDelete, setTaskToDelete] = useState<ProjectTask | null>(null);
   const [isDeletingTask, setIsDeletingTask] = useState(false);
 
+  // Column header dropdown menu & table sorting (monday.com style)
+  const [openColumnMenu, setOpenColumnMenu] = useState<string | null>(null);
+  const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+
+  // Inline row task creation states (monday.com editable cells)
+  const [addingTaskDate, setAddingTaskDate] = useState<string | null>(null);
+  const [inlineTaskTitle, setInlineTaskTitle] = useState('');
+  const [inlineTaskStatus, setInlineTaskStatus] = useState<Status>('todo');
+  const [inlineTaskPriority, setInlineTaskPriority] = useState<Priority>('medium');
+  const [inlineTaskAssigneeId, setInlineTaskAssigneeId] = useState<string>('');
+  const [inlineTaskDueDate, setInlineTaskDueDate] = useState<string>('');
+  const [inlineTaskEstimate, setInlineTaskEstimate] = useState<string>('40');
+  const [isCreatingInlineTask, setIsCreatingInlineTask] = useState(false);
+
   useEffect(() => {
     const handleOutsideClick = () => {
       if (activeRowMenuId) {
         setActiveRowMenuId(null);
       }
+      if (openColumnMenu) {
+        setOpenColumnMenu(null);
+      }
     };
     window.addEventListener('click', handleOutsideClick);
     return () => window.removeEventListener('click', handleOutsideClick);
-  }, [activeRowMenuId]);
+  }, [activeRowMenuId, openColumnMenu]);
 
   const handleDeleteTask = async () => {
     if (!taskToDelete) return;
@@ -298,13 +334,10 @@ export default function ProjectDetail({
     }
   };
 
-  const [addingTaskDate, setAddingTaskDate] = useState<string | null>(null);
-  const [inlineTaskTitle, setInlineTaskTitle] = useState('');
-  const [isCreatingInlineTask, setIsCreatingInlineTask] = useState(false);
-
   const handleCreateInlineTask = async (rawDate: string | null) => {
     if (!inlineTaskTitle.trim() || isCreatingInlineTask || !project) return;
     setIsCreatingInlineTask(true);
+    const chosenDueDate = inlineTaskDueDate || rawDate || undefined;
     try {
       const res = await fetch('/api/tasks', {
         method: 'POST',
@@ -312,9 +345,11 @@ export default function ProjectDetail({
         body: JSON.stringify({
           title: inlineTaskTitle.trim(),
           projectId: project.id,
-          status: 'todo',
-          priority: 'medium',
-          dueDate: rawDate || undefined,
+          status: inlineTaskStatus,
+          priority: inlineTaskPriority,
+          assigneeId: inlineTaskAssigneeId || undefined,
+          dueDate: chosenDueDate,
+          estimate: inlineTaskEstimate.trim() || undefined,
         }),
       });
       const json = await res.json();
@@ -331,6 +366,10 @@ export default function ProjectDetail({
             : null
         );
         setInlineTaskTitle('');
+        setInlineTaskStatus('todo');
+        setInlineTaskPriority('medium');
+        setInlineTaskAssigneeId('');
+        setInlineTaskEstimate('40');
       } else {
         toast.error(json.error?.message || 'Failed to create task');
       }
@@ -424,11 +463,16 @@ export default function ProjectDetail({
 
   const toast = useToast();
 
-  // Dismiss modals on Escape key
+  // Dismiss modals and popups on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (lightboxImage) {
+        if (openColumnMenu) {
+          setOpenColumnMenu(null);
+        } else if (addingTaskDate) {
+          setAddingTaskDate(null);
+          setInlineTaskTitle('');
+        } else if (lightboxImage) {
           setLightboxImage(null);
         } else if (memberToRemove && !isRemovingMember) {
           setMemberToRemove(null);
@@ -443,7 +487,7 @@ export default function ProjectDetail({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [lightboxImage, memberToRemove, isRemovingMember, showDeleteModal, isDeletingProject, showAddMemberModal, showEmailInviteModal]);
+  }, [openColumnMenu, addingTaskDate, lightboxImage, memberToRemove, isRemovingMember, showDeleteModal, isDeletingProject, showAddMemberModal, showEmailInviteModal]);
 
   const fetchProject = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -715,8 +759,9 @@ export default function ProjectDetail({
   useEffect(() => {
     const controller = new AbortController();
     fetchProject(controller.signal);
+    fetchMembers();
     return () => controller.abort();
-  }, [fetchProject]);
+  }, [fetchProject, fetchMembers]);
 
   useEffect(() => {
     if (initialTab) {
@@ -1057,6 +1102,55 @@ export default function ProjectDetail({
     year: 'numeric',
   });
 
+  const allAssignees = useMemo(() => {
+    const list: Array<{ id: string; name: string; avatar?: string; role?: string }> = [];
+    const seen = new Set<string>();
+
+    if (project?.owner) {
+      list.push({
+        id: project.owner.id,
+        name: project.owner.name,
+        avatar: project.owner.avatar,
+        role: project.owner.role || 'Project Lead',
+      });
+      seen.add(project.owner.id);
+    }
+
+    for (const m of members) {
+      if (!seen.has(m.userId)) {
+        list.push({
+          id: m.userId,
+          name: m.name,
+          avatar: m.avatar,
+          role: m.role || 'Member',
+        });
+        seen.add(m.userId);
+      }
+    }
+
+    return list;
+  }, [project?.owner, members]);
+
+  const handleToggleSort = (colKey: string) => {
+    if (sortConfig?.key === colKey) {
+      if (sortConfig.direction === 'asc') {
+        setSortConfig({ key: colKey, direction: 'desc' });
+        toast.success(`Sorted by ${colKey} (Descending)`);
+      } else {
+        setSortConfig(null);
+        toast.success('Sort cleared');
+      }
+    } else {
+      setSortConfig({ key: colKey, direction: 'asc' });
+      toast.success(`Sorted by ${colKey} (Ascending)`);
+    }
+  };
+
+  const handleHideColumn = (colKey: string) => {
+    setHiddenColumns(prev => [...prev, colKey]);
+    toast.success('Column hidden');
+  };
+
   const taskDateGroups = useMemo<TaskDateGroup[]>(() => {
     const groupMap = new Map<string, ProjectTask[]>();
 
@@ -1080,9 +1174,46 @@ export default function ProjectDetail({
       return b.localeCompare(a);
     });
 
+    const priorityWeight: Record<string, number> = {
+      urgent: 4,
+      high: 3,
+      medium: 2,
+      low: 1,
+    };
+
+    const statusWeight: Record<string, number> = {
+      todo: 1,
+      in_progress: 2,
+      in_review: 3,
+      done: 4,
+      backlog: 0,
+    };
+
+    const sortGroupTasks = (tasks: ProjectTask[]) => {
+      if (!sortConfig) return tasks;
+      return [...tasks].sort((a, b) => {
+        let cmp = 0;
+        if (sortConfig.key === 'task') {
+          cmp = (a.title || '').localeCompare(b.title || '');
+        } else if (sortConfig.key === 'status') {
+          cmp = (statusWeight[a.status] || 0) - (statusWeight[b.status] || 0);
+        } else if (sortConfig.key === 'priority') {
+          cmp = (priorityWeight[a.priority] || 0) - (priorityWeight[b.priority] || 0);
+        } else if (sortConfig.key === 'assignee') {
+          cmp = (a.assignee?.name || '').localeCompare(b.assignee?.name || '');
+        } else if (sortConfig.key === 'dueDate') {
+          cmp = (a.dueDate || '').localeCompare(b.dueDate || '');
+        } else if (sortConfig.key === 'est') {
+          cmp = Number(a.estimate || 0) - Number(b.estimate || 0);
+        }
+        return sortConfig.direction === 'desc' ? -cmp : cmp;
+      });
+    };
+
     return sortedKeys.map(key => {
       const isToday = key === todayKey;
-      const tasks = groupMap.get(key) || [];
+      const rawTasks = groupMap.get(key) || [];
+      const tasks = sortGroupTasks(rawTasks);
       let label = 'No Due Date';
       let rawDate: string | null = null;
 
@@ -1104,7 +1235,7 @@ export default function ProjectDetail({
         tasks,
       };
     });
-  }, [filteredTasks, todayKey, taskSearch]);
+  }, [filteredTasks, todayKey, taskSearch, sortConfig]);
 
   if (loading && !project) {
     return <ProjectDetailSkeleton onBack={onBack} />;
@@ -1728,20 +1859,244 @@ export default function ProjectDetail({
               </div>
             </div>
 
+            {/* Hidden columns notification pill */}
+            {hiddenColumns.length > 0 && (
+              <div className="flex items-center gap-2 px-1">
+                <span className="text-[12px] text-gray-500">
+                  {hiddenColumns.length} {hiddenColumns.length === 1 ? 'column' : 'columns'} hidden
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setHiddenColumns([])}
+                  className="flex items-center gap-1 px-2.5 py-0.5 text-[11.5px] font-medium text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE] rounded-md hover:bg-[#DBEAFE] transition-colors cursor-pointer"
+                >
+                  <EyeOff className="w-3 h-3" />
+                  <span>Unhide all</span>
+                </button>
+              </div>
+            )}
+
             {/* Tasks table matching MyTasks Desktop Architecture with Date Grouping */}
-            <div className="border border-[#E5E7EB] rounded-xl overflow-hidden bg-white shadow-2xs w-full">
+            <div className="border border-[#E5E7EB] rounded-xl overflow-visible bg-white shadow-2xs w-full">
               <div className="overflow-x-auto w-full">
                 <div className="w-full min-w-[780px]">
-                  {/* Table header */}
-                  <div className="flex items-center gap-3 px-5 py-3 bg-[#F9FAFB] border-b border-[#E5E7EB] rounded-t-xl text-[11px] font-semibold uppercase tracking-wider text-[rgba(17,17,17,0.4)]">
-                    <span className="flex-1">Task</span>
-                    <span className="w-32">Project</span>
-                    <span className="w-28">Status</span>
-                    <span className="w-24">Priority</span>
-                    <span className="w-28">Assignee</span>
-                    <span className="w-28">Due Date</span>
-                    <span className="w-16">Est.</span>
-                    <span className="w-20 text-right pr-2">Actions</span>
+                  {/* Table header with monday.com style 3-dot column action menus */}
+                  <div className="flex items-center gap-3 px-5 py-3 bg-[#F9FAFB] border-b border-[#E5E7EB] rounded-t-xl text-[11px] font-semibold uppercase tracking-wider text-[rgba(17,17,17,0.5)] relative z-20">
+                    {[
+                      { key: 'task', label: 'Task', widthClass: 'flex-1', canHide: false, align: 'left' },
+                      { key: 'project', label: 'Project', widthClass: 'w-32', canHide: true, align: 'left' },
+                      { key: 'status', label: 'Status', widthClass: 'w-28', canHide: true, align: 'left' },
+                      { key: 'priority', label: 'Priority', widthClass: 'w-24', canHide: true, align: 'left' },
+                      { key: 'assignee', label: 'Assignee', widthClass: 'w-28', canHide: true, align: 'left' },
+                      { key: 'dueDate', label: 'Due Date', widthClass: 'w-28', canHide: true, align: 'left' },
+                      { key: 'est', label: 'Est.', widthClass: 'w-16', canHide: true, align: 'left' },
+                      { key: 'actions', label: 'Actions', widthClass: 'w-20', canHide: false, align: 'right' },
+                    ]
+                      .filter(col => !hiddenColumns.includes(col.key))
+                      .map(col => {
+                        const isSortActive = sortConfig?.key === col.key;
+                        const isMenuOpen = openColumnMenu === col.key;
+
+                        return (
+                          <div
+                            key={col.key}
+                            className={`${col.widthClass} flex items-center justify-between group/col relative select-none ${
+                              col.align === 'right' ? 'justify-end pr-2' : ''
+                            }`}
+                          >
+                            <span className="flex items-center gap-1 truncate">
+                              {col.label}
+                              {isSortActive && (
+                                sortConfig.direction === 'asc' ? (
+                                  <ArrowUp className="w-3 h-3 text-[#2563EB] shrink-0" />
+                                ) : (
+                                  <ArrowDown className="w-3 h-3 text-[#2563EB] shrink-0" />
+                                )
+                              )}
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenColumnMenu(prev => (prev === col.key ? null : col.key));
+                              }}
+                              className={`p-1 rounded transition-all cursor-pointer shrink-0 ${
+                                isMenuOpen
+                                  ? 'bg-[#2563EB] text-white shadow-xs opacity-100'
+                                  : 'text-gray-400 hover:text-gray-700 hover:bg-gray-200 opacity-0 group-hover/col:opacity-100'
+                              }`}
+                              title={`${col.label} column options`}
+                            >
+                              <MoreHorizontal className="w-3.5 h-3.5" />
+                            </button>
+
+                            {/* Monday.com-style dropdown menu */}
+                            {isMenuOpen && (
+                              <div
+                                className={`absolute top-full mt-1.5 w-60 rounded-xl bg-[#1F2438] border border-[#373E5B] shadow-2xl py-1.5 z-50 text-[12.5px] text-gray-200 normal-case tracking-normal font-normal ${
+                                  col.align === 'right' || col.key === 'est' || col.key === 'dueDate' || col.key === 'assignee'
+                                    ? 'right-0'
+                                    : 'left-0'
+                                }`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {/* Settings */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenColumnMenu(null);
+                                    toast.info(`Settings for ${col.label} column`);
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[#2D3452] transition-colors cursor-pointer text-gray-200 hover:text-white"
+                                >
+                                  <Settings className="w-4 h-4 text-gray-400 shrink-0" />
+                                  <span>Settings</span>
+                                  <ChevronRight className="w-3.5 h-3.5 ml-auto text-gray-400" />
+                                </button>
+
+                                {/* AI-powered actions */}
+                                <div className="pt-1.5 pb-1 border-t border-[#313752] mt-1">
+                                  <div className="flex items-center gap-2 px-3 py-1 text-[11px] font-semibold text-gray-400 tracking-wider">
+                                    <span>AI-powered actions</span>
+                                    <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenColumnMenu(null);
+                                      toast.success(`AI Copilot: Auto-assigned smart labels for ${col.label}`);
+                                    }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[#2D3452] transition-colors cursor-pointer text-gray-200 hover:text-white"
+                                  >
+                                    <Sparkles className="w-4 h-4 text-violet-400 shrink-0" />
+                                    <span>Auto-assign labels</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenColumnMenu(null);
+                                      toast.info(`AI Copilot: Custom prompt opened for ${col.label}`);
+                                    }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[#2D3452] transition-colors cursor-pointer text-gray-200 hover:text-white"
+                                  >
+                                    <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                                    <span>Set a custom prompt</span>
+                                  </button>
+                                </div>
+
+                                {/* Filter & Sort */}
+                                <div className="pt-1 border-t border-[#313752] mt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenColumnMenu(null);
+                                      const searchInput = document.querySelector('input[placeholder="Search tasks..."]') as HTMLInputElement;
+                                      if (searchInput) searchInput.focus();
+                                    }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[#2D3452] transition-colors cursor-pointer text-gray-200 hover:text-white"
+                                  >
+                                    <Filter className="w-4 h-4 text-gray-400 shrink-0" />
+                                    <span>Filter</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenColumnMenu(null);
+                                      handleToggleSort(col.key);
+                                    }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[#2D3452] transition-colors cursor-pointer text-gray-200 hover:text-white"
+                                  >
+                                    <ArrowUpDown className="w-4 h-4 text-gray-400 shrink-0" />
+                                    <span>
+                                      {sortConfig?.key === col.key
+                                        ? sortConfig.direction === 'asc'
+                                          ? 'Sort Descending (Z-A)'
+                                          : 'Clear Sort'
+                                        : 'Sort Ascending (A-Z)'}
+                                    </span>
+                                    {sortConfig?.key === col.key && (
+                                      <span className="ml-auto text-[10px] text-blue-400 font-bold uppercase">
+                                        {sortConfig.direction}
+                                      </span>
+                                    )}
+                                  </button>
+                                </div>
+
+                                {/* Duplicate & Add column */}
+                                <div className="pt-1 border-t border-[#313752] mt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenColumnMenu(null);
+                                      toast.info(`Duplicated column "${col.label}"`);
+                                    }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[#2D3452] transition-colors cursor-pointer text-gray-200 hover:text-white"
+                                  >
+                                    <Copy className="w-4 h-4 text-gray-400 shrink-0" />
+                                    <span>Duplicate column</span>
+                                    <ChevronRight className="w-3.5 h-3.5 ml-auto text-gray-400" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenColumnMenu(null);
+                                      toast.info(`Add column to the right of "${col.label}"`);
+                                    }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[#2D3452] transition-colors cursor-pointer text-gray-200 hover:text-white"
+                                  >
+                                    <Plus className="w-4 h-4 text-gray-400 shrink-0" />
+                                    <span>Add column to the right</span>
+                                    <ChevronRight className="w-3.5 h-3.5 ml-auto text-gray-400" />
+                                  </button>
+                                </div>
+
+                                {/* Rename, Hide, Remove */}
+                                <div className="pt-1 border-t border-[#313752] mt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenColumnMenu(null);
+                                      toast.info(`Rename ${col.label}`);
+                                    }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[#2D3452] transition-colors cursor-pointer text-gray-200 hover:text-white"
+                                  >
+                                    <Edit2 className="w-4 h-4 text-gray-400 shrink-0" />
+                                    <span>Rename</span>
+                                  </button>
+                                  {col.canHide && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenColumnMenu(null);
+                                        handleHideColumn(col.key);
+                                      }}
+                                      className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[#2D3452] transition-colors cursor-pointer text-gray-200 hover:text-white"
+                                    >
+                                      <EyeOff className="w-4 h-4 text-gray-400 shrink-0" />
+                                      <span>Hide column</span>
+                                    </button>
+                                  )}
+                                  {col.canHide && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenColumnMenu(null);
+                                        handleHideColumn(col.key);
+                                        toast.info(`Removed ${col.label} column view`);
+                                      }}
+                                      className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[#2D3452] transition-colors cursor-pointer text-red-400 hover:text-red-300"
+                                    >
+                                      <Trash2 className="w-4 h-4 text-red-400 shrink-0" />
+                                      <span>Remove</span>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                   </div>
 
                   {/* Date Groups */}
@@ -1792,52 +2147,64 @@ export default function ProjectDetail({
                                 </div>
 
                                 {/* 2. Project Name */}
-                                <span className="w-32 text-[12.5px] text-[rgba(17,17,17,0.6)] truncate">
-                                  {project.name}
-                                </span>
+                                {!hiddenColumns.includes('project') && (
+                                  <span className="w-32 text-[12.5px] text-[rgba(17,17,17,0.6)] truncate">
+                                    {project.name}
+                                  </span>
+                                )}
 
                                 {/* 3. Status */}
-                                <div className="w-28">
-                                  <span
-                                    className="text-[11px] font-medium px-2.5 py-0.5 rounded-full whitespace-nowrap inline-block"
-                                    style={{ backgroundColor: statusCfg.bg, color: statusCfg.text }}
-                                  >
-                                    {statusCfg.label}
-                                  </span>
-                                </div>
+                                {!hiddenColumns.includes('status') && (
+                                  <div className="w-28">
+                                    <span
+                                      className="text-[11px] font-medium px-2.5 py-0.5 rounded-full whitespace-nowrap inline-block"
+                                      style={{ backgroundColor: statusCfg.bg, color: statusCfg.text }}
+                                    >
+                                      {statusCfg.label}
+                                    </span>
+                                  </div>
+                                )}
 
                                 {/* 4. Priority */}
-                                <div className="w-24">
-                                  <span className="text-[12.5px] text-[rgba(17,17,17,0.7)] font-normal">
-                                    {priorityCfg.label}
-                                  </span>
-                                </div>
+                                {!hiddenColumns.includes('priority') && (
+                                  <div className="w-24">
+                                    <span className="text-[12.5px] text-[rgba(17,17,17,0.7)] font-normal">
+                                      {priorityCfg.label}
+                                    </span>
+                                  </div>
+                                )}
 
                                 {/* 5. Assignee */}
-                                <div className="w-28 flex items-center gap-2">
-                                  {task.assignee ? (
-                                    <>
-                                      <div className="w-6 h-6 rounded-full bg-[#1D4ED8] flex items-center justify-center text-[9px] font-bold text-white shrink-0">
-                                        {getTwoLetterCapital(task.assignee.name, task.assignee.avatar)}
-                                      </div>
-                                      <span className="text-[12.5px] text-[rgba(17,17,17,0.7)] truncate font-normal">
-                                        {task.assignee.name.split(' ')[0]}
-                                      </span>
-                                    </>
-                                  ) : (
-                                    <span className="text-[12px] text-[rgba(17,17,17,0.35)]">Unassigned</span>
-                                  )}
-                                </div>
+                                {!hiddenColumns.includes('assignee') && (
+                                  <div className="w-28 flex items-center gap-2">
+                                    {task.assignee ? (
+                                      <>
+                                        <div className="w-6 h-6 rounded-full bg-[#1D4ED8] flex items-center justify-center text-[9px] font-bold text-white shrink-0">
+                                          {getTwoLetterCapital(task.assignee.name, task.assignee.avatar)}
+                                        </div>
+                                        <span className="text-[12.5px] text-[rgba(17,17,17,0.7)] truncate font-normal">
+                                          {task.assignee.name.split(' ')[0]}
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <span className="text-[12px] text-[rgba(17,17,17,0.35)]">Unassigned</span>
+                                    )}
+                                  </div>
+                                )}
 
                                 {/* 6. Due Date */}
-                                <span className="w-28 text-[12.5px] text-[rgba(17,17,17,0.6)]">
-                                  {formatTaskDate(task.dueDate)}
-                                </span>
+                                {!hiddenColumns.includes('dueDate') && (
+                                  <span className="w-28 text-[12.5px] text-[rgba(17,17,17,0.6)]">
+                                    {formatTaskDate(task.dueDate)}
+                                  </span>
+                                )}
 
                                 {/* 7. Est. */}
-                                <span className="w-16 text-[12.5px] text-[rgba(17,17,17,0.5)]">
-                                  {task.estimate ?? 40}
-                                </span>
+                                {!hiddenColumns.includes('est') && (
+                                  <span className="w-16 text-[12.5px] text-[rgba(17,17,17,0.5)]">
+                                    {task.estimate ?? 40}
+                                  </span>
+                                )}
 
                                 {/* 8. Actions */}
                                 <div className="w-20 flex items-center justify-end pr-1 shrink-0 relative" onClick={e => e.stopPropagation()}>
@@ -1884,38 +2251,105 @@ export default function ProjectDetail({
                               </div>
 
                               {/* 2. Project Name */}
-                              <span className="w-32 text-[12.5px] text-[rgba(17,17,17,0.5)] truncate">
-                                {project.name}
-                              </span>
-
-                              {/* 3. Status */}
-                              <div className="w-28">
-                                <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full whitespace-nowrap inline-block bg-[#EFF6FF] text-[#2563EB]">
-                                  To Do
+                              {!hiddenColumns.includes('project') && (
+                                <span className="w-32 text-[12.5px] text-[rgba(17,17,17,0.5)] truncate font-normal">
+                                  {project.name}
                                 </span>
-                              </div>
+                              )}
 
-                              {/* 4. Priority */}
-                              <div className="w-24">
-                                <span className="text-[12.5px] text-[rgba(17,17,17,0.7)] font-normal">
-                                  Medium
-                                </span>
-                              </div>
+                              {/* 3. Status - Editable monday.com pill selector */}
+                              {!hiddenColumns.includes('status') && (
+                                <div className="w-28 relative">
+                                  <select
+                                    value={inlineTaskStatus}
+                                    onChange={e => setInlineTaskStatus(e.target.value as Status)}
+                                    className={`text-[11.5px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap outline-none cursor-pointer border transition-colors ${
+                                      inlineTaskStatus === 'todo'
+                                        ? 'bg-[#EFF6FF] text-[#2563EB] border-[#BFDBFE]'
+                                        : inlineTaskStatus === 'in_progress'
+                                        ? 'bg-[#FEF3C7] text-[#D97706] border-[#FDE68A]'
+                                        : inlineTaskStatus === 'in_review'
+                                        ? 'bg-[#F3E8FF] text-[#7E22CE] border-[#E9D5FF]'
+                                        : inlineTaskStatus === 'done'
+                                        ? 'bg-[#DCFCE7] text-[#15803D] border-[#BBF7D0]'
+                                        : 'bg-[#F3F4F6] text-[#4B5563] border-[#E5E7EB]'
+                                    }`}
+                                  >
+                                    <option value="todo">To Do</option>
+                                    <option value="in_progress">In Progress</option>
+                                    <option value="in_review">In Review</option>
+                                    <option value="done">Done</option>
+                                    <option value="backlog">Backlog</option>
+                                  </select>
+                                </div>
+                              )}
 
-                              {/* 5. Assignee */}
-                              <div className="w-28">
-                                <span className="text-[12px] text-[rgba(17,17,17,0.35)]">Unassigned</span>
-                              </div>
+                              {/* 4. Priority - Editable monday.com selector */}
+                              {!hiddenColumns.includes('priority') && (
+                                <div className="w-24 relative">
+                                  <select
+                                    value={inlineTaskPriority}
+                                    onChange={e => setInlineTaskPriority(e.target.value as Priority)}
+                                    className={`text-[11.5px] font-medium px-2 py-1 rounded-md outline-none cursor-pointer border transition-colors ${
+                                      inlineTaskPriority === 'urgent'
+                                        ? 'bg-[#FEE2E2] text-[#DC2626] border-[#FECACA]'
+                                        : inlineTaskPriority === 'high'
+                                        ? 'bg-[#FFEDD5] text-[#EA580C] border-[#FED7AA]'
+                                        : inlineTaskPriority === 'medium'
+                                        ? 'bg-[#FEF3C7] text-[#D97706] border-[#FDE68A]'
+                                        : 'bg-[#F3F4F6] text-[#4B5563] border-[#E5E7EB]'
+                                    }`}
+                                  >
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="urgent">Urgent</option>
+                                  </select>
+                                </div>
+                              )}
 
-                              {/* 6. Due Date */}
-                              <span className="w-28 text-[12.5px] text-[rgba(17,17,17,0.6)]">
-                                {formatTaskDate(group.rawDate)}
-                              </span>
+                              {/* 5. Assignee - Editable selector with project members */}
+                              {!hiddenColumns.includes('assignee') && (
+                                <div className="w-28 relative">
+                                  <select
+                                    value={inlineTaskAssigneeId}
+                                    onChange={e => setInlineTaskAssigneeId(e.target.value)}
+                                    className="w-full text-[11.5px] border border-[#E5E7EB] bg-white rounded-md px-1.5 py-1 text-gray-700 outline-none cursor-pointer hover:border-gray-300 transition-colors"
+                                  >
+                                    <option value="">Unassigned</option>
+                                    {allAssignees.map(a => (
+                                      <option key={a.id} value={a.id}>
+                                        {a.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
 
-                              {/* 7. Est. */}
-                              <span className="w-16 text-[12.5px] text-[rgba(17,17,17,0.4)]">
-                                —
-                              </span>
+                              {/* 6. Due Date - Editable date input */}
+                              {!hiddenColumns.includes('dueDate') && (
+                                <div className="w-28">
+                                  <input
+                                    type="date"
+                                    value={inlineTaskDueDate}
+                                    onChange={e => setInlineTaskDueDate(e.target.value)}
+                                    className="text-[11.5px] border border-[#E5E7EB] bg-white rounded-md px-1.5 py-1 text-gray-700 outline-none hover:border-gray-300 transition-colors cursor-pointer w-full"
+                                  />
+                                </div>
+                              )}
+
+                              {/* 7. Est. - Editable estimate input */}
+                              {!hiddenColumns.includes('est') && (
+                                <div className="w-16">
+                                  <input
+                                    type="text"
+                                    value={inlineTaskEstimate}
+                                    onChange={e => setInlineTaskEstimate(e.target.value)}
+                                    placeholder="40"
+                                    className="w-12 text-[11.5px] border border-[#E5E7EB] bg-white rounded-md px-1.5 py-1 text-gray-700 outline-none hover:border-gray-300 transition-colors text-center"
+                                  />
+                                </div>
+                              )}
 
                               {/* 8. Actions (Add / Cancel) */}
                               <div className="w-20 flex items-center justify-end gap-1.5 pr-1 shrink-0">
@@ -1945,6 +2379,11 @@ export default function ProjectDetail({
                               onClick={() => {
                                 setAddingTaskDate(group.dateKey);
                                 setInlineTaskTitle('');
+                                setInlineTaskStatus('todo');
+                                setInlineTaskPriority('medium');
+                                setInlineTaskAssigneeId('');
+                                setInlineTaskDueDate(group.rawDate || todayKey);
+                                setInlineTaskEstimate('40');
                               }}
                               className="flex items-center gap-3 px-5 py-2.5 cursor-pointer transition-colors hover:bg-[#F9FAFB] text-[rgba(17,17,17,0.55)] hover:text-[#2563EB] group"
                             >
@@ -1952,14 +2391,16 @@ export default function ProjectDetail({
                                 <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#2563EB] transition-colors" />
                                 <span className="text-[13px] font-medium">Add task</span>
                               </div>
-                              <span className="w-32"></span>
-                              <div className="w-28"></div>
-                              <div className="w-24"></div>
-                              <div className="w-28"></div>
-                              <span className="w-28 text-[12px] text-[rgba(17,17,17,0.35)] opacity-0 group-hover:opacity-100 transition-opacity">
-                                {formatTaskDate(group.rawDate)}
-                              </span>
-                              <span className="w-16"></span>
+                              {!hiddenColumns.includes('project') && <span className="w-32"></span>}
+                              {!hiddenColumns.includes('status') && <div className="w-28"></div>}
+                              {!hiddenColumns.includes('priority') && <div className="w-24"></div>}
+                              {!hiddenColumns.includes('assignee') && <div className="w-28"></div>}
+                              {!hiddenColumns.includes('dueDate') && (
+                                <span className="w-28 text-[12px] text-[rgba(17,17,17,0.35)] opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {formatTaskDate(group.rawDate)}
+                                </span>
+                              )}
+                              {!hiddenColumns.includes('est') && <span className="w-16"></span>}
                               <div className="w-20"></div>
                             </div>
                           )}
