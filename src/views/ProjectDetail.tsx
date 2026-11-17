@@ -20,7 +20,6 @@ import {
   ChevronRight,
   Copy,
   Edit2,
-  EyeOff,
   Filter,
   MoreHorizontal,
   Plus,
@@ -281,8 +280,10 @@ export default function ProjectDetail({
 
   // Column header dropdown menu & table sorting (monday.com style)
   const [openColumnMenu, setOpenColumnMenu] = useState<string | null>(null);
-  const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
+  const [removedColumns, setRemovedColumns] = useState<string[]>([]);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [showAddColumnMenu, setShowAddColumnMenu] = useState(false);
+  const [extraColumns, setExtraColumns] = useState<{ id: string; type: string; label: string }[]>([]);
 
   // Inline row task creation states (monday.com editable cells)
   const [addingTaskDate, setAddingTaskDate] = useState<string | null>(null);
@@ -296,16 +297,13 @@ export default function ProjectDetail({
 
   useEffect(() => {
     const handleOutsideClick = () => {
-      if (activeRowMenuId) {
-        setActiveRowMenuId(null);
-      }
-      if (openColumnMenu) {
-        setOpenColumnMenu(null);
-      }
+      if (activeRowMenuId) setActiveRowMenuId(null);
+      if (openColumnMenu) setOpenColumnMenu(null);
+      if (showAddColumnMenu) setShowAddColumnMenu(false);
     };
     window.addEventListener('click', handleOutsideClick);
     return () => window.removeEventListener('click', handleOutsideClick);
-  }, [activeRowMenuId, openColumnMenu]);
+  }, [activeRowMenuId, openColumnMenu, showAddColumnMenu]);
 
   const handleDeleteTask = async () => {
     if (!taskToDelete) return;
@@ -347,7 +345,7 @@ export default function ProjectDetail({
           projectId: project.id,
           status: inlineTaskStatus,
           priority: inlineTaskPriority,
-          assigneeId: inlineTaskAssigneeId || undefined,
+          assigneeId: inlineTaskAssigneeId || currentUserId || undefined,
           dueDate: chosenDueDate,
           estimate: inlineTaskEstimate.trim() || undefined,
         }),
@@ -1146,9 +1144,9 @@ export default function ProjectDetail({
     }
   };
 
-  const handleHideColumn = (colKey: string) => {
-    setHiddenColumns(prev => [...prev, colKey]);
-    toast.success('Column hidden');
+  const handleRemoveColumn = (colKey: string) => {
+    setRemovedColumns(prev => [...prev, colKey]);
+    toast.success('Column removed');
   };
 
   const taskDateGroups = useMemo<TaskDateGroup[]>(() => {
@@ -1859,22 +1857,6 @@ export default function ProjectDetail({
               </div>
             </div>
 
-            {/* Hidden columns notification pill */}
-            {hiddenColumns.length > 0 && (
-              <div className="flex items-center gap-2 px-1">
-                <span className="text-[12px] text-gray-500">
-                  {hiddenColumns.length} {hiddenColumns.length === 1 ? 'column' : 'columns'} hidden
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setHiddenColumns([])}
-                  className="flex items-center gap-1 px-2.5 py-0.5 text-[11.5px] font-medium text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE] rounded-md hover:bg-[#DBEAFE] transition-colors cursor-pointer"
-                >
-                  <EyeOff className="w-3 h-3" />
-                  <span>Unhide all</span>
-                </button>
-              </div>
-            )}
 
             {/* Tasks table matching MyTasks Desktop Architecture with Date Grouping */}
             <div className="border border-[#E5E7EB] rounded-xl overflow-visible bg-white shadow-2xs w-full">
@@ -1884,15 +1866,13 @@ export default function ProjectDetail({
                   <div className="flex items-center gap-3 px-5 py-3 bg-[#F9FAFB] border-b border-[#E5E7EB] rounded-t-xl text-[11px] font-semibold uppercase tracking-wider text-[rgba(17,17,17,0.5)] relative z-20">
                     {[
                       { key: 'task', label: 'Task', widthClass: 'flex-1', canHide: false, align: 'left' },
-                      { key: 'project', label: 'Project', widthClass: 'w-32', canHide: true, align: 'left' },
                       { key: 'status', label: 'Status', widthClass: 'w-28', canHide: true, align: 'left' },
                       { key: 'priority', label: 'Priority', widthClass: 'w-24', canHide: true, align: 'left' },
                       { key: 'assignee', label: 'Assignee', widthClass: 'w-28', canHide: true, align: 'left' },
                       { key: 'dueDate', label: 'Due Date', widthClass: 'w-28', canHide: true, align: 'left' },
-                      { key: 'est', label: 'Est.', widthClass: 'w-16', canHide: true, align: 'left' },
-                      { key: 'actions', label: 'Actions', widthClass: 'w-20', canHide: false, align: 'right' },
+                      { key: 'actions', label: '', widthClass: 'w-20', canHide: false, align: 'right' },
                     ]
-                      .filter(col => !hiddenColumns.includes(col.key))
+                      .filter(col => !removedColumns.includes(col.key))
                       .map(col => {
                         const isSortActive = sortConfig?.key === col.key;
                         const isMenuOpen = openColumnMenu === col.key;
@@ -2051,7 +2031,7 @@ export default function ProjectDetail({
                                   </button>
                                 </div>
 
-                                {/* Rename, Hide, Remove */}
+                                {/* Rename & Remove */}
                                 <div className="pt-1 border-t border-[#313752] mt-1">
                                   <button
                                     type="button"
@@ -2069,21 +2049,7 @@ export default function ProjectDetail({
                                       type="button"
                                       onClick={() => {
                                         setOpenColumnMenu(null);
-                                        handleHideColumn(col.key);
-                                      }}
-                                      className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[#2D3452] transition-colors cursor-pointer text-gray-200 hover:text-white"
-                                    >
-                                      <EyeOff className="w-4 h-4 text-gray-400 shrink-0" />
-                                      <span>Hide column</span>
-                                    </button>
-                                  )}
-                                  {col.canHide && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setOpenColumnMenu(null);
-                                        handleHideColumn(col.key);
-                                        toast.info(`Removed ${col.label} column view`);
+                                        handleRemoveColumn(col.key);
                                       }}
                                       className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[#2D3452] transition-colors cursor-pointer text-red-400 hover:text-red-300"
                                     >
@@ -2097,6 +2063,47 @@ export default function ProjectDetail({
                           </div>
                         );
                       })}
+
+                    {/* + Add Column button */}
+                    <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddColumnMenu(prev => !prev)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium text-gray-400 hover:text-[#2563EB] hover:bg-[#EFF6FF] rounded-lg border border-dashed border-gray-200 hover:border-[#2563EB] transition-all cursor-pointer whitespace-nowrap normal-case tracking-normal"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add</span>
+                      </button>
+                      {showAddColumnMenu && (
+                        <div className="absolute top-full right-0 mt-1.5 w-52 bg-white border border-[#E5E7EB] rounded-xl shadow-xl py-1.5 z-50 normal-case tracking-normal font-normal"
+                          onClick={e => e.stopPropagation()}>
+                          <div className="px-3 py-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-gray-400">Column Type</div>
+                          {[
+                            { type: 'text', emoji: '📝', label: 'Text' },
+                            { type: 'completionDate', emoji: '✅', label: 'Completion Date' },
+                            { type: 'file', emoji: '📎', label: 'File' },
+                            { type: 'spentTime', emoji: '⏱', label: 'Spent Time (min)' },
+                            { type: 'creationDate', emoji: '🗓', label: 'Creation Date' },
+                          ].map(opt => (
+                            <button
+                              key={opt.type}
+                              type="button"
+                              onClick={() => {
+                                setExtraColumns(prev => [
+                                  ...prev,
+                                  { id: `extra-${Date.now()}-${opt.type}`, type: opt.type, label: opt.label },
+                                ]);
+                                setShowAddColumnMenu(false);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-[#F9FAFB] transition-colors cursor-pointer text-left text-[12.5px] text-gray-700"
+                            >
+                              <span>{opt.emoji}</span>
+                              <span>{opt.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Date Groups */}
@@ -2146,15 +2153,8 @@ export default function ProjectDetail({
                                   </span>
                                 </div>
 
-                                {/* 2. Project Name */}
-                                {!hiddenColumns.includes('project') && (
-                                  <span className="w-32 text-[12.5px] text-[rgba(17,17,17,0.6)] truncate">
-                                    {project.name}
-                                  </span>
-                                )}
-
-                                {/* 3. Status */}
-                                {!hiddenColumns.includes('status') && (
+                                {/* 2. Status */}
+                                {!removedColumns.includes('status') && (
                                   <div className="w-28">
                                     <span
                                       className="text-[11px] font-medium px-2.5 py-0.5 rounded-full whitespace-nowrap inline-block"
@@ -2165,8 +2165,8 @@ export default function ProjectDetail({
                                   </div>
                                 )}
 
-                                {/* 4. Priority */}
-                                {!hiddenColumns.includes('priority') && (
+                                {/* 3. Priority */}
+                                {!removedColumns.includes('priority') && (
                                   <div className="w-24">
                                     <span className="text-[12.5px] text-[rgba(17,17,17,0.7)] font-normal">
                                       {priorityCfg.label}
@@ -2174,8 +2174,8 @@ export default function ProjectDetail({
                                   </div>
                                 )}
 
-                                {/* 5. Assignee */}
-                                {!hiddenColumns.includes('assignee') && (
+                                {/* 4. Assignee */}
+                                {!removedColumns.includes('assignee') && (
                                   <div className="w-28 flex items-center gap-2">
                                     {task.assignee ? (
                                       <>
@@ -2192,19 +2192,19 @@ export default function ProjectDetail({
                                   </div>
                                 )}
 
-                                {/* 6. Due Date */}
-                                {!hiddenColumns.includes('dueDate') && (
+                                {/* 5. Due Date */}
+                                {!removedColumns.includes('dueDate') && (
                                   <span className="w-28 text-[12.5px] text-[rgba(17,17,17,0.6)]">
                                     {formatTaskDate(task.dueDate)}
                                   </span>
                                 )}
 
-                                {/* 7. Est. */}
-                                {!hiddenColumns.includes('est') && (
-                                  <span className="w-16 text-[12.5px] text-[rgba(17,17,17,0.5)]">
-                                    {task.estimate ?? 40}
-                                  </span>
-                                )}
+                                {/* Extra Columns */}
+                                {extraColumns.map(ec => (
+                                  <div key={ec.id} className="w-28 text-[12px] text-gray-400 italic shrink-0">
+                                    {ec.type === 'creationDate' ? new Date().toLocaleDateString() : '—'}
+                                  </div>
+                                ))}
 
                                 {/* 8. Actions */}
                                 <div className="w-20 flex items-center justify-end pr-1 shrink-0 relative" onClick={e => e.stopPropagation()}>
@@ -2250,15 +2250,9 @@ export default function ProjectDetail({
                                 />
                               </div>
 
-                              {/* 2. Project Name */}
-                              {!hiddenColumns.includes('project') && (
-                                <span className="w-32 text-[12.5px] text-[rgba(17,17,17,0.5)] truncate font-normal">
-                                  {project.name}
-                                </span>
-                              )}
 
                               {/* 3. Status - Editable monday.com pill selector */}
-                              {!hiddenColumns.includes('status') && (
+                              {!removedColumns.includes('status') && (
                                 <div className="w-28 relative">
                                   <select
                                     value={inlineTaskStatus}
@@ -2285,7 +2279,7 @@ export default function ProjectDetail({
                               )}
 
                               {/* 4. Priority - Editable monday.com selector */}
-                              {!hiddenColumns.includes('priority') && (
+                              {!removedColumns.includes('priority') && (
                                 <div className="w-24 relative">
                                   <select
                                     value={inlineTaskPriority}
@@ -2309,7 +2303,7 @@ export default function ProjectDetail({
                               )}
 
                               {/* 5. Assignee - Editable selector with project members */}
-                              {!hiddenColumns.includes('assignee') && (
+                              {!removedColumns.includes('assignee') && (
                                 <div className="w-28 relative">
                                   <select
                                     value={inlineTaskAssigneeId}
@@ -2327,7 +2321,7 @@ export default function ProjectDetail({
                               )}
 
                               {/* 6. Due Date - Editable date input */}
-                              {!hiddenColumns.includes('dueDate') && (
+                              {!removedColumns.includes('dueDate') && (
                                 <div className="w-28">
                                   <input
                                     type="date"
@@ -2338,18 +2332,11 @@ export default function ProjectDetail({
                                 </div>
                               )}
 
-                              {/* 7. Est. - Editable estimate input */}
-                              {!hiddenColumns.includes('est') && (
-                                <div className="w-16">
-                                  <input
-                                    type="text"
-                                    value={inlineTaskEstimate}
-                                    onChange={e => setInlineTaskEstimate(e.target.value)}
-                                    placeholder="40"
-                                    className="w-12 text-[11.5px] border border-[#E5E7EB] bg-white rounded-md px-1.5 py-1 text-gray-700 outline-none hover:border-gray-300 transition-colors text-center"
-                                  />
-                                </div>
-                              )}
+
+                              {/* Extra Columns */}
+                              {extraColumns.map(ec => (
+                                <div key={ec.id} className="w-28 shrink-0" />
+                              ))}
 
                               {/* 8. Actions (Add / Cancel) */}
                               <div className="w-20 flex items-center justify-end gap-1.5 pr-1 shrink-0">
@@ -2381,7 +2368,7 @@ export default function ProjectDetail({
                                 setInlineTaskTitle('');
                                 setInlineTaskStatus('todo');
                                 setInlineTaskPriority('medium');
-                                setInlineTaskAssigneeId('');
+                                setInlineTaskAssigneeId(currentUserId || '');
                                 setInlineTaskDueDate(group.rawDate || todayKey);
                                 setInlineTaskEstimate('40');
                               }}
@@ -2391,16 +2378,15 @@ export default function ProjectDetail({
                                 <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#2563EB] transition-colors" />
                                 <span className="text-[13px] font-medium">Add task</span>
                               </div>
-                              {!hiddenColumns.includes('project') && <span className="w-32"></span>}
-                              {!hiddenColumns.includes('status') && <div className="w-28"></div>}
-                              {!hiddenColumns.includes('priority') && <div className="w-24"></div>}
-                              {!hiddenColumns.includes('assignee') && <div className="w-28"></div>}
-                              {!hiddenColumns.includes('dueDate') && (
+                              {!removedColumns.includes('status') && <div className="w-28"></div>}
+                              {!removedColumns.includes('priority') && <div className="w-24"></div>}
+                              {!removedColumns.includes('assignee') && <div className="w-28"></div>}
+                              {!removedColumns.includes('dueDate') && (
                                 <span className="w-28 text-[12px] text-[rgba(17,17,17,0.35)] opacity-0 group-hover:opacity-100 transition-opacity">
                                   {formatTaskDate(group.rawDate)}
                                 </span>
                               )}
-                              {!hiddenColumns.includes('est') && <span className="w-16"></span>}
+                              {extraColumns.map(ec => <div key={ec.id} className="w-28"></div>)}
                               <div className="w-20"></div>
                             </div>
                           )}
