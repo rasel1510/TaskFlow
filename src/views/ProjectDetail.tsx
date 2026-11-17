@@ -11,6 +11,7 @@ import type { ProjectInvitationRecord } from '@/api/projects/[id]/invitations/ro
 import type { ProjectMessage } from '@/api/projects/[id]/messages/route';
 import DatePicker from '@/components/ui/DatePicker';
 import AddProjectMembersModal from '@/components/AddProjectMembersModal';
+import { RadialTaskMenu } from '@/components/RadialTaskMenu';
 import { UserPlus, Users, X } from 'lucide-react';
 
 interface ProjectTask {
@@ -77,6 +78,17 @@ function getTwoLetterCapital(name?: string | null, fallbackAvatar?: string | nul
   }
 
   return parts[0].slice(0, 2).toUpperCase();
+}
+
+function formatTaskDate(d: string | null | undefined): string {
+  if (!d) return '—';
+  try {
+    const parsed = new Date(d);
+    if (isNaN(parsed.getTime())) return '—';
+    return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch {
+    return '—';
+  }
 }
 
 function isMockImage(url?: string | null): boolean {
@@ -224,6 +236,46 @@ export default function ProjectDetail({
   );
   const [taskSearch, setTaskSearch] = useState('');
   const [taskStatusFilter, setTaskStatusFilter] = useState('all');
+  const [activeRowMenuId, setActiveRowMenuId] = useState<string | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<ProjectTask | null>(null);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
+
+  useEffect(() => {
+    const handleOutsideClick = () => {
+      if (activeRowMenuId) {
+        setActiveRowMenuId(null);
+      }
+    };
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, [activeRowMenuId]);
+
+  const handleDeleteTask = async () => {
+    if (!taskToDelete) return;
+    setIsDeletingTask(true);
+    try {
+      const res = await fetch(`/api/tasks/${taskToDelete.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success('Task deleted successfully');
+        setProject(prev =>
+          prev
+            ? {
+                ...prev,
+                tasks: prev.tasks.filter(t => t.id !== taskToDelete.id),
+                totalTasks: Math.max(0, prev.totalTasks - 1),
+              }
+            : null
+        );
+        setTaskToDelete(null);
+      } else {
+        toast.error('Failed to delete task');
+      }
+    } catch {
+      toast.error('Failed to delete task');
+    } finally {
+      setIsDeletingTask(false);
+    }
+  };
 
   // Messages state (Team Chat)
   const [messages, setMessages] = useState<ProjectMessage[]>([]);
@@ -1529,49 +1581,117 @@ export default function ProjectDetail({
               </select>
             </div>
 
-            {/* Tasks table */}
-            <div className="border border-[#E5E7EB] rounded-xl overflow-hidden bg-white shadow-2xs divide-y divide-[#F3F4F6]">
-              {filteredTasks.length === 0 ? (
-                <div className="p-8 text-center text-[13px] text-[rgba(17,17,17,0.4)]">
-                  No tasks found in this project matching your filter.
-                </div>
-              ) : (
-                filteredTasks.map(task => {
-                  const statusCfg = statusColors[task.status as Status] || { bg: '#F3F4F6', text: '#6B7280', label: task.status };
-                  const priorityCfg = priorityColors[task.priority as Priority] || { color: '#6B7280', label: task.priority };
+            {/* Tasks table matching MyTasks Desktop Architecture */}
+            <div className="border border-[#E5E7EB] rounded-xl overflow-hidden bg-white shadow-2xs">
+              <div className="overflow-x-auto">
+                <div className="min-w-[780px]">
+                  {/* Table header */}
+                  <div className="flex items-center gap-3 px-5 py-3 bg-[#F9FAFB] border-b border-[#E5E7EB] rounded-t-xl text-[11px] font-semibold uppercase tracking-wider text-[rgba(17,17,17,0.4)]">
+                    <span className="flex-1">Task</span>
+                    <span className="w-32">Project</span>
+                    <span className="w-28">Status</span>
+                    <span className="w-24">Priority</span>
+                    <span className="w-28">Assignee</span>
+                    <span className="w-28">Due Date</span>
+                    <span className="w-16">Est.</span>
+                    <span className="w-20 text-right pr-2">Actions</span>
+                  </div>
 
-                  return (
-                    <div
-                      key={task.id}
-                      onClick={() => onTaskClick(task.id)}
-                      className="flex items-center justify-between p-3.5 hover:bg-[#F9FAFB] cursor-pointer transition-colors group"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="text-[13.5px] font-medium text-[#111111] group-hover:text-[#2563EB] transition-colors truncate">
-                          {task.title}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                        <span
-                          className="px-2 py-0.5 rounded text-[11px] font-medium whitespace-nowrap shrink-0"
-                          style={{ backgroundColor: statusCfg.bg, color: statusCfg.text }}
-                        >
-                          {statusCfg.label}
-                        </span>
-                        <span className="text-[11px] font-medium whitespace-nowrap shrink-0" style={{ color: priorityCfg.color }}>
-                          {priorityCfg.label}
-                        </span>
-                        {task.assignee && (
-                          <span className="w-6 h-6 rounded-full bg-[#E5E7EB] flex items-center justify-center text-[9px] font-bold text-[#111111]">
-                            {task.assignee.avatar}
-                          </span>
-                        )}
-                      </div>
+                  {/* Rows */}
+                  {filteredTasks.length === 0 ? (
+                    <div className="p-8 text-center text-[13px] text-[rgba(17,17,17,0.4)]">
+                      No tasks found in this project matching your filter.
                     </div>
-                  );
-                })
-              )}
+                  ) : (
+                    filteredTasks.map((task, i) => {
+                      const statusCfg = statusColors[task.status as Status] || { bg: '#EFF6FF', text: '#2563EB', label: task.status };
+                      const priorityCfg = priorityColors[task.priority as Priority] || { color: '#6B7280', label: task.priority };
+
+                      return (
+                        <div
+                          key={task.id}
+                          onClick={() => onTaskClick(task.id)}
+                          className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer transition-colors hover:bg-[#F9FAFB] group ${
+                            activeRowMenuId === task.id ? 'z-30 relative' : 'relative'
+                          } ${i < filteredTasks.length - 1 ? 'border-b border-[#F3F4F6]' : 'rounded-b-xl'}`}
+                        >
+                          {/* 1. Task Title */}
+                          <div className="flex-1 min-w-0">
+                            <span className={`text-[13.5px] font-medium text-[#111111] group-hover:text-[#2563EB] transition-colors truncate block ${task.status === 'done' ? 'line-through opacity-50' : ''}`}>
+                              {task.title}
+                            </span>
+                          </div>
+
+                          {/* 2. Project Name */}
+                          <span className="w-32 text-[12.5px] text-[rgba(17,17,17,0.6)] truncate">
+                            {project.name}
+                          </span>
+
+                          {/* 3. Status */}
+                          <div className="w-28">
+                            <span
+                              className="text-[11px] font-medium px-2.5 py-0.5 rounded-full whitespace-nowrap inline-block"
+                              style={{ backgroundColor: statusCfg.bg, color: statusCfg.text }}
+                            >
+                              {statusCfg.label}
+                            </span>
+                          </div>
+
+                          {/* 4. Priority */}
+                          <div className="w-24">
+                            <span className="text-[12.5px] text-[rgba(17,17,17,0.7)] font-normal">
+                              {priorityCfg.label}
+                            </span>
+                          </div>
+
+                          {/* 5. Assignee */}
+                          <div className="w-28 flex items-center gap-2">
+                            {task.assignee ? (
+                              <>
+                                <div className="w-6 h-6 rounded-full bg-[#1D4ED8] flex items-center justify-center text-[9px] font-bold text-white shrink-0">
+                                  {getTwoLetterCapital(task.assignee.name, task.assignee.avatar)}
+                                </div>
+                                <span className="text-[12.5px] text-[rgba(17,17,17,0.7)] truncate font-normal">
+                                  {task.assignee.name.split(' ')[0]}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-[12px] text-[rgba(17,17,17,0.35)]">Unassigned</span>
+                            )}
+                          </div>
+
+                          {/* 6. Due Date */}
+                          <span className="w-28 text-[12.5px] text-[rgba(17,17,17,0.6)]">
+                            {formatTaskDate(task.dueDate)}
+                          </span>
+
+                          {/* 7. Est. */}
+                          <span className="w-16 text-[12.5px] text-[rgba(17,17,17,0.5)]">
+                            {task.estimate ?? 40}
+                          </span>
+
+                          {/* 8. Actions */}
+                          <div className="w-20 flex items-center justify-end pr-1 shrink-0 relative" onClick={e => e.stopPropagation()}>
+                            <RadialTaskMenu
+                              isOpen={activeRowMenuId === task.id}
+                              onToggle={() => setActiveRowMenuId(prev => (prev === task.id ? null : task.id))}
+                              onEdit={() => {
+                                onTaskClick(task.id);
+                                setActiveRowMenuId(null);
+                              }}
+                              onDelete={() => {
+                                setTaskToDelete(task);
+                                setActiveRowMenuId(null);
+                              }}
+                              taskTitle={task.title}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -2281,6 +2401,79 @@ export default function ProjectDetail({
                   </>
                 ) : (
                   'Remove Member'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Task Confirmation Modal */}
+      {taskToDelete && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => !isDeletingTask && setTaskToDelete(null)}
+        >
+          <div
+            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-150 relative"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              type="button"
+              disabled={isDeletingTask}
+              onClick={() => setTaskToDelete(null)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 rounded-lg p-1.5 hover:bg-[#F3F4F6] transition-colors cursor-pointer disabled:opacity-50"
+              aria-label="Close"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+
+            <div className="flex items-start gap-3.5 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-[#FEE2E2] text-[#DC2626] flex items-center justify-center shrink-0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 6h18" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  <line x1="10" y1="11" x2="10" y2="17" />
+                  <line x1="14" y1="11" x2="14" y2="17" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0 pr-6">
+                <h3 className="text-[16px] font-bold text-[#111111]">Delete Task</h3>
+                <p className="text-[12.5px] text-[rgba(17,17,17,0.6)] mt-1 leading-relaxed">
+                  Are you sure you want to delete <strong className="text-[#111111] font-semibold">{taskToDelete.title}</strong>? This action cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isDeletingTask}
+                onClick={() => setTaskToDelete(null)}
+                className="px-3.5 py-2 text-[13px] font-medium text-[rgba(17,17,17,0.7)] hover:bg-[#F3F4F6] rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingTask}
+                onClick={handleDeleteTask}
+                className="px-4 py-2 text-[13px] font-semibold bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-lg shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+              >
+                {isDeletingTask ? (
+                  <>
+                    <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  'Delete Task'
                 )}
               </button>
             </div>
