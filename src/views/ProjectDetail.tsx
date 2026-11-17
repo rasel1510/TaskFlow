@@ -217,7 +217,7 @@ function ProjectDetailSkeleton({ onBack }: { onBack: () => void }) {
       </div>
 
       {/* Content Area Skeleton */}
-      <div className="flex-1 p-4 sm:p-6 space-y-6 max-w-[1280px]">
+      <div className="flex-1 px-4 sm:px-6 py-5 sm:py-6 space-y-6 w-full">
         {/* Metric Cards Skeleton */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
           {[0, 1, 2, 3].map((i) => (
@@ -1212,7 +1212,7 @@ export default function ProjectDetail({
       </div>
 
       {/* Main Tab Content */}
-      <div className="flex-1 p-4 sm:p-6 max-w-6xl w-full mx-auto space-y-5 sm:space-y-6">
+      <div className="flex-1 px-4 sm:px-6 py-5 sm:py-6 w-full space-y-5 sm:space-y-6">
         {/* Tab 1: Overview */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
@@ -1729,9 +1729,9 @@ export default function ProjectDetail({
             </div>
 
             {/* Tasks table matching MyTasks Desktop Architecture with Date Grouping */}
-            <div className="border border-[#E5E7EB] rounded-xl overflow-hidden bg-white shadow-2xs">
-              <div className="overflow-x-auto">
-                <div className="min-w-[780px]">
+            <div className="border border-[#E5E7EB] rounded-xl overflow-hidden bg-white shadow-2xs w-full">
+              <div className="overflow-x-auto w-full">
+                <div className="w-full min-w-[780px]">
                   {/* Table header */}
                   <div className="flex items-center gap-3 px-5 py-3 bg-[#F9FAFB] border-b border-[#E5E7EB] rounded-t-xl text-[11px] font-semibold uppercase tracking-wider text-[rgba(17,17,17,0.4)]">
                     <span className="flex-1">Task</span>
