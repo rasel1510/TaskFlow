@@ -1037,13 +1037,7 @@ export default function ProjectDetail({
     }
   };
 
-  if (loading && !project) {
-    return <ProjectDetailSkeleton onBack={onBack} />;
-  }
-
-  if (!project) return null;
-
-  const filteredTasks = (project.tasks || []).filter(task => {
+  const filteredTasks = (project?.tasks || []).filter(task => {
     if (taskStatusFilter !== 'all' && task.status !== taskStatusFilter) return false;
     if (taskSearch.trim()) {
       const q = taskSearch.toLowerCase();
@@ -1111,6 +1105,12 @@ export default function ProjectDetail({
       };
     });
   }, [filteredTasks, todayKey, taskSearch]);
+
+  if (loading && !project) {
+    return <ProjectDetailSkeleton onBack={onBack} />;
+  }
+
+  if (!project) return null;
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto bg-white">
