@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { statusColors, priorityColors, type ProjectHealth, type Status, type Priority } from '@/data/mockData';
 import { useToast } from '@/components/ui/Toast';
@@ -12,7 +12,7 @@ import type { ProjectMessage } from '@/api/projects/[id]/messages/route';
 import DatePicker from '@/components/ui/DatePicker';
 import AddProjectMembersModal from '@/components/AddProjectMembersModal';
 import { RadialTaskMenu } from '@/components/RadialTaskMenu';
-import { UserPlus, Users, X } from 'lucide-react';
+import { Calendar, Plus, UserPlus, Users, X } from 'lucide-react';
 
 interface ProjectTask {
   id: string;
@@ -31,6 +31,14 @@ interface ProjectTask {
   _count?: {
     comments: number;
   };
+}
+
+interface TaskDateGroup {
+  dateKey: string;
+  label: string;
+  rawDate: string | null;
+  isToday: boolean;
+  tasks: ProjectTask[];
 }
 
 interface ProjectData {
@@ -88,6 +96,19 @@ function formatTaskDate(d: string | null | undefined): string {
     return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   } catch {
     return '—';
+  }
+}
+
+function normalizeDateKey(dueDate?: string | null): string {
+  if (!dueDate) return 'no-date';
+  const m = String(dueDate).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  try {
+    const d = new Date(dueDate);
+    if (isNaN(d.getTime())) return 'no-date';
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  } catch {
+    return 'no-date';
   }
 }
 
@@ -274,6 +295,50 @@ export default function ProjectDetail({
       toast.error('Failed to delete task');
     } finally {
       setIsDeletingTask(false);
+    }
+  };
+
+  const [addingTaskDate, setAddingTaskDate] = useState<string | null>(null);
+  const [inlineTaskTitle, setInlineTaskTitle] = useState('');
+  const [isCreatingInlineTask, setIsCreatingInlineTask] = useState(false);
+
+  const handleCreateInlineTask = async (rawDate: string | null) => {
+    if (!inlineTaskTitle.trim() || isCreatingInlineTask || !project) return;
+    setIsCreatingInlineTask(true);
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: inlineTaskTitle.trim(),
+          projectId: project.id,
+          status: 'todo',
+          priority: 'medium',
+          dueDate: rawDate || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success && json.data) {
+        toast.success('Task created successfully');
+        const newTask: ProjectTask = json.data;
+        setProject(prev =>
+          prev
+            ? {
+                ...prev,
+                tasks: [newTask, ...prev.tasks],
+                totalTasks: prev.totalTasks + 1,
+              }
+            : null
+        );
+        setInlineTaskTitle('');
+      } else {
+        toast.error(json.error?.message || 'Failed to create task');
+      }
+    } catch (err) {
+      console.error('Error creating task:', err);
+      toast.error('Failed to create task');
+    } finally {
+      setIsCreatingInlineTask(false);
     }
   };
 
@@ -989,6 +1054,64 @@ export default function ProjectDetail({
     return true;
   });
 
+  const now = new Date();
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const formattedCurrentDate = now.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
+  const taskDateGroups = useMemo<TaskDateGroup[]>(() => {
+    const groupMap = new Map<string, ProjectTask[]>();
+
+    for (const task of filteredTasks) {
+      const key = normalizeDateKey(task.dueDate);
+      if (!groupMap.has(key)) {
+        groupMap.set(key, []);
+      }
+      groupMap.get(key)!.push(task);
+    }
+
+    // Always ensure Today's date section is present when not actively searching
+    if (!taskSearch.trim() && !groupMap.has(todayKey)) {
+      groupMap.set(todayKey, []);
+    }
+
+    // Sort keys descending (today/future dates first, then past dates, with 'no-date' last)
+    const sortedKeys = Array.from(groupMap.keys()).sort((a, b) => {
+      if (a === 'no-date') return 1;
+      if (b === 'no-date') return -1;
+      return b.localeCompare(a);
+    });
+
+    return sortedKeys.map(key => {
+      const isToday = key === todayKey;
+      const tasks = groupMap.get(key) || [];
+      let label = 'No Due Date';
+      let rawDate: string | null = null;
+
+      if (key !== 'no-date') {
+        rawDate = key;
+        const [y, m, d] = key.split('-').map(Number);
+        const parsed = new Date(y, m - 1, d);
+        const formatted = !isNaN(parsed.getTime())
+          ? parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          : key;
+        label = isToday ? `Today • ${formatted}` : formatted;
+      }
+
+      return {
+        dateKey: key,
+        label,
+        rawDate,
+        isToday,
+        tasks,
+      };
+    });
+  }, [filteredTasks, todayKey, taskSearch]);
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto bg-white">
       {/* Top Banner Navigation */}
@@ -1552,36 +1675,60 @@ export default function ProjectDetail({
         {/* Tab 2: Tasks List */}
         {activeTab === 'tasks' && (
           <div className="space-y-4">
-            {/* Filter toolbar */}
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] text-[13px]">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2">
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-                <input
-                  type="text"
-                  value={taskSearch}
-                  onChange={e => setTaskSearch(e.target.value)}
-                  placeholder="Filter tasks..."
-                  className="bg-transparent text-[#111111] placeholder-[#9CA3AF] outline-none w-44"
-                />
+            {/* Filter toolbar: In the Red shows Current Date, In the Green shows Search Box */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              {/* In the Red: Current Date */}
+              <div className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl border border-[#E5E7EB] bg-white text-[13px] font-medium text-[#111111] shadow-2xs shrink-0">
+                <Calendar className="w-4 h-4 text-[#2563EB] shrink-0" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#2563EB] bg-[#EFF6FF] px-2 py-0.5 rounded-md border border-[#DBEAFE]/60">
+                  Today
+                </span>
+                <span className="text-[13px] font-medium text-[#111111]">
+                  {formattedCurrentDate}
+                </span>
               </div>
 
-              <select
-                value={taskStatusFilter}
-                onChange={e => setTaskStatusFilter(e.target.value)}
-                className="text-[12px] border border-[#E5E7EB] rounded-lg px-3 py-1.5 bg-white text-[#111111] outline-none"
-              >
-                <option value="all">All statuses</option>
-                <option value="todo">To Do</option>
-                <option value="in_progress">In Progress</option>
-                <option value="in_review">In Review</option>
-                <option value="done">Done</option>
-              </select>
+              {/* In the Green: Search box for task + Status filter */}
+              <div className="flex items-center gap-3 flex-1 sm:justify-end">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] text-[13px] focus-within:border-[#2563EB] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#DBEAFE] transition-all w-full sm:max-w-xs shadow-2xs">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" className="shrink-0">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <input
+                    type="text"
+                    value={taskSearch}
+                    onChange={e => setTaskSearch(e.target.value)}
+                    placeholder="Search tasks..."
+                    className="bg-transparent text-[#111111] placeholder-[#9CA3AF] outline-none w-full text-[13px]"
+                  />
+                  {taskSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setTaskSearch('')}
+                      className="text-gray-400 hover:text-gray-600 text-xs px-1 cursor-pointer"
+                      aria-label="Clear search"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                <select
+                  value={taskStatusFilter}
+                  onChange={e => setTaskStatusFilter(e.target.value)}
+                  className="text-[12px] border border-[#E5E7EB] rounded-xl px-3 py-1.5 bg-white text-[#111111] outline-none shadow-2xs cursor-pointer hover:border-gray-300 transition-colors shrink-0"
+                >
+                  <option value="all">All statuses</option>
+                  <option value="todo">To Do</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="in_review">In Review</option>
+                  <option value="done">Done</option>
+                </select>
+              </div>
             </div>
 
-            {/* Tasks table matching MyTasks Desktop Architecture */}
+            {/* Tasks table matching MyTasks Desktop Architecture with Date Grouping */}
             <div className="border border-[#E5E7EB] rounded-xl overflow-hidden bg-white shadow-2xs">
               <div className="overflow-x-auto">
                 <div className="min-w-[780px]">
@@ -1597,95 +1744,225 @@ export default function ProjectDetail({
                     <span className="w-20 text-right pr-2">Actions</span>
                   </div>
 
-                  {/* Rows */}
-                  {filteredTasks.length === 0 ? (
+                  {/* Date Groups */}
+                  {taskDateGroups.length === 0 ? (
                     <div className="p-8 text-center text-[13px] text-[rgba(17,17,17,0.4)]">
                       No tasks found in this project matching your filter.
                     </div>
                   ) : (
-                    filteredTasks.map((task, i) => {
-                      const statusCfg = statusColors[task.status as Status] || { bg: '#EFF6FF', text: '#2563EB', label: task.status };
-                      const priorityCfg = priorityColors[task.priority as Priority] || { color: '#6B7280', label: task.priority };
+                    taskDateGroups.map((group, groupIndex) => {
+                      const isAddingThisGroup = addingTaskDate === group.dateKey;
 
                       return (
-                        <div
-                          key={task.id}
-                          onClick={() => onTaskClick(task.id)}
-                          className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer transition-colors hover:bg-[#F9FAFB] group ${
-                            activeRowMenuId === task.id ? 'z-30 relative' : 'relative'
-                          } ${i < filteredTasks.length - 1 ? 'border-b border-[#F3F4F6]' : 'rounded-b-xl'}`}
-                        >
-                          {/* 1. Task Title */}
-                          <div className="flex-1 min-w-0">
-                            <span className={`text-[13.5px] font-medium text-[#111111] group-hover:text-[#2563EB] transition-colors truncate block ${task.status === 'done' ? 'line-through opacity-50' : ''}`}>
-                              {task.title}
-                            </span>
-                          </div>
-
-                          {/* 2. Project Name */}
-                          <span className="w-32 text-[12.5px] text-[rgba(17,17,17,0.6)] truncate">
-                            {project.name}
-                          </span>
-
-                          {/* 3. Status */}
-                          <div className="w-28">
-                            <span
-                              className="text-[11px] font-medium px-2.5 py-0.5 rounded-full whitespace-nowrap inline-block"
-                              style={{ backgroundColor: statusCfg.bg, color: statusCfg.text }}
-                            >
-                              {statusCfg.label}
-                            </span>
-                          </div>
-
-                          {/* 4. Priority */}
-                          <div className="w-24">
-                            <span className="text-[12.5px] text-[rgba(17,17,17,0.7)] font-normal">
-                              {priorityCfg.label}
-                            </span>
-                          </div>
-
-                          {/* 5. Assignee */}
-                          <div className="w-28 flex items-center gap-2">
-                            {task.assignee ? (
-                              <>
-                                <div className="w-6 h-6 rounded-full bg-[#1D4ED8] flex items-center justify-center text-[9px] font-bold text-white shrink-0">
-                                  {getTwoLetterCapital(task.assignee.name, task.assignee.avatar)}
-                                </div>
-                                <span className="text-[12.5px] text-[rgba(17,17,17,0.7)] truncate font-normal">
-                                  {task.assignee.name.split(' ')[0]}
+                        <div key={group.dateKey} className="border-b border-[#E5E7EB] last:border-b-0">
+                          {/* Specific Date Header */}
+                          <div className="flex items-center justify-between px-5 py-2.5 bg-[#F9FAFB]/90 border-b border-[#E5E7EB] text-[12px] font-semibold text-[#111111]">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-3.5 h-3.5 text-[#2563EB]" />
+                              <span>{group.label}</span>
+                              {group.isToday && (
+                                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] border border-[#DBEAFE]">
+                                  Current Date
                                 </span>
-                              </>
-                            ) : (
-                              <span className="text-[12px] text-[rgba(17,17,17,0.35)]">Unassigned</span>
-                            )}
+                              )}
+                            </div>
+                            <span className="text-[11px] font-medium text-[rgba(17,17,17,0.45)]">
+                              {group.tasks.length} {group.tasks.length === 1 ? 'task' : 'tasks'}
+                            </span>
                           </div>
 
-                          {/* 6. Due Date */}
-                          <span className="w-28 text-[12.5px] text-[rgba(17,17,17,0.6)]">
-                            {formatTaskDate(task.dueDate)}
-                          </span>
+                          {/* Tasks under this specific date */}
+                          {group.tasks.map(task => {
+                            const statusCfg = statusColors[task.status as Status] || { bg: '#EFF6FF', text: '#2563EB', label: task.status };
+                            const priorityCfg = priorityColors[task.priority as Priority] || { color: '#6B7280', label: task.priority };
 
-                          {/* 7. Est. */}
-                          <span className="w-16 text-[12.5px] text-[rgba(17,17,17,0.5)]">
-                            {task.estimate ?? 40}
-                          </span>
+                            return (
+                              <div
+                                key={task.id}
+                                onClick={() => onTaskClick(task.id)}
+                                className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer transition-colors hover:bg-[#F9FAFB] group border-b border-[#F3F4F6] ${
+                                  activeRowMenuId === task.id ? 'z-30 relative' : 'relative'
+                                }`}
+                              >
+                                {/* 1. Task Title */}
+                                <div className="flex-1 min-w-0">
+                                  <span className={`text-[13.5px] font-medium text-[#111111] group-hover:text-[#2563EB] transition-colors truncate block ${task.status === 'done' ? 'line-through opacity-50' : ''}`}>
+                                    {task.title}
+                                  </span>
+                                </div>
 
-                          {/* 8. Actions */}
-                          <div className="w-20 flex items-center justify-end pr-1 shrink-0 relative" onClick={e => e.stopPropagation()}>
-                            <RadialTaskMenu
-                              isOpen={activeRowMenuId === task.id}
-                              onToggle={() => setActiveRowMenuId(prev => (prev === task.id ? null : task.id))}
-                              onEdit={() => {
-                                onTaskClick(task.id);
-                                setActiveRowMenuId(null);
+                                {/* 2. Project Name */}
+                                <span className="w-32 text-[12.5px] text-[rgba(17,17,17,0.6)] truncate">
+                                  {project.name}
+                                </span>
+
+                                {/* 3. Status */}
+                                <div className="w-28">
+                                  <span
+                                    className="text-[11px] font-medium px-2.5 py-0.5 rounded-full whitespace-nowrap inline-block"
+                                    style={{ backgroundColor: statusCfg.bg, color: statusCfg.text }}
+                                  >
+                                    {statusCfg.label}
+                                  </span>
+                                </div>
+
+                                {/* 4. Priority */}
+                                <div className="w-24">
+                                  <span className="text-[12.5px] text-[rgba(17,17,17,0.7)] font-normal">
+                                    {priorityCfg.label}
+                                  </span>
+                                </div>
+
+                                {/* 5. Assignee */}
+                                <div className="w-28 flex items-center gap-2">
+                                  {task.assignee ? (
+                                    <>
+                                      <div className="w-6 h-6 rounded-full bg-[#1D4ED8] flex items-center justify-center text-[9px] font-bold text-white shrink-0">
+                                        {getTwoLetterCapital(task.assignee.name, task.assignee.avatar)}
+                                      </div>
+                                      <span className="text-[12.5px] text-[rgba(17,17,17,0.7)] truncate font-normal">
+                                        {task.assignee.name.split(' ')[0]}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <span className="text-[12px] text-[rgba(17,17,17,0.35)]">Unassigned</span>
+                                  )}
+                                </div>
+
+                                {/* 6. Due Date */}
+                                <span className="w-28 text-[12.5px] text-[rgba(17,17,17,0.6)]">
+                                  {formatTaskDate(task.dueDate)}
+                                </span>
+
+                                {/* 7. Est. */}
+                                <span className="w-16 text-[12.5px] text-[rgba(17,17,17,0.5)]">
+                                  {task.estimate ?? 40}
+                                </span>
+
+                                {/* 8. Actions */}
+                                <div className="w-20 flex items-center justify-end pr-1 shrink-0 relative" onClick={e => e.stopPropagation()}>
+                                  <RadialTaskMenu
+                                    isOpen={activeRowMenuId === task.id}
+                                    onToggle={() => setActiveRowMenuId(prev => (prev === task.id ? null : task.id))}
+                                    onEdit={() => {
+                                      onTaskClick(task.id);
+                                      setActiveRowMenuId(null);
+                                    }}
+                                    onDelete={() => {
+                                      setTaskToDelete(task);
+                                      setActiveRowMenuId(null);
+                                    }}
+                                    taskTitle={task.title}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                          {/* Last Row: Add-able for this specific date */}
+                          {isAddingThisGroup ? (
+                            <div className="flex items-center gap-3 px-5 py-2.5 bg-[#F9FAFB]/70">
+                              {/* 1. Task Title Input */}
+                              <div className="flex-1 min-w-0">
+                                <input
+                                  type="text"
+                                  autoFocus
+                                  value={inlineTaskTitle}
+                                  onChange={e => setInlineTaskTitle(e.target.value)}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      handleCreateInlineTask(group.rawDate);
+                                    } else if (e.key === 'Escape') {
+                                      setAddingTaskDate(null);
+                                      setInlineTaskTitle('');
+                                    }
+                                  }}
+                                  placeholder="Task title... (Press Enter to add)"
+                                  className="w-full text-[13px] px-3 py-1.5 bg-white border border-[#2563EB] rounded-lg outline-none text-[#111111] placeholder-[rgba(17,17,17,0.4)] shadow-2xs"
+                                />
+                              </div>
+
+                              {/* 2. Project Name */}
+                              <span className="w-32 text-[12.5px] text-[rgba(17,17,17,0.5)] truncate">
+                                {project.name}
+                              </span>
+
+                              {/* 3. Status */}
+                              <div className="w-28">
+                                <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full whitespace-nowrap inline-block bg-[#EFF6FF] text-[#2563EB]">
+                                  To Do
+                                </span>
+                              </div>
+
+                              {/* 4. Priority */}
+                              <div className="w-24">
+                                <span className="text-[12.5px] text-[rgba(17,17,17,0.7)] font-normal">
+                                  Medium
+                                </span>
+                              </div>
+
+                              {/* 5. Assignee */}
+                              <div className="w-28">
+                                <span className="text-[12px] text-[rgba(17,17,17,0.35)]">Unassigned</span>
+                              </div>
+
+                              {/* 6. Due Date */}
+                              <span className="w-28 text-[12.5px] text-[rgba(17,17,17,0.6)]">
+                                {formatTaskDate(group.rawDate)}
+                              </span>
+
+                              {/* 7. Est. */}
+                              <span className="w-16 text-[12.5px] text-[rgba(17,17,17,0.4)]">
+                                —
+                              </span>
+
+                              {/* 8. Actions (Add / Cancel) */}
+                              <div className="w-20 flex items-center justify-end gap-1.5 pr-1 shrink-0">
+                                <button
+                                  type="button"
+                                  disabled={isCreatingInlineTask || !inlineTaskTitle.trim()}
+                                  onClick={() => handleCreateInlineTask(group.rawDate)}
+                                  className="px-2.5 py-1 text-[11.5px] font-semibold bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-md shadow-2xs transition-colors disabled:opacity-50 cursor-pointer"
+                                >
+                                  {isCreatingInlineTask ? '...' : 'Add'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAddingTaskDate(null);
+                                    setInlineTaskTitle('');
+                                  }}
+                                  className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-200 transition-colors cursor-pointer"
+                                  title="Cancel (Esc)"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div
+                              onClick={() => {
+                                setAddingTaskDate(group.dateKey);
+                                setInlineTaskTitle('');
                               }}
-                              onDelete={() => {
-                                setTaskToDelete(task);
-                                setActiveRowMenuId(null);
-                              }}
-                              taskTitle={task.title}
-                            />
-                          </div>
+                              className="flex items-center gap-3 px-5 py-2.5 cursor-pointer transition-colors hover:bg-[#F9FAFB] text-[rgba(17,17,17,0.55)] hover:text-[#2563EB] group"
+                            >
+                              <div className="flex-1 min-w-0 flex items-center gap-2">
+                                <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#2563EB] transition-colors" />
+                                <span className="text-[13px] font-medium">Add task</span>
+                              </div>
+                              <span className="w-32"></span>
+                              <div className="w-28"></div>
+                              <div className="w-24"></div>
+                              <div className="w-28"></div>
+                              <span className="w-28 text-[12px] text-[rgba(17,17,17,0.35)] opacity-0 group-hover:opacity-100 transition-opacity">
+                                {formatTaskDate(group.rawDate)}
+                              </span>
+                              <span className="w-16"></span>
+                              <div className="w-20"></div>
+                            </div>
+                          )}
                         </div>
                       );
                     })
