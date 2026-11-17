@@ -1146,6 +1146,7 @@ export default function ProjectDetail({
 
   const handleRemoveColumn = (colKey: string) => {
     setRemovedColumns(prev => [...prev, colKey]);
+    setExtraColumns(prev => prev.filter(c => c.id !== colKey));
     toast.success('Column removed');
   };
 
@@ -1870,6 +1871,13 @@ export default function ProjectDetail({
                       { key: 'priority', label: 'Priority', widthClass: 'w-24', canHide: true, align: 'left' },
                       { key: 'assignee', label: 'Assignee', widthClass: 'w-28', canHide: true, align: 'left' },
                       { key: 'dueDate', label: 'Due Date', widthClass: 'w-28', canHide: true, align: 'left' },
+                      ...extraColumns.map(ec => ({
+                        key: ec.id,
+                        label: ec.label,
+                        widthClass: 'w-28',
+                        canHide: true,
+                        align: 'left',
+                      })),
                       { key: 'actions', label: '', widthClass: 'w-20', canHide: false, align: 'right' },
                     ]
                       .filter(col => !removedColumns.includes(col.key))
@@ -1880,9 +1888,9 @@ export default function ProjectDetail({
                         return (
                           <div
                             key={col.key}
-                            className={`${col.widthClass} flex items-center justify-between group/col relative select-none ${
+                            className={`${col.widthClass} flex items-center justify-between group/col relative select-none shrink-0 ${
                               col.align === 'right' ? 'justify-end pr-2' : ''
-                            }`}
+                            } ${col.key === 'task' ? '!shrink' : ''}`}
                           >
                             <span className="flex items-center gap-1 truncate">
                               {col.label}
@@ -1895,27 +1903,29 @@ export default function ProjectDetail({
                               )}
                             </span>
 
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenColumnMenu(prev => (prev === col.key ? null : col.key));
-                              }}
-                              className={`p-1 rounded transition-all cursor-pointer shrink-0 ${
-                                isMenuOpen
-                                  ? 'bg-[#2563EB] text-white shadow-xs opacity-100'
-                                  : 'text-gray-400 hover:text-gray-700 hover:bg-gray-200 opacity-0 group-hover/col:opacity-100'
-                              }`}
-                              title={`${col.label} column options`}
-                            >
-                              <MoreHorizontal className="w-3.5 h-3.5" />
-                            </button>
+                            {col.key !== 'actions' && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenColumnMenu(prev => (prev === col.key ? null : col.key));
+                                }}
+                                className={`p-1 rounded transition-all cursor-pointer shrink-0 ${
+                                  isMenuOpen
+                                    ? 'bg-[#2563EB] text-white shadow-xs opacity-100'
+                                    : 'text-gray-400 hover:text-gray-700 hover:bg-gray-200 opacity-0 group-hover/col:opacity-100'
+                                }`}
+                                title={`${col.label} column options`}
+                              >
+                                <MoreHorizontal className="w-3.5 h-3.5" />
+                              </button>
+                            )}
 
                             {/* Monday.com-style dropdown menu */}
                             {isMenuOpen && (
                               <div
                                 className={`absolute top-full mt-1.5 w-60 rounded-xl bg-[#1F2438] border border-[#373E5B] shadow-2xl py-1.5 z-50 text-[12.5px] text-gray-200 normal-case tracking-normal font-normal ${
-                                  col.align === 'right' || col.key === 'est' || col.key === 'dueDate' || col.key === 'assignee'
+                                  col.align === 'right' || col.key === 'est' || col.key === 'dueDate' || col.key === 'assignee' || col.key.startsWith('extra-')
                                     ? 'right-0'
                                     : 'left-0'
                                 }`}
@@ -2037,7 +2047,13 @@ export default function ProjectDetail({
                                     type="button"
                                     onClick={() => {
                                       setOpenColumnMenu(null);
-                                      toast.info(`Rename ${col.label}`);
+                                      const newName = window.prompt(`Rename "${col.label}" column:`, col.label);
+                                      if (newName && newName.trim()) {
+                                        setExtraColumns(prev =>
+                                          prev.map(c => (c.id === col.key ? { ...c, label: newName.trim() } : c))
+                                        );
+                                        toast.success(`Renamed column to "${newName.trim()}"`);
+                                      }
                                     }}
                                     className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[#2D3452] transition-colors cursor-pointer text-gray-200 hover:text-white"
                                   >
@@ -2335,7 +2351,38 @@ export default function ProjectDetail({
 
                               {/* Extra Columns */}
                               {extraColumns.map(ec => (
-                                <div key={ec.id} className="w-28 shrink-0" />
+                                <div key={ec.id} className="w-28 shrink-0">
+                                  {ec.type === 'text' && (
+                                    <input
+                                      type="text"
+                                      placeholder="Text..."
+                                      className="w-full text-[11.5px] border border-[#E5E7EB] bg-white rounded-md px-2 py-1 text-gray-700 outline-none hover:border-gray-300"
+                                    />
+                                  )}
+                                  {ec.type === 'completionDate' && (
+                                    <input
+                                      type="date"
+                                      className="w-full text-[11.5px] border border-[#E5E7EB] bg-white rounded-md px-1 py-1 text-gray-700 outline-none hover:border-gray-300 cursor-pointer"
+                                    />
+                                  )}
+                                  {ec.type === 'spentTime' && (
+                                    <input
+                                      type="number"
+                                      placeholder="0 min"
+                                      className="w-full text-[11.5px] border border-[#E5E7EB] bg-white rounded-md px-2 py-1 text-gray-700 outline-none hover:border-gray-300 text-center"
+                                    />
+                                  )}
+                                  {ec.type === 'creationDate' && (
+                                    <span className="text-[11.5px] text-gray-400 block px-1 py-1">
+                                      {new Date().toLocaleDateString()}
+                                    </span>
+                                  )}
+                                  {ec.type === 'file' && (
+                                    <span className="text-[11.5px] text-gray-400 italic block px-1 py-1">
+                                      —
+                                    </span>
+                                  )}
+                                </div>
                               ))}
 
                               {/* 8. Actions (Add / Cancel) */}
