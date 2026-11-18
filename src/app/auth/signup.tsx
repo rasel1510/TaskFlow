@@ -407,7 +407,7 @@ export default function SignupPage() {
               type="button"
               onClick={() => {
                 setLoading(true);
-                signIn('google', { callbackUrl: '/app', prompt: 'select_account' });
+                signIn('google', { callbackUrl: '/onboarding/plans', prompt: 'select_account' });
               }}
               disabled={loading}
               className="w-full flex items-center justify-center gap-2.5 py-2.5 px-4 bg-white hover:bg-gray-50 text-gray-700 font-semibold text-xs rounded-xl border border-gray-200 shadow-2xs hover:border-gray-300 transition-all cursor-pointer active:scale-[0.99] disabled:opacity-60 mb-4"

@@ -222,7 +222,6 @@ export async function GET(req: Request) {
     const hasPaid =
       isPro ||
       user.plan === 'basic' ||
-      user.plan === 'free' ||
       Boolean(mappedInvoices && mappedInvoices.length > 0);
 
     return NextResponse.json({
