@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   X,
   FileText,
-  MapPin,
   ShieldCheck,
 } from 'lucide-react';
 import InvoiceModal, { InvoiceData } from '@/components/onboarding/InvoiceModal';
@@ -323,7 +322,7 @@ function OnboardingOrganizationContent() {
           className="fixed bottom-5 right-5 z-50 w-[calc(100vw-2.5rem)] sm:w-[380px] bg-white dark:bg-[#15171C] border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-[0_16px_48px_-12px_rgba(0,0,0,0.18),0_0_1px_1px_rgba(0,0,0,0.06)] p-4 sm:p-4.5 backdrop-blur-xl transition-all select-none animate-in fade-in slide-in-from-bottom-4 duration-300"
         >
           {/* Header Row: Status Badge + Close Button */}
-          <div className="flex items-start justify-between gap-3 mb-2.5">
+          <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-200/70 dark:border-emerald-800/60 shrink-0">
                 <CheckCircle2 size={16} />
@@ -355,37 +354,8 @@ function OnboardingOrganizationContent() {
             </button>
           </div>
 
-          {/* Mini Invoice Card with Name and Location */}
-          <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 text-[11.5px] space-y-1.5 mb-3">
-            <div className="flex items-center justify-between">
-              <span className="text-slate-400 text-[10.5px]">Invoice #</span>
-              <span className="font-mono font-semibold text-slate-900 dark:text-white">
-                #{invoice.invoiceNumber}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-400 text-[10.5px]">Billed To</span>
-              <span className="font-medium text-slate-900 dark:text-white truncate max-w-[200px]">
-                {invoice.customerName || 'FlowSync Customer'}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-400 text-[10.5px]">Location</span>
-              <span className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1 truncate max-w-[200px]">
-                <MapPin size={10} className="text-slate-400 shrink-0" />
-                <span className="truncate">{invoice.customerLocation || 'Global'}</span>
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-400 text-[10.5px]">Payment Channel</span>
-              <span className="font-medium text-slate-700 dark:text-slate-300">
-                {invoice.brand?.toUpperCase() || 'Card'} •••• {invoice.last4 || '4242'}
-              </span>
-            </div>
-          </div>
-
           {/* Footer: View Full Invoice Button + Permanent Storage Indicator */}
-          <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-slate-100 dark:border-slate-800">
             <span className="text-[10px] text-slate-400 flex items-center gap-1">
               <ShieldCheck size={11} className="text-emerald-500 shrink-0" />
               <span>Full receipt saved in Billing</span>
