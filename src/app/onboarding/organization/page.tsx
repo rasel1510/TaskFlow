@@ -4,7 +4,6 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import OnboardingHeader from '@/components/onboarding/OnboardingHeader';
 import {
-  Building2,
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
@@ -185,18 +184,10 @@ function OnboardingOrganizationContent() {
         </div>
 
         {/* Title */}
-        <div className="text-center max-w-lg mx-auto space-y-2 mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60 flex items-center justify-center mx-auto mb-3">
-            <Building2 size={24} />
-          </div>
-
+        <div className="text-center max-w-lg mx-auto mb-8">
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white">
             Create Your Organization
           </h1>
-
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-            Set up your company workspace to collaborate on tasks, projects, and milestones.
-          </p>
         </div>
 
         {/* Organization Form Card */}
@@ -208,8 +199,7 @@ function OnboardingOrganizationContent() {
               <label className="block text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-1.5">
                 Company / Organization Name
               </label>
-              <div className="relative">
-                <Building2 className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <div>
                 <input
                   type="text"
                   placeholder="e.g. Acme Corporation, TechWave Labs"
@@ -217,7 +207,7 @@ function OnboardingOrganizationContent() {
                   onChange={e => setOrgName(e.target.value)}
                   disabled={loading || checkingPayment}
                   autoFocus
-                  className="w-full pl-10 pr-4 py-3 rounded-xl text-sm bg-slate-50/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-600 transition-all placeholder:text-slate-400"
+                  className="w-full px-4 py-3 rounded-xl text-sm bg-slate-50/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-600 transition-all placeholder:text-slate-400"
                 />
               </div>
             </div>
@@ -279,22 +269,12 @@ function OnboardingOrganizationContent() {
               </div>
             )}
 
-            {/* Action Buttons: Back + Go to Dashboard */}
-            <div className="pt-3 flex items-center gap-3">
-              <button
-                type="button"
-                onClick={handleBack}
-                disabled={loading}
-                className="py-3.5 px-5 rounded-xl font-semibold text-sm border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-950 dark:hover:text-white transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
-              >
-                <ArrowLeft size={16} />
-                <span>Back</span>
-              </button>
-
+            {/* Action Button: Go to Dashboard */}
+            <div className="pt-3">
               <button
                 type="submit"
                 disabled={loading || !orgName.trim() || checkingPayment}
-                className="flex-1 py-3.5 px-6 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center cursor-pointer"
+                className="w-full py-3.5 px-6 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center cursor-pointer"
               >
                 {loading ? (
                   <>
