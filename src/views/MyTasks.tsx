@@ -646,7 +646,16 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
                 <div className="w-24"><span className="text-[12.5px] text-[rgba(17,17,17,0.7)]">{pc(task.priority).label}</span></div>
                 <div className="w-28 flex items-center gap-2">
                   {task.assignee ? (
-                    <><div className="w-6 h-6 rounded-full bg-[#2563EB] flex items-center justify-center text-[9px] font-bold text-white shrink-0">{task.assignee.avatar}</div><span className="text-[12.5px] text-[rgba(17,17,17,0.7)] truncate">{task.assignee.name.split(' ')[0]}</span></>
+                    <>
+                      <div className="w-6 h-6 rounded-full bg-[#2563EB] flex items-center justify-center text-[9px] font-bold text-white shrink-0 overflow-hidden">
+                        {task.assignee.avatar?.startsWith('http') || task.assignee.avatar?.startsWith('/') ? (
+                          <img src={task.assignee.avatar} alt={task.assignee.name} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+                        ) : (
+                          (task.assignee.avatar && task.assignee.avatar.length <= 3 ? task.assignee.avatar : task.assignee.name.slice(0, 2)).toUpperCase()
+                        )}
+                      </div>
+                      <span className="text-[12.5px] text-[rgba(17,17,17,0.7)] truncate">{task.assignee.name.split(' ')[0]}</span>
+                    </>
                   ) : <span className="text-[12px] text-[rgba(17,17,17,0.35)]">Unassigned</span>}
                 </div>
                 <span className="w-28 text-[12.5px] text-[rgba(17,17,17,0.6)]">{formatDate(task.dueDate)}</span>

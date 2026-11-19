@@ -38,7 +38,7 @@ import { Delta, DeltaIcon, DeltaValue } from '@/components/delta';
 import { StatusIndicator } from '@/components/indicator';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { StatCardSkeleton, TaskRowSkeleton } from '@/components/ui/Skeleton';
 import { Area, AreaChart, CartesianGrid, LabelList, Pie, PieChart, XAxis, YAxis } from 'recharts';
 import { NumberPopIn } from '@/components/NumberPopIn';
@@ -868,8 +868,11 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2 min-w-0">
                           <Avatar className="size-6 text-[10px]">
+                            {member.user.avatar?.startsWith('http') || member.user.avatar?.startsWith('/') ? (
+                              <AvatarImage src={member.user.avatar} alt={member.user.name} />
+                            ) : null}
                             <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                              {member.user.avatar || member.user.name.slice(0, 2).toUpperCase()}
+                              {(member.user.avatar && member.user.avatar.length <= 3 ? member.user.avatar : member.user.name.slice(0, 2)).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <span className="font-medium truncate">{member.user.name}</span>

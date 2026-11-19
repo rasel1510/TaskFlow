@@ -1405,10 +1405,14 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
 
                               {task.assignee && (
                                 <div
-                                  className="w-6 h-6 rounded-full bg-[#EFF6FF] border border-[#BFDBFE] text-[#1D4ED8] text-[10px] font-bold flex items-center justify-center shrink-0"
+                                  className="w-6 h-6 rounded-full bg-[#EFF6FF] border border-[#BFDBFE] text-[#1D4ED8] text-[10px] font-bold flex items-center justify-center shrink-0 overflow-hidden"
                                   title={`Assigned to ${task.assignee.name}`}
                                 >
-                                  {task.assignee.avatar || task.assignee.name.slice(0, 2).toUpperCase()}
+                                  {task.assignee.avatar?.startsWith('http') || task.assignee.avatar?.startsWith('/') ? (
+                                    <img src={task.assignee.avatar} alt={task.assignee.name} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+                                  ) : (
+                                    (task.assignee.avatar && task.assignee.avatar.length <= 3 ? task.assignee.avatar : task.assignee.name.slice(0, 2)).toUpperCase()
+                                  )}
                                 </div>
                               )}
                             </div>

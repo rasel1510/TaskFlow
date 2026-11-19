@@ -104,8 +104,12 @@ function KanbanCard({
       {/* Footer */}
       <div className="flex items-center justify-between pt-1 border-t border-[#F3F4F6] text-[rgba(17,17,17,0.45)]">
         <div className="flex items-center gap-1.5 min-w-0">
-          <div className="w-5 h-5 rounded-full bg-[#2563EB] flex items-center justify-center text-[8.5px] font-bold text-white shrink-0">
-            {task.assignee?.avatar ?? 'ME'}
+          <div className="w-5 h-5 rounded-full bg-[#2563EB] flex items-center justify-center text-[8.5px] font-bold text-white shrink-0 overflow-hidden">
+            {task.assignee?.avatar?.startsWith('http') || task.assignee?.avatar?.startsWith('/') ? (
+              <img src={task.assignee.avatar} alt={task.assignee.name || 'User'} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+            ) : (
+              (task.assignee?.avatar && task.assignee.avatar.length <= 3 ? task.assignee.avatar : task.assignee?.name?.slice(0, 2) ?? 'ME').toUpperCase()
+            )}
           </div>
           {task.dueDate && (
             <span className="text-[10.5px] truncate">

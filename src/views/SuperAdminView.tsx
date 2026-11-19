@@ -692,8 +692,12 @@ export default function SuperAdminView() {
                   >
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-[#2563EB] text-white flex items-center justify-center font-bold text-[11px] shrink-0">
-                          {user.avatar || user.name.slice(0, 2).toUpperCase()}
+                        <div className="w-7 h-7 rounded-full bg-[#2563EB] text-white flex items-center justify-center font-bold text-[11px] shrink-0 overflow-hidden">
+                          {user.avatar?.startsWith('http') || user.avatar?.startsWith('/') ? (
+                            <img src={user.avatar} alt={user.name} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+                          ) : (
+                            (user.avatar && user.avatar.length <= 3 ? user.avatar : user.name.slice(0, 2)).toUpperCase()
+                          )}
                         </div>
                         <div>
                           <div className="font-semibold text-neutral-900 dark:text-white flex items-center gap-1.5">

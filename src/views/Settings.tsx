@@ -1279,8 +1279,12 @@ export default function Settings() {
                         }`}
                     >
                       <div className="flex-1 flex items-center gap-3 min-w-0">
-                        <div className="w-8 h-8 rounded-full bg-[#2563EB] flex items-center justify-center text-[11px] font-bold text-white shrink-0">
-                          {u.avatar || u.name?.slice(0, 2)?.toUpperCase()}
+                        <div className="w-8 h-8 rounded-full bg-[#2563EB] flex items-center justify-center text-[11px] font-bold text-white shrink-0 overflow-hidden">
+                          {u.avatar?.startsWith('http') || u.avatar?.startsWith('/') ? (
+                            <img src={u.avatar} alt={u.name} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+                          ) : (
+                            (u.avatar && u.avatar.length <= 3 ? u.avatar : u.name?.slice(0, 2) || 'U').toUpperCase()
+                          )}
                         </div>
                         <div className="min-w-0">
                           <div className="text-[13.5px] font-medium text-[#111111] flex items-center gap-1.5 truncate">
@@ -1846,8 +1850,12 @@ export default function Settings() {
 
               <form onSubmit={handleSaveMemberTitle} className="p-6 space-y-4">
                 <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl p-3 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[#2563EB] flex items-center justify-center text-[13px] font-bold text-white shrink-0">
-                    {editingTitleMember.avatar || editingTitleMember.name?.slice(0, 2)?.toUpperCase()}
+                  <div className="w-10 h-10 rounded-full bg-[#2563EB] flex items-center justify-center text-[13px] font-bold text-white shrink-0 overflow-hidden">
+                    {editingTitleMember.avatar?.startsWith('http') || editingTitleMember.avatar?.startsWith('/') ? (
+                      <img src={editingTitleMember.avatar} alt={editingTitleMember.name} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+                    ) : (
+                      (editingTitleMember.avatar && editingTitleMember.avatar.length <= 3 ? editingTitleMember.avatar : editingTitleMember.name?.slice(0, 2) || 'U').toUpperCase()
+                    )}
                   </div>
                   <div className="min-w-0">
                     <div className="text-[13px] font-semibold text-[#111111] truncate">{editingTitleMember.name}</div>

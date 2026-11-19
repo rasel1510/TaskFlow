@@ -676,14 +676,18 @@ export default function TeamView() {
                           <td className="py-3.5 px-5">
                             <div className="flex items-center gap-3">
                               <div
-                                className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${isMemberAdmin
+                                className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 overflow-hidden ${isMemberAdmin
                                   ? 'bg-purple-600'
                                   : isMemberPM
                                     ? 'bg-[#2563EB]'
                                     : 'bg-emerald-600'
-                                  }`}
+                                }`}
                               >
-                                {member.avatar || member.name.slice(0, 2).toUpperCase()}
+                                {member.avatar?.startsWith('http') || member.avatar?.startsWith('/') ? (
+                                  <img src={member.avatar} alt={member.name} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+                                ) : (
+                                  (member.avatar && member.avatar.length <= 3 ? member.avatar : member.name.slice(0, 2)).toUpperCase()
+                                )}
                               </div>
                               <div className="min-w-0">
                                 <div className="flex items-center gap-1.5">

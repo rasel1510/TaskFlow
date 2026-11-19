@@ -723,7 +723,13 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
                   label: 'Assignee',
                   content: task.assignee ? (
                     <span className="flex items-center gap-1.5">
-                      <span className="w-5 h-5 rounded-full bg-[#2563EB] flex items-center justify-center text-[8px] font-bold text-white">{task.assignee.avatar}</span>
+                      <span className="w-5 h-5 rounded-full bg-[#2563EB] flex items-center justify-center text-[8px] font-bold text-white overflow-hidden shrink-0">
+                        {task.assignee.avatar?.startsWith('http') || task.assignee.avatar?.startsWith('/') ? (
+                          <img src={task.assignee.avatar} alt={task.assignee.name} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+                        ) : (
+                          (task.assignee.avatar && task.assignee.avatar.length <= 3 ? task.assignee.avatar : task.assignee.name?.slice(0, 2) || 'U').toUpperCase()
+                        )}
+                      </span>
                       <span className="text-[12.5px] text-[#111111]">{task.assignee.name}</span>
                     </span>
                   ) : (
@@ -820,10 +826,14 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
                     return (
                       <div key={c.id} className="group relative flex gap-3 p-2 -mx-2 rounded-xl hover:bg-[#F9FAFB] transition-colors">
                         <div
-                          className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 mt-0.5"
+                          className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 mt-0.5 overflow-hidden"
                           style={{ backgroundColor: getAvatarColor(c.user?.name || '') }}
                         >
-                          {c.user?.avatar || (c.user?.name ? c.user.name.slice(0, 2).toUpperCase() : 'U')}
+                          {c.user?.avatar?.startsWith('http') || c.user?.avatar?.startsWith('/') ? (
+                            <img src={c.user.avatar} alt={c.user.name} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+                          ) : (
+                            (c.user?.avatar && c.user.avatar.length <= 3 ? c.user.avatar : (c.user?.name ? c.user.name.slice(0, 2) : 'U')).toUpperCase()
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-1">
@@ -1027,10 +1037,14 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
                       className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-[#EFF6FF] text-left transition-colors cursor-pointer group"
                     >
                       <div
-                        className="w-6 h-6 rounded-full flex items-center justify-center text-[9.5px] font-bold text-white shrink-0"
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-[9.5px] font-bold text-white shrink-0 overflow-hidden"
                         style={{ backgroundColor: getAvatarColor(u.name) }}
                       >
-                        {u.avatar || u.name.slice(0, 2).toUpperCase()}
+                        {u.avatar?.startsWith('http') || u.avatar?.startsWith('/') ? (
+                          <img src={u.avatar} alt={u.name} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+                        ) : (
+                          (u.avatar && u.avatar.length <= 3 ? u.avatar : u.name.slice(0, 2)).toUpperCase()
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">

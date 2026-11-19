@@ -122,7 +122,11 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
         health: (p.health && p.health in healthColors ? p.health : 'on_track') as ProjectHealth,
         dueDate: p.dueDate ? new Date(p.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No deadline',
         owner: p.owner,
-        members: p.members ?? (p.owner ? [p.owner] : []),
+        // API returns ProjectMember rows ({ id, userId, role, user: {...} }); flatten to the User shape the UI renders.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        members: (p.members ?? (p.owner ? [p.owner] : [])).map((m: any) =>
+          m?.user ? { ...m.user, id: m.user.id ?? m.userId } : m
+        ).filter(Boolean),
         isMember: Boolean(p.isMember),
         hasPendingRequest: Boolean(p.hasPendingRequest),
         isOwner: Boolean(p.isOwner),
@@ -452,10 +456,14 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
                       {p.members.slice(0, 4).map((m, i) => (
                         <div
                           key={i}
-                          className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-bold text-white"
+                          className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-bold text-white overflow-hidden shrink-0"
                           style={{ backgroundColor: ['#2563EB', '#7C3AED', '#0891B2', '#16A34A'][i % 4] }}
                         >
-                          {m.avatar}
+                          {m.avatar?.startsWith('http') || m.avatar?.startsWith('/') ? (
+                            <img src={m.avatar} alt={m.name} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+                          ) : (
+                            (m.avatar && m.avatar.length <= 3 ? m.avatar : (m.name || m.email || '?').slice(0, 2)).toUpperCase()
+                          )}
                         </div>
                       ))}
                       {p.members.length > 4 && (
@@ -557,10 +565,14 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
                       {p.members.slice(0, 3).map((m, mi) => (
                         <div
                           key={mi}
-                          className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-bold text-white"
+                          className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-bold text-white overflow-hidden shrink-0"
                           style={{ backgroundColor: ['#2563EB', '#7C3AED', '#0891B2'][mi % 3] }}
                         >
-                          {m.avatar}
+                          {m.avatar?.startsWith('http') || m.avatar?.startsWith('/') ? (
+                            <img src={m.avatar} alt={m.name} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+                          ) : (
+                            (m.avatar && m.avatar.length <= 3 ? m.avatar : (m.name || m.email || '?').slice(0, 2)).toUpperCase()
+                          )}
                         </div>
                       ))}
                     </div>

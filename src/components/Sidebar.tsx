@@ -141,10 +141,31 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
   const userRole = isSuperAdminUser
     ? 'Super Admin'
     : (customRole || (session?.user as { role?: string })?.role || 'Member');
-  const userAvatar =
-    customAvatar ||
-    (session?.user as { avatar?: string })?.avatar ||
-    (currentName ? currentName.slice(0, 2).toUpperCase() : 'U');
+
+  const [avatarImgError, setAvatarImgError] = useState(false);
+  const rawAvatar = (customAvatar || (session?.user as { avatar?: string })?.avatar || '').trim();
+  const isAvatarUrl = Boolean(
+    rawAvatar &&
+    (rawAvatar.startsWith('http://') ||
+      rawAvatar.startsWith('https://') ||
+      rawAvatar.startsWith('/') ||
+      rawAvatar.startsWith('data:image/')) &&
+    !/^[A-Za-z]{1,4}$/.test(rawAvatar)
+  );
+  const userInitials = (function () {
+    if (rawAvatar && /^[A-Za-z]{1,3}$/.test(rawAvatar)) {
+      return rawAvatar.toUpperCase();
+    }
+    if (currentName && currentName.trim()) {
+      const parts = currentName.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+      }
+      return parts[0].slice(0, 2).toUpperCase();
+    }
+    return 'U';
+  })();
+  const userAvatar = isAvatarUrl ? rawAvatar : userInitials;
 
   // Check expertise matrix status and user profile
   useEffect(() => {
@@ -374,8 +395,18 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
         {/* Bottom user profile & session actions */}
         <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-[#F3F4F6] transition-colors group">
           <div className="relative shrink-0">
-            <div className="w-7 h-7 rounded-full bg-[#2563EB] flex items-center justify-center">
-              <span className="text-[11px] font-bold text-white">{userAvatar}</span>
+            <div className="w-7 h-7 rounded-full bg-[#2563EB] flex items-center justify-center overflow-hidden shrink-0">
+              {isAvatarUrl && !avatarImgError ? (
+                <img
+                  src={rawAvatar}
+                  alt={userName}
+                  className="w-full h-full object-cover rounded-full"
+                  referrerPolicy="no-referrer"
+                  onError={() => setAvatarImgError(true)}
+                />
+              ) : (
+                <span className="text-[11px] font-bold text-white select-none">{userInitials}</span>
+              )}
             </div>
             {expertiseRequired && (
               <span

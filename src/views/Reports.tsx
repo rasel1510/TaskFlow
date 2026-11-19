@@ -315,10 +315,14 @@ export default function Reports() {
                       <div key={m.user.id || i} className="flex items-center gap-4 px-5 py-3">
                         <div className="w-36 flex items-center gap-2 min-w-0">
                           <div
-                            className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 overflow-hidden"
                             style={{ backgroundColor: ['#2563EB','#7C3AED','#0891B2','#16A34A','#EA580C'][i % 5] }}
                           >
-                            {m.user.avatar}
+                            {m.user.avatar?.startsWith('http') || m.user.avatar?.startsWith('/') ? (
+                              <img src={m.user.avatar} alt={m.user.name} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+                            ) : (
+                              (m.user.avatar && m.user.avatar.length <= 3 ? m.user.avatar : m.user.name.slice(0, 2)).toUpperCase()
+                            )}
                           </div>
                           <span className="text-[12.5px] font-medium text-[#111111] truncate">{m.user.name}</span>
                         </div>

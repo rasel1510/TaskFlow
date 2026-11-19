@@ -623,10 +623,14 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
                               {/* Assignee Avatar */}
                               {item.task.assignee ? (
                                 <div
-                                  className="w-5 h-5 rounded-full bg-[#2563EB] text-white text-[9px] font-bold flex items-center justify-center"
+                                  className="w-5 h-5 rounded-full bg-[#2563EB] text-white text-[9px] font-bold flex items-center justify-center overflow-hidden shrink-0"
                                   title={item.task.assignee.name}
                                 >
-                                  {item.task.assignee.avatar || item.task.assignee.name.charAt(0)}
+                                  {item.task.assignee.avatar?.startsWith('http') || item.task.assignee.avatar?.startsWith('/') ? (
+                                    <img src={item.task.assignee.avatar} alt={item.task.assignee.name} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+                                  ) : (
+                                    (item.task.assignee.avatar && item.task.assignee.avatar.length <= 3 ? item.task.assignee.avatar : item.task.assignee.name.slice(0, 2)).toUpperCase()
+                                  )}
                                 </div>
                               ) : (
                                 <div className="w-5 h-5 rounded-full border border-dashed border-[#D1D5DB] flex items-center justify-center text-[#9CA3AF]">
@@ -862,10 +866,14 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
                                 )}
                                 {item.task.assignee && (
                                   <div
-                                    className="w-4.5 h-4.5 rounded-full bg-[#111111] text-white text-[8px] font-bold flex items-center justify-center"
+                                    className="w-4.5 h-4.5 rounded-full bg-[#111111] text-white text-[8px] font-bold flex items-center justify-center overflow-hidden shrink-0"
                                     title={item.task.assignee.name}
                                   >
-                                    {item.task.assignee.avatar || item.task.assignee.name.charAt(0)}
+                                    {item.task.assignee.avatar?.startsWith('http') || item.task.assignee.avatar?.startsWith('/') ? (
+                                      <img src={item.task.assignee.avatar} alt={item.task.assignee.name} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+                                    ) : (
+                                      (item.task.assignee.avatar && item.task.assignee.avatar.length <= 3 ? item.task.assignee.avatar : item.task.assignee.name.slice(0, 2)).toUpperCase()
+                                    )}
                                   </div>
                                 )}
                               </div>

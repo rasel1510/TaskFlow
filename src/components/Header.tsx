@@ -297,10 +297,34 @@ export default function Header({
   const userRole = isSuperAdminUser
     ? 'Super Admin'
     : (customRole || (session?.user as { role?: string })?.role || 'Member');
-  const userAvatar =
-    customAvatar ||
-    (session?.user as { avatar?: string })?.avatar ||
-    (currentName ? currentName.slice(0, 2).toUpperCase() : 'U');
+
+  const [avatarImgError, setAvatarImgError] = useState(false);
+  const rawAvatar = (customAvatar || (session?.user as { avatar?: string })?.avatar || '').trim();
+  const isAvatarUrl = Boolean(
+    rawAvatar &&
+    (rawAvatar.startsWith('http://') ||
+      rawAvatar.startsWith('https://') ||
+      rawAvatar.startsWith('/') ||
+      rawAvatar.startsWith('data:image/')) &&
+    !/^[A-Za-z]{1,4}$/.test(rawAvatar)
+  );
+  const userInitials = (function () {
+    if (rawAvatar && /^[A-Za-z]{1,3}$/.test(rawAvatar)) {
+      return rawAvatar.toUpperCase();
+    }
+    if (currentName && currentName.trim()) {
+      const parts = currentName.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+      }
+      return parts[0].slice(0, 2).toUpperCase();
+    }
+    if (userEmail && userEmail.trim()) {
+      return userEmail.trim().slice(0, 2).toUpperCase();
+    }
+    return 'U';
+  })();
+  const userAvatar = isAvatarUrl ? rawAvatar : userInitials;
 
   useEffect(() => {
     if (!userId) return;
@@ -527,12 +551,20 @@ export default function Header({
                           {/* Visual Indicator */}
                           <div className="shrink-0 mt-0.5">
                             {n.actor?.avatar ? (
-                              <div className="w-7 h-7 rounded-full bg-[#E5E7EB] flex items-center justify-center text-[10px] font-bold text-[#111111]">
-                                {n.actor.avatar}
+                              <div className="w-7 h-7 rounded-full bg-[#E5E7EB] flex items-center justify-center text-[10px] font-bold text-[#111111] overflow-hidden shrink-0">
+                                {n.actor.avatar.startsWith('http') || n.actor.avatar.startsWith('/') ? (
+                                  <img src={n.actor.avatar} alt={n.actor.name} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+                                ) : (
+                                  n.actor.avatar.slice(0, 2).toUpperCase()
+                                )}
                               </div>
                             ) : n.user?.avatar ? (
-                              <div className="w-7 h-7 rounded-full bg-[#E5E7EB] flex items-center justify-center text-[10px] font-bold text-[#111111]">
-                                {n.user.avatar}
+                              <div className="w-7 h-7 rounded-full bg-[#E5E7EB] flex items-center justify-center text-[10px] font-bold text-[#111111] overflow-hidden shrink-0">
+                                {n.user.avatar.startsWith('http') || n.user.avatar.startsWith('/') ? (
+                                  <img src={n.user.avatar} alt={n.user.name} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+                                ) : (
+                                  n.user.avatar.slice(0, 2).toUpperCase()
+                                )}
                               </div>
                             ) : meta.iconType === 'request_approved' ? (
                               <div className="w-7 h-7 rounded-full bg-[#ECFDF5] text-[#16A34A] flex items-center justify-center shrink-0">
@@ -653,8 +685,18 @@ export default function Header({
             aria-label="User menu"
           >
             <div className="relative">
-              <div className="w-7 h-7 rounded-full bg-[#2563EB] flex items-center justify-center">
-                <span className="text-[11px] font-bold text-white">{userAvatar}</span>
+              <div className="w-7 h-7 rounded-full bg-[#2563EB] flex items-center justify-center overflow-hidden shrink-0">
+                {isAvatarUrl && !avatarImgError ? (
+                  <img
+                    src={rawAvatar}
+                    alt={userName}
+                    className="w-full h-full object-cover rounded-full"
+                    referrerPolicy="no-referrer"
+                    onError={() => setAvatarImgError(true)}
+                  />
+                ) : (
+                  <span className="text-[11px] font-bold text-white select-none">{userInitials}</span>
+                )}
               </div>
               {expertiseRequired && (
                 <span
