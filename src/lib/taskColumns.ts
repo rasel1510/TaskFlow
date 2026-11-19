@@ -24,11 +24,11 @@ export const COLUMN_TYPE_META: Record<
   CustomColumnType,
   { label: string; description: string; track: string; rem: number }
 > = {
-  text: { label: 'Text', description: 'Notes or short answers', track: '10rem', rem: 10 },
-  number: { label: 'Numbers', description: 'Budgets, counts, scores', track: '6.5rem', rem: 6.5 },
-  date: { label: 'Date', description: 'Any calendar date', track: '7.5rem', rem: 7.5 },
+  text: { label: 'Text', description: 'Notes or short answers', track: '9rem', rem: 9 },
+  number: { label: 'Numbers', description: 'Budgets, counts, scores', track: '6rem', rem: 6 },
+  date: { label: 'Date', description: 'Any calendar date', track: '7rem', rem: 7 },
   checkbox: { label: 'Checkbox', description: 'A simple yes / no', track: '6rem', rem: 6 },
-  dropdown: { label: 'Dropdown', description: 'Pick from your own list', track: '8.5rem', rem: 8.5 },
+  dropdown: { label: 'Dropdown', description: 'Pick from your own list', track: '8rem', rem: 8 },
 };
 
 export const COLUMN_TYPE_ORDER: CustomColumnType[] = ['text', 'number', 'date', 'checkbox', 'dropdown'];

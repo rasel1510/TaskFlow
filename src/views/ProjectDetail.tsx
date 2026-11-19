@@ -348,8 +348,8 @@ export default function ProjectDetail({
   const [inlineTaskStatus, setInlineTaskStatus] = useState<'todo' | 'in_progress' | 'in_review'>('todo');
   const [inlineTaskCompletion, setInlineTaskCompletion] = useState(''); // YYYY-MM-DD
   const [inlineTaskHours, setInlineTaskHours] = useState('');
-  /** Notes typed into Text columns while adding a task, keyed by column id */
-  const [inlineTaskNotes, setInlineTaskNotes] = useState<Record<string, string>>({});
+  /** Custom-column values entered while adding a task, keyed by column id (checkbox → boolean) */
+  const [inlineTaskCustom, setInlineTaskCustom] = useState<Record<string, string | boolean>>({});
   const [isCreatingInlineTask, setIsCreatingInlineTask] = useState(false);
 
   useEffect(() => {
@@ -390,13 +390,24 @@ export default function ProjectDetail({
     }
   };
 
+  /** '' → null (empty), invalid → undefined */
+  const parseInlineNumber = (raw: string): number | null | undefined => {
+    const text = raw.trim().replace(/,/g, '');
+    if (!text) return null;
+    const n = Number(text);
+    return Number.isFinite(n) ? n : undefined;
+  };
+
+  const setInlineCustom = (columnId: string, value: string | boolean) =>
+    setInlineTaskCustom(prev => ({ ...prev, [columnId]: value }));
+
   const resetInlineDraft = () => {
     setInlineTaskTitle('');
     setInlineTaskPriority('medium');
     setInlineTaskStatus('todo');
     setInlineTaskCompletion('');
     setInlineTaskHours('');
-    setInlineTaskNotes({});
+    setInlineTaskCustom({});
   };
 
   const handleCreateInlineTask = async (rawDate: string | null) => {
@@ -406,13 +417,27 @@ export default function ProjectDetail({
       toast.error('Time spent: enter hours, for example 0.5 or 1.25');
       return;
     }
-    // Notes for Text columns that still exist (empty notes are skipped)
-    const textColumnIds = new Set((project.customColumns ?? []).filter(c => c.type === 'text').map(c => c.id));
-    const notes = Object.fromEntries(
-      Object.entries(inlineTaskNotes)
-        .map(([id, note]) => [id, note.trim().slice(0, NOTE_MAX_LENGTH)] as const)
-        .filter(([id, note]) => textColumnIds.has(id) && note.length > 0)
-    );
+    // Custom-column values for columns that still exist (blank values are skipped)
+    const initialFields: Record<string, string | number | boolean> = {};
+    for (const col of project.customColumns ?? []) {
+      const raw = inlineTaskCustom[col.id];
+      if (raw === undefined || raw === '' || raw === false) continue;
+      if (col.type === 'checkbox') {
+        initialFields[col.id] = true;
+      } else if (col.type === 'number') {
+        const n = parseInlineNumber(String(raw));
+        if (n === undefined) {
+          toast.error(`${col.title}: enter a number`);
+          return;
+        }
+        if (n !== null) initialFields[col.id] = n;
+      } else if (col.type === 'dropdown') {
+        if ((col.options ?? []).includes(String(raw))) initialFields[col.id] = String(raw);
+      } else {
+        const text = String(raw).trim().slice(0, NOTE_MAX_LENGTH);
+        if (text) initialFields[col.id] = text;
+      }
+    }
     setIsCreatingInlineTask(true);
     try {
       const res = await fetch('/api/tasks', {
@@ -429,7 +454,7 @@ export default function ProjectDetail({
           dueDate: rawDate || undefined,
           completedAt: inlineTaskCompletion || undefined,
           timeSpent: minutes ?? undefined,
-          ...(Object.keys(notes).length > 0 ? { customFields: notes } : {}),
+          ...(Object.keys(initialFields).length > 0 ? { customFields: initialFields } : {}),
         }),
       });
       const json = await res.json();
@@ -2439,36 +2464,88 @@ export default function ProjectDetail({
                                 />
                               </span>
 
-                              {customColumns.map(col =>
-                                col.type === 'text' ? (
+                              {customColumns.map(col => {
+                                const draft = inlineTaskCustom[col.id];
+                                const label = `${col.title} for the new task`;
+                                const submitOnEnter = (e: React.KeyboardEvent) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleCreateInlineTask(group.rawDate);
+                                  } else if (e.key === 'Escape') {
+                                    setAddingTaskDate(null);
+                                    resetInlineDraft();
+                                  }
+                                };
+                                return (
                                   <span key={col.id} className="hidden md:block min-w-0">
-                                    <input
-                                      type="text"
-                                      value={inlineTaskNotes[col.id] ?? ''}
-                                      maxLength={NOTE_MAX_LENGTH}
-                                      placeholder="Add a note"
-                                      aria-label={`${col.title} for the new task`}
-                                      title={inlineTaskNotes[col.id] || undefined}
-                                      onChange={e => {
-                                        const value = e.target.value;
-                                        setInlineTaskNotes(prev => ({ ...prev, [col.id]: value }));
-                                      }}
-                                      onKeyDown={e => {
-                                        if (e.key === 'Enter') {
-                                          e.preventDefault();
-                                          handleCreateInlineTask(group.rawDate);
-                                        } else if (e.key === 'Escape') {
-                                          setAddingTaskDate(null);
-                                          resetInlineDraft();
-                                        }
-                                      }}
-                                      className="h-8 w-full min-w-0 px-2.5 rounded-md border border-[#E5E7EB] bg-white text-[12.5px] text-[#111111] placeholder-[#9CA3AF] outline-none transition-[border-color,box-shadow] duration-150 ease-out focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE]"
-                                    />
+                                    {col.type === 'text' && (
+                                      <input
+                                        type="text"
+                                        value={typeof draft === 'string' ? draft : ''}
+                                        maxLength={NOTE_MAX_LENGTH}
+                                        placeholder="Add a note"
+                                        aria-label={label}
+                                        title={typeof draft === 'string' && draft ? draft : undefined}
+                                        onChange={e => setInlineCustom(col.id, e.target.value)}
+                                        onKeyDown={submitOnEnter}
+                                        className="h-8 w-full min-w-0 px-2.5 rounded-md border border-[#E5E7EB] bg-white text-[12.5px] text-[#111111] placeholder-[#9CA3AF] outline-none transition-[border-color,box-shadow] duration-150 ease-out focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE]"
+                                      />
+                                    )}
+                                    {col.type === 'number' && (
+                                      <input
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={typeof draft === 'string' ? draft : ''}
+                                        placeholder="0"
+                                        aria-label={label}
+                                        aria-invalid={typeof draft === 'string' && parseInlineNumber(draft) === undefined}
+                                        onChange={e => setInlineCustom(col.id, e.target.value)}
+                                        onKeyDown={submitOnEnter}
+                                        className={`h-8 w-full min-w-0 px-2.5 rounded-md border border-[#E5E7EB] bg-white text-[12.5px] text-[#111111] placeholder-[#9CA3AF] outline-none transition-[border-color,box-shadow] duration-150 ease-out focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] ${
+                                          typeof draft === 'string' && parseInlineNumber(draft) === undefined
+                                            ? '!border-[#DC2626] focus:!ring-[#FEE2E2]'
+                                            : ''
+                                        }`}
+                                      />
+                                    )}
+                                    {col.type === 'date' && (
+                                      <DateField
+                                        variant="field"
+                                        label={label}
+                                        placeholder="Select date"
+                                        value={typeof draft === 'string' && draft ? draft : null}
+                                        onSave={value => setInlineCustom(col.id, value ?? '')}
+                                      />
+                                    )}
+                                    {col.type === 'checkbox' && (
+                                      <span className="flex items-center h-8">
+                                        <input
+                                          type="checkbox"
+                                          checked={draft === true}
+                                          aria-label={label}
+                                          onChange={e => setInlineCustom(col.id, e.target.checked)}
+                                          className="w-4 h-4 rounded border-[#D1D5DB] accent-[#2563EB] cursor-pointer"
+                                        />
+                                      </span>
+                                    )}
+                                    {col.type === 'dropdown' && (
+                                      <select
+                                        value={typeof draft === 'string' ? draft : ''}
+                                        aria-label={label}
+                                        onChange={e => setInlineCustom(col.id, e.target.value)}
+                                        className="h-8 w-full min-w-0 px-2.5 rounded-md border border-[#E5E7EB] bg-white text-[12.5px] text-[#111111] placeholder-[#9CA3AF] outline-none transition-[border-color,box-shadow] duration-150 ease-out focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] cursor-pointer px-2"
+                                      >
+                                        <option value="">Select</option>
+                                        {(col.options ?? []).map(o => (
+                                          <option key={o} value={o}>
+                                            {o}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    )}
                                   </span>
-                                ) : (
-                                  <span key={col.id} className="hidden md:block" aria-hidden="true" />
-                                )
-                              )}
+                                );
+                              })}
 
                               <span className="flex items-center justify-end gap-1">
                                 <button
@@ -2476,7 +2553,13 @@ export default function ProjectDetail({
                                   disabled={
                                     isCreatingInlineTask ||
                                     !inlineTaskTitle.trim() ||
-                                    (inlineTaskHours.trim() !== '' && parseHours(inlineTaskHours) === undefined)
+                                    (inlineTaskHours.trim() !== '' && parseHours(inlineTaskHours) === undefined) ||
+                                    customColumns.some(
+                                      c =>
+                                        c.type === 'number' &&
+                                        typeof inlineTaskCustom[c.id] === 'string' &&
+                                        parseInlineNumber(inlineTaskCustom[c.id] as string) === undefined
+                                    )
                                   }
                                   onClick={() => handleCreateInlineTask(group.rawDate)}
                                   title="Add task (Enter)"
