@@ -12,22 +12,31 @@ import type { ProjectMessage } from '@/api/projects/[id]/messages/route';
 import DatePicker from '@/components/ui/DatePicker';
 import AddProjectMembersModal from '@/components/AddProjectMembersModal';
 import { RadialTaskMenu } from '@/components/RadialTaskMenu';
+import { ColumnModal, DeleteColumnDialog, type ColumnDraft } from '@/components/project/ColumnModals';
+import { CustomFieldCell, DateField, HoursInput, TimeSpentCell } from '@/components/project/TaskColumnCells';
+import {
+  COLUMN_TYPE_META,
+  MAX_CUSTOM_COLUMNS,
+  newColumnId,
+  parseHours,
+  toDateInputValue,
+  type CustomColumn,
+  type CustomFieldValue,
+  type CustomFields,
+} from '@/lib/taskColumns';
 import {
   ArrowDown,
   ArrowUp,
-  ArrowUpDown,
-  Calendar,
+  Check,
+  ChevronLeft,
   ChevronRight,
-  Copy,
-  Edit2,
-  Filter,
   MoreHorizontal,
+  Pencil,
   Plus,
+  Search,
   Settings,
-  Sparkles,
   Trash2,
   UserPlus,
-  Users,
   X,
 } from 'lucide-react';
 
@@ -39,6 +48,12 @@ interface ProjectTask {
   priority: string;
   dueDate: string | null;
   estimate?: string | null;
+  /** Set automatically when status becomes "done" */
+  completedAt?: string | null;
+  updatedAt?: string | null;
+  /** Minutes */
+  timeSpent?: number | null;
+  customFields?: CustomFields | null;
   assignee?: {
     id: string;
     name: string;
@@ -52,10 +67,52 @@ interface ProjectTask {
 
 interface TaskDateGroup {
   dateKey: string;
+  /** e.g. "Thu, Nov 19" or "No due date" */
   label: string;
+  /** e.g. "Today", "Tomorrow", "In 3 days", "15 days ago" */
+  relative: string;
   rawDate: string | null;
   isToday: boolean;
+  isPast: boolean;
   tasks: ProjectTask[];
+  openCount: number;
+}
+
+type TaskSortKey = 'title' | 'status' | 'priority' | 'assignee' | 'completion' | 'timeSpent';
+
+const TASK_STATUS_ORDER: Record<string, number> = { backlog: 0, todo: 1, in_progress: 2, in_review: 3, done: 4 };
+const TASK_PRIORITY_ORDER: Record<string, number> = { low: 1, medium: 2, high: 3, urgent: 4 };
+
+/**
+ * Row grid. Mobile: Task | Status | Actions.
+ * Desktop: the track list is injected as `--task-cols` (system + custom columns, see `taskGrid`).
+ */
+const TASK_GRID_COLS =
+  'grid grid-cols-[minmax(0,1fr)_6.5rem_4.5rem] md:[grid-template-columns:var(--task-cols)] items-center gap-x-3';
+
+/** Built-in columns in display order. `rem` widths feed the grid template and its min width. */
+const SYSTEM_COLUMNS: { key: TaskSortKey; label: string; className: string; track: string; rem: number }[] = [
+  { key: 'title', label: 'Task', className: '', track: 'minmax(12rem,1fr)', rem: 12 },
+  { key: 'status', label: 'Status', className: '', track: '7rem', rem: 7 },
+  { key: 'priority', label: 'Priority', className: 'hidden md:flex', track: '6rem', rem: 6 },
+  { key: 'assignee', label: 'Assignee', className: 'hidden md:flex', track: '8.5rem', rem: 8.5 },
+  { key: 'completion', label: 'Completion date', className: 'hidden md:flex', track: '8rem', rem: 8 },
+  { key: 'timeSpent', label: 'Time spent', className: 'hidden md:flex', track: '6rem', rem: 6 },
+];
+
+/** Completion date chosen for the task (or auto-set when it was marked done) */
+function completionOf(task: ProjectTask): string | null {
+  return task.completedAt ?? null;
+}
+
+function relativeDayLabel(dateKey: string, todayKey: string): string {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const [ty, tm, td] = todayKey.split('-').map(Number);
+  const diff = Math.round((Date.UTC(y, m - 1, d) - Date.UTC(ty, tm - 1, td)) / 86_400_000);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Tomorrow';
+  if (diff === -1) return 'Yesterday';
+  return diff > 0 ? `In ${diff} days` : `${-diff} days ago`;
 }
 
 interface ProjectData {
@@ -75,6 +132,7 @@ interface ProjectData {
     email: string;
   } | null;
   tasks: ProjectTask[];
+  customColumns?: CustomColumn[] | null;
   totalTasks: number;
   completedTasks: number;
   inProgressTasks: number;
@@ -103,17 +161,6 @@ function getTwoLetterCapital(name?: string | null, fallbackAvatar?: string | nul
   }
 
   return parts[0].slice(0, 2).toUpperCase();
-}
-
-function formatTaskDate(d: string | null | undefined): string {
-  if (!d) return '—';
-  try {
-    const parsed = new Date(d);
-    if (isNaN(parsed.getTime())) return '—';
-    return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  } catch {
-    return '—';
-  }
 }
 
 function normalizeDateKey(dueDate?: string | null): string {
@@ -264,7 +311,6 @@ export default function ProjectDetail({
   projectId,
   onBack,
   onTaskClick,
-  onCreateTask,
   initialTab = 'overview',
 }: ProjectDetailProps) {
   const [project, setProject] = useState<ProjectData | null>(() => cachedProjectDetails.get(projectId) || null);
@@ -278,32 +324,40 @@ export default function ProjectDetail({
   const [taskToDelete, setTaskToDelete] = useState<ProjectTask | null>(null);
   const [isDeletingTask, setIsDeletingTask] = useState(false);
 
-  // Column header dropdown menu & table sorting (monday.com style)
-  const [openColumnMenu, setOpenColumnMenu] = useState<string | null>(null);
-  const [removedColumns, setRemovedColumns] = useState<string[]>([]);
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
-  const [showAddColumnMenu, setShowAddColumnMenu] = useState(false);
-  const [extraColumns, setExtraColumns] = useState<{ id: string; type: string; label: string }[]>([]);
+  // Column sorting (click a column header: asc → desc → off)
+  const [sortConfig, setSortConfig] = useState<{ key: TaskSortKey; direction: 'asc' | 'desc' } | null>(null);
 
-  // Inline row task creation states (monday.com editable cells)
+  // Custom columns: add/edit modal, delete confirmation, header menu
+  const [columnModal, setColumnModal] = useState<{ column?: CustomColumn } | null>(null);
+  const [columnToDelete, setColumnToDelete] = useState<CustomColumn | null>(null);
+  const [columnMenuId, setColumnMenuId] = useState<string | null>(null);
+  const [savingColumns, setSavingColumns] = useState(false);
+
+  // Date groups: today is always open; other dates are collapsed until clicked
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(() => new Set());
+
+  // Header overflow menu (Settings / Delete project)
+  const [showProjectMenu, setShowProjectMenu] = useState(false);
+
+  // Inline task creation inside a date group
   const [addingTaskDate, setAddingTaskDate] = useState<string | null>(null);
   const [inlineTaskTitle, setInlineTaskTitle] = useState('');
-  const [inlineTaskStatus, setInlineTaskStatus] = useState<Status>('todo');
   const [inlineTaskPriority, setInlineTaskPriority] = useState<Priority>('medium');
-  const [inlineTaskAssigneeId, setInlineTaskAssigneeId] = useState<string>('');
-  const [inlineTaskDueDate, setInlineTaskDueDate] = useState<string>('');
-  const [inlineTaskEstimate, setInlineTaskEstimate] = useState<string>('40');
+  const [inlineTaskStatus, setInlineTaskStatus] = useState<'todo' | 'in_progress' | 'in_review'>('todo');
+  const [inlineTaskCompletion, setInlineTaskCompletion] = useState(''); // YYYY-MM-DD
+  const [inlineTaskHours, setInlineTaskHours] = useState('');
   const [isCreatingInlineTask, setIsCreatingInlineTask] = useState(false);
 
   useEffect(() => {
+    if (!activeRowMenuId && !showProjectMenu && !columnMenuId) return;
     const handleOutsideClick = () => {
-      if (activeRowMenuId) setActiveRowMenuId(null);
-      if (openColumnMenu) setOpenColumnMenu(null);
-      if (showAddColumnMenu) setShowAddColumnMenu(false);
+      setActiveRowMenuId(null);
+      setShowProjectMenu(false);
+      setColumnMenuId(null);
     };
     window.addEventListener('click', handleOutsideClick);
     return () => window.removeEventListener('click', handleOutsideClick);
-  }, [activeRowMenuId, openColumnMenu, showAddColumnMenu]);
+  }, [activeRowMenuId, showProjectMenu, columnMenuId]);
 
   const handleDeleteTask = async () => {
     if (!taskToDelete) return;
@@ -332,10 +386,22 @@ export default function ProjectDetail({
     }
   };
 
+  const resetInlineDraft = () => {
+    setInlineTaskTitle('');
+    setInlineTaskPriority('medium');
+    setInlineTaskStatus('todo');
+    setInlineTaskCompletion('');
+    setInlineTaskHours('');
+  };
+
   const handleCreateInlineTask = async (rawDate: string | null) => {
     if (!inlineTaskTitle.trim() || isCreatingInlineTask || !project) return;
+    const minutes = parseHours(inlineTaskHours);
+    if (minutes === undefined) {
+      toast.error('Time spent: enter hours, for example 0.5 or 1.25');
+      return;
+    }
     setIsCreatingInlineTask(true);
-    const chosenDueDate = inlineTaskDueDate || rawDate || undefined;
     try {
       const res = await fetch('/api/tasks', {
         method: 'POST',
@@ -345,9 +411,12 @@ export default function ProjectDetail({
           projectId: project.id,
           status: inlineTaskStatus,
           priority: inlineTaskPriority,
-          assigneeId: inlineTaskAssigneeId || currentUserId || undefined,
-          dueDate: chosenDueDate,
-          estimate: inlineTaskEstimate.trim() || undefined,
+          // The creator is always the assignee
+          assigneeId: currentUserId || undefined,
+          // The group the task is added in defines its due date
+          dueDate: rawDate || undefined,
+          completedAt: inlineTaskCompletion || undefined,
+          timeSpent: minutes ?? undefined,
         }),
       });
       const json = await res.json();
@@ -363,11 +432,8 @@ export default function ProjectDetail({
               }
             : null
         );
-        setInlineTaskTitle('');
-        setInlineTaskStatus('todo');
-        setInlineTaskPriority('medium');
-        setInlineTaskAssigneeId('');
-        setInlineTaskEstimate('40');
+        // Keep the add row open for quick consecutive entry
+        resetInlineDraft();
       } else {
         toast.error(json.error?.message || 'Failed to create task');
       }
@@ -460,13 +526,23 @@ export default function ProjectDetail({
   const [isSaving, setIsSaving] = useState(false);
 
   const toast = useToast();
+  // Stable refs so fetchProject doesn't change identity on every toast / parent render
+  // (the toast context value is a new object whenever a toast shows, which used to
+  // re-fetch the whole project and overwrite optimistic updates).
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+  const onBackRef = useRef(onBack);
+  onBackRef.current = onBack;
 
   // Dismiss modals and popups on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (openColumnMenu) {
-          setOpenColumnMenu(null);
+        if (columnModal || columnToDelete) return;
+        if (columnMenuId) {
+          setColumnMenuId(null);
+        } else if (showProjectMenu) {
+          setShowProjectMenu(false);
         } else if (addingTaskDate) {
           setAddingTaskDate(null);
           setInlineTaskTitle('');
@@ -485,7 +561,7 @@ export default function ProjectDetail({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [openColumnMenu, addingTaskDate, lightboxImage, memberToRemove, isRemovingMember, showDeleteModal, isDeletingProject, showAddMemberModal, showEmailInviteModal]);
+  }, [columnModal, columnToDelete, columnMenuId, showProjectMenu, addingTaskDate, lightboxImage, memberToRemove, isRemovingMember, showDeleteModal, isDeletingProject, showAddMemberModal, showEmailInviteModal]);
 
   const fetchProject = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -507,17 +583,17 @@ export default function ProjectDetail({
         setLifecycleState(json.data.lifecycleState || 'ACTIVE');
       } else {
         if (signal?.aborted) return;
-        toast.error('Project not found');
-        onBack();
+        toastRef.current.error('Project not found');
+        onBackRef.current();
       }
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return;
       console.error('[ProjectDetail] Fetch error:', err);
-      toast.error('Failed to load project details');
+      toastRef.current.error('Failed to load project details');
     } finally {
       setLoading(false);
     }
-  }, [projectId, onBack, toast]);
+  }, [projectId]);
 
   const fetchMembers = useCallback(async () => {
     setMembersLoading(true);
@@ -1080,161 +1156,266 @@ export default function ProjectDetail({
     }
   };
 
-  const filteredTasks = (project?.tasks || []).filter(task => {
-    if (taskStatusFilter !== 'all' && task.status !== taskStatusFilter) return false;
-    if (taskSearch.trim()) {
-      const q = taskSearch.toLowerCase();
-      const matchTitle = task.title.toLowerCase().includes(q);
-      const matchNumber = task.taskNumber && task.taskNumber.toLowerCase().includes(q);
-      if (!matchTitle && !matchNumber) return false;
-    }
-    return true;
-  });
+  const searchQuery = taskSearch.trim().toLowerCase();
+  const isSearching = searchQuery.length > 0;
+
+  const filteredTasks = useMemo(
+    () =>
+      (project?.tasks || []).filter(task => {
+        if (taskStatusFilter !== 'all' && task.status !== taskStatusFilter) return false;
+        if (searchQuery) {
+          const matchTitle = task.title.toLowerCase().includes(searchQuery);
+          const matchNumber = task.taskNumber?.toLowerCase().includes(searchQuery);
+          if (!matchTitle && !matchNumber) return false;
+        }
+        return true;
+      }),
+    [project?.tasks, taskStatusFilter, searchQuery]
+  );
 
   const now = new Date();
   const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  const formattedCurrentDate = now.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
 
-  const allAssignees = useMemo(() => {
-    const list: Array<{ id: string; name: string; avatar?: string; role?: string }> = [];
-    const seen = new Set<string>();
-
-    if (project?.owner) {
-      list.push({
-        id: project.owner.id,
-        name: project.owner.name,
-        avatar: project.owner.avatar,
-        role: project.owner.role || 'Project Lead',
-      });
-      seen.add(project.owner.id);
-    }
-
-    for (const m of members) {
-      if (!seen.has(m.userId)) {
-        list.push({
-          id: m.userId,
-          name: m.name,
-          avatar: m.avatar,
-          role: m.role || 'Member',
-        });
-        seen.add(m.userId);
-      }
-    }
-
-    return list;
-  }, [project?.owner, members]);
-
-  const handleToggleSort = (colKey: string) => {
-    if (sortConfig?.key === colKey) {
-      if (sortConfig.direction === 'asc') {
-        setSortConfig({ key: colKey, direction: 'desc' });
-        toast.success(`Sorted by ${colKey} (Descending)`);
-      } else {
-        setSortConfig(null);
-        toast.success('Sort cleared');
-      }
-    } else {
-      setSortConfig({ key: colKey, direction: 'asc' });
-      toast.success(`Sorted by ${colKey} (Ascending)`);
-    }
+  const handleToggleSort = (key: TaskSortKey) => {
+    setSortConfig(prev => {
+      if (prev?.key !== key) return { key, direction: 'asc' };
+      if (prev.direction === 'asc') return { key, direction: 'desc' };
+      return null;
+    });
   };
 
-  const handleRemoveColumn = (colKey: string) => {
-    setRemovedColumns(prev => [...prev, colKey]);
-    setExtraColumns(prev => prev.filter(c => c.id !== colKey));
-    toast.success('Column removed');
+  const toggleDateGroup = (dateKey: string) => {
+    setExpandedDates(prev => {
+      const next = new Set(prev);
+      if (next.has(dateKey)) next.delete(dateKey);
+      else next.add(dateKey);
+      return next;
+    });
   };
 
+  const startInlineAdd = (dateKey: string) => {
+    setAddingTaskDate(dateKey);
+    resetInlineDraft();
+  };
+
+  /** Header "Add task": jump to the Tasks tab with the add row open under Today. */
+  const handleHeaderAddTask = () => {
+    setActiveTab('tasks');
+    setTaskSearch('');
+    startInlineAdd(todayKey);
+  };
+
+  /**
+   * Groups tasks by due date in O(N) (single Map pass), ordered:
+   * Today → upcoming (soonest first) → earlier (most recent first) → no due date.
+   */
   const taskDateGroups = useMemo<TaskDateGroup[]>(() => {
     const groupMap = new Map<string, ProjectTask[]>();
-
     for (const task of filteredTasks) {
       const key = normalizeDateKey(task.dueDate);
-      if (!groupMap.has(key)) {
-        groupMap.set(key, []);
-      }
-      groupMap.get(key)!.push(task);
+      const bucket = groupMap.get(key);
+      if (bucket) bucket.push(task);
+      else groupMap.set(key, [task]);
     }
 
-    // Always ensure Today's date section is present when not actively searching
-    if (!taskSearch.trim() && !groupMap.has(todayKey)) {
-      groupMap.set(todayKey, []);
-    }
+    // Today is always shown (unless searching) so new work can be added there
+    if (!isSearching && !groupMap.has(todayKey)) groupMap.set(todayKey, []);
 
-    // Sort keys descending (today/future dates first, then past dates, with 'no-date' last)
+    const rank = (key: string) => (key === todayKey ? 0 : key === 'no-date' ? 3 : key > todayKey ? 1 : 2);
     const sortedKeys = Array.from(groupMap.keys()).sort((a, b) => {
-      if (a === 'no-date') return 1;
-      if (b === 'no-date') return -1;
-      return b.localeCompare(a);
+      const ra = rank(a);
+      const rb = rank(b);
+      if (ra !== rb) return ra - rb;
+      return ra === 1 ? a.localeCompare(b) : b.localeCompare(a);
     });
 
-    const priorityWeight: Record<string, number> = {
-      urgent: 4,
-      high: 3,
-      medium: 2,
-      low: 1,
-    };
-
-    const statusWeight: Record<string, number> = {
-      todo: 1,
-      in_progress: 2,
-      in_review: 3,
-      done: 4,
-      backlog: 0,
-    };
-
-    const sortGroupTasks = (tasks: ProjectTask[]) => {
-      if (!sortConfig) return tasks;
-      return [...tasks].sort((a, b) => {
-        let cmp = 0;
-        if (sortConfig.key === 'task') {
-          cmp = (a.title || '').localeCompare(b.title || '');
-        } else if (sortConfig.key === 'status') {
-          cmp = (statusWeight[a.status] || 0) - (statusWeight[b.status] || 0);
-        } else if (sortConfig.key === 'priority') {
-          cmp = (priorityWeight[a.priority] || 0) - (priorityWeight[b.priority] || 0);
-        } else if (sortConfig.key === 'assignee') {
+    const compare = (a: ProjectTask, b: ProjectTask): number => {
+      if (!sortConfig) return 0;
+      let cmp = 0;
+      switch (sortConfig.key) {
+        case 'title':
+          cmp = a.title.localeCompare(b.title);
+          break;
+        case 'status':
+          cmp = (TASK_STATUS_ORDER[a.status] ?? 0) - (TASK_STATUS_ORDER[b.status] ?? 0);
+          break;
+        case 'priority':
+          cmp = (TASK_PRIORITY_ORDER[a.priority] ?? 0) - (TASK_PRIORITY_ORDER[b.priority] ?? 0);
+          break;
+        case 'assignee':
           cmp = (a.assignee?.name || '').localeCompare(b.assignee?.name || '');
-        } else if (sortConfig.key === 'dueDate') {
-          cmp = (a.dueDate || '').localeCompare(b.dueDate || '');
-        } else if (sortConfig.key === 'est') {
-          cmp = Number(a.estimate || 0) - Number(b.estimate || 0);
-        }
-        return sortConfig.direction === 'desc' ? -cmp : cmp;
-      });
+          break;
+        case 'completion':
+          cmp = (completionOf(a) || '').localeCompare(completionOf(b) || '');
+          break;
+        case 'timeSpent':
+          cmp = (a.timeSpent ?? -1) - (b.timeSpent ?? -1);
+          break;
+      }
+      return sortConfig.direction === 'desc' ? -cmp : cmp;
     };
 
     return sortedKeys.map(key => {
-      const isToday = key === todayKey;
-      const rawTasks = groupMap.get(key) || [];
-      const tasks = sortGroupTasks(rawTasks);
-      let label = 'No Due Date';
-      let rawDate: string | null = null;
+      const raw = groupMap.get(key) || [];
+      const tasks = sortConfig ? [...raw].sort(compare) : raw;
+      const openCount = tasks.reduce((n, t) => (t.status === 'done' ? n : n + 1), 0);
 
-      if (key !== 'no-date') {
-        rawDate = key;
-        const [y, m, d] = key.split('-').map(Number);
-        const parsed = new Date(y, m - 1, d);
-        const formatted = !isNaN(parsed.getTime())
-          ? parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-          : key;
-        label = isToday ? `Today • ${formatted}` : formatted;
+      if (key === 'no-date') {
+        return { dateKey: key, label: 'No due date', relative: '', rawDate: null, isToday: false, isPast: false, tasks, openCount };
       }
+
+      const [y, m, d] = key.split('-').map(Number);
+      const parsed = new Date(y, m - 1, d);
+      const label = isNaN(parsed.getTime())
+        ? key
+        : parsed.toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            ...(y !== now.getFullYear() ? { year: 'numeric' as const } : {}),
+          });
 
       return {
         dateKey: key,
         label,
-        rawDate,
-        isToday,
+        relative: relativeDayLabel(key, todayKey),
+        rawDate: key,
+        isToday: key === todayKey,
+        isPast: key < todayKey,
         tasks,
+        openCount,
       };
     });
-  }, [filteredTasks, todayKey, taskSearch, sortConfig]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredTasks, todayKey, isSearching, sortConfig]);
+
+  const customColumns = useMemo<CustomColumn[]>(() => project?.customColumns ?? [], [project?.customColumns]);
+
+  /** Desktop grid template + minimum table width (the table scrolls sideways below that). */
+  const taskGrid = useMemo(() => {
+    const tracks = [
+      ...SYSTEM_COLUMNS.map(c => c.track),
+      ...customColumns.map(c => COLUMN_TYPE_META[c.type].track),
+      '4.5rem', // row menu / add-row actions / "+" add-column button
+    ];
+    const rem =
+      SYSTEM_COLUMNS.reduce((n, c) => n + c.rem, 0) +
+      customColumns.reduce((n, c) => n + COLUMN_TYPE_META[c.type].rem, 0) +
+      4.5 +
+      (tracks.length - 1) * 0.75 + // column gaps (gap-x-3)
+      3.7; // left gutter (42px) + right padding (1rem)
+    return { cols: tracks.join(' '), minWidth: `${rem}rem` };
+  }, [customColumns]);
+
+  /** Optimistically saves Time spent / custom values for one task; reverts only the touched keys on failure. */
+  const saveTaskFields = async (
+    task: ProjectTask,
+    patch: {
+      timeSpent?: number | null;
+      /** YYYY-MM-DD, or null to clear */
+      completedAt?: string | null;
+      customFields?: Record<string, CustomFieldValue>;
+    }
+  ) => {
+    const prevTime = task.timeSpent ?? null;
+    const prevCompleted = task.completedAt ?? null;
+    const prevFields = task.customFields ?? {};
+    const touchedKeys = Object.keys(patch.customFields ?? {});
+
+    const apply = (fn: (t: ProjectTask) => ProjectTask) =>
+      setProject(prev => (prev ? { ...prev, tasks: prev.tasks.map(t => (t.id === task.id ? fn(t) : t)) } : prev));
+
+    apply(t => {
+      const next: ProjectTask = { ...t };
+      if ('timeSpent' in patch) next.timeSpent = patch.timeSpent ?? null;
+      if ('completedAt' in patch) next.completedAt = patch.completedAt ? `${patch.completedAt}T12:00:00.000Z` : null;
+      if (patch.customFields) {
+        const fields: CustomFields = { ...(t.customFields ?? {}) };
+        for (const [key, value] of Object.entries(patch.customFields)) {
+          if (value === null) delete fields[key];
+          else fields[key] = value;
+        }
+        next.customFields = fields;
+      }
+      return next;
+    });
+
+    try {
+      const res = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || json?.success === false) {
+        throw new Error(json?.error?.message || json?.message || 'Request failed');
+      }
+    } catch (err) {
+      apply(t => {
+        const next: ProjectTask = { ...t };
+        if ('timeSpent' in patch) next.timeSpent = prevTime;
+        if ('completedAt' in patch) next.completedAt = prevCompleted;
+        if (touchedKeys.length) {
+          const fields: CustomFields = { ...(t.customFields ?? {}) };
+          for (const key of touchedKeys) {
+            if (key in prevFields) fields[key] = prevFields[key];
+            else delete fields[key];
+          }
+          next.customFields = fields;
+        }
+        return next;
+      });
+      toast.error(err instanceof Error && err.message !== 'Request failed' ? err.message : 'Could not save your change');
+    }
+  };
+
+  /** Persists the project's column definitions; resolves true on success. */
+  const persistColumns = async (next: CustomColumn[], successMessage: string): Promise<boolean> => {
+    if (!project) return false;
+    setSavingColumns(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customColumns: next }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || json?.success === false) {
+        toast.error(json?.error?.message || 'Could not save columns');
+        return false;
+      }
+      const updated = { ...project, customColumns: next };
+      cachedProjectDetails.set(project.id, updated);
+      setProject(updated);
+      toast.success(successMessage);
+      return true;
+    } catch {
+      toast.error('Could not save columns');
+      return false;
+    } finally {
+      setSavingColumns(false);
+    }
+  };
+
+  const handleSubmitColumn = async (draft: ColumnDraft) => {
+    const editing = columnModal?.column;
+    const normalized: Omit<CustomColumn, 'id'> = {
+      type: editing?.type ?? draft.type,
+      title: draft.title,
+      ...(draft.options ? { options: draft.options } : {}),
+    };
+    const next = editing
+      ? customColumns.map(c => (c.id === editing.id ? { ...c, ...normalized } : c))
+      : [...customColumns, { id: newColumnId(), ...normalized }];
+    if (await persistColumns(next, editing ? 'Column updated' : 'Column added')) setColumnModal(null);
+  };
+
+  const handleConfirmDeleteColumn = async () => {
+    if (!columnToDelete) return;
+    if (await persistColumns(customColumns.filter(c => c.id !== columnToDelete.id), 'Column deleted')) {
+      setColumnToDelete(null);
+    }
+  };
 
   if (loading && !project) {
     return <ProjectDetailSkeleton onBack={onBack} />;
@@ -1244,101 +1425,131 @@ export default function ProjectDetail({
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto bg-white">
-      {/* Top Banner Navigation */}
-      <div className="border-b border-[#E5E7EB] bg-white px-4 sm:px-6 py-3.5 sm:py-4">
+      {/* Header: back link, title, actions, tabs */}
+      <div className="border-b border-[#E5E7EB] bg-white px-4 sm:px-6 pt-4">
         <button
+          type="button"
           onClick={onBack}
-          className="flex items-center gap-1.5 text-[12.5px] font-medium text-[rgba(17,17,17,0.5)] hover:text-[#111111] transition-colors mb-3"
+          className="inline-flex items-center gap-1 text-[12.5px] text-[rgba(17,17,17,0.5)] hover:text-[#111111] transition-colors cursor-pointer"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-          Back to Projects
+          <ChevronLeft className="w-3.5 h-3.5" />
+          Projects
         </button>
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-[19px] sm:text-[22px] font-bold text-[#111111] tracking-tight">
-              {project.name}
-            </h1>
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <div className="min-w-0 flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ backgroundColor: project.color || '#2563EB' }} aria-hidden="true" />
+            <h1 className="truncate text-[20px] sm:text-[22px] font-semibold tracking-tight text-[#111111]">{project.name}</h1>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             {isPMOrOwner && (
               <button
                 type="button"
                 onClick={() => setShowAddMemberModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E5E7EB] hover:bg-[#F9FAFB] hover:border-gray-300 text-[13px] font-medium text-[#111111] transition-colors cursor-pointer"
-                title="Add existing team members directly to project"
+                className="inline-flex items-center gap-1.5 h-8 px-2.5 sm:px-3 rounded-lg border border-[#E5E7EB] bg-white hover:bg-[#F9FAFB] text-[13px] font-medium text-[#111111] transition-colors cursor-pointer"
+                title="Add members"
               >
-                <UserPlus className="w-3.5 h-3.5 text-[#2563EB]" />
-                <span>Add Members</span>
-              </button>
-            )}
-            {onCreateTask && (
-              <button
-                onClick={() => onCreateTask(project.id)}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[13px] font-medium transition-colors shadow-xs"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                Add Task
+                <UserPlus className="w-4 h-4 text-[rgba(17,17,17,0.6)]" />
+                <span className="hidden sm:inline">Add members</span>
               </button>
             )}
             <button
-              onClick={() => setActiveTab('settings')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[13px] font-medium transition-colors ${activeTab === 'settings'
-                ? 'border-[#2563EB] bg-[#EFF6FF] text-[#2563EB]'
-                : 'border-[#E5E7EB] hover:bg-[#F9FAFB] text-[rgba(17,17,17,0.7)]'
-                }`}
+              type="button"
+              onClick={handleHeaderAddTask}
+              className="inline-flex items-center gap-1.5 h-8 px-2.5 sm:px-3 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[13px] font-medium transition-colors cursor-pointer"
+              title="Add task"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-              </svg>
-              Settings
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Add task</span>
             </button>
-            {isPM && (
+            <div className="relative" onClick={e => e.stopPropagation()}>
               <button
                 type="button"
-                onClick={() => setShowDeleteModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#FECACA] hover:bg-[#FEF2F2] text-[13px] font-medium text-[#DC2626] transition-colors cursor-pointer"
-                title="Delete Project"
+                onClick={() => setShowProjectMenu(v => !v)}
+                aria-label="Project options"
+                aria-haspopup="menu"
+                aria-expanded={showProjectMenu}
+                className={`inline-flex items-center justify-center w-8 h-8 rounded-lg border transition-colors cursor-pointer ${
+                  showProjectMenu || activeTab === 'settings'
+                    ? 'border-[#D1D5DB] bg-[#F3F4F6] text-[#111111]'
+                    : 'border-[#E5E7EB] bg-white hover:bg-[#F9FAFB] text-[rgba(17,17,17,0.6)]'
+                }`}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 6h18" />
-                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                </svg>
-                Delete
+                <MoreHorizontal className="w-4 h-4" />
               </button>
-            )}
+              {showProjectMenu && (
+                <div role="menu" className="absolute right-0 top-full mt-1.5 w-48 rounded-xl border border-[#E5E7EB] bg-white py-1 shadow-lg z-40">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setActiveTab('settings');
+                      setShowProjectMenu(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 h-9 text-left text-[13px] text-[#111111] hover:bg-[#F9FAFB] transition-colors cursor-pointer"
+                  >
+                    <Settings className="w-4 h-4 text-[rgba(17,17,17,0.5)]" />
+                    Project settings
+                  </button>
+                  {isPM && (
+                    <>
+                      <div className="my-1 border-t border-[#F3F4F6]" />
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setShowDeleteModal(true);
+                          setShowProjectMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 h-9 text-left text-[13px] text-[#DC2626] hover:bg-[#FEF2F2] transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete project
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Tabs switcher */}
-        <div className="flex items-center gap-4 sm:gap-5 mt-5 sm:mt-6 border-b border-[#F3F4F6] text-[13px] overflow-x-auto no-scrollbar">
+        {/* Tabs */}
+        <nav className="mt-3 flex items-center gap-5 overflow-x-auto no-scrollbar" aria-label="Project sections">
           {([
             { key: 'overview', label: 'Overview' },
-            { key: 'tasks', label: `Tasks (${project.totalTasks})` },
+            { key: 'tasks', label: 'Tasks', count: project.totalTasks },
             { key: 'about', label: 'About' },
             { key: 'members', label: 'Team' },
-            { key: 'messages', label: `Messages${messages.length > 0 ? ` (${messages.length})` : ''}` },
-          ] as { key: typeof activeTab; label: string }[]).map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`pb-2.5 font-medium border-b-2 whitespace-nowrap transition-colors shrink-0 ${activeTab === key
-                ? 'border-[#2563EB] text-[#2563EB] font-semibold'
-                : 'border-transparent text-[rgba(17,17,17,0.5)] hover:text-[#111111]'
+            { key: 'messages', label: 'Messages', count: messages.length },
+          ] as { key: typeof activeTab; label: string; count?: number }[]).map(({ key, label, count }) => {
+            const isActive = activeTab === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setActiveTab(key)}
+                aria-current={isActive ? 'page' : undefined}
+                className={`relative inline-flex items-center gap-1.5 h-10 shrink-0 whitespace-nowrap text-[13px] font-medium transition-colors duration-150 ease-out cursor-pointer ${
+                  isActive ? 'text-[#111111]' : 'text-[rgba(17,17,17,0.5)] hover:text-[#111111]'
                 }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+              >
+                {label}
+                {count ? (
+                  <span
+                    className={`min-w-[18px] h-[18px] px-1.5 inline-flex items-center justify-center rounded-full text-[11px] tabular-nums ${
+                      isActive ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F3F4F6] text-[rgba(17,17,17,0.5)]'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                ) : null}
+                {isActive && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-[#2563EB]" aria-hidden="true" />}
+              </button>
+            );
+          })}
+        </nav>
       </div>
 
       {/* Main Tab Content */}
@@ -1802,428 +2013,324 @@ export default function ProjectDetail({
           </div>
         )}
 
-        {/* Tab 2: Tasks List */}
+        {/* Tab 2: Tasks — grouped by due date. Today is always open; other dates expand on click. */}
         {activeTab === 'tasks' && (
           <div className="space-y-4">
-            {/* Filter toolbar: In the Red shows Current Date, In the Green shows Search Box */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              {/* In the Red: Current Date */}
-              <div className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl border border-[#E5E7EB] bg-white text-[13px] font-medium text-[#111111] shadow-2xs shrink-0">
-                <Calendar className="w-4 h-4 text-[#2563EB] shrink-0" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#2563EB] bg-[#EFF6FF] px-2 py-0.5 rounded-md border border-[#DBEAFE]/60">
-                  Today
-                </span>
-                <span className="text-[13px] font-medium text-[#111111]">
-                  {formattedCurrentDate}
-                </span>
+            {/* Toolbar: search + status filter */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+              <div className="relative w-full sm:max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9CA3AF] pointer-events-none" />
+                <input
+                  type="text"
+                  value={taskSearch}
+                  onChange={e => setTaskSearch(e.target.value)}
+                  placeholder="Search tasks"
+                  aria-label="Search tasks"
+                  className="w-full h-9 pl-9 pr-8 rounded-lg border border-[#E5E7EB] bg-white text-[13px] text-[#111111] placeholder-[#9CA3AF] outline-none transition-[border-color,box-shadow] duration-150 ease-out focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE]"
+                />
+                {taskSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setTaskSearch('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-[#9CA3AF] hover:text-[#111111] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+                    aria-label="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
 
-              {/* In the Green: Search box for task + Status filter */}
-              <div className="flex items-center gap-3 flex-1 sm:justify-end">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] text-[13px] focus-within:border-[#2563EB] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#DBEAFE] transition-all w-full sm:max-w-xs shadow-2xs">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" className="shrink-0">
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                  <input
-                    type="text"
-                    value={taskSearch}
-                    onChange={e => setTaskSearch(e.target.value)}
-                    placeholder="Search tasks..."
-                    className="bg-transparent text-[#111111] placeholder-[#9CA3AF] outline-none w-full text-[13px]"
-                  />
-                  {taskSearch && (
+              <div className="flex items-center gap-1 overflow-x-auto no-scrollbar sm:ml-auto" role="tablist" aria-label="Filter by status">
+                {(
+                  [
+                    ['all', 'All'],
+                    ['todo', 'To Do'],
+                    ['in_progress', 'In Progress'],
+                    ['in_review', 'In Review'],
+                    ['done', 'Done'],
+                    ...(project.tasks.some(t => t.status === 'backlog') ? [['backlog', 'Backlog']] : []),
+                  ] as [string, string][]
+                ).map(([value, label]) => {
+                  const isActive = taskStatusFilter === value;
+                  return (
                     <button
+                      key={value}
                       type="button"
-                      onClick={() => setTaskSearch('')}
-                      className="text-gray-400 hover:text-gray-600 text-xs px-1 cursor-pointer"
-                      aria-label="Clear search"
+                      role="tab"
+                      aria-selected={isActive}
+                      onClick={() => setTaskStatusFilter(value)}
+                      className={`h-8 px-3 rounded-md text-[12.5px] whitespace-nowrap transition-colors duration-150 ease-out cursor-pointer ${
+                        isActive
+                          ? 'bg-[#F3F4F6] text-[#111111] font-medium'
+                          : 'text-[rgba(17,17,17,0.55)] hover:text-[#111111] hover:bg-[#F9FAFB]'
+                      }`}
                     >
-                      ✕
+                      {label}
                     </button>
-                  )}
-                </div>
-
-                <select
-                  value={taskStatusFilter}
-                  onChange={e => setTaskStatusFilter(e.target.value)}
-                  className="text-[12px] border border-[#E5E7EB] rounded-xl px-3 py-1.5 bg-white text-[#111111] outline-none shadow-2xs cursor-pointer hover:border-gray-300 transition-colors shrink-0"
-                >
-                  <option value="all">All statuses</option>
-                  <option value="todo">To Do</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="in_review">In Review</option>
-                  <option value="done">Done</option>
-                </select>
+                  );
+                })}
               </div>
             </div>
 
+            {/* Task list (scrolls sideways when the columns don't fit) */}
+            <div className="overflow-x-auto rounded-xl border border-[#E5E7EB] bg-white">
+              <div
+                className="md:[min-width:var(--task-min)]"
+                style={{ '--task-cols': taskGrid.cols, '--task-min': taskGrid.minWidth } as React.CSSProperties}
+              >
+              {/* Column header (click a name to sort) */}
+              <div
+                className={`${TASK_GRID_COLS} h-9 pl-[42px] pr-4 border-b border-[#E5E7EB] bg-[#FAFAFA] text-[11px] font-medium uppercase tracking-wide text-[rgba(17,17,17,0.45)]`}
+              >
+                {SYSTEM_COLUMNS.map(col => {
+                  const isSorted = sortConfig?.key === col.key;
+                  return (
+                    <button
+                      key={col.key}
+                      type="button"
+                      onClick={() => handleToggleSort(col.key)}
+                      className={`${col.className || 'flex'} items-center gap-1 min-w-0 uppercase tracking-wide hover:text-[#111111] transition-colors cursor-pointer ${
+                        isSorted ? 'text-[#111111]' : ''
+                      }`}
+                      title={`Sort by ${col.label.toLowerCase()}`}
+                    >
+                      <span className="truncate">{col.label}</span>
+                      {isSorted &&
+                        (sortConfig.direction === 'asc' ? (
+                          <ArrowUp className="w-3 h-3 shrink-0" />
+                        ) : (
+                          <ArrowDown className="w-3 h-3 shrink-0" />
+                        ))}
+                    </button>
+                  );
+                })}
 
-            {/* Tasks table matching MyTasks Desktop Architecture with Date Grouping */}
-            <div className="border border-[#E5E7EB] rounded-xl overflow-visible bg-white shadow-2xs w-full">
-              <div className="overflow-x-auto w-full">
-                <div className="w-full min-w-[780px]">
-                  {/* Table header with monday.com style 3-dot column action menus */}
-                  <div className="flex items-center gap-3 px-5 py-3 bg-[#F9FAFB] border-b border-[#E5E7EB] rounded-t-xl text-[11px] font-semibold uppercase tracking-wider text-[rgba(17,17,17,0.5)] relative z-20">
-                    {[
-                      { key: 'task', label: 'Task', widthClass: 'flex-1', canHide: false, align: 'left' },
-                      { key: 'status', label: 'Status', widthClass: 'w-28', canHide: true, align: 'left' },
-                      { key: 'priority', label: 'Priority', widthClass: 'w-24', canHide: true, align: 'left' },
-                      { key: 'assignee', label: 'Assignee', widthClass: 'w-28', canHide: true, align: 'left' },
-                      { key: 'dueDate', label: 'Due Date', widthClass: 'w-28', canHide: true, align: 'left' },
-                      ...extraColumns.map(ec => ({
-                        key: ec.id,
-                        label: ec.label,
-                        widthClass: 'w-28',
-                        canHide: true,
-                        align: 'left',
-                      })),
-                      { key: 'actions', label: '', widthClass: 'w-20', canHide: false, align: 'right' },
-                    ]
-                      .filter(col => !removedColumns.includes(col.key))
-                      .map(col => {
-                        const isSortActive = sortConfig?.key === col.key;
-                        const isMenuOpen = openColumnMenu === col.key;
-
-                        return (
-                          <div
-                            key={col.key}
-                            className={`${col.widthClass} flex items-center justify-between group/col relative select-none shrink-0 ${
-                              col.align === 'right' ? 'justify-end pr-2' : ''
-                            } ${col.key === 'task' ? '!shrink' : ''}`}
-                          >
-                            <span className="flex items-center gap-1 truncate">
-                              {col.label}
-                              {isSortActive && (
-                                sortConfig.direction === 'asc' ? (
-                                  <ArrowUp className="w-3 h-3 text-[#2563EB] shrink-0" />
-                                ) : (
-                                  <ArrowDown className="w-3 h-3 text-[#2563EB] shrink-0" />
-                                )
-                              )}
-                            </span>
-
-                            {col.key !== 'actions' && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenColumnMenu(prev => (prev === col.key ? null : col.key));
-                                }}
-                                className={`p-1 rounded transition-all cursor-pointer shrink-0 ${
-                                  isMenuOpen
-                                    ? 'bg-[#2563EB] text-white shadow-xs opacity-100'
-                                    : 'text-gray-400 hover:text-gray-700 hover:bg-gray-200 opacity-0 group-hover/col:opacity-100'
-                                }`}
-                                title={`${col.label} column options`}
-                              >
-                                <MoreHorizontal className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-
-                            {/* Monday.com-style dropdown menu */}
-                            {isMenuOpen && (
-                              <div
-                                className={`absolute top-full mt-1.5 w-60 rounded-xl bg-[#1F2438] border border-[#373E5B] shadow-2xl py-1.5 z-50 text-[12.5px] text-gray-200 normal-case tracking-normal font-normal ${
-                                  col.align === 'right' || col.key === 'est' || col.key === 'dueDate' || col.key === 'assignee' || col.key.startsWith('extra-')
-                                    ? 'right-0'
-                                    : 'left-0'
-                                }`}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {/* Settings */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setOpenColumnMenu(null);
-                                    toast.info(`Settings for ${col.label} column`);
-                                  }}
-                                  className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[#2D3452] transition-colors cursor-pointer text-gray-200 hover:text-white"
-                                >
-                                  <Settings className="w-4 h-4 text-gray-400 shrink-0" />
-                                  <span>Settings</span>
-                                  <ChevronRight className="w-3.5 h-3.5 ml-auto text-gray-400" />
-                                </button>
-
-                                {/* AI-powered actions */}
-                                <div className="pt-1.5 pb-1 border-t border-[#313752] mt-1">
-                                  <div className="flex items-center gap-2 px-3 py-1 text-[11px] font-semibold text-gray-400 tracking-wider">
-                                    <span>AI-powered actions</span>
-                                    <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenColumnMenu(null);
-                                      toast.success(`AI Copilot: Auto-assigned smart labels for ${col.label}`);
-                                    }}
-                                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[#2D3452] transition-colors cursor-pointer text-gray-200 hover:text-white"
-                                  >
-                                    <Sparkles className="w-4 h-4 text-violet-400 shrink-0" />
-                                    <span>Auto-assign labels</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenColumnMenu(null);
-                                      toast.info(`AI Copilot: Custom prompt opened for ${col.label}`);
-                                    }}
-                                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[#2D3452] transition-colors cursor-pointer text-gray-200 hover:text-white"
-                                  >
-                                    <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-                                    <span>Set a custom prompt</span>
-                                  </button>
-                                </div>
-
-                                {/* Filter & Sort */}
-                                <div className="pt-1 border-t border-[#313752] mt-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenColumnMenu(null);
-                                      const searchInput = document.querySelector('input[placeholder="Search tasks..."]') as HTMLInputElement;
-                                      if (searchInput) searchInput.focus();
-                                    }}
-                                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[#2D3452] transition-colors cursor-pointer text-gray-200 hover:text-white"
-                                  >
-                                    <Filter className="w-4 h-4 text-gray-400 shrink-0" />
-                                    <span>Filter</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenColumnMenu(null);
-                                      handleToggleSort(col.key);
-                                    }}
-                                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[#2D3452] transition-colors cursor-pointer text-gray-200 hover:text-white"
-                                  >
-                                    <ArrowUpDown className="w-4 h-4 text-gray-400 shrink-0" />
-                                    <span>
-                                      {sortConfig?.key === col.key
-                                        ? sortConfig.direction === 'asc'
-                                          ? 'Sort Descending (Z-A)'
-                                          : 'Clear Sort'
-                                        : 'Sort Ascending (A-Z)'}
-                                    </span>
-                                    {sortConfig?.key === col.key && (
-                                      <span className="ml-auto text-[10px] text-blue-400 font-bold uppercase">
-                                        {sortConfig.direction}
-                                      </span>
-                                    )}
-                                  </button>
-                                </div>
-
-                                {/* Duplicate & Add column */}
-                                <div className="pt-1 border-t border-[#313752] mt-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenColumnMenu(null);
-                                      toast.info(`Duplicated column "${col.label}"`);
-                                    }}
-                                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[#2D3452] transition-colors cursor-pointer text-gray-200 hover:text-white"
-                                  >
-                                    <Copy className="w-4 h-4 text-gray-400 shrink-0" />
-                                    <span>Duplicate column</span>
-                                    <ChevronRight className="w-3.5 h-3.5 ml-auto text-gray-400" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenColumnMenu(null);
-                                      toast.info(`Add column to the right of "${col.label}"`);
-                                    }}
-                                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[#2D3452] transition-colors cursor-pointer text-gray-200 hover:text-white"
-                                  >
-                                    <Plus className="w-4 h-4 text-gray-400 shrink-0" />
-                                    <span>Add column to the right</span>
-                                    <ChevronRight className="w-3.5 h-3.5 ml-auto text-gray-400" />
-                                  </button>
-                                </div>
-
-                                {/* Rename & Remove */}
-                                <div className="pt-1 border-t border-[#313752] mt-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenColumnMenu(null);
-                                      const newName = window.prompt(`Rename "${col.label}" column:`, col.label);
-                                      if (newName && newName.trim()) {
-                                        setExtraColumns(prev =>
-                                          prev.map(c => (c.id === col.key ? { ...c, label: newName.trim() } : c))
-                                        );
-                                        toast.success(`Renamed column to "${newName.trim()}"`);
-                                      }
-                                    }}
-                                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[#2D3452] transition-colors cursor-pointer text-gray-200 hover:text-white"
-                                  >
-                                    <Edit2 className="w-4 h-4 text-gray-400 shrink-0" />
-                                    <span>Rename</span>
-                                  </button>
-                                  {col.canHide && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setOpenColumnMenu(null);
-                                        handleRemoveColumn(col.key);
-                                      }}
-                                      className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[#2D3452] transition-colors cursor-pointer text-red-400 hover:text-red-300"
-                                    >
-                                      <Trash2 className="w-4 h-4 text-red-400 shrink-0" />
-                                      <span>Remove</span>
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-
-                    {/* + Add Column button */}
-                    <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
+                {customColumns.map((col, i) => (
+                  <div key={col.id} className="group/col relative hidden md:flex items-center gap-0.5 min-w-0">
+                    <span className="truncate" title={col.title}>
+                      {col.title}
+                    </span>
+                    {isPMOrOwner && (
                       <button
                         type="button"
-                        onClick={() => setShowAddColumnMenu(prev => !prev)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium text-gray-400 hover:text-[#2563EB] hover:bg-[#EFF6FF] rounded-lg border border-dashed border-gray-200 hover:border-[#2563EB] transition-all cursor-pointer whitespace-nowrap normal-case tracking-normal"
+                        aria-label={`${col.title} column options`}
+                        aria-haspopup="menu"
+                        aria-expanded={columnMenuId === col.id}
+                        onClick={e => {
+                          e.stopPropagation();
+                          setColumnMenuId(prev => (prev === col.id ? null : col.id));
+                        }}
+                        className={`shrink-0 p-0.5 rounded text-[#9CA3AF] hover:text-[#111111] hover:bg-[#F3F4F6] transition-opacity cursor-pointer focus-visible:opacity-100 ${
+                          columnMenuId === col.id ? 'opacity-100 bg-[#F3F4F6] text-[#111111]' : 'opacity-0 group-hover/col:opacity-100'
+                        }`}
                       >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Add</span>
+                        <MoreHorizontal className="w-3.5 h-3.5" />
                       </button>
-                      {showAddColumnMenu && (
-                        <div className="absolute top-full right-0 mt-1.5 w-52 bg-white border border-[#E5E7EB] rounded-xl shadow-xl py-1.5 z-50 normal-case tracking-normal font-normal"
-                          onClick={e => e.stopPropagation()}>
-                          <div className="px-3 py-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-gray-400">Column Type</div>
-                          {[
-                            { type: 'text', emoji: '📝', label: 'Text' },
-                            { type: 'completionDate', emoji: '✅', label: 'Completion Date' },
-                            { type: 'file', emoji: '📎', label: 'File' },
-                            { type: 'spentTime', emoji: '⏱', label: 'Spent Time (min)' },
-                            { type: 'creationDate', emoji: '🗓', label: 'Creation Date' },
-                          ].map(opt => (
-                            <button
-                              key={opt.type}
-                              type="button"
-                              onClick={() => {
-                                setExtraColumns(prev => [
-                                  ...prev,
-                                  { id: `extra-${Date.now()}-${opt.type}`, type: opt.type, label: opt.label },
-                                ]);
-                                setShowAddColumnMenu(false);
-                              }}
-                              className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-[#F9FAFB] transition-colors cursor-pointer text-left text-[12.5px] text-gray-700"
-                            >
-                              <span>{opt.emoji}</span>
-                              <span>{opt.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    )}
+                    {columnMenuId === col.id && (
+                      <div
+                        role="menu"
+                        onClick={e => e.stopPropagation()}
+                        className={`absolute top-full mt-1 w-40 rounded-xl border border-[#E5E7EB] bg-white py-1 shadow-lg z-40 normal-case tracking-normal font-normal ${
+                          i >= customColumns.length - 1 ? 'right-0' : 'left-0'
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setColumnMenuId(null);
+                            setColumnModal({ column: col });
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 h-9 text-left text-[13px] text-[#111111] hover:bg-[#F9FAFB] transition-colors cursor-pointer"
+                        >
+                          <Pencil className="w-3.5 h-3.5 text-[rgba(17,17,17,0.5)]" />
+                          Edit column
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setColumnMenuId(null);
+                            setColumnToDelete(col);
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 h-9 text-left text-[13px] text-[#DC2626] hover:bg-[#FEF2F2] transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Delete column
+                        </button>
+                      </div>
+                    )}
                   </div>
+                ))}
 
-                  {/* Date Groups */}
-                  {taskDateGroups.length === 0 ? (
-                    <div className="p-8 text-center text-[13px] text-[rgba(17,17,17,0.4)]">
-                      No tasks found in this project matching your filter.
-                    </div>
-                  ) : (
-                    taskDateGroups.map((group, groupIndex) => {
-                      const isAddingThisGroup = addingTaskDate === group.dateKey;
+                <span className="flex justify-end">
+                  {isPMOrOwner && customColumns.length < MAX_CUSTOM_COLUMNS && (
+                    <button
+                      type="button"
+                      onClick={() => setColumnModal({})}
+                      aria-label="Add column"
+                      title="Add column"
+                      className="hidden md:inline-flex p-1 rounded-md text-[rgba(17,17,17,0.5)] hover:text-[#2563EB] hover:bg-[#EFF6FF] transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  )}
+                </span>
+              </div>
 
-                      return (
-                        <div key={group.dateKey} className="border-b border-[#E5E7EB] last:border-b-0">
-                          {/* Specific Date Header */}
-                          <div className="flex items-center justify-between px-5 py-2.5 bg-[#F9FAFB]/90 border-b border-[#E5E7EB] text-[12px] font-semibold text-[#111111]">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="w-3.5 h-3.5 text-[#2563EB]" />
-                              <span>{group.label}</span>
-                              {group.isToday && (
-                                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] border border-[#DBEAFE]">
-                                  Current Date
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-[11px] font-medium text-[rgba(17,17,17,0.45)]">
-                              {group.tasks.length} {group.tasks.length === 1 ? 'task' : 'tasks'}
-                            </span>
-                          </div>
+              {taskDateGroups.length === 0 ? (
+                <div className="px-4 py-12 text-center">
+                  <p className="text-[13px] text-[rgba(17,17,17,0.55)]">
+                    {isSearching ? `No tasks match “${taskSearch.trim()}”.` : 'No tasks match this filter.'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTaskSearch('');
+                      setTaskStatusFilter('all');
+                    }}
+                    className="mt-2 text-[12.5px] font-medium text-[#2563EB] hover:underline cursor-pointer"
+                  >
+                    Clear filters
+                  </button>
+                </div>
+              ) : (
+                taskDateGroups.map(group => {
+                  const isOpen = group.isToday || isSearching || expandedDates.has(group.dateKey);
+                  const isAddingHere = addingTaskDate === group.dateKey;
+                  const overdueCount = group.isPast ? group.openCount : 0;
+                  const countLabel = `${group.tasks.length} ${group.tasks.length === 1 ? 'task' : 'tasks'}`;
 
-                          {/* Tasks under this specific date */}
+                  return (
+                    <section key={group.dateKey} className="border-b border-[#F0F0F0] last:border-b-0">
+                      {/* Date row */}
+                      {group.isToday ? (
+                        <div className="flex items-center gap-2.5 h-11 px-4">
+                          <span className="w-4 flex justify-center shrink-0" aria-hidden="true">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB]" />
+                          </span>
+                          <span className="text-[13px] font-semibold text-[#111111]">Today</span>
+                          <span className="text-[12.5px] text-[rgba(17,17,17,0.45)]">{group.label}</span>
+                          <span className="ml-auto text-[12px] tabular-nums text-[rgba(17,17,17,0.45)]">{countLabel}</span>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => toggleDateGroup(group.dateKey)}
+                          disabled={isSearching}
+                          aria-expanded={isOpen}
+                          className="w-full flex items-center gap-2.5 h-11 px-4 text-left hover:bg-[#FAFAFA] transition-colors duration-100 ease-out cursor-pointer disabled:cursor-default disabled:hover:bg-transparent"
+                        >
+                          <ChevronRight
+                            className={`w-4 h-4 shrink-0 text-[#9CA3AF] transition-transform duration-150 ease-out ${isOpen ? 'rotate-90' : ''}`}
+                          />
+                          <span className="text-[13px] font-medium text-[#111111]">{group.label}</span>
+                          {group.relative && (
+                            <span className="hidden sm:inline text-[12px] text-[rgba(17,17,17,0.45)]">{group.relative}</span>
+                          )}
+                          <span className="ml-auto flex items-center gap-3 text-[12px] tabular-nums">
+                            {overdueCount > 0 && (
+                              <span className="font-medium text-[#DC2626]">{overdueCount} overdue</span>
+                            )}
+                            <span className="text-[rgba(17,17,17,0.45)]">{countLabel}</span>
+                          </span>
+                        </button>
+                      )}
+
+                      {isOpen && (
+                        <div>
+                          {group.tasks.length === 0 && !isAddingHere && (
+                            <p className="flex items-center h-10 pl-[42px] pr-4 border-t border-[#F3F4F6] text-[12.5px] text-[rgba(17,17,17,0.45)]">
+                              {taskStatusFilter === 'all' ? 'Nothing due today.' : 'No matching tasks due today.'}
+                            </p>
+                          )}
+
                           {group.tasks.map(task => {
-                            const statusCfg = statusColors[task.status as Status] || { bg: '#EFF6FF', text: '#2563EB', label: task.status };
-                            const priorityCfg = priorityColors[task.priority as Priority] || { color: '#6B7280', label: task.priority };
+                            const statusCfg = statusColors[task.status as Status] || { bg: '#F3F4F6', text: '#4B5563', label: task.status };
+                            const priorityCfg = priorityColors[task.priority as Priority] || { color: '#9CA3AF', label: task.priority };
+                            const isDone = task.status === 'done';
 
                             return (
                               <div
                                 key={task.id}
+                                role="button"
+                                tabIndex={0}
                                 onClick={() => onTaskClick(task.id)}
-                                className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer transition-colors hover:bg-[#F9FAFB] group border-b border-[#F3F4F6] ${
-                                  activeRowMenuId === task.id ? 'z-30 relative' : 'relative'
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter' && e.target === e.currentTarget) onTaskClick(task.id);
+                                }}
+                                className={`${TASK_GRID_COLS} relative min-h-11 py-2 pl-[42px] pr-4 border-t border-[#F3F4F6] cursor-pointer hover:bg-[#FAFAFA] focus-visible:bg-[#FAFAFA] outline-none transition-colors duration-100 ease-out ${
+                                  activeRowMenuId === task.id ? 'z-30' : ''
                                 }`}
                               >
-                                {/* 1. Task Title */}
-                                <div className="flex-1 min-w-0">
-                                  <span className={`text-[13.5px] font-medium text-[#111111] group-hover:text-[#2563EB] transition-colors truncate block ${task.status === 'done' ? 'line-through opacity-50' : ''}`}>
-                                    {task.title}
+                                <span
+                                  className={`truncate text-[13.5px] ${
+                                    isDone ? 'line-through text-[rgba(17,17,17,0.4)]' : 'text-[#111111]'
+                                  }`}
+                                >
+                                  {task.title}
+                                </span>
+
+                                <span>
+                                  <span
+                                    className="inline-block px-2 py-0.5 rounded-md text-[11.5px] font-medium whitespace-nowrap"
+                                    style={{ backgroundColor: statusCfg.bg, color: statusCfg.text }}
+                                  >
+                                    {statusCfg.label}
                                   </span>
-                                </div>
+                                </span>
 
-                                {/* 2. Status */}
-                                {!removedColumns.includes('status') && (
-                                  <div className="w-28">
-                                    <span
-                                      className="text-[11px] font-medium px-2.5 py-0.5 rounded-full whitespace-nowrap inline-block"
-                                      style={{ backgroundColor: statusCfg.bg, color: statusCfg.text }}
-                                    >
-                                      {statusCfg.label}
-                                    </span>
-                                  </div>
-                                )}
+                                <span className="hidden md:flex items-center gap-1.5 text-[12.5px] text-[rgba(17,17,17,0.7)]">
+                                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: priorityCfg.color }} />
+                                  {priorityCfg.label}
+                                </span>
 
-                                {/* 3. Priority */}
-                                {!removedColumns.includes('priority') && (
-                                  <div className="w-24">
-                                    <span className="text-[12.5px] text-[rgba(17,17,17,0.7)] font-normal">
-                                      {priorityCfg.label}
-                                    </span>
-                                  </div>
-                                )}
+                                <span className="hidden md:flex items-center gap-2 min-w-0">
+                                  {task.assignee ? (
+                                    <>
+                                      {renderUserAvatar(
+                                        task.assignee.avatar,
+                                        task.assignee.name,
+                                        'w-6 h-6',
+                                        'bg-[#2563EB] text-white text-[9px] font-bold'
+                                      )}
+                                      <span className="truncate text-[12.5px] text-[rgba(17,17,17,0.7)]">
+                                        {task.assignee.name.split(' ')[0]}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <span className="text-[12.5px] text-[rgba(17,17,17,0.35)]">Unassigned</span>
+                                  )}
+                                </span>
 
-                                {/* 4. Assignee */}
-                                {!removedColumns.includes('assignee') && (
-                                  <div className="w-28 flex items-center gap-2">
-                                    {task.assignee ? (
-                                      <>
-                                        <div className="w-6 h-6 rounded-full bg-[#1D4ED8] flex items-center justify-center text-[9px] font-bold text-white shrink-0">
-                                          {getTwoLetterCapital(task.assignee.name, task.assignee.avatar)}
-                                        </div>
-                                        <span className="text-[12.5px] text-[rgba(17,17,17,0.7)] truncate font-normal">
-                                          {task.assignee.name.split(' ')[0]}
-                                        </span>
-                                      </>
-                                    ) : (
-                                      <span className="text-[12px] text-[rgba(17,17,17,0.35)]">Unassigned</span>
-                                    )}
-                                  </div>
-                                )}
+                                <span className="hidden md:flex min-w-0">
+                                  <DateField
+                                    label={`completion date for ${task.title}`}
+                                    value={toDateInputValue(task.completedAt) || null}
+                                    onSave={value => saveTaskFields(task, { completedAt: value })}
+                                  />
+                                </span>
 
-                                {/* 5. Due Date */}
-                                {!removedColumns.includes('dueDate') && (
-                                  <span className="w-28 text-[12.5px] text-[rgba(17,17,17,0.6)]">
-                                    {formatTaskDate(task.dueDate)}
+                                <span className="hidden md:flex min-w-0">
+                                  <TimeSpentCell
+                                    minutes={task.timeSpent}
+                                    taskTitle={task.title}
+                                    onSave={minutes => saveTaskFields(task, { timeSpent: minutes })}
+                                  />
+                                </span>
+
+                                {customColumns.map(col => (
+                                  <span key={col.id} className="hidden md:flex min-w-0">
+                                    <CustomFieldCell
+                                      column={col}
+                                      value={task.customFields?.[col.id]}
+                                      onSave={value => saveTaskFields(task, { customFields: { [col.id]: value } })}
+                                    />
                                   </span>
-                                )}
-
-                                {/* Extra Columns */}
-                                {extraColumns.map(ec => (
-                                  <div key={ec.id} className="w-28 text-[12px] text-gray-400 italic shrink-0">
-                                    {ec.type === 'creationDate' ? new Date().toLocaleDateString() : '—'}
-                                  </div>
                                 ))}
 
-                                {/* 8. Actions */}
-                                <div className="w-20 flex items-center justify-end pr-1 shrink-0 relative" onClick={e => e.stopPropagation()}>
+                                <span className="flex justify-end" onClick={e => e.stopPropagation()}>
                                   <RadialTaskMenu
                                     isOpen={activeRowMenuId === task.id}
                                     onToggle={() => setActiveRowMenuId(prev => (prev === task.id ? null : task.id))}
@@ -2237,211 +2344,137 @@ export default function ProjectDetail({
                                     }}
                                     taskTitle={task.title}
                                   />
-                                </div>
+                                </span>
                               </div>
                             );
                           })}
 
-                          {/* Last Row: Add-able for this specific date */}
-                          {isAddingThisGroup ? (
-                            <div className="flex items-center gap-3 px-5 py-2.5 bg-[#F9FAFB]/70">
-                              {/* 1. Task Title Input */}
-                              <div className="flex-1 min-w-0">
-                                <input
-                                  type="text"
-                                  autoFocus
-                                  value={inlineTaskTitle}
-                                  onChange={e => setInlineTaskTitle(e.target.value)}
-                                  onKeyDown={e => {
-                                    if (e.key === 'Enter') {
-                                      e.preventDefault();
-                                      handleCreateInlineTask(group.rawDate);
-                                    } else if (e.key === 'Escape') {
-                                      setAddingTaskDate(null);
-                                      setInlineTaskTitle('');
-                                    }
-                                  }}
-                                  placeholder="Task title... (Press Enter to add)"
-                                  className="w-full text-[13px] px-3 py-1.5 bg-white border border-[#2563EB] rounded-lg outline-none text-[#111111] placeholder-[rgba(17,17,17,0.4)] shadow-2xs"
+                          {/* Inline add (due date = this group's date) */}
+                          {isAddingHere ? (
+                            <div className={`${TASK_GRID_COLS} py-2 pl-[42px] pr-4 border-t border-[#F3F4F6] bg-[#FAFAFA]`}>
+                              <input
+                                type="text"
+                                autoFocus
+                                value={inlineTaskTitle}
+                                onChange={e => setInlineTaskTitle(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleCreateInlineTask(group.rawDate);
+                                  } else if (e.key === 'Escape') {
+                                    setAddingTaskDate(null);
+                                    resetInlineDraft();
+                                  }
+                                }}
+                                placeholder="Task name"
+                                aria-label="New task name"
+                                className="h-8 w-full min-w-0 px-2.5 rounded-md border border-[#2563EB] bg-white text-[13px] text-[#111111] placeholder-[#9CA3AF] outline-none ring-2 ring-[#DBEAFE]"
+                              />
+
+                              <select
+                                value={inlineTaskStatus}
+                                onChange={e => setInlineTaskStatus(e.target.value as typeof inlineTaskStatus)}
+                                aria-label="Status"
+                                className="h-8 w-full min-w-0 px-2 rounded-md border border-[#E5E7EB] bg-white text-[12.5px] text-[#111111] outline-none cursor-pointer hover:border-[#D1D5DB] focus-visible:border-[#2563EB] focus-visible:ring-2 focus-visible:ring-[#DBEAFE] transition-colors"
+                              >
+                                <option value="todo">To Do</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="in_review">In Review</option>
+                              </select>
+
+                              <select
+                                value={inlineTaskPriority}
+                                onChange={e => setInlineTaskPriority(e.target.value as Priority)}
+                                aria-label="Priority"
+                                className="hidden md:block h-8 w-full min-w-0 px-2 rounded-md border border-[#E5E7EB] bg-white text-[12.5px] text-[#111111] outline-none cursor-pointer hover:border-[#D1D5DB] focus-visible:border-[#2563EB] focus-visible:ring-2 focus-visible:ring-[#DBEAFE] transition-colors"
+                              >
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                                <option value="urgent">Urgent</option>
+                              </select>
+
+                              {/* The creator is the assignee automatically */}
+                              <span className="hidden md:flex items-center gap-2 min-w-0" title="Tasks you create are assigned to you">
+                                {renderUserAvatar(
+                                  (session?.user as { avatar?: string } | undefined)?.avatar || session?.user?.image,
+                                  session?.user?.name,
+                                  'w-6 h-6',
+                                  'bg-[#2563EB] text-white text-[9px] font-bold'
+                                )}
+                                <span className="truncate text-[12.5px] text-[rgba(17,17,17,0.7)]">You</span>
+                              </span>
+
+                              <span className="hidden md:block min-w-0">
+                                <DateField
+                                  variant="field"
+                                  label="completion date"
+                                  placeholder="Select date"
+                                  value={inlineTaskCompletion || null}
+                                  onSave={value => setInlineTaskCompletion(value ?? '')}
                                 />
-                              </div>
+                              </span>
 
+                              <span className="hidden md:block min-w-0">
+                                <HoursInput
+                                  value={inlineTaskHours}
+                                  onChange={setInlineTaskHours}
+                                  onEnter={() => handleCreateInlineTask(group.rawDate)}
+                                  invalid={inlineTaskHours.trim() !== '' && parseHours(inlineTaskHours) === undefined}
+                                />
+                              </span>
 
-                              {/* 3. Status - Editable monday.com pill selector */}
-                              {!removedColumns.includes('status') && (
-                                <div className="w-28 relative">
-                                  <select
-                                    value={inlineTaskStatus}
-                                    onChange={e => setInlineTaskStatus(e.target.value as Status)}
-                                    className={`text-[11.5px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap outline-none cursor-pointer border transition-colors ${
-                                      inlineTaskStatus === 'todo'
-                                        ? 'bg-[#EFF6FF] text-[#2563EB] border-[#BFDBFE]'
-                                        : inlineTaskStatus === 'in_progress'
-                                        ? 'bg-[#FEF3C7] text-[#D97706] border-[#FDE68A]'
-                                        : inlineTaskStatus === 'in_review'
-                                        ? 'bg-[#F3E8FF] text-[#7E22CE] border-[#E9D5FF]'
-                                        : inlineTaskStatus === 'done'
-                                        ? 'bg-[#DCFCE7] text-[#15803D] border-[#BBF7D0]'
-                                        : 'bg-[#F3F4F6] text-[#4B5563] border-[#E5E7EB]'
-                                    }`}
-                                  >
-                                    <option value="todo">To Do</option>
-                                    <option value="in_progress">In Progress</option>
-                                    <option value="in_review">In Review</option>
-                                    <option value="done">Done</option>
-                                    <option value="backlog">Backlog</option>
-                                  </select>
-                                </div>
-                              )}
-
-                              {/* 4. Priority - Editable monday.com selector */}
-                              {!removedColumns.includes('priority') && (
-                                <div className="w-24 relative">
-                                  <select
-                                    value={inlineTaskPriority}
-                                    onChange={e => setInlineTaskPriority(e.target.value as Priority)}
-                                    className={`text-[11.5px] font-medium px-2 py-1 rounded-md outline-none cursor-pointer border transition-colors ${
-                                      inlineTaskPriority === 'urgent'
-                                        ? 'bg-[#FEE2E2] text-[#DC2626] border-[#FECACA]'
-                                        : inlineTaskPriority === 'high'
-                                        ? 'bg-[#FFEDD5] text-[#EA580C] border-[#FED7AA]'
-                                        : inlineTaskPriority === 'medium'
-                                        ? 'bg-[#FEF3C7] text-[#D97706] border-[#FDE68A]'
-                                        : 'bg-[#F3F4F6] text-[#4B5563] border-[#E5E7EB]'
-                                    }`}
-                                  >
-                                    <option value="low">Low</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="high">High</option>
-                                    <option value="urgent">Urgent</option>
-                                  </select>
-                                </div>
-                              )}
-
-                              {/* 5. Assignee - Editable selector with project members */}
-                              {!removedColumns.includes('assignee') && (
-                                <div className="w-28 relative">
-                                  <select
-                                    value={inlineTaskAssigneeId}
-                                    onChange={e => setInlineTaskAssigneeId(e.target.value)}
-                                    className="w-full text-[11.5px] border border-[#E5E7EB] bg-white rounded-md px-1.5 py-1 text-gray-700 outline-none cursor-pointer hover:border-gray-300 transition-colors"
-                                  >
-                                    <option value="">Unassigned</option>
-                                    {allAssignees.map(a => (
-                                      <option key={a.id} value={a.id}>
-                                        {a.name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-                              )}
-
-                              {/* 6. Due Date - Editable date input */}
-                              {!removedColumns.includes('dueDate') && (
-                                <div className="w-28">
-                                  <input
-                                    type="date"
-                                    value={inlineTaskDueDate}
-                                    onChange={e => setInlineTaskDueDate(e.target.value)}
-                                    className="text-[11.5px] border border-[#E5E7EB] bg-white rounded-md px-1.5 py-1 text-gray-700 outline-none hover:border-gray-300 transition-colors cursor-pointer w-full"
-                                  />
-                                </div>
-                              )}
-
-
-                              {/* Extra Columns */}
-                              {extraColumns.map(ec => (
-                                <div key={ec.id} className="w-28 shrink-0">
-                                  {ec.type === 'text' && (
-                                    <input
-                                      type="text"
-                                      placeholder="Text..."
-                                      className="w-full text-[11.5px] border border-[#E5E7EB] bg-white rounded-md px-2 py-1 text-gray-700 outline-none hover:border-gray-300"
-                                    />
-                                  )}
-                                  {ec.type === 'completionDate' && (
-                                    <input
-                                      type="date"
-                                      className="w-full text-[11.5px] border border-[#E5E7EB] bg-white rounded-md px-1 py-1 text-gray-700 outline-none hover:border-gray-300 cursor-pointer"
-                                    />
-                                  )}
-                                  {ec.type === 'spentTime' && (
-                                    <input
-                                      type="number"
-                                      placeholder="0 min"
-                                      className="w-full text-[11.5px] border border-[#E5E7EB] bg-white rounded-md px-2 py-1 text-gray-700 outline-none hover:border-gray-300 text-center"
-                                    />
-                                  )}
-                                  {ec.type === 'creationDate' && (
-                                    <span className="text-[11.5px] text-gray-400 block px-1 py-1">
-                                      {new Date().toLocaleDateString()}
-                                    </span>
-                                  )}
-                                  {ec.type === 'file' && (
-                                    <span className="text-[11.5px] text-gray-400 italic block px-1 py-1">
-                                      —
-                                    </span>
-                                  )}
-                                </div>
+                              {customColumns.map(col => (
+                                <span key={col.id} className="hidden md:block" aria-hidden="true" />
                               ))}
 
-                              {/* 8. Actions (Add / Cancel) */}
-                              <div className="w-20 flex items-center justify-end gap-1.5 pr-1 shrink-0">
+                              <span className="flex items-center justify-end gap-1">
                                 <button
                                   type="button"
-                                  disabled={isCreatingInlineTask || !inlineTaskTitle.trim()}
+                                  disabled={
+                                    isCreatingInlineTask ||
+                                    !inlineTaskTitle.trim() ||
+                                    (inlineTaskHours.trim() !== '' && parseHours(inlineTaskHours) === undefined)
+                                  }
                                   onClick={() => handleCreateInlineTask(group.rawDate)}
-                                  className="px-2.5 py-1 text-[11.5px] font-semibold bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-md shadow-2xs transition-colors disabled:opacity-50 cursor-pointer"
+                                  title="Add task (Enter)"
+                                  aria-label="Add task"
+                                  className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-[#2563EB] hover:bg-[#1D4ED8] text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                                 >
-                                  {isCreatingInlineTask ? '...' : 'Add'}
+                                  <Check className="w-4 h-4" />
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => {
                                     setAddingTaskDate(null);
-                                    setInlineTaskTitle('');
+                                    resetInlineDraft();
                                   }}
-                                  className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-200 transition-colors cursor-pointer"
+                                  className="inline-flex items-center justify-center w-8 h-8 rounded-md text-[#9CA3AF] hover:text-[#111111] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
                                   title="Cancel (Esc)"
+                                  aria-label="Cancel"
                                 >
                                   <X className="w-3.5 h-3.5" />
                                 </button>
-                              </div>
+                              </span>
                             </div>
                           ) : (
-                            <div
-                              onClick={() => {
-                                setAddingTaskDate(group.dateKey);
-                                setInlineTaskTitle('');
-                                setInlineTaskStatus('todo');
-                                setInlineTaskPriority('medium');
-                                setInlineTaskAssigneeId(currentUserId || '');
-                                setInlineTaskDueDate(group.rawDate || todayKey);
-                                setInlineTaskEstimate('40');
-                              }}
-                              className="flex items-center gap-3 px-5 py-2.5 cursor-pointer transition-colors hover:bg-[#F9FAFB] text-[rgba(17,17,17,0.55)] hover:text-[#2563EB] group"
-                            >
-                              <div className="flex-1 min-w-0 flex items-center gap-2">
-                                <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#2563EB] transition-colors" />
-                                <span className="text-[13px] font-medium">Add task</span>
-                              </div>
-                              {!removedColumns.includes('status') && <div className="w-28"></div>}
-                              {!removedColumns.includes('priority') && <div className="w-24"></div>}
-                              {!removedColumns.includes('assignee') && <div className="w-28"></div>}
-                              {!removedColumns.includes('dueDate') && (
-                                <span className="w-28 text-[12px] text-[rgba(17,17,17,0.35)] opacity-0 group-hover:opacity-100 transition-opacity">
-                                  {formatTaskDate(group.rawDate)}
-                                </span>
-                              )}
-                              {extraColumns.map(ec => <div key={ec.id} className="w-28"></div>)}
-                              <div className="w-20"></div>
-                            </div>
+                            !isSearching && (
+                              <button
+                                type="button"
+                                onClick={() => startInlineAdd(group.dateKey)}
+                                className="w-full flex items-center gap-2 h-10 pl-[42px] pr-4 border-t border-[#F3F4F6] text-[13px] text-[rgba(17,17,17,0.45)] hover:text-[#2563EB] hover:bg-[#FAFAFA] transition-colors duration-100 ease-out cursor-pointer"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                                Add task
+                              </button>
+                            )
                           )}
                         </div>
-                      );
-                    })
-                  )}
-                </div>
+                      )}
+                    </section>
+                  );
+                })
+              )}
               </div>
             </div>
           </div>
@@ -2929,6 +2962,24 @@ export default function ProjectDetail({
       </div>
 
       {/* Dedicated Professional Add Project Members Modal (Direct Enrollment, No Email) */}
+      {columnModal && (
+        <ColumnModal
+          column={columnModal.column}
+          otherTitles={customColumns.filter(c => c.id !== columnModal.column?.id).map(c => c.title)}
+          busy={savingColumns}
+          onSubmit={handleSubmitColumn}
+          onClose={() => !savingColumns && setColumnModal(null)}
+        />
+      )}
+      {columnToDelete && (
+        <DeleteColumnDialog
+          column={columnToDelete}
+          busy={savingColumns}
+          onConfirm={handleConfirmDeleteColumn}
+          onClose={() => !savingColumns && setColumnToDelete(null)}
+        />
+      )}
+
       <AddProjectMembersModal
         projectId={project.id}
         projectName={project.name}

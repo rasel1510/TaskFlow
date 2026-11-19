@@ -152,7 +152,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       where: { id },
       select: {
         id: true, status: true, priority: true, title: true,
-        dueDate: true, assigneeId: true, projectId: true,
+        dueDate: true, assigneeId: true, projectId: true, customFields: true, completedAt: true,
       },
     });
     if (!existing) {
@@ -171,6 +171,32 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
     if ('dueDate' in body) {
       updateData.dueDate = body.dueDate ? parseSafeDate(body.dueDate as string) : null;
+    }
+
+    // Time spent (whole minutes, null clears)
+    if ('timeSpent' in body) {
+      updateData.timeSpent = typeof body.timeSpent === 'number' ? body.timeSpent : null;
+    }
+
+    // Custom column values: merge per key so concurrent edits to different columns don't clobber
+    // each other. A null value removes that key.
+    if (body.customFields && typeof body.customFields === 'object') {
+      const merged: Record<string, unknown> = {
+        ...((existing.customFields as Record<string, unknown> | null) ?? {}),
+      };
+      for (const [key, value] of Object.entries(body.customFields as Record<string, unknown>)) {
+        if (value === null) delete merged[key];
+        else merged[key] = value;
+      }
+      updateData.customFields = merged;
+    }
+
+    // Completion date is chosen by the user (YYYY-MM-DD, null clears it).
+    // If a task becomes "done" and no date has been set, default to now.
+    if ('completedAt' in body) {
+      updateData.completedAt = body.completedAt ? parseSafeDate(body.completedAt as string) ?? null : null;
+    } else if (updateData.status === 'done' && existing.status !== 'done' && !existing.completedAt) {
+      updateData.completedAt = new Date();
     }
 
     // assigneeId — resolve once, skip if unchanged
@@ -290,6 +316,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         redisCache.delPattern('tasks:*'),
         redisCache.delPattern('reports:*'),
         redisCache.delPattern('projects:*'),
+        redisCache.delPattern('project:detail:*'),
       );
 
       await Promise.allSettled(logs);
@@ -356,6 +383,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
         redisCache.delPattern('tasks:*'),
         redisCache.delPattern('reports:*'),
         redisCache.delPattern('projects:*'),
+        redisCache.delPattern('project:detail:*'),
       ]);
     });
 

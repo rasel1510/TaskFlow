@@ -60,6 +60,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
                 priority: true,
                 dueDate: true,
                 estimate: true,
+                completedAt: true,
+                timeSpent: true,
+                customFields: true,
                 createdAt: true,
                 updatedAt: true,
                 assignee: {
@@ -181,7 +184,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const parsed = UpdateProjectSchema.safeParse(body);
     if (!parsed.success) return validationError(parsed.error);
 
-    const { name, description, color, startDate, dueDate } = parsed.data;
+    const { name, description, color, startDate, dueDate, customColumns } = parsed.data;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateData: Record<string, any> = {};
@@ -190,6 +193,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (color !== undefined) updateData.color = color;
     if (startDate !== undefined) updateData.startDate = parseSafeDate(startDate);
     if (dueDate !== undefined) updateData.dueDate = parseSafeDate(dueDate);
+    // Custom task-table columns (structure only; per-task values live on each task)
+    if (customColumns !== undefined) updateData.customColumns = customColumns;
     if (body.health !== undefined && typeof body.health === 'string') updateData.health = body.health;
 
     // Step 4.11 Lifecycle State Transition Validation
@@ -246,6 +251,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
       await Promise.all([
         redisCache.delPattern('projects:*'),
+        redisCache.delPattern('project:detail:*'),
         redisCache.delPattern('reports:*'),
       ]).catch(() => {});
 

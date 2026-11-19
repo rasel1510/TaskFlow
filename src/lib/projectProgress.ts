@@ -35,6 +35,7 @@ export async function recomputeProjectProgress(projectId: string): Promise<numbe
     // Invalidate project and report caches
     await Promise.all([
       redisCache.delPattern('projects:*'),
+      redisCache.delPattern('project:detail:*'),
       redisCache.delPattern('reports:*'),
     ]);
 

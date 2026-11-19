@@ -242,7 +242,7 @@ export async function POST(request: NextRequest) {
     const parsed = CreateTaskSchema.safeParse(body);
     if (!parsed.success) return validationError(parsed.error);
 
-    const { title, projectId, assigneeId, status, priority, dueDate, description, estimate, labels } = parsed.data;
+    const { title, projectId, assigneeId, status, priority, dueDate, description, estimate, labels, completedAt, timeSpent } = parsed.data;
 
     // 1. Resolve creator / assignee — prefer email (always canonical) over ID
     let sessionUserId: string | undefined;
@@ -375,6 +375,9 @@ export async function POST(request: NextRequest) {
         estimate: typeof estimate === 'string' ? estimate.trim() : undefined,
         labels: Array.isArray(labels) ? labels : [],
         dueDate: parseSafeDate(dueDate),
+        // User-picked completion date; tasks created already "done" default to now
+        completedAt: (completedAt ? parseSafeDate(completedAt) : undefined) ?? (status === 'done' ? new Date() : null),
+        timeSpent: timeSpent ?? null,
       },
       include: {
         assignee: {
@@ -426,6 +429,7 @@ export async function POST(request: NextRequest) {
         redisCache.delPattern('tasks:*'),
         redisCache.delPattern('reports:*'),
         redisCache.delPattern('projects:*'),
+        redisCache.delPattern('project:detail:*'),
         redisCache.delPattern('notifs:*'),
       ]);
     });

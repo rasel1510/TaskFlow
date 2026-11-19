@@ -106,6 +106,7 @@ export async function POST(request: NextRequest) {
             redisCache.delPattern('tasks:*'),
             redisCache.delPattern('reports:*'),
             redisCache.delPattern('projects:*'),
+            redisCache.delPattern('project:detail:*'),
           ]);
         } catch (err) {
           console.error('[bulk delete] Background cleanup error:', err);
@@ -120,6 +121,14 @@ export async function POST(request: NextRequest) {
       if (payload.status) updateData.status = payload.status;
       if (payload.priority) updateData.priority = payload.priority;
       // Note: assigneeId is a relation field — not directly settable via updateMany mutation input
+
+      // Default the completion date to now when tasks become "done" without one
+      if (payload.status === 'done') {
+        await prisma.task.updateMany({
+          where: { id: { in: ids }, status: { not: 'done' }, completedAt: null },
+          data: { completedAt: new Date() },
+        });
+      }
 
       const updateResult = await prisma.task.updateMany({
         where: { id: { in: ids } },
@@ -136,6 +145,7 @@ export async function POST(request: NextRequest) {
         redisCache.delPattern('tasks:*'),
         redisCache.delPattern('reports:*'),
         redisCache.delPattern('projects:*'),
+        redisCache.delPattern('project:detail:*'),
       ]);
 
       return NextResponse.json(

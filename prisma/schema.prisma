@@ -121,6 +121,8 @@ model Project {
   dueDate        DateTime?
   lifecycleState String        @default("ACTIVE")
   archivedAt     DateTime?
+  // Custom task-table columns defined for this project: [{ id, type, title, options? }]
+  customColumns  Json?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -199,6 +201,12 @@ model Task {
   estimate         String?
   labels           String[]  @default([])
   progress         Int?
+  // Completion date is set automatically when status becomes "done" (cleared when reopened)
+  completedAt      DateTime?
+  // Time spent on the task, in whole minutes
+  timeSpent        Int?
+  // Values of project-defined custom columns: { [columnId]: string | number | boolean }
+  customFields     Json?
   commentsCount    Int       @default(0)
   attachmentsCount Int       @default(0)
   createdAt        DateTime  @default(now())

@@ -30,6 +30,28 @@ export const PROJECT_HEALTHS = ['on_track', 'at_risk', 'delayed', 'completed'] a
 // Task schemas
 // ---------------------------------------------------------------------------
 
+export const CUSTOM_COLUMN_TYPES = ['text', 'number', 'date', 'checkbox', 'dropdown'] as const;
+
+const CUSTOM_COLUMN_ID = /^col_[a-z0-9]{4,24}$/;
+
+export const CustomColumnSchema = z.object({
+  id: z.string().regex(CUSTOM_COLUMN_ID, 'Invalid column id'),
+  type: z.enum(CUSTOM_COLUMN_TYPES),
+  title: z.string().trim().min(1, 'Column name cannot be empty').max(40, 'Column name must be 40 characters or fewer'),
+  options: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
+});
+
+export const CustomColumnsSchema = z
+  .array(CustomColumnSchema)
+  .max(20, 'A project can have at most 20 custom columns')
+  .refine(cols => new Set(cols.map(c => c.id)).size === cols.length, 'Duplicate column ids');
+
+export type CustomColumnInput = z.infer<typeof CustomColumnSchema>;
+
+export const CustomFieldsSchema = z
+  .record(z.string().regex(CUSTOM_COLUMN_ID), z.union([z.string().max(1000), z.number().finite(), z.boolean(), z.null()]))
+  .refine(v => Object.keys(v).length <= 20, 'Too many custom fields');
+
 export const CreateTaskSchema = z.object({
   title: z
     .string()
@@ -69,6 +91,15 @@ export const CreateTaskSchema = z.object({
     .string()
     .max(10_000, 'Description must be 10,000 characters or fewer')
     .optional(),
+
+  /** Time spent in whole minutes (max one year); null clears it */
+  timeSpent: z.number().int().min(0).max(525_600).nullable().optional(),
+
+  /** Completion date chosen by the user (YYYY-MM-DD); null clears it */
+  completedAt: z.string().max(40).nullable().optional(),
+
+  /** Values for project custom columns, keyed by column id. null removes a value. */
+  customFields: CustomFieldsSchema.optional(),
 });
 
 /**
@@ -165,6 +196,8 @@ export const CreateProjectSchema = z.object({
 
   startDate: z.string().optional(),
   dueDate:   z.string().optional(),
+
+  customColumns: CustomColumnsSchema.optional(),
 
   initialMembers: z
     .array(
