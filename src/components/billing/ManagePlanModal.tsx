@@ -201,7 +201,7 @@ export default function ManagePlanModal({
           onClose();
         }, 1500);
       } else {
-        setPromoError(data.error || 'Invalid promotional code. Please try FLOWVIP or SUPERVISOR100.');
+        setPromoError(data.error || 'Invalid promotional code.');
       }
     } catch (err) {
       setPromoError('Network error while verifying promo code.');
@@ -522,7 +522,7 @@ export default function ManagePlanModal({
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="e.g. FLOWVIP or SUPERVISOR100"
+                      placeholder="Enter promo code"
                       value={promoCode}
                       onChange={e => setPromoCode(e.target.value.toUpperCase())}
                       className="flex-1 px-3 py-2 rounded-lg text-xs font-mono bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-900 dark:text-white uppercase placeholder:text-slate-400"

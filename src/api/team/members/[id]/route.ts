@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
+import { normalizeDesignation, isSuperAdmin } from '@/lib/permissions';
 import { getOrProvisionUserTeam } from '@/lib/tenant';
 import { updateStoredUser } from '@/data/userStore';
 
@@ -88,6 +89,17 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     }
 
     const { role: newRole } = parsed.data;
+
+    // Platform-level Super Admin can never be granted by a workspace admin
+    if (
+      normalizeDesignation(newRole) === 'Super Admin' &&
+      !isSuperAdmin(session?.user as { email?: string; role?: string; teamName?: string } | undefined)
+    ) {
+      return NextResponse.json(
+        { success: false, error: { code: 'FORBIDDEN', message: 'The Super Admin role cannot be assigned here' } },
+        { status: 403 }
+      );
+    }
 
     // Ensure target member belongs to the same team
     const targetMember = await prisma.user.findFirst({

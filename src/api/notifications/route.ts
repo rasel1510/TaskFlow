@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
       sessionUserId = session?.user?.id;
     } catch { }
 
-    const requestedUserId = searchParams.get('userId');
-    const targetUserId = sessionUserId || requestedUserId;
+    // Session only — ?userId= is ignored so nobody can read another user's inbox
+    const targetUserId = sessionUserId;
 
     // When signed out, return immediately without touching the database
     if (!targetUserId) {
@@ -239,8 +239,9 @@ export async function PATCH(request: NextRequest) {
       const readVal = body.read ?? true;
       if (notifModel) {
         try {
-          await notifModel.update({
-            where: { id: body.id },
+          // Scope by owner so users can only change their own notifications
+          await notifModel.updateMany({
+            where: { id: body.id, userId: targetUserId },
             data: { read: readVal },
           });
         } catch { }
@@ -271,15 +272,16 @@ export async function POST(request: NextRequest) {
       sessionUserId = session?.user?.id;
     } catch {}
 
-    const body = await request.json();
-    const targetUserId = body.userId || sessionUserId;
-
-    if (!targetUserId) {
+    // Clients may only create notifications for themselves (e.g. Settings → test notification).
+    // Notifications for other users are created server-side by the routes that trigger them.
+    if (!sessionUserId) {
       return NextResponse.json(
-        { success: false, error: { code: 'UNAUTHORIZED', message: 'Target user ID is required' } },
-        { status: 400 }
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
+        { status: 401 }
       );
     }
+    const body = await request.json();
+    const targetUserId = sessionUserId;
 
     const notifModel = getNotificationDelegate();
     let createdRecord = null;

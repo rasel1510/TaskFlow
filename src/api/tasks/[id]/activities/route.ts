@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { timeAgo } from '@/lib/timeAgo';
+import { requireTaskAccess } from '@/lib/access';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -21,6 +22,9 @@ interface RouteContext {
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
     const { id: taskId } = await context.params;
+
+    const access = await requireTaskAccess(taskId);
+    if (!access.ok) return access.response;
 
     const dbActivities = await prisma.activity.findMany({
       where: { taskId },

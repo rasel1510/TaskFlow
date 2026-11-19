@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
 import { timeAgo } from '@/lib/timeAgo';
+import { requireTaskAccess } from '@/lib/access';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -13,6 +14,9 @@ interface RouteContext {
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
     const { id: taskId } = await context.params;
+
+    const access = await requireTaskAccess(taskId);
+    if (!access.ok) return access.response;
 
     const dbComments = await prisma.comment.findMany({
       where: { taskId },
@@ -86,8 +90,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
       }
     } catch { }
 
-    const requestedUserId = request.nextUrl.searchParams.get('userId');
-    const authorId = sessionUser?.id || requestedUserId;
+    // Session-only identity + task access (never trust ?userId=)
+    const access = await requireTaskAccess(taskId);
+    if (!access.ok) return access.response;
+    const authorId = access.value.user.id;
 
     if (!authorId) {
       return NextResponse.json(
@@ -206,9 +212,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
         // 1. Check for @mentions in comment text
         const mentionMatches = text.match(/@([a-zA-Z0-9_\s.-]+?)(?=\s|$|[,.!?])/g);
         if (mentionMatches && mentionMatches.length > 0) {
-          const allUsers = await prisma.user.findMany({
-            select: { id: true, name: true, email: true },
-          });
+          // Only users in the author's own company can be mentioned (tenant isolation)
+          const mentionTeamId = access.value.user.teamId;
+          const allUsers = mentionTeamId
+            ? await prisma.user.findMany({
+                where: { teamId: mentionTeamId },
+                select: { id: true, name: true, email: true },
+              })
+            : [];
 
           for (const rawMention of mentionMatches) {
             const cleanMention = rawMention.slice(1).trim().toLowerCase();
@@ -299,8 +310,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       }
     } catch { }
 
-    const requestedUserId = request.nextUrl.searchParams.get('userId');
-    const authorId = sessionUser?.id || requestedUserId;
+    // Session-only identity + task access (never trust ?userId=)
+    const access = await requireTaskAccess(taskId);
+    if (!access.ok) return access.response;
+    const authorId = access.value.user.id;
 
     if (!authorId) {
       return NextResponse.json(
@@ -431,8 +444,10 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       }
     } catch { }
 
-    const requestedUserId = request.nextUrl.searchParams.get('userId');
-    const authorId = sessionUser?.id || requestedUserId;
+    // Session-only identity + task access (never trust ?userId=)
+    const access = await requireTaskAccess(taskId);
+    if (!access.ok) return access.response;
+    const authorId = access.value.user.id;
 
     if (!authorId) {
       return NextResponse.json(

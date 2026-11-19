@@ -49,6 +49,14 @@ export async function POST(request: NextRequest) {
       sessionUserEmail = session?.user?.email as string | undefined;
     } catch {}
 
+    // Require a signed-in user — prevents anonymous use of paid LLM credits and tools
+    if (!sessionUserId) {
+      return NextResponse.json(
+        { success: false, message: 'Authentication required. Please sign in to use FlowAi.', status: 401 },
+        { status: 401 }
+      );
+    }
+
     const result = await runFlowSyncAgent(
       messages,
       {

@@ -270,25 +270,57 @@ export interface ExecutionContext {
   userEmail?: string;
 }
 
+/** Tenant scope for every tool query — resolved once per call from the authenticated user. */
+interface ToolScope {
+  userId: string;
+  projectWhere: Prisma.ProjectWhereInput;
+  taskWhere: Prisma.TaskWhereInput;
+}
+
+/**
+ * Resolves what the caller may see: their own tasks, and projects they own,
+ * belong to, or that are in their company. Returns null when unauthenticated.
+ */
+export async function resolveToolScope(context: ExecutionContext): Promise<ToolScope | null> {
+  const user = await resolveUser(context);
+  if (!user) return null;
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { teamId: true } });
+  const projectWhere: Prisma.ProjectWhereInput = {
+    OR: [
+      { ownerId: user.id },
+      { members: { some: { userId: user.id } } },
+      ...(dbUser?.teamId ? [{ teamId: dbUser.teamId }] : []),
+    ],
+  };
+  const taskWhere: Prisma.TaskWhereInput = {
+    OR: [{ assigneeId: user.id }, { creatorId: user.id }, { project: projectWhere }],
+  };
+  return { userId: user.id, projectWhere, taskWhere };
+}
+
 export async function executeMcpTool(
   toolName: string,
   args: Record<string, unknown>,
   context: ExecutionContext = {}
 ): Promise<McpToolCallResult> {
   try {
+    const scope = await resolveToolScope(context);
+    if (!scope) {
+      return { isError: true, content: [{ type: 'text', text: 'Authentication required. Please sign in to use FlowSync tools.' }] };
+    }
     switch (toolName) {
       case 'create_task':
-        return await handleCreateTask(args, context);
+        return await handleCreateTask(args, context, scope);
       case 'list_tasks':
-        return await handleListTasks(args, context);
+        return await handleListTasks(args, context, scope);
       case 'update_task':
-        return await handleUpdateTask(args, context);
+        return await handleUpdateTask(args, context, scope);
       case 'batch_create_tasks':
-        return await handleBatchCreateTasks(args, context);
+        return await handleBatchCreateTasks(args, context, scope);
       case 'list_projects':
-        return await handleListProjects(args, context);
+        return await handleListProjects(args, context, scope);
       case 'get_workspace_summary':
-        return await handleGetWorkspaceSummary(context);
+        return await handleGetWorkspaceSummary(context, scope);
       default:
         return {
           isError: true,
@@ -323,15 +355,14 @@ async function resolveUser(context: ExecutionContext) {
     });
     if (user) return user;
   }
-  // Fallback to first user in system if available
-  return await prisma.user.findFirst({
-    select: { id: true, name: true, email: true },
-  });
+  // No session → no user. Never fall back to an arbitrary account.
+  return null;
 }
 
 async function handleCreateTask(
   args: Record<string, unknown>,
-  context: ExecutionContext
+  context: ExecutionContext,
+  scope: ToolScope
 ): Promise<McpToolCallResult> {
   const title = String(args.title || '').trim();
   if (!title) {
@@ -346,8 +377,8 @@ async function handleCreateTask(
   let targetProjectName: string | undefined;
 
   if (args.projectId && typeof args.projectId === 'string') {
-    const p = await prisma.project.findUnique({
-      where: { id: args.projectId },
+    const p = await prisma.project.findFirst({
+      where: { id: args.projectId, AND: [scope.projectWhere] },
       select: { id: true, name: true },
     });
     if (p) {
@@ -356,7 +387,7 @@ async function handleCreateTask(
     }
   } else if (args.projectName && typeof args.projectName === 'string') {
     const p = await prisma.project.findFirst({
-      where: { name: { contains: args.projectName.trim(), mode: 'insensitive' } },
+      where: { name: { contains: args.projectName.trim(), mode: 'insensitive' }, AND: [scope.projectWhere] },
       select: { id: true, name: true },
     });
     if (p) {
@@ -432,9 +463,10 @@ async function handleCreateTask(
 
 async function handleListTasks(
   args: Record<string, unknown>,
-  context: ExecutionContext
+  context: ExecutionContext,
+  scope: ToolScope
 ): Promise<McpToolCallResult> {
-  const where: Prisma.TaskWhereInput = {};
+  const where: Prisma.TaskWhereInput = { AND: [scope.taskWhere] };
 
   if (args.status && typeof args.status === 'string') {
     where.status = args.status.toLowerCase() as Prisma.TaskWhereInput['status'];
@@ -505,7 +537,8 @@ async function handleListTasks(
 
 async function handleUpdateTask(
   args: Record<string, unknown>,
-  context: ExecutionContext
+  context: ExecutionContext,
+  scope: ToolScope
 ): Promise<McpToolCallResult> {
   const taskIdInput = String(args.taskId || '').trim();
   if (!taskIdInput) {
@@ -519,6 +552,7 @@ async function handleUpdateTask(
         { id: taskIdInput },
         { taskNumber: { equals: taskIdInput, mode: 'insensitive' } },
       ],
+      AND: [scope.taskWhere],
     },
     select: { id: true, taskNumber: true, title: true, projectId: true },
   });
@@ -587,7 +621,8 @@ async function handleUpdateTask(
 
 async function handleBatchCreateTasks(
   args: Record<string, unknown>,
-  context: ExecutionContext
+  context: ExecutionContext,
+  scope: ToolScope
 ): Promise<McpToolCallResult> {
   const tasksInput = args.tasks;
   if (!Array.isArray(tasksInput) || tasksInput.length === 0) {
@@ -597,7 +632,7 @@ async function handleBatchCreateTasks(
   const createdResults = [];
   for (const t of tasksInput) {
     if (typeof t === 'object' && t !== null && 'title' in t) {
-      const res = await handleCreateTask(t as Record<string, unknown>, context);
+      const res = await handleCreateTask(t as Record<string, unknown>, context, scope);
       if (!res.isError && res.content[0]?.data) {
         createdResults.push(res.content[0].data);
       }
@@ -617,12 +652,16 @@ async function handleBatchCreateTasks(
 
 async function handleListProjects(
   args: Record<string, unknown>,
-  context: ExecutionContext
+  context: ExecutionContext,
+  scope: ToolScope
 ): Promise<McpToolCallResult> {
   const search = typeof args.search === 'string' ? args.search.trim() : undefined;
 
   const projects = await prisma.project.findMany({
-    where: search ? { name: { contains: search, mode: 'insensitive' } } : undefined,
+    where: {
+      AND: [scope.projectWhere],
+      ...(search ? { name: { contains: search, mode: 'insensitive' as const } } : {}),
+    },
     take: 20,
     select: {
       id: true,
@@ -657,31 +696,35 @@ async function handleListProjects(
 }
 
 async function handleGetWorkspaceSummary(
-  context: ExecutionContext
+  context: ExecutionContext,
+  scope: ToolScope
 ): Promise<McpToolCallResult> {
   const now = new Date();
   const nextWeek = new Date(now);
   nextWeek.setDate(nextWeek.getDate() + 7);
 
   const [totalTasks, overdueTasks, dueNext7Days, tasksByStatus, projectsCount] = await Promise.all([
-    prisma.task.count(),
+    prisma.task.count({ where: scope.taskWhere }),
     prisma.task.count({
       where: {
+        AND: [scope.taskWhere],
         dueDate: { lt: now },
         status: { not: 'done' },
       },
     }),
     prisma.task.count({
       where: {
+        AND: [scope.taskWhere],
         dueDate: { gte: now, lte: nextWeek },
         status: { not: 'done' },
       },
     }),
     prisma.task.groupBy({
       by: ['status'],
+      where: scope.taskWhere,
       _count: true,
     }),
-    prisma.project.count(),
+    prisma.project.count({ where: scope.projectWhere }),
   ]);
 
   const statusMap: Record<string, number> = {};

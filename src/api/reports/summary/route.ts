@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
       sessionUserId = session?.user?.id;
     } catch {}
 
-    const requestedUserId = request.nextUrl.searchParams.get('userId');
-    const targetUserId = sessionUserId || requestedUserId;
+    // Session only — ?userId= is ignored so reports can't be read for other users/companies
+    const targetUserId = sessionUserId;
 
     // Fast-fail unauthenticated requests (e.g. immediately after sign-out)
     if (!targetUserId) {

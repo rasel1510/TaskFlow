@@ -16,17 +16,21 @@ export async function POST(req: Request) {
 
   let event: Stripe.Event;
 
+  // Always verify the Stripe signature. Without it anyone could POST a fake
+  // "checkout.session.completed" event and upgrade any account to Pro.
+  if (!webhookSecret) {
+    console.error('[Stripe Webhook] STRIPE_WEBHOOK_SECRET is not configured — rejecting event.');
+    return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 });
+  }
+  if (!signature) {
+    return NextResponse.json({ error: 'Missing stripe-signature header' }, { status: 400 });
+  }
+
   try {
-    if (webhookSecret && signature) {
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-    } else {
-      // In development or when webhook secret is pending configuration, parse JSON safely
-      event = JSON.parse(body) as Stripe.Event;
-      console.warn('[Stripe Webhook] Received unverified event (STRIPE_WEBHOOK_SECRET not configured):', event.type);
-    }
+    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err: any) {
     console.error('[Stripe Webhook Error]:', err.message);
-    return NextResponse.json({ error: `Webhook signature verification failed: ${err.message}` }, { status: 400 });
+    return NextResponse.json({ error: 'Webhook signature verification failed' }, { status: 400 });
   }
 
   try {
@@ -40,9 +44,12 @@ export async function POST(req: Request) {
         console.log(`[Stripe Webhook] checkout.session.completed for user: ${userId || customerEmail}`);
 
         // Find user by metadata ID or email
-        const user = await prisma.user.findFirst({
-          where: userId ? { id: userId } : customerEmail ? { email: customerEmail } : undefined,
-        });
+        // Never fall back to an unfiltered lookup (would match an arbitrary user)
+        const user = userId || customerEmail
+          ? await prisma.user.findFirst({
+              where: userId ? { id: userId } : { email: customerEmail as string },
+            })
+          : null;
 
         if (user) {
           // 1. Activate Pro Plan

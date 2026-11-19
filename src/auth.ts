@@ -20,7 +20,11 @@ if (process.env.VERCEL_URL && !process.env.AUTH_URL) {
 export const { handlers, signIn, signOut, auth } = NextAuth({
   basePath: '/api/auth',
   trustHost: true,
-  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'flowsync-secure-nextauth-secret-key-32chars',
+  // Never ship a known fallback secret in production — anyone could forge session JWTs with it.
+  secret:
+    process.env.AUTH_SECRET ||
+    process.env.NEXTAUTH_SECRET ||
+    (process.env.NODE_ENV !== 'production' ? 'flowsync-dev-only-nextauth-secret-key-32chars' : undefined),
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days persistent session
@@ -89,11 +93,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           });
 
           if (dbUser) {
-            if (dbUser.password) {
-              const isValid = await bcrypt.compare(password, dbUser.password);
-              if (!isValid) {
-                return null;
-              }
+            // Accounts without a password (e.g. Google-only sign-ups) must never be
+            // reachable through the credentials provider — reject instead of skipping the check.
+            if (!dbUser.password) {
+              return null;
+            }
+            const isValid = await bcrypt.compare(password, dbUser.password);
+            if (!isValid) {
+              return null;
             }
             const hasPaid =
               Boolean(dbUser.invoices && dbUser.invoices.some(inv => inv.status === 'paid')) ||
@@ -121,11 +128,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         try {
           const storedUser = findStoredUserByEmail(email);
           if (storedUser) {
-            if (storedUser.password) {
-              const isValid = await bcrypt.compare(password, storedUser.password);
-              if (!isValid) {
-                return null;
-              }
+            if (!storedUser.password) {
+              return null;
+            }
+            const isValid = await bcrypt.compare(password, storedUser.password);
+            if (!isValid) {
+              return null;
             }
             return {
               id: storedUser.id,

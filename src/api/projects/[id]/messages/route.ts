@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { requireProjectAccess } from '@/lib/access';
 import { projectStreamBroker } from '@/lib/projectStreamBroker';
 
 interface RouteContext {
@@ -39,6 +40,8 @@ function getOrCreateProjectMessages(projectId: string): ProjectMessage[] {
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
+    const access = await requireProjectAccess(projectId);
+    if (!access.ok) return access.response;
     if (!projectId) {
       return NextResponse.json({ success: false, error: 'Project ID is required' }, { status: 400 });
     }
@@ -62,6 +65,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
+    const access = await requireProjectAccess(projectId);
+    if (!access.ok) return access.response;
     if (!projectId) {
       return NextResponse.json({ success: false, error: 'Project ID is required' }, { status: 400 });
     }
@@ -129,6 +134,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
+    const access = await requireProjectAccess(projectId);
+    if (!access.ok) return access.response;
     const session = await auth();
     const currentUid = (session?.user as { id?: string })?.id;
 
@@ -183,6 +190,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
+    const access = await requireProjectAccess(projectId);
+    if (!access.ok) return access.response;
     const { searchParams } = new URL(request.url);
     const messageId = searchParams.get('messageId');
 

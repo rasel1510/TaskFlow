@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { auth } from '@/auth';
+import { requireUser, forbidden } from '@/lib/access';
 import { BulkTaskActionSchema, validationError } from '@/lib/validators';
 import { recomputeProjectProgress } from '@/lib/projectProgress';
 import redisCache from '@/lib/redis';
@@ -33,17 +33,15 @@ export async function POST(request: NextRequest) {
 
     const { ids, action, payload } = parseResult.data;
 
-    // Verify session
-    let sessionUserId: string | undefined = undefined;
-    try {
-      const session = await auth();
-      sessionUserId = session?.user?.id;
-    } catch {}
+    // Verify session (required)
+    const userRes = await requireUser();
+    if (!userRes.ok) return userRes.response;
+    const user = userRes.value;
 
     // Find affected tasks and their distinct projectIds
     const affectedTasks = await prisma.task.findMany({
       where: { id: { in: ids } },
-      select: { id: true, projectId: true, assigneeId: true },
+      select: { id: true, projectId: true, assigneeId: true, creatorId: true },
     });
 
     if (affectedTasks.length === 0) {
@@ -56,6 +54,31 @@ export async function POST(request: NextRequest) {
     const distinctProjectIds = Array.from(
       new Set(affectedTasks.map((t) => t.projectId).filter((id): id is string => Boolean(id)))
     );
+
+    // Authorize every task in one round trip: assignee/creator, or access to its project.
+    if (!user.isSuperAdmin) {
+      const accessibleProjects = distinctProjectIds.length
+        ? await prisma.project.findMany({
+            where: {
+              id: { in: distinctProjectIds },
+              OR: [
+                { ownerId: user.id },
+                { members: { some: { userId: user.id } } },
+                ...(user.teamId ? [{ teamId: user.teamId }] : []),
+              ],
+            },
+            select: { id: true },
+          })
+        : [];
+      const accessibleProjectIds = new Set(accessibleProjects.map((p) => p.id));
+      const denied = affectedTasks.some(
+        (t) =>
+          t.assigneeId !== user.id &&
+          t.creatorId !== user.id &&
+          !(t.projectId && accessibleProjectIds.has(t.projectId))
+      );
+      if (denied) return forbidden('You do not have access to one or more of these tasks');
+    }
 
     if (action === 'delete') {
       const deleteResult = await prisma.task.deleteMany({

@@ -12,6 +12,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { requireProjectAccess } from '@/lib/access';
 import prisma from '@/lib/prisma';
 import {
   ProjectMemberInviteSchema,
@@ -47,6 +48,9 @@ export interface MemberRecord {
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
+
+    const access = await requireProjectAccess(projectId);
+    if (!access.ok) return access.response;
 
     // Multi-tenant check: ensure caller belongs to project's company
     try {

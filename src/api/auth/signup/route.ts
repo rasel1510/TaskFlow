@@ -220,7 +220,8 @@ export async function POST(req: Request) {
         email: normalizedEmail,
         userId: createdUserId,
         devMode: mailResult.devMode,
-        previewCode: mailResult.previewCode,
+        // Dev-only convenience when SMTP is not configured — never expose codes in production
+        previewCode: process.env.NODE_ENV !== 'production' ? mailResult.previewCode : undefined,
         message: mailResult.devMode
           ? 'Verification code generated (check server logs or preview below).'
           : 'A 6-digit verification code has been dispatched to your email.',

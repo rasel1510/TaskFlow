@@ -71,8 +71,23 @@ export const CreateTaskSchema = z.object({
     .optional(),
 });
 
-/** Partial version — every field optional for PATCH updates */
-export const UpdateTaskSchema = CreateTaskSchema.partial();
+/**
+ * Like `.partial()`, but strips `.default()` wrappers first.
+ * Zod's `.partial()` still applies defaults to omitted keys, so a PATCH of
+ * `{ title }` would silently reset status/priority/labels to their defaults.
+ */
+function partialWithoutDefaults<T extends z.ZodRawShape>(schema: z.ZodObject<T>) {
+  const shape = Object.fromEntries(
+    Object.entries(schema.shape).map(([key, field]) => {
+      const inner = field instanceof z.ZodDefault ? field.unwrap() : field;
+      return [key, (inner as z.ZodType).optional()];
+    })
+  );
+  return z.object(shape) as unknown as ReturnType<z.ZodObject<T>['partial']>;
+}
+
+/** Partial version — every field optional for PATCH updates (no defaults applied) */
+export const UpdateTaskSchema = partialWithoutDefaults(CreateTaskSchema);
 
 /** Query parameters schema for GET /api/tasks with cursor pagination */
 export const TaskQuerySchema = z.object({
@@ -162,7 +177,7 @@ export const CreateProjectSchema = z.object({
 });
 
 export type CreateProjectInput = z.infer<typeof CreateProjectSchema>;
-export const UpdateProjectSchema = CreateProjectSchema.partial().extend({
+export const UpdateProjectSchema = partialWithoutDefaults(CreateProjectSchema).extend({
   health: z.string().optional(),
   lifecycleState: z.enum(PROJECT_LIFECYCLE_STATES).optional(),
   archived: z.boolean().optional(),
@@ -300,7 +315,7 @@ export const CreateMilestoneSchema = z.object({
   targetDate: z.string().optional(),
 });
 
-export const UpdateMilestoneSchema = CreateMilestoneSchema.partial().extend({
+export const UpdateMilestoneSchema = partialWithoutDefaults(CreateMilestoneSchema).extend({
   completed: z.boolean().optional(),
 });
 

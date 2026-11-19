@@ -58,6 +58,7 @@ import { CreateTaskSchema, TaskQuerySchema, validationError } from '@/lib/valida
 import { logActivity } from '@/lib/activity';
 import { recomputeProjectProgress } from '@/lib/projectProgress';
 import redisCache from '@/lib/redis';
+import { isSuperAdmin } from '@/lib/permissions';
 import { enqueueBackgroundTask } from '@/lib/asyncQueue';
 
 // Prisma-generated enum types (used for strict typing in create/update calls)
@@ -85,11 +86,16 @@ export async function GET(request: NextRequest) {
       // auth() may throw in some edge cases — fall back to query params
     }
 
-    const requestedUserId = searchParams.get('userId') || undefined;
-    const requestedUserEmail = searchParams.get('userEmail') || undefined;
-
-    const targetUserId = sessionUserId || requestedUserId;
-    const targetUserEmail = sessionUserEmail || requestedUserEmail;
+    // Identity comes from the session only — ?userId= / ?userEmail= are ignored
+    // so one user can never read another user's tasks by changing the URL.
+    if (!sessionUserId && !sessionUserEmail) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
+        { status: 401 }
+      );
+    }
+    const targetUserId = sessionUserId;
+    const targetUserEmail = sessionUserEmail;
 
     // Fast resolution: prefer provided targetUserId without querying DB
     const userIdSet = new Set<string>();
@@ -247,11 +253,9 @@ export async function POST(request: NextRequest) {
       sessionUserEmail = session?.user?.email as string | undefined;
     } catch { }
 
-    const queryUserId = request.nextUrl.searchParams.get('userId') || undefined;
-    const queryUserEmail = request.nextUrl.searchParams.get('userEmail') || undefined;
-
-    const resolvedEmail = (sessionUserEmail || queryUserEmail || '')?.toLowerCase().trim();
-    const resolvedId = sessionUserId || queryUserId;
+    // Identity comes from the session only (query params are not trusted)
+    const resolvedEmail = (sessionUserEmail || '').toLowerCase().trim();
+    const resolvedId = sessionUserId;
 
     if (!resolvedEmail && !resolvedId) {
       return NextResponse.json(
@@ -324,12 +328,22 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      targetProjectId = targetProject.id;
-
-      // Automatically register user as a CONTRIBUTOR on the project if not already a member
+      // Only owners, members, or users in the project's company may add tasks to it
       const isOwner = targetProject.ownerId === dbUser.id;
       const isMember = targetProject.members.some(m => m.userId === dbUser.id);
-      if (!isOwner && !isMember) {
+      const sameTeam = Boolean(targetProject.teamId && dbUser.teamId && targetProject.teamId === dbUser.teamId);
+      const superAdmin = isSuperAdmin({ email: dbUser.email, role: dbUser.role });
+      if (!isOwner && !isMember && !sameTeam && !superAdmin) {
+        return NextResponse.json(
+          { success: false, error: { code: 'FORBIDDEN', message: 'You do not have access to this project' } },
+          { status: 403 }
+        );
+      }
+
+      targetProjectId = targetProject.id;
+
+      // Automatically register same-company user as a CONTRIBUTOR if not already a member
+      if (!isOwner && !isMember && sameTeam) {
         try {
           await prisma.projectMember.create({
             data: {

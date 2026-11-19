@@ -7,7 +7,7 @@
  *  - Respond immediately after the core DB write
  *  - Fire background work (activity log, progress recompute, cache invalidation)
  *    via setImmediate / Promise (non-blocking)
- *  - Minimal auth() overhead: only validate ownership when userId header present
+ *  - Every handler requires a session with access to the task (src/lib/access.ts)
  *  - Skip re-fetching the full task after update — return merged object instead
  */
 
@@ -44,6 +44,7 @@ import { logActivity } from '@/lib/activity';
 import { recomputeProjectProgress } from '@/lib/projectProgress';
 import redisCache from '@/lib/redis';
 import { enqueueBackgroundTask } from '@/lib/asyncQueue';
+import { requireTaskAccess, requireProjectAccess } from '@/lib/access';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -63,6 +64,9 @@ function fireAndForget(fn: () => Promise<void>, name = 'task_async_cleanup'): vo
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
+
+    const access = await requireTaskAccess(id);
+    if (!access.ok) return access.response;
 
     const cacheKey = `task:${id}`;
     const serializedTask = await redisCache.wrap(cacheKey, 30, async () => {
@@ -125,6 +129,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
+
+    const access = await requireTaskAccess(id);
+    if (!access.ok) return access.response;
 
     let body: Record<string, unknown>;
     try {
@@ -198,8 +205,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     // projectId — resolve once
     if ('projectId' in body && typeof body.projectId === 'string' && body.projectId.trim()) {
       const pId = body.projectId.trim();
-      const proj = await prisma.project.findUnique({ where: { id: pId }, select: { id: true } });
-      if (proj) updateData.projectId = proj.id;
+      if (pId !== access.value.task.projectId) {
+        // Moving a task into another project requires access to that project.
+        const projectAccess = await requireProjectAccess(pId);
+        if (!projectAccess.ok) return projectAccess.response;
+        updateData.projectId = projectAccess.value.project.id;
+      }
     }
 
     if (Object.keys(updateData).length === 0) {
@@ -300,6 +311,18 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
+
+    const access = await requireTaskAccess(id);
+    if (!access.ok) {
+      // Already gone → keep DELETE idempotent
+      if (access.response.status === 404) {
+        return NextResponse.json(
+          { success: true, data: { message: 'Task deleted successfully' } },
+          { status: 200 }
+        );
+      }
+      return access.response;
+    }
 
     // High-performance single-query atomic delete
     let deletedTask: { id: string; projectId: string | null; assigneeId: string | null } | null = null;

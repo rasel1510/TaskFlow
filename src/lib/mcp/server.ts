@@ -13,7 +13,7 @@ import {
   McpResourceDefinition,
   McpPromptDefinition,
 } from './types';
-import { MCP_TOOL_DEFINITIONS, executeMcpTool, ExecutionContext } from './tools';
+import { MCP_TOOL_DEFINITIONS, executeMcpTool, ExecutionContext, resolveToolScope } from './tools';
 import prisma from '@/lib/prisma';
 
 // ---------------------------------------------------------------------------
@@ -167,9 +167,14 @@ export async function handleMcpJsonRpc(
         }
 
         if (params.uri === 'flowsync://projects') {
-          const projects = await prisma.project.findMany({
-            select: { id: true, name: true, health: true, progress: true },
-          });
+          const scope = await resolveToolScope(context);
+          const projects = scope
+            ? await prisma.project.findMany({
+                where: scope.projectWhere,
+                take: 100,
+                select: { id: true, name: true, health: true, progress: true },
+              })
+            : [];
           return {
             jsonrpc: '2.0',
             id: id ?? 1,

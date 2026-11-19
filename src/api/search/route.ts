@@ -13,7 +13,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { auth } from '@/auth';
+import { requireUser } from '@/lib/access';
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,13 +28,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    let sessionUserId: string | undefined = undefined;
-    try {
-      const session = await auth();
-      sessionUserId = session?.user?.id;
-    } catch {
-      // In case session extraction fails
-    }
+    const userRes = await requireUser();
+    if (!userRes.ok) return userRes.response;
+    const user = userRes.value;
+    const sessionUserId = user.id;
 
     try {
       // Search in Postgres via Prisma with low time-complexity indexed queries
@@ -45,7 +42,7 @@ export async function GET(request: NextRequest) {
               { title: { contains: q, mode: 'insensitive' } },
               { taskNumber: { contains: q, mode: 'insensitive' } },
             ],
-            ...(sessionUserId ? { assigneeId: sessionUserId } : {}),
+            assigneeId: sessionUserId,
           },
           take: limit,
           select: {
@@ -68,9 +65,21 @@ export async function GET(request: NextRequest) {
         }),
         prisma.project.findMany({
           where: {
-            OR: [
-              { name: { contains: q, mode: 'insensitive' } },
-              { description: { contains: q, mode: 'insensitive' } },
+            AND: [
+              {
+                OR: [
+                  { name: { contains: q, mode: 'insensitive' } },
+                  { description: { contains: q, mode: 'insensitive' } },
+                ],
+              },
+              {
+                // Tenant scoping: only projects the user can see
+                OR: [
+                  { ownerId: sessionUserId },
+                  { members: { some: { userId: sessionUserId } } },
+                  ...(user.teamId ? [{ teamId: user.teamId }] : []),
+                ],
+              },
             ],
           },
           take: Math.min(limit, 5),

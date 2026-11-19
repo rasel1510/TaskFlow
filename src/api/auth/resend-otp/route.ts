@@ -80,7 +80,8 @@ export async function POST(req: Request) {
       success: true,
       message: 'A fresh verification code has been dispatched.',
       devMode: mailResult.devMode,
-      previewCode: mailResult.previewCode,
+      // Dev-only convenience when SMTP is not configured — never expose codes in production
+        previewCode: process.env.NODE_ENV !== 'production' ? mailResult.previewCode : undefined,
     });
   } catch (error) {
     console.error('[POST /api/auth/resend-otp] Error:', error);

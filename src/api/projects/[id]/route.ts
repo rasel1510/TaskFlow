@@ -11,13 +11,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
 import { UpdateProjectSchema, validationError } from '@/lib/validators';
 import { computeProjectHealth } from '@/lib/projectHealthEngine';
 import { validateLifecycleTransition, type ProjectLifecycleState } from '@/lib/projectLifecycle';
 import redisCache from '@/lib/redis';
 import { getOrProvisionUserTeam } from '@/lib/tenant';
+import { requireProjectAccess, canManageProject, isManagerRole, forbidden } from '@/lib/access';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -38,6 +38,9 @@ function parseSafeDate(raw: unknown): Date | undefined {
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
+
+    const access = await requireProjectAccess(projectId);
+    if (!access.ok) return access.response;
 
     try {
       const cacheKey = `project:detail:${projectId}`;
@@ -159,6 +162,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
 
+    const access = await requireProjectAccess(projectId);
+    if (!access.ok) return access.response;
+    if (!canManageProject(access.value)) {
+      return forbidden('Only the project owner, leads, Admins or Project Managers can edit this project');
+    }
+
     let body: Record<string, unknown>;
     try {
       body = await request.json();
@@ -260,26 +269,19 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 // ---------------------------------------------------------------------------
 // DELETE /api/projects/:id
 // ---------------------------------------------------------------------------
-export async function DELETE(request: NextRequest, context: RouteContext) {
+export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
-    const session = await auth();
-    const sessionUserRole = (session?.user as { role?: string })?.role;
-    const isPMOrAdmin =
-      sessionUserRole === 'Project Manager' ||
-      sessionUserRole === 'Admin' ||
-      sessionUserRole === 'ADMIN' ||
-      sessionUserRole === 'PROJECT_MANAGER' ||
-      sessionUserRole?.toLowerCase() === 'project manager' ||
-      sessionUserRole?.toLowerCase() === 'admin';
-
-    if (!isPMOrAdmin) {
-      return NextResponse.json(
-        { success: false, error: { code: 'FORBIDDEN', message: 'Only Admins and Project Managers can delete projects' } },
-        { status: 403 }
-      );
-    }
-
     const { id: projectId } = await context.params;
+
+    const access = await requireProjectAccess(projectId);
+    if (!access.ok) return access.response;
+
+    // Owner, Super Admin, or an Admin / Project Manager of the project's own company
+    const { user, project, isOwner } = access.value;
+    const sameTeam = Boolean(project.teamId && user.teamId && project.teamId === user.teamId);
+    if (!(user.isSuperAdmin || isOwner || (sameTeam && isManagerRole(user)))) {
+      return forbidden('Only the project owner, Admins and Project Managers can delete projects');
+    }
 
     try {
       await prisma.project.delete({

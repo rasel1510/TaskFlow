@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
+import { requireProjectAccess, canManageProject, forbidden } from '@/lib/access';
 import { ProjectEmailInviteSchema, validationError } from '@/lib/validators';
 import { sendProjectInviteEmail } from '@/lib/mail';
 import { getAppOrigin } from '@/lib/origin';
@@ -42,6 +43,11 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
 
+    const access = await requireProjectAccess(projectId);
+    if (!access.ok) return access.response;
+    // Invite tokens are bearer credentials — only managers may see them (for "Copy Link")
+    const canSeeTokens = canManageProject(access.value);
+
     const invitations = await prisma.projectInvitation.findMany({
       where: {
         projectId,
@@ -66,7 +72,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       invitedByEmail: inv.invitedBy?.email || '',
       expiresAt: inv.expiresAt.toISOString(),
       createdAt: inv.createdAt.toISOString(),
-      token: inv.token,
+      token: canSeeTokens ? inv.token : undefined,
     }));
 
     return NextResponse.json({
@@ -245,7 +251,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
           role: invitation.role,
           inviteUrl,
           expiresAt: invitation.expiresAt.toISOString(),
-          devPreviewUrl: mailResult.previewCode,
+          // Dev-only convenience when SMTP is not configured — never expose codes in production
+        devPreviewUrl: process.env.NODE_ENV !== 'production' ? mailResult.previewCode : undefined,
         },
       },
       { status: 201 }
@@ -265,6 +272,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
+
+    const access = await requireProjectAccess(projectId);
+    if (!access.ok) return access.response;
+    if (!canManageProject(access.value)) {
+      return forbidden('Only project managers can revoke invitations');
+    }
+
     const { searchParams } = new URL(request.url);
     const inviteId = searchParams.get('inviteId');
 

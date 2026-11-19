@@ -87,7 +87,8 @@ export async function POST(req: Request) {
         success: true,
         message: 'If an account exists for this email, a reset code has been sent.',
         devMode: mailResult.devMode,
-        previewCode: mailResult.previewCode,
+        // Dev-only convenience when SMTP is not configured — never expose codes in production
+        previewCode: process.env.NODE_ENV !== 'production' ? mailResult.previewCode : undefined,
       });
     }
 

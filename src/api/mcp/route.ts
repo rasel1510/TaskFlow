@@ -35,6 +35,14 @@ export async function POST(request: NextRequest) {
       sessionUserEmail = session?.user?.email as string | undefined;
     } catch {}
 
+    // Require a signed-in user — prevents anonymous use of paid LLM credits and tools
+    if (!sessionUserId) {
+      return NextResponse.json(
+        { jsonrpc: '2.0', id: null, error: { code: -32001, message: 'Authentication required' } },
+        { status: 401 }
+      );
+    }
+
     const response = await handleMcpJsonRpc(body, {
       userId: sessionUserId,
       userEmail: sessionUserEmail,

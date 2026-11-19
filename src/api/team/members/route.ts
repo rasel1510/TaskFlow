@@ -111,11 +111,24 @@ export async function GET() {
       payload.members.find(m => m.id === userId)?.role ||
       'Member';
 
+    // Invite tokens and initial passwords are credentials — only Admins / Project Managers
+    // (the people who send invites and use "Copy link / password") may receive them.
+    const normalizedRole = currentUserRole.toLowerCase().replace(/_/g, ' ').trim();
+    const canSeeInviteSecrets =
+      normalizedRole === 'admin' ||
+      normalizedRole === 'owner' ||
+      normalizedRole === 'project manager' ||
+      Boolean((session.user as { isSuperAdmin?: boolean })?.isSuperAdmin);
+    const invitations = canSeeInviteSecrets
+      ? payload.invitations
+      : payload.invitations.map(inv => ({ ...inv, token: '', initialPassword: null }));
+
     return NextResponse.json(
       {
         success: true,
         data: {
           ...payload,
+          invitations,
           currentUserRole,
           currentUserId: userId,
         },

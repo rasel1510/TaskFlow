@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireProjectAccess, canManageProject, forbidden } from '@/lib/access';
 import { CreateMilestoneSchema, UpdateMilestoneSchema, validationError } from '@/lib/validators';
 
 interface RouteContext {
@@ -66,6 +67,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
 
+    const access = await requireProjectAccess(projectId);
+    if (!access.ok) return access.response;
+
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const milestoneModel = (prisma as any).projectMilestone;
@@ -123,6 +127,12 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
+
+    const access = await requireProjectAccess(projectId);
+    if (!access.ok) return access.response;
+    if (!canManageProject(access.value)) {
+      return forbidden('Only project managers can change milestones');
+    }
 
     let body: unknown;
     try {
@@ -191,6 +201,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
 
+    const access = await requireProjectAccess(projectId);
+    if (!access.ok) return access.response;
+    if (!canManageProject(access.value)) {
+      return forbidden('Only project managers can change milestones');
+    }
+
     let body: any;
     try {
       body = await request.json();
@@ -241,6 +257,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
+
+    const access = await requireProjectAccess(projectId);
+    if (!access.ok) return access.response;
+    if (!canManageProject(access.value)) {
+      return forbidden('Only project managers can change milestones');
+    }
     const { searchParams } = new URL(request.url);
     const milestoneId = searchParams.get('mid');
 

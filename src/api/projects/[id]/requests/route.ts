@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
+import { requireProjectAccess } from '@/lib/access';
 import redisCache from '@/lib/redis';
 
 interface RouteContext {
@@ -22,6 +23,8 @@ interface RouteContext {
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
+    const access = await requireProjectAccess(projectId);
+    if (!access.ok) return access.response;
     const session = await auth();
     const currentUserId = session?.user?.id;
     const currentUserRole = (session?.user as { role?: string })?.role;
@@ -88,6 +91,8 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
+    const access = await requireProjectAccess(projectId);
+    if (!access.ok) return access.response;
     const session = await auth();
     const currentUserId = session?.user?.id;
 
@@ -195,6 +200,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
+    const access = await requireProjectAccess(projectId);
+    if (!access.ok) return access.response;
     const session = await auth();
     const currentUserId = session?.user?.id;
     const currentUserRole = (session?.user as { role?: string })?.role;

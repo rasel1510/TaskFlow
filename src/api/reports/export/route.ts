@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireUser } from '@/lib/access';
 
 function sanitizeCsvCell(value: unknown): string {
   if (value === null || value === undefined) return '""';
@@ -25,6 +26,10 @@ function sanitizeCsvCell(value: unknown): string {
 
 export async function GET(request: NextRequest) {
   try {
+    const userRes = await requireUser();
+    if (!userRes.ok) return userRes.response;
+    const user = userRes.value;
+
     const { searchParams } = new URL(request.url);
     const fromParam = searchParams.get('from');
     const toParam = searchParams.get('to');
@@ -58,7 +63,16 @@ export async function GET(request: NextRequest) {
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const where: any = {};
+      const where: any = {
+        // Tenant scoping: only tasks this user can see (same rules as GET /api/tasks + company projects)
+        OR: [
+          { assigneeId: user.id },
+          { creatorId: user.id },
+          { project: { ownerId: user.id } },
+          { project: { members: { some: { userId: user.id } } } },
+          ...(user.teamId ? [{ project: { teamId: user.teamId } }] : []),
+        ],
+      };
       if (projectIdParam) where.projectId = projectIdParam;
       if (statusParam) where.status = statusParam;
       if (fromDate || toDate) {

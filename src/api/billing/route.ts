@@ -476,7 +476,7 @@ export async function POST(req: Request) {
 
       if (!VALID_PROMO_CODES.has(code)) {
         return NextResponse.json(
-          { success: false, error: 'Invalid or expired promotional code. Try: FLOWVIP or SUPERVISOR100' },
+          { success: false, error: 'Invalid or expired promotional code.' },
           { status: 400 }
         );
       }

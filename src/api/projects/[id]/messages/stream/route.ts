@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { requireProjectAccess } from '@/lib/access';
 import { projectStreamBroker, type StreamPayload } from '@/lib/projectStreamBroker';
 
 interface RouteContext {
@@ -14,6 +15,9 @@ interface RouteContext {
  */
 export async function GET(request: NextRequest, context: RouteContext) {
   const { id: projectId } = await context.params;
+
+  const access = await requireProjectAccess(projectId);
+  if (!access.ok) return access.response;
 
   if (!projectId) {
     return new Response(JSON.stringify({ success: false, error: 'Project ID is required' }), {

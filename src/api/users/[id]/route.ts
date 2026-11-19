@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
+import { normalizeDesignation, isSuperAdmin } from '@/lib/permissions';
 import { UpdateProfileSchema, validationError } from '@/lib/validators';
 
 interface RouteContext {
@@ -165,32 +166,22 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       );
     }
 
-    // Tenant check if updating another user
+    // Tenant check if updating another user: target must be in the requester's own company
     if (currentUserId !== id) {
-      try {
-        const { getOrProvisionUserTeam } = await import('@/lib/tenant');
-        const teamContext = await getOrProvisionUserTeam(currentUserId);
-        if (teamContext?.teamId) {
-          const targetInTeam = await prisma.user.findFirst({
+      const { getOrProvisionUserTeam } = await import('@/lib/tenant');
+      const teamContext = await getOrProvisionUserTeam(currentUserId).catch(() => null);
+      const targetInTeam = teamContext?.teamId
+        ? await prisma.user.findFirst({
             where: { id, teamId: teamContext.teamId },
             select: { id: true },
-          });
-
-          if (!targetInTeam) {
-            const targetUserRecord = await prisma.user.findUnique({
-              where: { id },
-              select: { teamId: true },
-            });
-
-            if (targetUserRecord && targetUserRecord.teamId && targetUserRecord.teamId !== teamContext.teamId) {
-              return NextResponse.json(
-                { success: false, error: { code: 'FORBIDDEN', message: 'Cannot modify member from another workspace' } },
-                { status: 403 }
-              );
-            }
-          }
-        }
-      } catch (_) {}
+          })
+        : null;
+      if (!targetInTeam) {
+        return NextResponse.json(
+          { success: false, error: { code: 'FORBIDDEN', message: 'Cannot modify member from another workspace' } },
+          { status: 403 }
+        );
+      }
     }
 
     let body: unknown;
@@ -209,6 +200,19 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     // 2. Job Title (role) security: ONLY administrators can set or change Job Title
     const newRole = parsed.data.role;
     const isAttemptingRoleChange = newRole !== undefined && newRole !== null;
+
+    // Platform-level Super Admin can never be granted from a workspace profile edit
+    if (
+      isAttemptingRoleChange &&
+      typeof newRole === 'string' &&
+      normalizeDesignation(newRole) === 'Super Admin' &&
+      !isSuperAdmin(session?.user as { email?: string; role?: string; teamName?: string } | undefined)
+    ) {
+      return NextResponse.json(
+        { success: false, error: { code: 'FORBIDDEN', message: 'The Super Admin role cannot be assigned here' } },
+        { status: 403 }
+      );
+    }
     if (isAttemptingRoleChange && typeof newRole === 'string') {
       if (!isRequesterAdmin) {
         // Fetch target user's current role
