@@ -14,7 +14,8 @@ import {
 /** Cells live inside a clickable task row — keep their clicks/keys from opening the task. */
 const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
-const EMPTY = <span className="text-[rgba(17,17,17,0.3)]">—</span>;
+/** Empty cells stay blank (hover shows they are editable), like monday.com. */
+const EMPTY = null;
 
 // ---------------------------------------------------------------------------
 // Generic click-to-edit text input
@@ -276,16 +277,17 @@ export function CustomFieldCell({
       const idx = options.indexOf(current);
       const tone = PILL_PALETTE[(idx < 0 ? 0 : idx) % PILL_PALETTE.length];
       return (
-        <div className="relative flex items-center h-8 min-w-0" onClick={stop}>
-          {current ? (
+        <div
+          className="relative flex items-center h-8 min-w-0 w-full px-2 -mx-2 rounded-md hover:bg-[#F3F4F6] transition-colors duration-100 ease-out"
+          onClick={stop}
+        >
+          {current && (
             <span
               className="max-w-full truncate px-2 py-0.5 rounded-md text-[11.5px] font-medium"
               style={{ backgroundColor: tone.bg, color: tone.fg }}
             >
               {current}
             </span>
-          ) : (
-            <span className="text-[12.5px] text-[rgba(17,17,17,0.3)]">—</span>
           )}
           <select
             aria-label={label}

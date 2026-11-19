@@ -17,7 +17,7 @@ import { computeProjectHealth } from '@/lib/projectHealthEngine';
 import { validateLifecycleTransition, type ProjectLifecycleState } from '@/lib/projectLifecycle';
 import redisCache from '@/lib/redis';
 import { getOrProvisionUserTeam } from '@/lib/tenant';
-import { requireProjectAccess, canManageProject, isManagerRole, forbidden } from '@/lib/access';
+import { requireProjectAccess, canManageProject, isProjectAdmin, isManagerRole, forbidden } from '@/lib/access';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -131,7 +131,8 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         return NextResponse.json(
           {
             success: true,
-            data: payload,
+            // `canManage` is per-user, so it is added here, outside the shared cached payload
+            data: { ...payload, canManage: canManageProject(access.value) },
           },
           {
             status: 200,
@@ -282,10 +283,10 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     const access = await requireProjectAccess(projectId);
     if (!access.ok) return access.response;
 
-    // Owner, Super Admin, or an Admin / Project Manager of the project's own company
-    const { user, project, isOwner } = access.value;
+    // Full-control users (owner, Admins) or an Admin / Project Manager of the project's own company
+    const { user, project } = access.value;
     const sameTeam = Boolean(project.teamId && user.teamId && project.teamId === user.teamId);
-    if (!(user.isSuperAdmin || isOwner || (sameTeam && isManagerRole(user)))) {
+    if (!(isProjectAdmin(access.value) || (sameTeam && isManagerRole(user)))) {
       return forbidden('Only the project owner, Admins and Project Managers can delete projects');
     }
 

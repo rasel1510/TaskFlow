@@ -133,6 +133,8 @@ interface ProjectData {
   } | null;
   tasks: ProjectTask[];
   customColumns?: CustomColumn[] | null;
+  /** Server's verdict on whether the signed-in user may change this project (columns, settings) */
+  canManage?: boolean;
   totalTasks: number;
   completedTasks: number;
   inProgressTasks: number;
@@ -474,6 +476,8 @@ export default function ProjectDetail({
     currentUserRole === 'PROJECT_MANAGER' ||
     currentUserRole?.toLowerCase() === 'project manager';
   const isPMOrOwner = project?.owner?.id === currentUserId || isPM;
+  // Column changes are saved through the project API, so follow the server's decision when it sent one
+  const canEditColumns = project?.canManage ?? isPMOrOwner;
 
   // Join Requests state
   const [joinRequests, setJoinRequests] = useState<any[]>([]);
@@ -2110,7 +2114,7 @@ export default function ProjectDetail({
                     <span className="truncate" title={col.title}>
                       {col.title}
                     </span>
-                    {isPMOrOwner && (
+                    {canEditColumns && (
                       <button
                         type="button"
                         aria-label={`${col.title} column options`}
@@ -2165,7 +2169,7 @@ export default function ProjectDetail({
                 ))}
 
                 <span className="flex justify-end">
-                  {isPMOrOwner && customColumns.length < MAX_CUSTOM_COLUMNS && (
+                  {canEditColumns && customColumns.length < MAX_CUSTOM_COLUMNS && (
                     <button
                       type="button"
                       onClick={() => setColumnModal({})}

@@ -15,7 +15,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
-import { isSuperAdmin } from '@/lib/permissions';
+import { hasProjectPermission, isSuperAdmin } from '@/lib/permissions';
 
 export interface SessionUser {
   id: string;
@@ -174,14 +174,36 @@ export function isManagerRole(user: SessionUser): boolean {
   return r === 'admin' || r === 'owner' || r === 'project manager';
 }
 
+/** Workspace Admin (any legacy spelling) or Super Admin. */
+function isAdminRole(user: SessionUser): boolean {
+  if (user.isSuperAdmin) return true;
+  const r = user.role.toLowerCase().replace(/_/g, ' ').trim();
+  return r === 'admin' || r === 'owner';
+}
+
+function isSameTeam(a: ProjectAccess): boolean {
+  return Boolean(a.project.teamId && a.user.teamId && a.project.teamId === a.user.teamId);
+}
+
 /**
- * May this user change project settings / members / invitations?
- * Owner, project OWNER/LEAD member, Super Admin, or an Admin/PM of the project's own company.
+ * Full control of a project (settings, columns, members, deletion):
+ *  - the project owner and Super Admins
+ *  - members whose project role is OWNER / Admin
+ *  - workspace Admins of the project's own company, and workspace Admins who were added to the project
+ */
+export function isProjectAdmin(a: ProjectAccess): boolean {
+  if (a.user.isSuperAdmin || a.isOwner) return true;
+  if (hasProjectPermission(a.memberRole, 'Admin')) return true;
+  return isAdminRole(a.user) && (isSameTeam(a) || Boolean(a.memberRole));
+}
+
+/**
+ * May this user change project settings, columns, milestones and invitations?
+ * Everyone with full control (see isProjectAdmin), plus project leads / managers and
+ * Project Managers of the project's own company.
  */
 export function canManageProject(a: ProjectAccess): boolean {
-  if (a.user.isSuperAdmin || a.isOwner) return true;
-  const memberRole = (a.memberRole || '').toUpperCase();
-  if (memberRole === 'OWNER' || memberRole === 'LEAD') return true;
-  const sameTeam = Boolean(a.project.teamId && a.user.teamId && a.project.teamId === a.user.teamId);
-  return sameTeam && isManagerRole(a.user);
+  if (isProjectAdmin(a)) return true;
+  if (hasProjectPermission(a.memberRole, 'Project Manager')) return true;
+  return isSameTeam(a) && isManagerRole(a.user);
 }
