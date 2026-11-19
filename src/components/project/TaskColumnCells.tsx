@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import {
   formatHours,
@@ -213,19 +214,13 @@ export function CustomFieldCell({
     case 'text': {
       const text = typeof value === 'string' ? value : '';
       return (
-        <div className="w-full min-w-0" onClick={stop}>
-          <InlineInput
-            ariaLabel={label}
-            display={text || EMPTY}
-            initial={text}
-            placeholder="Add text"
-            onCommit={draft => {
-              const next = draft.trim().slice(0, 1000);
-              if (next !== text) onSave(next === '' ? null : next);
-              return true;
-            }}
-          />
-        </div>
+        <TextNoteCell
+          label={label}
+          value={text}
+          onSave={next => {
+            if (next !== text) onSave(next === '' ? null : next);
+          }}
+        />
       );
     }
 
@@ -388,5 +383,221 @@ export function DateField({
         className="absolute left-0 bottom-0 w-0 h-0 opacity-0 pointer-events-none"
       />
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Text column: note editor
+// ---------------------------------------------------------------------------
+
+export const NOTE_MAX_LENGTH = 1000;
+const NOTE_PANEL_WIDTH = 320;
+const NOTE_PANEL_EST_HEIGHT = 200;
+
+/**
+ * Text cell. Shows the note on one line (full text on hover); clicking opens a
+ * multi-line note box anchored to the cell.
+ */
+function TextNoteCell({
+  label,
+  value,
+  onSave,
+}: {
+  label: string;
+  value: string;
+  /** Receives the trimmed note ('' = cleared) */
+  onSave: (next: string) => void;
+}) {
+  const anchorRef = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="group/note w-full min-w-0" onClick={stop}>
+      <button
+        ref={anchorRef}
+        type="button"
+        aria-label={`Edit ${label}`}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        title={value || undefined}
+        onClick={e => {
+          stop(e);
+          setOpen(true);
+        }}
+        className={`block w-full min-w-0 h-8 px-2 -mx-2 rounded-md border text-left text-[12.5px] truncate transition-colors duration-100 ease-out cursor-text ${
+          open
+            ? 'border-[#2563EB] bg-white ring-2 ring-[#DBEAFE]'
+            : 'border-transparent hover:border-[#E5E7EB] hover:bg-white'
+        } ${value ? 'text-[rgba(17,17,17,0.75)]' : ''}`}
+      >
+        {value ? (
+          value.replace(/\s+/g, ' ')
+        ) : (
+          <span className="text-[#9CA3AF] opacity-0 group-hover/note:opacity-100 transition-opacity">Add a note</span>
+        )}
+      </button>
+      {open && (
+        <NoteEditor
+          anchor={anchorRef.current}
+          label={label}
+          initial={value}
+          onSave={onSave}
+          onClose={() => {
+            setOpen(false);
+            anchorRef.current?.focus();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Floating note box rendered in a portal (so the table's horizontal scroll never clips it).
+ * Saves on Ctrl/Cmd+Enter, the Save button or clicking outside; Esc cancels.
+ */
+function NoteEditor({
+  anchor,
+  label,
+  initial,
+  onSave,
+  onClose,
+}: {
+  anchor: HTMLElement | null;
+  label: string;
+  initial: string;
+  onSave: (next: string) => void;
+  onClose: () => void;
+}) {
+  const [draft, setDraft] = useState(initial);
+  const [pos, setPos] = useState<{ top: number; left: number; above: boolean } | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Keep the latest commit for document-level listeners
+  const commitRef = useRef<() => void>(() => {});
+  commitRef.current = () => {
+    onSave(draft.trim().slice(0, NOTE_MAX_LENGTH));
+    onClose();
+  };
+
+  const place = useCallback(() => {
+    if (!anchor) return;
+    const r = anchor.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom;
+    const above = spaceBelow < NOTE_PANEL_EST_HEIGHT + 8 && r.top > spaceBelow;
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - NOTE_PANEL_WIDTH - 8));
+    setPos({ top: above ? r.top - 6 : r.bottom + 6, left, above });
+  }, [anchor]);
+
+  useLayoutEffect(() => {
+    place();
+  }, [place]);
+
+  useEffect(() => {
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    return () => {
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+    };
+  }, [place]);
+
+  // Clicking anywhere outside the box saves (like monday.com)
+  useEffect(() => {
+    const onPointerDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (panelRef.current?.contains(target) || anchor?.contains(target)) return;
+      commitRef.current();
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [anchor]);
+
+  // Grow with the content (up to a limit)
+  const autosize = () => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
+  };
+  useLayoutEffect(autosize, [draft]);
+
+  if (!pos || typeof document === 'undefined') return null;
+
+  const remaining = NOTE_MAX_LENGTH - draft.length;
+
+  return createPortal(
+    <div
+      ref={panelRef}
+      role="dialog"
+      aria-label={`Edit ${label}`}
+      // React events bubble through portals — keep them away from the task row
+      onClick={stop}
+      onMouseDown={stop}
+      onKeyDown={stop}
+      style={{
+        position: 'fixed',
+        top: pos.top,
+        left: pos.left,
+        width: NOTE_PANEL_WIDTH,
+        transform: pos.above ? 'translateY(-100%)' : undefined,
+      }}
+      className="z-[70] rounded-xl border border-[#E5E7EB] bg-white shadow-xl"
+    >
+      <div className="px-3 pt-2.5 pb-1 text-[11px] font-medium uppercase tracking-wide text-[rgba(17,17,17,0.45)] truncate">
+        {label}
+      </div>
+      <div className="px-3">
+        <textarea
+          ref={textareaRef}
+          autoFocus
+          rows={3}
+          maxLength={NOTE_MAX_LENGTH}
+          value={draft}
+          placeholder="Write a note about this task"
+          aria-label={label}
+          onFocus={e => {
+            const end = e.currentTarget.value.length;
+            e.currentTarget.setSelectionRange(end, end);
+          }}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose();
+            } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+              e.preventDefault();
+              commitRef.current();
+            }
+          }}
+          className="block w-full min-h-[72px] resize-none rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-2 text-[13px] leading-relaxed text-[#111111] placeholder-[#9CA3AF] outline-none transition-[border-color,box-shadow] duration-150 ease-out focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE]"
+        />
+      </div>
+      <div className="flex items-center gap-2 px-3 py-2.5">
+        <span className={`text-[11px] tabular-nums ${remaining <= 50 ? 'text-[#D97706]' : 'text-[rgba(17,17,17,0.4)]'}`}>
+          {draft.length}/{NOTE_MAX_LENGTH}
+        </span>
+        <span className="hidden sm:inline text-[11px] text-[rgba(17,17,17,0.4)]">Ctrl+Enter to save</span>
+        <div className="ml-auto flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-7 px-2.5 rounded-md text-[12px] font-medium text-[rgba(17,17,17,0.7)] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => commitRef.current()}
+            className="h-7 px-3 rounded-md bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[12px] font-medium transition-colors cursor-pointer"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }

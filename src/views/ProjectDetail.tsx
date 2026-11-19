@@ -13,7 +13,7 @@ import DatePicker from '@/components/ui/DatePicker';
 import AddProjectMembersModal from '@/components/AddProjectMembersModal';
 import { RadialTaskMenu } from '@/components/RadialTaskMenu';
 import { ColumnModal, DeleteColumnDialog, type ColumnDraft } from '@/components/project/ColumnModals';
-import { CustomFieldCell, DateField, HoursInput, TimeSpentCell } from '@/components/project/TaskColumnCells';
+import { CustomFieldCell, DateField, HoursInput, NOTE_MAX_LENGTH, TimeSpentCell } from '@/components/project/TaskColumnCells';
 import {
   COLUMN_TYPE_META,
   MAX_CUSTOM_COLUMNS,
@@ -348,6 +348,8 @@ export default function ProjectDetail({
   const [inlineTaskStatus, setInlineTaskStatus] = useState<'todo' | 'in_progress' | 'in_review'>('todo');
   const [inlineTaskCompletion, setInlineTaskCompletion] = useState(''); // YYYY-MM-DD
   const [inlineTaskHours, setInlineTaskHours] = useState('');
+  /** Notes typed into Text columns while adding a task, keyed by column id */
+  const [inlineTaskNotes, setInlineTaskNotes] = useState<Record<string, string>>({});
   const [isCreatingInlineTask, setIsCreatingInlineTask] = useState(false);
 
   useEffect(() => {
@@ -394,6 +396,7 @@ export default function ProjectDetail({
     setInlineTaskStatus('todo');
     setInlineTaskCompletion('');
     setInlineTaskHours('');
+    setInlineTaskNotes({});
   };
 
   const handleCreateInlineTask = async (rawDate: string | null) => {
@@ -403,6 +406,13 @@ export default function ProjectDetail({
       toast.error('Time spent: enter hours, for example 0.5 or 1.25');
       return;
     }
+    // Notes for Text columns that still exist (empty notes are skipped)
+    const textColumnIds = new Set((project.customColumns ?? []).filter(c => c.type === 'text').map(c => c.id));
+    const notes = Object.fromEntries(
+      Object.entries(inlineTaskNotes)
+        .map(([id, note]) => [id, note.trim().slice(0, NOTE_MAX_LENGTH)] as const)
+        .filter(([id, note]) => textColumnIds.has(id) && note.length > 0)
+    );
     setIsCreatingInlineTask(true);
     try {
       const res = await fetch('/api/tasks', {
@@ -419,6 +429,7 @@ export default function ProjectDetail({
           dueDate: rawDate || undefined,
           completedAt: inlineTaskCompletion || undefined,
           timeSpent: minutes ?? undefined,
+          ...(Object.keys(notes).length > 0 ? { customFields: notes } : {}),
         }),
       });
       const json = await res.json();
@@ -2428,9 +2439,36 @@ export default function ProjectDetail({
                                 />
                               </span>
 
-                              {customColumns.map(col => (
-                                <span key={col.id} className="hidden md:block" aria-hidden="true" />
-                              ))}
+                              {customColumns.map(col =>
+                                col.type === 'text' ? (
+                                  <span key={col.id} className="hidden md:block min-w-0">
+                                    <input
+                                      type="text"
+                                      value={inlineTaskNotes[col.id] ?? ''}
+                                      maxLength={NOTE_MAX_LENGTH}
+                                      placeholder="Add a note"
+                                      aria-label={`${col.title} for the new task`}
+                                      title={inlineTaskNotes[col.id] || undefined}
+                                      onChange={e => {
+                                        const value = e.target.value;
+                                        setInlineTaskNotes(prev => ({ ...prev, [col.id]: value }));
+                                      }}
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          handleCreateInlineTask(group.rawDate);
+                                        } else if (e.key === 'Escape') {
+                                          setAddingTaskDate(null);
+                                          resetInlineDraft();
+                                        }
+                                      }}
+                                      className="h-8 w-full min-w-0 px-2.5 rounded-md border border-[#E5E7EB] bg-white text-[12.5px] text-[#111111] placeholder-[#9CA3AF] outline-none transition-[border-color,box-shadow] duration-150 ease-out focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE]"
+                                    />
+                                  </span>
+                                ) : (
+                                  <span key={col.id} className="hidden md:block" aria-hidden="true" />
+                                )
+                              )}
 
                               <span className="flex items-center justify-end gap-1">
                                 <button
