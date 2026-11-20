@@ -72,19 +72,25 @@ export async function POST(req: Request) {
       });
 
       if (existingUser) {
+        // Accounts pre-created by an invitation must be claimed through the invitation link —
+        // otherwise anyone who knows the invited email could sign up first and take the account.
+        if (pendingInvite) {
+          return NextResponse.json(
+            { message: "You've been invited to FlowSync. Open the invitation link in your email to set up your account." },
+            { status: 409 }
+          );
+        }
         // If user already verified and has no pending invitation to join
-        if (existingUser.emailVerified && !pendingInvite) {
+        if (existingUser.emailVerified) {
           return NextResponse.json(
             { message: 'An account with this email already exists' },
             { status: 409 }
           );
         }
 
-        // Invited or unverified pre-provisioned user completing signup!
-        const targetTeamId = pendingInvite?.teamId || existingUser.teamId;
-        const targetRole = pendingInvite
-          ? (pendingInvite.role === 'ADMIN' ? 'Admin' : pendingInvite.role === 'PROJECT_MANAGER' ? 'Project Manager' : 'Member')
-          : existingUser.role;
+        // Unverified account (signup started but never verified) completing signup again
+        const targetTeamId = existingUser.teamId;
+        const targetRole = existingUser.role;
 
         const updatedUser = await prisma.user.update({
           where: { id: existingUser.id },
@@ -97,13 +103,6 @@ export async function POST(req: Request) {
           },
         });
 
-        if (pendingInvite) {
-          await prisma.teamInvitation.update({
-            where: { id: pendingInvite.id },
-            data: { status: 'accepted' },
-          });
-        }
-
         createdUserId = updatedUser.id;
 
         saveStoredUser({
@@ -114,7 +113,7 @@ export async function POST(req: Request) {
           role: updatedUser.role,
           avatar: updatedUser.avatar,
           teamId: targetTeamId || '',
-          teamName: pendingInvite?.team.name || cleanTeamName,
+          teamName: cleanTeamName,
         });
       } else if (pendingInvite) {
         // Brand new user accepting team invitation via signup

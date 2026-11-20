@@ -20,7 +20,14 @@ export function getAppOrigin(req?: NextRequest): string {
     return envAppUrl.trim().replace(/\/+$/, '');
   }
 
-  // 2. Vercel production or preview URL
+  // 2a. Vercel production: the stable production domain (e.g. flow-sync-ruby.vercel.app).
+  // VERCEL_URL is the per-deployment URL, which changes on every deploy and can sit behind
+  // Vercel's deployment protection — wrong for links in emails.
+  if (process.env.VERCEL_ENV === 'production' && process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.trim().replace(/\/+$/, '')}`;
+  }
+
+  // 2b. Vercel preview URL
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL.trim().replace(/\/+$/, '')}`;
   }

@@ -224,11 +224,29 @@ export async function GET(req: Request) {
       user.plan === 'basic' ||
       Boolean(mappedInvoices && mappedInvoices.length > 0);
 
+    // App access: paying users, members of a company whose account is paid (team invites), and
+    // anyone who has been added to a project (project invites) — invited people never hit the paywall.
+    let isProjectMember = false;
+    let teamCovered = false;
+    if (!hasPaid) {
+      const [membershipCount, paidTeammates] = await Promise.all([
+        prisma.projectMember.count({ where: { userId: user.id } }),
+        user.teamId
+          ? prisma.user.count({ where: { teamId: user.teamId, plan: { in: ['pro', 'basic'] } } })
+          : Promise.resolve(0),
+      ]);
+      isProjectMember = membershipCount > 0;
+      teamCovered = paidTeammates > 0;
+    }
+    const hasAccess = hasPaid || teamCovered || isProjectMember;
+
     return NextResponse.json({
       success: true,
       data: {
         plan: user.plan || 'free',
         hasPaid,
+        hasAccess,
+        isProjectMember,
         teamId: user.teamId,
         billingCycle: isPro ? (user.billingCycle || 'monthly') : 'free',
         subscriptionStatus: user.subscriptionStatus || 'active',

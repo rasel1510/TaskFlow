@@ -3132,6 +3132,7 @@ export default function ProjectDetail({
         existingMemberIds={members.map(m => m.userId)}
         isOpen={showAddMemberModal}
         onClose={() => setShowAddMemberModal(false)}
+        onInvited={fetchInvitations}
         onSuccess={() => {
           fetchMembers();
           fetchJoinRequests();

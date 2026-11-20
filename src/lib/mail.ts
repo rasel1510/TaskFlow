@@ -596,254 +596,198 @@ export async function verifySmtpConnection(): Promise<{ success: boolean; messag
 export interface SendProjectInviteParams {
   to: string;
   inviterName: string;
+  inviterEmail?: string;
   projectName: string;
   projectColor?: string;
+  organizationName?: string | null;
+  /** Link that opens the invitation page (Accept) */
   inviteUrl: string;
+  /** Link that opens the invitation page in "decline" mode */
+  declineUrl?: string;
   role: string;
   expiresInDays?: number;
 }
 
-export async function sendProjectInviteEmail({
+/** Escape user-provided text before placing it in email HTML */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/** Human label for a project role ("CONTRIBUTOR" → "Contributor", "Project Manager" stays) */
+function formatProjectRole(role: string): string {
+  if (!role) return 'Member';
+  if (/[a-z]/.test(role)) return role;
+  return role.charAt(0) + role.slice(1).toLowerCase();
+}
+
+/**
+ * Project invitation email: who invited you, to which project/organization, with Accept and
+ * Decline buttons. Table-based layout with inline styles so it renders in Gmail, Outlook and
+ * Apple Mail; a plain-text alternative is included.
+ */
+/** Builds the invitation email (HTML + plain text) without sending it. */
+export function buildProjectInviteEmail({
   to,
   inviterName,
+  inviterEmail,
   projectName,
   projectColor = '#2563EB',
+  organizationName,
   inviteUrl,
+  declineUrl,
   role,
   expiresInDays = 7,
-}: SendProjectInviteParams): Promise<MailResult> {
-  const from = getSenderAddress();
-  const transporter = getSmtpTransporter();
-  const isLocalhost = inviteUrl.includes('localhost') || inviteUrl.includes('127.0.0.1');
+}: SendProjectInviteParams): { subject: string; html: string; text: string; declineUrl: string } {
+  const safeInviter = escapeHtml(inviterName);
+  const safeInviterEmail = inviterEmail ? escapeHtml(inviterEmail) : '';
+  const safeProject = escapeHtml(projectName);
+  const safeOrg = organizationName ? escapeHtml(organizationName) : '';
+  const safeRole = escapeHtml(formatProjectRole(role));
+  const safeColor = /^#[0-9a-f]{6}$/i.test(projectColor) ? projectColor : '#2563EB';
+  const decline = declineUrl || `${inviteUrl}${inviteUrl.includes('?') ? '&' : '?'}action=decline`;
 
-  const formattedRole = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
-
-  const html = `
-<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Invitation to collaborate on ${projectName} on FlowSync</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      background-color: #F9FAFB;
-      color: #111111;
-      -webkit-font-smoothing: antialiased;
-    }
-    .wrapper {
-      width: 100%;
-      background-color: #F9FAFB;
-      padding: 40px 16px;
-      box-sizing: border-box;
-    }
-    .container {
-      max-width: 520px;
-      margin: 0 auto;
-      background: #ffffff;
-      border: 1px solid #E5E7EB;
-      border-radius: 16px;
-      padding: 36px 32px;
-      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
-    }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 24px;
-    }
-    .brand-icon {
-      width: 36px;
-      height: 36px;
-      background-color: #2563EB;
-      border-radius: 10px;
-      display: inline-block;
-      text-align: center;
-      line-height: 36px;
-      color: #ffffff;
-      font-weight: bold;
-      font-size: 18px;
-    }
-    .brand-name {
-      font-size: 20px;
-      font-weight: 700;
-      color: #111111;
-      letter-spacing: -0.5px;
-      display: inline-block;
-      vertical-align: middle;
-      margin-left: 8px;
-    }
-    h1 {
-      font-size: 20px;
-      font-weight: 700;
-      color: #111111;
-      margin: 0 0 12px 0;
-      letter-spacing: -0.4px;
-    }
-    p {
-      font-size: 14px;
-      line-height: 22px;
-      color: #4B5563;
-      margin: 0 0 20px 0;
-    }
-    .project-card {
-      background-color: #F8FAFC;
-      border: 1px solid #E2E8F0;
-      border-radius: 12px;
-      padding: 20px;
-      margin: 24px 0;
-      text-align: center;
-    }
-    .project-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: #FFFFFF;
-      border: 1px solid #CBD5E1;
-      padding: 6px 14px;
-      border-radius: 9999px;
-      font-size: 13px;
-      font-weight: 600;
-      color: #1E293B;
-      margin-bottom: 16px;
-    }
-    .color-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      display: inline-block;
-      background-color: ${projectColor};
-    }
-    .role-tag {
-      display: inline-block;
-      background: #EFF6FF;
-      color: #2563EB;
-      font-size: 11px;
-      font-weight: 700;
-      padding: 2px 8px;
-      border-radius: 6px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-left: 6px;
-    }
-    .btn {
-      display: inline-block;
-      background-color: #2563EB;
-      color: #ffffff !important;
-      text-decoration: none;
-      font-size: 14px;
-      font-weight: 600;
-      padding: 12px 28px;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
-    }
-    .btn:hover {
-      background-color: #1D4ED8;
-    }
-    .footer {
-      border-top: 1px solid #F3F4F6;
-      padding-top: 20px;
-      margin-top: 28px;
-      font-size: 12px;
-      line-height: 18px;
-      color: #9CA3AF;
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>Invitation to ${safeProject} on FlowSync</title>
 </head>
-<body>
-  <div class="wrapper">
-    <div class="container">
-      <div class="brand">
-        <div class="brand-icon">✓</div>
-        <span class="brand-name">FlowSync</span>
-      </div>
+<body style="margin:0;padding:0;background-color:#F4F5F7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#111111;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${safeInviter} invited you to join ${safeProject} on FlowSync.</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F4F5F7;padding:32px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;">
+          <!-- Brand -->
+          <tr>
+            <td style="padding:0 4px 18px 4px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="width:30px;height:30px;background-color:#111111;border-radius:8px;text-align:center;vertical-align:middle;color:#FFFFFF;font-size:15px;font-weight:700;">F</td>
+                  <td style="padding-left:10px;font-size:17px;font-weight:700;color:#111111;letter-spacing:-0.2px;">FlowSync</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Card -->
+          <tr>
+            <td style="background-color:#FFFFFF;border:1px solid #E5E7EB;border-radius:16px;padding:32px 28px;">
+              <p style="margin:0 0 6px 0;font-size:13px;color:#6B7280;">You're invited to collaborate</p>
+              <h1 style="margin:0 0 18px 0;font-size:22px;line-height:1.3;font-weight:700;color:#111111;">
+                Join <span style="color:${safeColor};">${safeProject}</span> on FlowSync
+              </h1>
+              <p style="margin:0 0 22px 0;font-size:14.5px;line-height:1.6;color:#374151;">
+                <strong style="color:#111111;">${safeInviter}</strong>${safeInviterEmail ? ` (<a href="mailto:${safeInviterEmail}" style="color:#2563EB;text-decoration:none;">${safeInviterEmail}</a>)` : ''}
+                has invited you to join the project <strong style="color:#111111;">${safeProject}</strong>${safeOrg ? ` at <strong style="color:#111111;">${safeOrg}</strong>` : ''}.
+              </p>
 
-      <h1>You're invited to collaborate</h1>
-      <p>Hello,</p>
-      <p><strong>${inviterName}</strong> (Project Manager) has invited you to join the project team for <strong>${projectName}</strong> as a <span class="role-tag">${formattedRole}</span>.</p>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F9FAFB;border:1px solid #F0F0F0;border-radius:12px;margin:0 0 26px 0;">
+                <tr>
+                  <td style="padding:14px 16px;font-size:13px;color:#6B7280;">Project</td>
+                  <td style="padding:14px 16px;font-size:13px;color:#111111;font-weight:600;text-align:right;">
+                    <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background-color:${safeColor};margin-right:6px;"></span>${safeProject}
+                  </td>
+                </tr>
+                ${safeOrg ? `<tr>
+                  <td style="padding:0 16px 14px 16px;font-size:13px;color:#6B7280;">Organization</td>
+                  <td style="padding:0 16px 14px 16px;font-size:13px;color:#111111;font-weight:600;text-align:right;">${safeOrg}</td>
+                </tr>` : ''}
+                <tr>
+                  <td style="padding:0 16px 14px 16px;font-size:13px;color:#6B7280;">Your role</td>
+                  <td style="padding:0 16px 14px 16px;font-size:13px;color:#111111;font-weight:600;text-align:right;">${safeRole}</td>
+                </tr>
+                <tr>
+                  <td style="padding:0 16px 14px 16px;font-size:13px;color:#6B7280;">Invited by</td>
+                  <td style="padding:0 16px 14px 16px;font-size:13px;color:#111111;font-weight:600;text-align:right;">${safeInviter}</td>
+                </tr>
+              </table>
 
-      <div class="project-card">
-        <div class="project-badge">
-          <span class="color-dot"></span>
-          <span>${projectName}</span>
-        </div>
-        <p style="margin-bottom: 16px; font-weight: 500; color: #1E3A8A; font-size: 13px;">
-          Accept your invitation below, create your password, and enter the project workspace:
-        </p>
-        <a href="${inviteUrl}" class="btn" target="_blank" rel="noopener noreferrer" style="display: inline-block; background-color: #2563EB; color: #ffffff !important; text-decoration: none; font-size: 14px; font-weight: 600; padding: 13px 32px; border-radius: 10px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">Accept Invitation & Set Password</a>
-        <p style="margin-top: 14px; margin-bottom: 0; font-size: 11px; color: #64748B;">This secure invitation link will expire in ${expiresInDays} days.</p>
-      </div>
+              <!-- Buttons -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding-right:6px;" width="50%">
+                    <a href="${inviteUrl}" style="display:block;text-align:center;background-color:#2563EB;color:#FFFFFF;font-size:14px;font-weight:600;text-decoration:none;padding:13px 8px;border-radius:10px;white-space:nowrap;">Accept invitation</a>
+                  </td>
+                  <td style="padding-left:6px;" width="50%">
+                    <a href="${decline}" style="display:block;text-align:center;background-color:#FFFFFF;color:#374151;font-size:14px;font-weight:600;text-decoration:none;padding:12px 8px;border-radius:10px;border:1px solid #D1D5DB;white-space:nowrap;">Decline</a>
+                  </td>
+                </tr>
+              </table>
 
-      ${
-        isLocalhost
-          ? `
-      <div style="margin: 18px 0; padding: 12px 16px; background-color: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; text-align: left; font-size: 12px; color: #92400E; line-height: 18px;">
-        <strong style="color: #B45309;">⚠️ Testing on Localhost?</strong><br>
-        This invitation was dispatched from a local development server (<code>${inviteUrl.split('/invite')[0]}</code>).<br>
-        • If you open this email on a <strong>phone, tablet, or another computer</strong>, the button cannot reach your local PC.<br>
-        • <strong>To test:</strong> Open this link on the computer running the server, or set <code>APP_URL</code> in your <code>.env</code> file (e.g. using ngrok or your Wi-Fi LAN IP).
-      </div>
-      `
-          : ''
-      }
-
-      <p style="font-size: 12px; color: #9CA3AF; word-break: break-all;">
-        Button not working? Copy and paste this URL into your browser:<br>
-        <a href="${inviteUrl}" style="color: #2563EB;">${inviteUrl}</a>
-      </p>
-
-      <div class="footer">
-        © ${new Date().getFullYear()} FlowSync Technologies Inc. All rights reserved.<br>
-        High-Performance Task & Project Management Infrastructure.
-      </div>
-    </div>
-  </div>
+              <p style="margin:22px 0 0 0;font-size:12.5px;line-height:1.6;color:#6B7280;">
+                New to FlowSync? Accepting lets you choose your name and password, then takes you straight to the project.
+                This invitation expires in ${expiresInDays} day${expiresInDays === 1 ? '' : 's'}.
+              </p>
+            </td>
+          </tr>
+          <!-- Fallback link + footer -->
+          <tr>
+            <td style="padding:18px 6px 0 6px;font-size:11.5px;line-height:1.6;color:#9CA3AF;">
+              If the buttons don't work, copy this link into your browser:<br>
+              <a href="${inviteUrl}" style="color:#6B7280;word-break:break-all;">${inviteUrl}</a><br><br>
+              You received this email because ${safeInviter} invited ${escapeHtml(to)} to a FlowSync project.
+              If you weren't expecting it, you can ignore this email or decline.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
-</html>
-  `.trim();
+</html>`;
+
+  const text = [
+    `${inviterName}${inviterEmail ? ` (${inviterEmail})` : ''} invited you to join the project "${projectName}"${organizationName ? ` at ${organizationName}` : ''} on FlowSync.`,
+    '',
+    `Your role: ${formatProjectRole(role)}`,
+    '',
+    `Accept the invitation: ${inviteUrl}`,
+    `Decline the invitation: ${decline}`,
+    '',
+    `This invitation expires in ${expiresInDays} day${expiresInDays === 1 ? '' : 's'}.`,
+  ].join('\n');
+
+  return { subject: `${inviterName} invited you to join ${projectName} on FlowSync`, html, text, declineUrl: decline };
+}
+
+export async function sendProjectInviteEmail(params: SendProjectInviteParams): Promise<MailResult> {
+  const { to, inviterName, inviterEmail, projectName, inviteUrl, role } = params;
+  const from = getSenderAddress();
+  const transporter = getSmtpTransporter();
+  const { subject, html, text, declineUrl: decline } = buildProjectInviteEmail(params);
 
   if (!transporter) {
     if (process.env.NODE_ENV === 'production') {
-      console.error('[SMTP ERROR] SMTP server is not configured in Vercel environment variables (SMTP_HOST, SMTP_USER, SMTP_PASS).');
-      return {
-        success: false,
-        error: 'SMTP credentials (SMTP_HOST, SMTP_USER, SMTP_PASS) are not configured in Vercel environment variables.',
-      };
+      return { success: false, error: 'SMTP is not configured (SMTP_HOST, SMTP_USER, SMTP_PASS).' };
     }
-
     console.log('\n======================================================');
-    console.log('📨 [SMTP DEV MODE] FlowSync Project Invitation Dispatch');
-    console.log(`To:          ${to}`);
-    console.log(`Inviter:     ${inviterName}`);
-    console.log(`Project:     ${projectName} (Role: ${role})`);
-    console.log(`Invite URL:  >>> [ ${inviteUrl} ] <<<`);
-    console.log(`Expires:     ${expiresInDays} days`);
+    console.log('📨 [SMTP DEV MODE] FlowSync Project Invitation');
+    console.log(`To:       ${to}`);
+    console.log(`Inviter:  ${inviterName}`);
+    console.log(`Project:  ${projectName} (Role: ${role})`);
+    console.log(`Accept:   ${inviteUrl}`);
+    console.log(`Decline:  ${decline}`);
     console.log('======================================================\n');
-
-    return {
-      success: true,
-      devMode: true,
-      previewCode: inviteUrl,
-    };
+    return { success: true, devMode: true, previewCode: inviteUrl };
   }
 
   try {
     const info = await transporter.sendMail({
       from,
       to,
-      subject: `${inviterName} invited you to join ${projectName} on FlowSync`,
-      text: `${inviterName} has invited you to join ${projectName} as ${role} on FlowSync. Accept your invitation and set your password here: ${inviteUrl}`,
+      replyTo: inviterEmail || undefined,
+      subject,
+      text,
       html,
     });
-
-    return {
-      success: true,
-      messageId: info.messageId,
-      devMode: false,
-    };
+    return { success: true, messageId: info.messageId, devMode: false };
   } catch (error) {
     console.error('[SMTP ERROR] Failed to send project invite email:', error);
     return {

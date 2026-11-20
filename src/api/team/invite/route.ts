@@ -190,17 +190,9 @@ export async function POST(req: NextRequest) {
           emailVerified: null, // marked as pending until signup or acceptance
         },
       });
-    } else if (!existingUser.teamId) {
-      // User account exists without team — associate team and set password
-      await prisma.user.update({
-        where: { id: existingUser.id },
-        data: {
-          password: hashedPassword,
-          teamId: teamContext.teamId,
-          role: assignedRole,
-        },
-      });
     }
+    // Existing accounts are never modified here (no password reset, no silent team change):
+    // they join the team only when they accept the invitation with their own credentials.
 
     // Generate cryptographic token (32 bytes hex = 64 characters)
     const token = crypto.randomBytes(32).toString('hex');

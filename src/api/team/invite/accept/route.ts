@@ -1,448 +1,340 @@
+/**
+ * src/api/team/invite/accept/route.ts  (also served at /api/invite/accept)
+ *
+ * GET  ?token=...  — Describe an invitation (project or team) for the acceptance page
+ * POST { token, name?, password? } — Accept it
+ *
+ * Project invitations:
+ *  - Signed-in user: must be the invited email.
+ *  - Signed out, existing account with a password: must confirm that password.
+ *  - Signed out, existing Google-only account: must sign in with Google first.
+ *  - Signed out, no account: creates one from { name, password } (email is proven by the token).
+ *  Acceptance, membership and account creation run in one transaction, so a link can't be used twice.
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
-import { auth } from '@/auth';
+import redisCache from '@/lib/redis';
+import { getSessionUser } from '@/lib/access';
+import {
+  effectiveInviteStatus,
+  initialsFor,
+  inviteStatusMessage,
+  loadProjectInvite,
+  notifyInviter,
+  validateNewPassword,
+} from '@/lib/projectInvites';
 
 const AcceptInviteSchema = z.object({
   token: z.string().min(10, 'Valid token is required'),
-  name: z.string().optional(),
-  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
+  name: z.string().trim().max(80, 'Name must be 80 characters or fewer').optional(),
+  password: z.string().max(128).optional(),
 });
 
+const fail = (status: number, code: string, message: string, extra?: Record<string, unknown>) =>
+  NextResponse.json({ success: false, error: { code, message, ...extra } }, { status });
+
+/** Find a user by email regardless of letter case (older rows may not be lower-cased). */
+function findUserByEmail(email: string) {
+  return prisma.user.findFirst({
+    where: { email: { equals: email, mode: 'insensitive' } },
+    select: { id: true, name: true, email: true, password: true, teamId: true, emailVerified: true },
+  });
+}
+
+class InviteAlreadyUsedError extends Error {}
+
 // ---------------------------------------------------------------------------
-// GET /api/team/invite/accept?token=... — Verify token details (Project or Team)
+// GET — invitation details
 // ---------------------------------------------------------------------------
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const token = searchParams.get('token');
+    const token = new URL(req.url).searchParams.get('token') || '';
+    if (!token) return fail(400, 'INVALID_TOKEN', 'Invitation token is missing');
 
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: { code: 'INVALID_TOKEN', message: 'Invitation token is missing' } },
-        { status: 400 }
-      );
-    }
-
-    // 1. Check if token belongs to a Project Invitation
-    const projectInvitation = await prisma.projectInvitation.findUnique({
-      where: { token },
-      include: {
-        project: {
-          select: {
-            id: true,
-            name: true,
-            color: true,
-            teamId: true,
-          },
-        },
-        invitedBy: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
-      },
-    });
-
-    if (projectInvitation) {
-      if (projectInvitation.status !== 'pending') {
-        return NextResponse.json(
-          { success: false, error: { code: 'ALREADY_USED', message: `This invitation is already ${projectInvitation.status}` } },
-          { status: 400 }
-        );
+    // 1. Project invitation
+    const inv = await loadProjectInvite(token);
+    if (inv) {
+      const status = effectiveInviteStatus(inv);
+      if (status === 'expired' && inv.status === 'pending') {
+        await prisma.projectInvitation.update({ where: { id: inv.id }, data: { status: 'expired' } }).catch(() => {});
       }
 
-      if (new Date() > projectInvitation.expiresAt) {
-        await prisma.projectInvitation.update({
-          where: { id: projectInvitation.id },
-          data: { status: 'expired' },
-        });
-        return NextResponse.json(
-          { success: false, error: { code: 'EXPIRED', message: 'This invitation has expired. Please ask the project manager to resend.' } },
-          { status: 410 }
-        );
-      }
-
-      // Check if user already exists
-      const existingUser = await prisma.user.findUnique({
-        where: { email: projectInvitation.email },
-        select: { id: true, name: true, teamId: true },
-      });
-
-      let alreadyMember = false;
-      if (existingUser) {
-        const memberRecord = await prisma.projectMember.findUnique({
-          where: {
-            projectId_userId: {
-              projectId: projectInvitation.projectId,
-              userId: existingUser.id,
-            },
-          },
-        });
-        alreadyMember = !!memberRecord;
-      }
+      const existing = await findUserByEmail(inv.email);
+      const session = await getSessionUser();
+      const alreadyMember = existing
+        ? Boolean(
+            await prisma.projectMember.findUnique({
+              where: { projectId_userId: { projectId: inv.projectId, userId: existing.id } },
+              select: { id: true },
+            })
+          )
+        : false;
 
       return NextResponse.json({
         success: true,
         data: {
           type: 'project',
-          token: projectInvitation.token,
-          email: projectInvitation.email,
-          role: projectInvitation.role,
-          projectId: projectInvitation.project.id,
-          projectName: projectInvitation.project.name,
-          projectColor: projectInvitation.project.color || '#2563EB',
-          inviterName: projectInvitation.invitedBy?.name || 'Project Manager',
-          userExists: !!existingUser,
+          status,
+          statusMessage: status === 'pending' ? null : inviteStatusMessage(status, inv.project.name),
+          email: inv.email,
+          role: inv.role,
+          projectId: inv.project.id,
+          projectName: inv.project.name,
+          projectColor: inv.project.color || '#2563EB',
+          organizationName: inv.project.team?.name ?? null,
+          inviterName: inv.invitedBy?.name || 'A teammate',
+          inviterEmail: inv.invitedBy?.email || null,
+          expiresAt: inv.expiresAt.toISOString(),
+          // 'none' → create an account; 'password' → confirm password; 'google' → sign in with Google first
+          account: !existing ? 'none' : existing.password ? 'password' : 'google',
+          userExists: Boolean(existing),
           alreadyInTeam: alreadyMember,
+          signedInEmail: session?.email || null,
+          signedInMatches: Boolean(session && session.email === inv.email.toLowerCase()),
         },
       });
     }
 
-    // 2. Fall back to Team Invitation
+    // 2. Team invitation
     const invitation = await prisma.teamInvitation.findUnique({
       where: { token },
-      include: {
-        team: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-        invitedBy: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
-      },
+      include: { team: { select: { id: true, name: true } }, invitedBy: { select: { name: true } } },
     });
-
-    if (!invitation) {
-      return NextResponse.json(
-        { success: false, error: { code: 'NOT_FOUND', message: 'Invitation not found or link has expired' } },
-        { status: 404 }
-      );
-    }
-
+    if (!invitation) return fail(404, 'NOT_FOUND', 'Invitation not found or link has expired');
     if (invitation.status !== 'pending') {
-      return NextResponse.json(
-        { success: false, error: { code: 'ALREADY_USED', message: `This invitation is already ${invitation.status}` } },
-        { status: 400 }
-      );
+      return fail(400, 'ALREADY_USED', `This invitation is already ${invitation.status}`);
     }
-
     if (new Date() > invitation.expiresAt) {
-      await prisma.teamInvitation.update({
-        where: { id: invitation.id },
-        data: { status: 'expired' },
-      });
-      return NextResponse.json(
-        { success: false, error: { code: 'EXPIRED', message: 'This invitation has expired. Please ask the project manager to resend.' } },
-        { status: 410 }
-      );
+      await prisma.teamInvitation.update({ where: { id: invitation.id }, data: { status: 'expired' } });
+      return fail(410, 'EXPIRED', 'This invitation has expired. Please ask for a new one.');
     }
-
-    // Check if a user with this email already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: invitation.email },
-      select: { id: true, name: true, teamId: true },
-    });
-
+    const existingUser = await findUserByEmail(invitation.email);
     return NextResponse.json({
       success: true,
       data: {
         type: 'team',
+        status: 'pending',
         token: invitation.token,
         email: invitation.email,
         role: invitation.role,
         teamName: invitation.team.name,
         teamId: invitation.team.id,
-        inviterName: invitation.invitedBy?.name || 'Your Project Manager',
-        userExists: !!existingUser,
+        inviterName: invitation.invitedBy?.name || 'Your administrator',
+        userExists: Boolean(existingUser),
         alreadyInTeam: existingUser?.teamId === invitation.team.id,
       },
     });
   } catch (error) {
-    console.error('[GET /api/team/invite/accept] Error:', error);
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to verify invitation' } },
-      { status: 500 }
-    );
+    console.error('[GET /api/invite/accept] Error:', error);
+    return fail(500, 'INTERNAL_ERROR', 'Failed to verify invitation');
   }
 }
 
 // ---------------------------------------------------------------------------
-// POST /api/team/invite/accept — Accept invitation (Project or Team) & set password
+// POST — accept
 // ---------------------------------------------------------------------------
 export async function POST(req: NextRequest) {
   try {
-    let body: Record<string, unknown>;
+    let body: unknown;
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json(
-        { success: false, error: { code: 'BAD_REQUEST', message: 'Invalid JSON request payload' } },
-        { status: 400 }
-      );
+      return fail(400, 'BAD_REQUEST', 'Invalid JSON request payload');
     }
-
     const parsed = AcceptInviteSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json(
-        { success: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.issues[0]?.message } },
-        { status: 422 }
-      );
-    }
-
+    if (!parsed.success) return fail(422, 'VALIDATION_ERROR', parsed.error.issues[0]?.message || 'Invalid request');
     const { token, name, password } = parsed.data;
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // 1. Process Project Invitation
-    // ─────────────────────────────────────────────────────────────────────────
-    const projectInvitation = await prisma.projectInvitation.findUnique({
-      where: { token },
-      include: { project: true },
-    });
+    const inv = await loadProjectInvite(token);
+    if (inv) return acceptProjectInvite(inv, name, password);
+    return acceptTeamInvite(token, name, password);
+  } catch (error) {
+    console.error('[POST /api/invite/accept] Error:', error);
+    return fail(500, 'INTERNAL_ERROR', 'Failed to process invitation acceptance');
+  }
+}
 
-    if (projectInvitation) {
-      if (projectInvitation.status !== 'pending' || new Date() > projectInvitation.expiresAt) {
-        return NextResponse.json(
-          { success: false, error: { code: 'INVALID_INVITE', message: 'This invitation is invalid or has expired' } },
-          { status: 400 }
-        );
-      }
+async function acceptProjectInvite(
+  inv: NonNullable<Awaited<ReturnType<typeof loadProjectInvite>>>,
+  name: string | undefined,
+  password: string | undefined
+) {
+  const status = effectiveInviteStatus(inv);
+  if (status !== 'pending') {
+    return fail(status === 'expired' ? 410 : 409, status.toUpperCase(), inviteStatusMessage(status, inv.project.name));
+  }
 
-      const session = await auth();
-      let targetUserId = session?.user?.id;
-      let onboardingNeeded = false;
+  const inviteEmail = inv.email.toLowerCase();
+  const session = await getSessionUser();
 
-      if (targetUserId) {
-        // Authenticated user accepting project invitation
-        await prisma.projectMember.upsert({
-          where: {
-            projectId_userId: {
-              projectId: projectInvitation.projectId,
-              userId: targetUserId,
-            },
-          },
-          create: {
-            projectId: projectInvitation.projectId,
-            userId: targetUserId,
-            role: projectInvitation.role,
-          },
-          update: {
-            role: projectInvitation.role,
-          },
-        });
-      } else {
-        // Unauthenticated user accepting invitation
-        const existingUser = await prisma.user.findUnique({
-          where: { email: projectInvitation.email },
-        });
+  // Decide who is accepting (and verify it is really the invited person)
+  let existingUserId: string | null = null;
+  let newAccount: { name: string; passwordHash: string } | null = null;
+  let actorName = '';
 
-        if (existingUser) {
-          if (password && existingUser.password) {
-            const isValid = await bcrypt.compare(password, existingUser.password);
-            if (!isValid) {
-              return NextResponse.json(
-                { success: false, error: { code: 'INVALID_PASSWORD', message: 'Incorrect password for this account' } },
-                { status: 401 }
-              );
-            }
-          }
-          await prisma.projectMember.upsert({
-            where: {
-              projectId_userId: {
-                projectId: projectInvitation.projectId,
-                userId: existingUser.id,
-              },
-            },
-            create: {
-              projectId: projectInvitation.projectId,
-              userId: existingUser.id,
-              role: projectInvitation.role,
-            },
-            update: {
-              role: projectInvitation.role,
-            },
-          });
-          targetUserId = existingUser.id;
-        } else {
-          // Brand new user accepting with password!
-          if (!password) {
-            return NextResponse.json(
-              { success: false, error: { code: 'PASSWORD_REQUIRED', message: 'Please create a password to accept your invitation' } },
-              { status: 422 }
-            );
-          }
-
-          const hashedPassword = await bcrypt.hash(password, 10);
-          const userName = name?.trim() || 'New Member';
-          const initials = userName === 'New Member' ? 'MB' : userName.split(/\s+/).map(p => p[0]).join('').slice(0, 2).toUpperCase();
-
-          const newUser = await prisma.user.create({
-            data: {
-              name: userName,
-              email: projectInvitation.email,
-              password: hashedPassword,
-              role:
-                projectInvitation.role === 'Admin'
-                  ? 'Admin'
-                  : projectInvitation.role === 'Project Manager' || projectInvitation.role === 'LEAD'
-                  ? 'Project Manager'
-                  : 'Member',
-              avatar: initials || 'MB',
-              teamId: projectInvitation.project.teamId,
-              emailVerified: new Date(),
-            },
-          });
-
-          await prisma.projectMember.create({
-            data: {
-              projectId: projectInvitation.projectId,
-              userId: newUser.id,
-              role: projectInvitation.role,
-            },
-          });
-
-          targetUserId = newUser.id;
-          onboardingNeeded = true;
-        }
-      }
-
-      // Mark project invitation as accepted
-      await prisma.projectInvitation.update({
-        where: { id: projectInvitation.id },
-        data: { status: 'accepted' },
-      });
-
-      return NextResponse.json({
-        success: true,
-        message: `You have successfully joined ${projectInvitation.project.name}!`,
-        data: {
-          type: 'project',
-          projectId: projectInvitation.projectId,
-          projectName: projectInvitation.project.name,
-          email: projectInvitation.email,
-          onboardingNeeded,
-        },
-      });
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // 2. Process Team Invitation
-    // ─────────────────────────────────────────────────────────────────────────
-    const invitation = await prisma.teamInvitation.findUnique({
-      where: { token },
-      include: { team: true },
-    });
-
-    if (!invitation || invitation.status !== 'pending' || new Date() > invitation.expiresAt) {
-      return NextResponse.json(
-        { success: false, error: { code: 'INVALID_INVITE', message: 'This invitation is invalid or has expired' } },
-        { status: 400 }
+  if (session) {
+    if (session.email !== inviteEmail) {
+      return fail(
+        403,
+        'EMAIL_MISMATCH',
+        `This invitation was sent to ${inv.email}, but you're signed in as ${session.email}. Sign out and open the link again.`
       );
     }
+    existingUserId = session.id;
+  } else {
+    const existing = await findUserByEmail(inviteEmail);
+    if (existing) {
+      if (!existing.password) {
+        return fail(409, 'SIGN_IN_REQUIRED', 'This email uses Google sign-in. Continue with Google to accept the invitation.');
+      }
+      if (!password) return fail(422, 'PASSWORD_REQUIRED', 'Enter your FlowSync password to accept.');
+      const ok = await bcrypt.compare(password, existing.password);
+      if (!ok) return fail(401, 'INVALID_PASSWORD', 'Incorrect password for this account.');
+      existingUserId = existing.id;
+      actorName = existing.name;
+    } else {
+      const cleanName = (name || '').trim();
+      if (cleanName.length < 2) return fail(422, 'NAME_REQUIRED', 'Please enter your full name.');
+      const passwordError = validateNewPassword(password || '');
+      if (passwordError) return fail(422, 'WEAK_PASSWORD', passwordError);
+      newAccount = { name: cleanName, passwordHash: await bcrypt.hash(password!, 10) };
+      actorName = cleanName;
+    }
+  }
 
-    const session = await auth();
-    const sessionUserId = session?.user?.id;
-    let targetUserId = sessionUserId;
-    let onboardingNeeded = false;
+  let userId: string;
+  try {
+    userId = await prisma.$transaction(async tx => {
+      // Claim the invitation first — if two requests race, only one succeeds
+      const claimed = await tx.projectInvitation.updateMany({
+        where: { id: inv.id, status: 'pending' },
+        data: { status: 'accepted', respondedAt: new Date() },
+      });
+      if (claimed.count === 0) throw new InviteAlreadyUsedError();
 
-    const assignedRole =
-      invitation.role === 'ADMIN'
-        ? 'Admin'
-        : invitation.role === 'PROJECT_MANAGER'
-        ? 'Project Manager'
-        : 'Member';
+      let uid = existingUserId;
+      if (!uid && newAccount) {
+        const created = await tx.user.create({
+          data: {
+            name: newAccount.name,
+            email: inviteEmail,
+            password: newAccount.passwordHash,
+            // Workspace role is always Member — the project role lives on the membership only
+            role: 'Member',
+            avatar: initialsFor(newAccount.name),
+            teamId: inv.project.teamId,
+            emailVerified: new Date(), // the invitation link proves the email address
+            hasCompletedOnboarding: Boolean(inv.project.teamId),
+          },
+          select: { id: true },
+        });
+        uid = created.id;
+      }
 
-    if (targetUserId) {
+      await tx.projectMember.upsert({
+        where: { projectId_userId: { projectId: inv.projectId, userId: uid! } },
+        create: { projectId: inv.projectId, userId: uid!, role: inv.role },
+        update: {}, // already a member — keep their current role
+      });
+      return uid!;
+    });
+  } catch (err) {
+    if (err instanceof InviteAlreadyUsedError) {
+      return fail(409, 'ALREADY_RESPONDED', 'This invitation has already been used.');
+    }
+    throw err;
+  }
+
+  if (!actorName) {
+    const u = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+    actorName = u?.name || inviteEmail;
+  }
+
+  await Promise.allSettled([
+    notifyInviter(inv, 'accepted', actorName),
+    redisCache.delPattern('projects:*'),
+    redisCache.delPattern('project:detail:*'),
+    redisCache.del(`tenant:${userId}`),
+  ]);
+
+  return NextResponse.json({
+    success: true,
+    message: `You joined ${inv.project.name}.`,
+    data: {
+      type: 'project',
+      projectId: inv.projectId,
+      projectName: inv.project.name,
+      email: inviteEmail,
+      isNewAccount: Boolean(newAccount),
+      onboardingNeeded: Boolean(newAccount),
+    },
+  });
+}
+
+async function acceptTeamInvite(token: string, name: string | undefined, password: string | undefined) {
+  const invitation = await prisma.teamInvitation.findUnique({ where: { token }, include: { team: true } });
+  if (!invitation || invitation.status !== 'pending' || new Date() > invitation.expiresAt) {
+    return fail(400, 'INVALID_INVITE', 'This invitation is invalid or has expired');
+  }
+
+  const inviteEmail = invitation.email.toLowerCase();
+  const assignedRole =
+    invitation.role === 'ADMIN' ? 'Admin' : invitation.role === 'PROJECT_MANAGER' ? 'Project Manager' : 'Member';
+  const session = await getSessionUser();
+  let onboardingNeeded = false;
+
+  if (session) {
+    if (session.email !== inviteEmail) {
+      return fail(
+        403,
+        'EMAIL_MISMATCH',
+        `This invitation was sent to ${invitation.email}, but you're signed in as ${session.email}. Sign out and open the link again.`
+      );
+    }
+    await prisma.user.update({ where: { id: session.id }, data: { teamId: invitation.teamId, role: assignedRole } });
+  } else {
+    const existing = await findUserByEmail(inviteEmail);
+    if (existing) {
+      if (!existing.password) {
+        return fail(409, 'SIGN_IN_REQUIRED', 'This email uses Google sign-in. Continue with Google to accept the invitation.');
+      }
+      if (!password) return fail(422, 'PASSWORD_REQUIRED', 'Enter your password to accept.');
+      if (!(await bcrypt.compare(password, existing.password))) {
+        return fail(401, 'INVALID_PASSWORD', 'Incorrect password for this account.');
+      }
       await prisma.user.update({
-        where: { id: targetUserId },
-        data: {
-          teamId: invitation.teamId,
-          role: assignedRole,
-        },
+        where: { id: existing.id },
+        data: { teamId: invitation.teamId, role: assignedRole, emailVerified: existing.emailVerified || new Date() },
       });
     } else {
-      const existingUser = await prisma.user.findUnique({
-        where: { email: invitation.email },
+      const passwordError = validateNewPassword(password || '');
+      if (passwordError) return fail(422, 'WEAK_PASSWORD', passwordError);
+      const userName = (name || '').trim() || inviteEmail.split('@')[0];
+      await prisma.user.create({
+        data: {
+          name: userName,
+          email: inviteEmail,
+          password: await bcrypt.hash(password!, 10),
+          role: assignedRole,
+          avatar: initialsFor(userName),
+          teamId: invitation.teamId,
+          emailVerified: new Date(),
+          hasCompletedOnboarding: true,
+        },
       });
-
-      if (existingUser) {
-        if (password) {
-          if (existingUser.password) {
-            const isValid = await bcrypt.compare(password, existingUser.password);
-            if (!isValid) {
-              return NextResponse.json(
-                { success: false, error: { code: 'INVALID_PASSWORD', message: 'Incorrect password for this existing account' } },
-                { status: 401 }
-              );
-            }
-          }
-        }
-        await prisma.user.update({
-          where: { id: existingUser.id },
-          data: {
-            teamId: invitation.teamId,
-            role: assignedRole,
-            emailVerified: existingUser.emailVerified || new Date(),
-          },
-        });
-        targetUserId = existingUser.id;
-      } else {
-        if (!password) {
-          return NextResponse.json(
-            { success: false, error: { code: 'REGISTRATION_REQUIRED', message: 'A password is required to create your account' } },
-            { status: 422 }
-          );
-        }
-
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const userName = name?.trim() || 'New Member';
-        const initials = userName === 'New Member' ? 'MB' : userName.split(/\s+/).map(p => p[0]).join('').slice(0, 2).toUpperCase();
-
-        const newUser = await prisma.user.create({
-          data: {
-            name: userName,
-            email: invitation.email,
-            password: hashedPassword,
-            role: assignedRole,
-            avatar: initials || 'MB',
-            teamId: invitation.teamId,
-            emailVerified: new Date(),
-          },
-        });
-        targetUserId = newUser.id;
-        onboardingNeeded = true;
-      }
+      onboardingNeeded = true;
     }
-
-    await prisma.teamInvitation.update({
-      where: { id: invitation.id },
-      data: { status: 'accepted' },
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: `You have successfully joined ${invitation.team.name}!`,
-      data: {
-        type: 'team',
-        teamId: invitation.team.id,
-        teamName: invitation.team.name,
-        email: invitation.email,
-        onboardingNeeded,
-      },
-    });
-  } catch (error) {
-    console.error('[POST /api/team/invite/accept] Error:', error);
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to process invitation acceptance' } },
-      { status: 500 }
-    );
   }
+
+  await prisma.teamInvitation.update({ where: { id: invitation.id }, data: { status: 'accepted' } });
+  await redisCache.delPattern('team:members:*').catch(() => {});
+
+  return NextResponse.json({
+    success: true,
+    message: `You joined ${invitation.team.name}.`,
+    data: { type: 'team', teamId: invitation.team.id, teamName: invitation.team.name, email: inviteEmail, onboardingNeeded },
+  });
 }

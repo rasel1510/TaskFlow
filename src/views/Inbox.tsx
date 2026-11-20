@@ -146,7 +146,7 @@ export default function Inbox({ onTaskClick, onProjectClick, onNavigate }: Inbox
   });
 
   const getIconForType = (type: string, title?: string) => {
-    if (type === 'request_approved' || title?.toLowerCase().includes('request approved')) {
+    if (type === 'request_approved' || type === 'invite_accepted' || title?.toLowerCase().includes('request approved')) {
       return (
         <div className="w-8 h-8 rounded-lg bg-[#ECFDF5] text-[#16A34A] flex items-center justify-center shrink-0">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">

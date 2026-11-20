@@ -98,10 +98,10 @@ function LoginForm() {
         const billingRes = await fetch('/api/billing', { cache: 'no-store' });
         if (billingRes.ok) {
           const billingJson = await billingRes.json();
-          const { hasPaid, hasCompletedOnboarding, teamId } = billingJson?.data || {};
+          const { hasPaid, hasCompletedOnboarding, teamId, isProjectMember } = billingJson?.data || {};
 
-          // Rule 1: If user already completed payment and has company -> Directly send to Company Dashboard (/app)
-          if ((hasCompletedOnboarding && teamId) || teamId) {
+          // Rule 1: Has a company, or was invited to a project -> straight into the app
+          if ((hasCompletedOnboarding && teamId) || teamId || isProjectMember) {
             setSuccess('Redirecting to your company dashboard...');
             setTimeout(() => {
               router.replace(targetUrl || '/app');

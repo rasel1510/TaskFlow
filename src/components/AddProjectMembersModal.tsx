@@ -16,6 +16,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import InviteByEmail from '@/components/project/InviteByEmail';
 import {
   X,
   Search,
@@ -51,6 +52,8 @@ interface AddProjectMembersModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  /** Called after an email invitation is sent, resent or cancelled */
+  onInvited?: () => void;
 }
 
 const COMMON_SKILLS = [
@@ -86,6 +89,7 @@ export default function AddProjectMembersModal({
   isOpen,
   onClose,
   onSuccess,
+  onInvited,
 }: AddProjectMembersModalProps) {
   const toast = useToast();
   const { data: session } = useSession();
@@ -342,7 +346,7 @@ export default function AddProjectMembersModal({
                 Add Team Members
               </h3>
               <p className="text-[12px] text-gray-500 mt-0.5">
-                Assign existing organization members directly to <span className="font-semibold text-gray-800">{projectName}</span>
+                Invite anyone by email, or add people from your organization to <span className="font-semibold text-gray-800">{projectName}</span>
               </p>
             </div>
           </div>
@@ -356,13 +360,14 @@ export default function AddProjectMembersModal({
           </button>
         </div>
 
-        {/* Reassurance Banner: Direct Addition without Email */}
-        <div className="px-4 sm:px-6 py-2.5 bg-[#EFF6FF] border-b border-[#DBEAFE] flex items-center gap-2.5 shrink-0 text-[12px] text-blue-900">
-          <Sparkles className="w-4 h-4 text-[#2563EB] shrink-0" />
-          <div>
-            <span className="font-bold text-blue-950">Direct Enrollment: </span>
-            <span>Members are added immediately with full workspace access. No invitation emails or confirmation delays.</span>
-          </div>
+        {/* Scrollable body: invite by email first, then people already in the organization */}
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
+        <InviteByEmail projectId={projectId} projectName={projectName} onInvited={onInvited} />
+
+        <div className="px-4 sm:px-6 pt-3 pb-1 bg-[#FAFAFB]">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-[rgba(17,17,17,0.45)]">
+            Or add people already in your organization
+          </p>
         </div>
 
         {/* Search, Filter & Bulk Controls Toolbar */}
@@ -372,7 +377,6 @@ export default function AddProjectMembersModal({
             <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             <input
               type="text"
-              autoFocus
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               placeholder="Search by name, email, job title, or skill..."
@@ -486,7 +490,7 @@ export default function AddProjectMembersModal({
         </div>
 
         {/* Candidate List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2.5 bg-white">
+        <div className="flex-1 p-4 space-y-2.5 bg-white">
           {loadingUsers ? (
             <div className="py-16 text-center text-xs text-gray-400 flex flex-col items-center justify-center gap-2">
               <Loader2 className="w-5 h-5 animate-spin text-[#2563EB]" />
@@ -645,6 +649,9 @@ export default function AddProjectMembersModal({
             </div>
           )}
         </div>
+
+        </div>
+        {/* end scrollable body */}
 
         {/* Modal Footer */}
         <div className="px-4 sm:px-6 py-3 sm:py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] border-t border-[#F3F4F6] bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shrink-0">

@@ -95,6 +95,19 @@ function getNotificationMeta(n: HeaderNotificationItem) {
     };
   }
 
+  // 2.3 Project invitation answered (sent to the inviter)
+  if (type === 'invite_accepted' || type === 'invite_declined') {
+    const accepted = type === 'invite_accepted';
+    return {
+      tab: 'projects' as const,
+      badge: accepted ? 'Invitation Accepted' : 'Invitation Declined',
+      badgeClass: accepted
+        ? 'bg-[#ECFDF5] text-[#16A34A] border border-[#BBF7D0]'
+        : 'bg-[#F3F4F6] text-[#4B5563] border border-[#E5E7EB]',
+      iconType: accepted ? 'request_approved' : 'project',
+    };
+  }
+
   // 2.4 Approved Requests
   if (type === 'request_approved' || title.toLowerCase().includes('request approved')) {
     return {

@@ -125,16 +125,18 @@ function AppContent() {
         }
         if (res.ok) {
           const json = res.json;
-          const { hasPaid, hasCompletedOnboarding, teamId } = json?.data || {};
+          const { hasPaid, hasAccess, isProjectMember, hasCompletedOnboarding, teamId } = (json?.data || {}) as {
+            hasPaid?: boolean; hasAccess?: boolean; isProjectMember?: boolean; hasCompletedOnboarding?: boolean; teamId?: string;
+          };
 
-          // Requirement 1: If user has not completed payment, send to payment page
-          if (!hasPaid) {
+          // Requirement 1: no access (not paid, not covered by a paid company, not invited to a project) → plans
+          if (!(hasAccess ?? hasPaid)) {
             router.replace('/onboarding/plans');
             return;
           }
 
-          // Requirement 2: If user completed payment but no company, send to Company Creation page
-          if (!hasCompletedOnboarding || !teamId) {
+          // Requirement 2: no company yet → company setup (people invited to a project skip this)
+          if (!isProjectMember && (!hasCompletedOnboarding || !teamId)) {
             router.replace('/onboarding/organization');
             return;
           }
