@@ -1,5 +1,6 @@
 'use client';
 
+import { sharedFetchJson } from '@/lib/sharedFetch';
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -116,13 +117,14 @@ function AppContent() {
     let isMounted = true;
     async function verifyWorkspaceAccess() {
       try {
-        const res = await fetch('/api/billing', { cache: 'no-store' });
+        // Shared with the Dashboard's billing request (one network call per load)
+        const res = await sharedFetchJson<{ data?: { hasPaid?: boolean; hasCompletedOnboarding?: boolean; teamId?: string } }>('/api/billing');
         if (res.status === 401) {
           window.location.replace('/auth/login');
           return;
         }
         if (res.ok) {
-          const json = await res.json();
+          const json = res.json;
           const { hasPaid, hasCompletedOnboarding, teamId } = json?.data || {};
 
           // Requirement 1: If user has not completed payment, send to payment page

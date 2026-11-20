@@ -18,6 +18,7 @@ import { auth } from '@/auth';
 import { CreateProjectSchema, validationError } from '@/lib/validators';
 import redisCache from '@/lib/redis';
 import { getOrProvisionUserTeam } from '@/lib/tenant';
+import { canManageProject, getSessionUser } from '@/lib/access';
 
 /**
  * Safely parse a date string. Returns undefined for empty, invalid, or
@@ -29,6 +30,13 @@ function parseSafeDate(raw: unknown): Date | undefined {
   if (isNaN(d.getTime())) return undefined;
   const year = d.getUTCFullYear();
   if (year < 2000 || year > 2100) return undefined;
+  return d;
+}
+
+/** Local midnight — tasks due before today are overdue (a task due today is not). */
+function startOfToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
   return d;
 }
 
@@ -82,6 +90,7 @@ export async function GET(request: NextRequest) {
         };
 
     const cacheKey = `projects:list:${currentUserId}:${resolvedTeamId || 'no-team'}:${limit}:${cursor || 'root'}`;
+    const sessionUser = await getSessionUser();
     const formatted = await redisCache.wrap(cacheKey, 60, async () => {
       const dbProjects = await prisma.project.findMany({
         where: teamFilter,
@@ -98,6 +107,7 @@ export async function GET(request: NextRequest) {
           dueDate: true,
           createdAt: true,
           ownerId: true,
+          teamId: true,
           owner: {
             select: { id: true, name: true, email: true, avatar: true, role: true, expertise: true },
           },
@@ -138,6 +148,25 @@ export async function GET(request: NextRequest) {
       const items = hasMore ? dbProjects.slice(0, limit) : dbProjects;
       const nextCursor = hasMore && items.length > 0 ? items[items.length - 1].id : null;
 
+      // Completed / overdue counts for the whole page in two grouped queries (no per-project N+1)
+      const projectIds = items.map(p => p.id);
+      const [doneGroups, overdueGroups] = projectIds.length
+        ? await Promise.all([
+            prisma.task.groupBy({
+              by: ['projectId'],
+              where: { projectId: { in: projectIds }, status: 'done' },
+              _count: { _all: true },
+            }),
+            prisma.task.groupBy({
+              by: ['projectId'],
+              where: { projectId: { in: projectIds }, status: { not: 'done' }, dueDate: { lt: startOfToday() } },
+              _count: { _all: true },
+            }),
+          ])
+        : [[], []];
+      const doneByProject = new Map(doneGroups.map(g => [g.projectId, g._count._all]));
+      const overdueByProject = new Map(overdueGroups.map(g => [g.projectId, g._count._all]));
+
       const projectList = items.map(p => {
         const isOwner = currentUserId ? p.ownerId === currentUserId : false;
         const memberList = (p.members || []).map(m => ({
@@ -158,8 +187,15 @@ export async function GET(request: NextRequest) {
 
         const hasPendingRequest = !!userJoinRequest;
 
-        // Only project owner / PM or Admin can see all pending requests
-        const canManage = isOwner || currentUserRole === 'Project Manager' || currentUserRole === 'Admin';
+        // Same rules as the project page and the server's write checks (src/lib/access.ts)
+        const canManage = sessionUser
+          ? canManageProject({
+              user: sessionUser,
+              project: { id: p.id, ownerId: p.ownerId, teamId: p.teamId },
+              isOwner,
+              memberRole: memberList.find(m => m.userId === currentUserId)?.role ?? null,
+            })
+          : false;
         const pendingRequests = canManage
           ? (p.joinRequests || []).map(r => ({
               id: r.id,
@@ -184,6 +220,8 @@ export async function GET(request: NextRequest) {
           ownerId: p.ownerId,
           owner: p.owner,
           taskCount: p._count.tasks,
+          completedTasks: doneByProject.get(p.id) ?? 0,
+          overdueTasks: overdueByProject.get(p.id) ?? 0,
           members: memberList,
           isMember,
           hasPendingRequest,
@@ -202,7 +240,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: true, data: formatted.items, meta: formatted.meta }, {
       status: 200,
       headers: {
-        'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+        'Cache-Control': 'private, no-store',
       },
     });
   } catch (error) {

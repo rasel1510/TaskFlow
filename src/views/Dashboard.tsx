@@ -1,5 +1,6 @@
 'use client';
 
+import { sharedFetchJson } from '@/lib/sharedFetch';
 import { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTasks, type DBTask } from '@/context/TaskContext';
@@ -151,10 +152,9 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
   } | null>(null);
 
   useEffect(() => {
-    fetch('/api/billing')
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.success && d.data) {
+    sharedFetchJson<{ success?: boolean; data?: any }>('/api/billing')
+      .then(({ json: d }) => {
+        if (d?.success && d.data) {
           setBilling(d.data);
         }
       })
@@ -212,10 +212,9 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
     const userId = (session?.user as { id?: string })?.id;
     if (!userId) return;
     let isMounted = true;
-    fetch(`/api/users/${userId}`, { cache: 'no-store' })
-      .then((res) => res.json())
-      .then((json) => {
-        if (isMounted && json.success && json.data?.name) {
+    sharedFetchJson<{ success?: boolean; data?: { name?: string } }>(`/api/users/${userId}`)
+      .then(({ json }) => {
+        if (isMounted && json?.success && json.data?.name) {
           setCustomName(json.data.name);
         }
       })
@@ -245,8 +244,11 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
 
   // Live computed stats
   const totalTasks = tasks.length;
+  // Overdue = due before today in the user's own time zone (a task due today is not overdue).
+  // Due dates are YYYY-MM-DD, so compare date keys instead of parsing them as UTC midnight.
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const overdueCount = tasks.filter(
-    (t) => t.status !== 'done' && t.dueDate && new Date(t.dueDate) < now
+    (t) => t.status !== 'done' && t.dueDate && String(t.dueDate).slice(0, 10) < todayKey
   ).length;
   const inProgress = tasks.filter((t) => t.status === 'in_progress').length;
   const done = tasks.filter((t) => t.status === 'done').length;
@@ -346,7 +348,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
             <Card className="shadow-none border-border t-card-enter t-card-stagger-1 t-hover-lift">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="font-normal text-muted-foreground text-xs">
-                  Total Backlog & Tasks
+                  Your Tasks
                 </CardTitle>
                 <Layers className="size-4 text-muted-foreground" />
               </CardHeader>
@@ -356,7 +358,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   <span className="font-medium text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded text-[11px]">
-                    Total tracked
+                    Across all your projects
                   </span>
                 </div>
               </CardContent>

@@ -18,6 +18,10 @@ const nextConfig: NextConfig = {
     }
     return config;
   },
+  // Browsers request /favicon.ico automatically; serve the app icon instead of a 404
+  async rewrites() {
+    return [{ source: '/favicon.ico', destination: '/icon.svg' }];
+  },
   async headers() {
     if (process.env.NODE_ENV !== 'production') {
       return [
@@ -41,6 +45,17 @@ const nextConfig: NextConfig = {
       ];
     }
     return [
+      {
+        // Baseline browser security headers for every page and API response
+        source: '/:path*',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          // `payment` is left allowed so Stripe's embedded checkout can offer Apple Pay / Google Pay
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+        ],
+      },
       {
         source: '/sw.js',
         headers: [

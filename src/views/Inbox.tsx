@@ -38,7 +38,7 @@ export default function Inbox({ onTaskClick, onProjectClick, onNavigate }: Inbox
       if (err instanceof Error && err.name === 'AbortError') return;
       console.error('[Inbox] Error fetching notifications:', err);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, []);
 

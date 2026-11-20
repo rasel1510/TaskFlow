@@ -3,7 +3,23 @@ import { useSession } from 'next-auth/react';
 import { useTasks, type DBTask } from '@/context/TaskContext';
 import { useToast } from '@/components/ui/Toast';
 import EditTaskModal from './EditTaskModal';
-import { statusColors, priorityColors, getProjectName, type Status, type Priority } from '../data/mockData';
+import { statusColors, priorityColors, type Status, type Priority } from '../data/mockData';
+import { formatHours, formatShortDate, type CustomColumn, type CustomFieldValue } from '@/lib/taskColumns';
+
+/** Readable text for a custom-column value in the task panel */
+function formatCustomValue(column: CustomColumn, value: CustomFieldValue | undefined): string {
+  if (value === null || value === undefined || value === '') return '';
+  switch (column.type) {
+    case 'number':
+      return typeof value === 'number' ? value.toLocaleString('en-US', { maximumFractionDigits: 6 }) : String(value);
+    case 'date':
+      return typeof value === 'string' ? formatShortDate(value) : '';
+    case 'checkbox':
+      return value === true ? 'Yes' : '';
+    default:
+      return String(value);
+  }
+}
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -154,42 +170,40 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
   const [directTask, setDirectTask] = useState<DBTask | null>(null);
   const [isDirectLoading, setIsDirectLoading] = useState(false);
 
-  const task = ctxTask || directTask;
+  // Shared list first (instant + reflects edits made elsewhere), full API record fills in the rest
+  const task: DBTask | undefined | null =
+    directTask || ctxTask ? ({ ...(directTask ?? {}), ...(ctxTask ?? {}) } as DBTask) : null;
 
-  // Direct deep link task fetcher (if task is not yet loaded into context or accessed directly via URL)
+  // Always load the full task from the API (it carries project name, completion date, time spent and
+  // custom-column values that the shared task list doesn't have). Runs once per task id — it must NOT
+  // depend on `directTask`, otherwise every response re-triggers the fetch (infinite request loop).
+  const [directError, setDirectError] = useState<string | null>(null);
   useEffect(() => {
     if (!taskId) return;
-    if (ctxTask) {
-      if (directTask) setDirectTask(null);
-      return;
-    }
-
-    let isMounted = true;
+    const controller = new AbortController();
+    setDirectTask(null);
+    setDirectError(null);
     setIsDirectLoading(true);
 
-    fetch(`/api/tasks/${taskId}`)
-      .then(res => {
-        if (!res.ok) throw new Error('Task not found');
+    fetch(`/api/tasks/${taskId}`, { signal: controller.signal })
+      .then(async res => {
+        if (!res.ok) throw new Error(res.status === 404 ? 'This task no longer exists.' : 'Could not load this task.');
         return res.json();
       })
       .then(envelope => {
-        if (!isMounted) return;
         const data = envelope?.data ?? envelope;
-        if (data && data.id) {
-          setDirectTask(data);
-        }
+        if (data && data.id) setDirectTask(data);
       })
       .catch(err => {
-        console.warn('[TaskDetail] Direct fetch failed:', err);
+        if (err instanceof Error && err.name === 'AbortError') return;
+        setDirectError(err instanceof Error ? err.message : 'Could not load this task.');
       })
       .finally(() => {
-        if (isMounted) setIsDirectLoading(false);
+        if (!controller.signal.aborted) setIsDirectLoading(false);
       });
 
-    return () => {
-      isMounted = false;
-    };
-  }, [taskId, ctxTask, directTask]);
+    return () => controller.abort();
+  }, [taskId]);
   const [commentText, setCommentText] = useState('');
   const [activeTab, setActiveTab] = useState<'comments' | 'activity'>('comments');
   const [replyingTo, setReplyingTo] = useState<DBComment | null>(null);
@@ -586,8 +600,42 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
         </>
       );
     }
-    return null;
+    return (
+      <>
+        <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
+        <div className="fixed inset-y-0 right-0 w-full sm:w-[520px] max-w-full bg-white sm:border-l border-[#E5E7EB] z-50 flex flex-col shadow-2xl pt-safe pb-safe animate-fadeIn">
+          <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-[#E5E7EB]">
+            <span className="text-[14px] font-semibold text-[#111111]">Task unavailable</span>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#F3F4F6] text-[rgba(17,17,17,0.4)] transition-colors cursor-pointer"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+          <p className="p-5 text-[13px] text-[rgba(17,17,17,0.6)]">
+            {directError || 'This task could not be found. It may have been deleted, or you may not have access to it.'}
+          </p>
+        </div>
+      </>
+    );
   }
+
+  // Fields the shared task list doesn't carry (filled from the full /api/tasks/:id record)
+  const taskExtra = task as unknown as {
+    project?: { name?: string; customColumns?: CustomColumn[] | null } | null;
+    completedAt?: string | null;
+    timeSpent?: number | null;
+    customFields?: Record<string, CustomFieldValue> | null;
+  };
+  const projectColumns: CustomColumn[] = Array.isArray(taskExtra.project?.customColumns)
+    ? (taskExtra.project!.customColumns as CustomColumn[])
+    : [];
 
   const statusKey = (task.status in statusColors ? task.status : 'todo') as Status;
   const priorityKey = (task.priority in priorityColors ? task.priority : 'medium') as Priority;
@@ -738,16 +786,35 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
                 },
                 {
                   label: 'Project',
-                  content: <span className="text-[12.5px] text-[#111111]">{getProjectName(task.projectId)}</span>,
+                  content: (
+                    <span className="text-[12.5px] text-[#111111]">
+                      {taskExtra.project?.name || (task.projectId ? 'Project' : 'Personal task')}
+                    </span>
+                  ),
                 },
                 {
                   label: 'Due Date',
-                  content: <span className="text-[12.5px] text-[#111111]">{task.dueDate ? String(task.dueDate).split('T')[0] : '—'}</span>,
+                  content: <span className="text-[12.5px] text-[#111111]">{task.dueDate ? formatShortDate(String(task.dueDate).split('T')[0]) : '—'}</span>,
                 },
                 {
-                  label: 'Estimate',
-                  content: <span className="text-[12.5px] text-[#111111]">{task.estimate}</span>,
+                  label: 'Completion Date',
+                  content: (
+                    <span className="text-[12.5px] text-[#111111]">
+                      {taskExtra.completedAt ? formatShortDate(taskExtra.completedAt) : '—'}
+                    </span>
+                  ),
                 },
+                {
+                  label: 'Time Spent',
+                  content: (
+                    <span className="text-[12.5px] text-[#111111]">
+                      {taskExtra.timeSpent !== null && taskExtra.timeSpent !== undefined ? formatHours(taskExtra.timeSpent) : '—'}
+                    </span>
+                  ),
+                },
+                ...(task.estimate
+                  ? [{ label: 'Estimate', content: <span className="text-[12.5px] text-[#111111]">{task.estimate}</span> }]
+                  : []),
               ].map(({ label, content }) => (
                 <div key={label}>
                   <div className="text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.35)] mb-1">{label}</div>
@@ -755,6 +822,25 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
                 </div>
               ))}
             </div>
+
+            {/* Project custom columns (values set in the project's Tasks table) */}
+            {projectColumns.length > 0 && (
+              <div className="mb-5 grid grid-cols-2 gap-x-6 gap-y-3">
+                {projectColumns.map(col => {
+                  const text = formatCustomValue(col, taskExtra.customFields?.[col.id]);
+                  return (
+                    <div key={col.id} className={col.type === 'text' ? 'col-span-2' : undefined}>
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.35)] mb-1 truncate">
+                        {col.title}
+                      </div>
+                      <div className={`text-[12.5px] ${text ? 'text-[#111111]' : 'text-[rgba(17,17,17,0.35)]'} ${col.type === 'text' ? 'whitespace-pre-wrap break-words' : ''}`}>
+                        {text || '—'}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Labels */}
             {task.labels.length > 0 && (

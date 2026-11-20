@@ -134,7 +134,8 @@ export async function GET(request: NextRequest) {
           where: {
             ...taskWhere,
             status: { not: 'done' },
-            dueDate: { lt: now },
+            // Overdue = due before today (a task due today is not overdue yet)
+            dueDate: { lt: new Date(new Date(now).setUTCHours(0, 0, 0, 0)) },
           },
         }),
         prisma.task.groupBy({
@@ -331,7 +332,7 @@ export async function GET(request: NextRequest) {
     }, {
       status: 200,
       headers: {
-        'Cache-Control': 'private, max-age=15, stale-while-revalidate=60',
+        'Cache-Control': 'private, no-store',
       },
     });
   } catch (err) {

@@ -38,13 +38,13 @@ function parseSafeDate(raw: unknown): Date | undefined {
 
 
 import prisma from '@/lib/prisma';
-import { getAllStoredUsers } from '@/data/userStore';
 import { UpdateTaskSchema, validationError } from '@/lib/validators';
 import { logActivity } from '@/lib/activity';
 import { recomputeProjectProgress } from '@/lib/projectProgress';
 import redisCache from '@/lib/redis';
 import { enqueueBackgroundTask } from '@/lib/asyncQueue';
 import { requireTaskAccess, requireProjectAccess } from '@/lib/access';
+import { formatHours } from '@/lib/taskColumns';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -111,7 +111,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       { success: true, data: serializedTask },
       {
         status: 200,
-        headers: { 'Cache-Control': 'private, max-age=15, stale-while-revalidate=45' },
+        headers: { 'Cache-Control': 'private, no-store' },
       }
     );
   } catch (error) {
@@ -152,7 +152,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       where: { id },
       select: {
         id: true, status: true, priority: true, title: true,
-        dueDate: true, assigneeId: true, projectId: true, customFields: true, completedAt: true,
+        dueDate: true, assigneeId: true, projectId: true, customFields: true, completedAt: true, timeSpent: true,
       },
     });
     if (!existing) {
@@ -199,32 +199,47 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       updateData.completedAt = new Date();
     }
 
-    // assigneeId — resolve once, skip if unchanged
+    // assigneeId — must be someone who can see the task: in its project (owner/member/same company)
+    // or, for personal tasks, in the requester's company. Prevents assigning across organisations.
     if ('assigneeId' in body) {
       const rawId = body.assigneeId;
       if (!rawId || rawId === 'unassigned') {
         updateData.assigneeId = null;
       } else if (typeof rawId === 'string') {
         const trimmed = rawId.trim();
-        // Check DB first (O(1) index hit)
-        let dbUser = await prisma.user.findFirst({
-          where: { OR: [{ id: trimmed }, { email: trimmed }] },
-          select: { id: true },
+        const candidate = await prisma.user.findFirst({
+          where: { OR: [{ id: trimmed }, { email: trimmed.toLowerCase() }] },
+          select: { id: true, teamId: true },
         });
-        if (!dbUser) {
-          const stored = getAllStoredUsers().find(
-            u => u.id === trimmed || u.email.toLowerCase() === trimmed.toLowerCase()
+        if (!candidate) {
+          return NextResponse.json(
+            { success: false, error: { code: 'BAD_REQUEST', message: 'Assignee not found' } },
+            { status: 400 }
           );
-          if (stored) {
-            dbUser = await prisma.user.upsert({
-              where: { email: stored.email },
-              update: {},
-              create: { id: stored.id, name: stored.name, email: stored.email, avatar: stored.avatar, role: stored.role },
-              select: { id: true },
-            });
-          }
         }
-        updateData.assigneeId = dbUser?.id ?? null;
+
+        const requester = access.value.user;
+        const targetProjectId =
+          (typeof body.projectId === 'string' && body.projectId.trim()) || existing.projectId || null;
+        let allowed = candidate.id === requester.id;
+        if (!allowed && targetProjectId) {
+          const proj = await prisma.project.findUnique({
+            where: { id: targetProjectId },
+            select: { ownerId: true, teamId: true, members: { where: { userId: candidate.id }, select: { id: true }, take: 1 } },
+          });
+          allowed = Boolean(
+            proj && (proj.ownerId === candidate.id || proj.members.length > 0 || (proj.teamId && proj.teamId === candidate.teamId))
+          );
+        } else if (!allowed) {
+          allowed = Boolean(candidate.teamId && candidate.teamId === requester.teamId);
+        }
+        if (!allowed) {
+          return NextResponse.json(
+            { success: false, error: { code: 'FORBIDDEN', message: 'You can only assign people who belong to this project or your company' } },
+            { status: 403 }
+          );
+        }
+        updateData.assigneeId = candidate.id;
       }
     }
 
@@ -286,6 +301,20 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       if ('assigneeId' in updateData && updateData.assigneeId !== existing.assigneeId) {
         const name = (updated as { assignee?: { name?: string } }).assignee?.name || 'Unassigned';
         logs.push(logActivity(id, `Assigned to ${name}`, '👤'));
+        // Tell the new assignee (unless they assigned themselves)
+        if (updateData.assigneeId && updateData.assigneeId !== access.value.user.id) {
+          logs.push(
+            prisma.notification.create({
+              data: {
+                userId: updateData.assigneeId,
+                type: 'task_assigned',
+                title: 'Assigned to a task',
+                body: `You were assigned to ${updated.taskNumber ?? 'task'}: ${updated.title}`,
+                taskId: id,
+              },
+            })
+          );
+        }
       }
       if ('dueDate' in updateData) {
         const oldTime = existing.dueDate ? new Date(existing.dueDate).getTime() : 0;
@@ -299,6 +328,46 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       }
       if (updateData.title && updateData.title !== existing.title) {
         logs.push(logActivity(id, `Title updated to "${updateData.title}"`, '✏️'));
+      }
+
+      if ('timeSpent' in updateData && updateData.timeSpent !== existing.timeSpent) {
+        logs.push(
+          logActivity(
+            id,
+            updateData.timeSpent === null ? 'Time spent cleared' : `Time spent set to ${formatHours(updateData.timeSpent)}`,
+            '⏱️'
+          )
+        );
+      }
+      if ('completedAt' in updateData) {
+        const oldDay = existing.completedAt ? existing.completedAt.toISOString().slice(0, 10) : null;
+        const newDay = updateData.completedAt ? new Date(updateData.completedAt).toISOString().slice(0, 10) : null;
+        if (oldDay !== newDay) {
+          logs.push(
+            logActivity(
+              id,
+              newDay
+                ? `Completion date set to ${new Date(updateData.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}`
+                : 'Completion date cleared',
+              '✅'
+            )
+          );
+        }
+      }
+      if (body.customFields && typeof body.customFields === 'object' && existing.projectId) {
+        const changedIds = Object.keys(body.customFields as Record<string, unknown>);
+        if (changedIds.length) {
+          logs.push(
+            (async () => {
+              const proj = await prisma.project.findUnique({ where: { id: existing.projectId! }, select: { customColumns: true } });
+              const titles = new Map(
+                ((proj?.customColumns as { id: string; title: string }[] | null) ?? []).map(c => [c.id, c.title])
+              );
+              const names = changedIds.map(k => titles.get(k)).filter(Boolean);
+              if (names.length) await logActivity(id, `Updated ${names.join(', ')}`, '📝');
+            })()
+          );
+        }
       }
 
       // Recompute project progress only when status or project changed

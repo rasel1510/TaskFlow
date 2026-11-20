@@ -1,6 +1,19 @@
+/**
+ * src/api/projects/[id]/messages/route.ts
+ *
+ * Project team chat, persisted in Postgres (ProjectMessage) so messages survive restarts and are
+ * shared by every server instance. Live delivery uses the SSE broker when sender and reader share
+ * an instance; clients also poll, so delivery never depends on that.
+ *
+ *   GET    /api/projects/:id/messages                 — latest 200 messages (oldest first)
+ *   POST   /api/projects/:id/messages                 — send text and/or an image
+ *   PATCH  /api/projects/:id/messages                 — toggle an emoji reaction
+ *   DELETE /api/projects/:id/messages?messageId=...   — delete (author or project manager)
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
-import { requireProjectAccess } from '@/lib/access';
+import prisma from '@/lib/prisma';
+import { requireProjectAccess, canManageProject } from '@/lib/access';
 import { projectStreamBroker } from '@/lib/projectStreamBroker';
 
 interface RouteContext {
@@ -23,213 +36,198 @@ export interface ProjectMessage {
   reactions?: Record<string, string[]>; // emoji -> array of userIds
 }
 
-// In-memory messages store keyed by projectId
-const projectMessagesStore = new Map<string, ProjectMessage[]>();
+const MESSAGE_PAGE = 200;
+const MAX_CONTENT = 5000;
+/** ~2 MB image as a base64 data URL (Vercel rejects request bodies over 4.5 MB) */
+const MAX_IMAGE_URL_LENGTH = 2_900_000;
 
-function getOrCreateProjectMessages(projectId: string): ProjectMessage[] {
-  if (!projectMessagesStore.has(projectId)) {
-    projectMessagesStore.set(projectId, []);
-  }
-  return projectMessagesStore.get(projectId)!;
+const messageSelect = {
+  id: true,
+  projectId: true,
+  userId: true,
+  content: true,
+  imageUrl: true,
+  imageName: true,
+  imageSize: true,
+  reactions: true,
+  createdAt: true,
+  user: { select: { name: true, email: true, avatar: true, role: true } },
+} as const;
+
+type MessageRow = {
+  id: string;
+  projectId: string;
+  userId: string;
+  content: string;
+  imageUrl: string | null;
+  imageName: string | null;
+  imageSize: number | null;
+  reactions: unknown;
+  createdAt: Date;
+  user: { name: string; email: string; avatar: string; role: string } | null;
+};
+
+function toDto(row: MessageRow): ProjectMessage {
+  return {
+    id: row.id,
+    projectId: row.projectId,
+    userId: row.userId,
+    userName: row.user?.name || 'User',
+    userEmail: row.user?.email || '',
+    userAvatar: row.user?.avatar || (row.user?.name ? row.user.name.slice(0, 2).toUpperCase() : 'U'),
+    userRole: row.user?.role || 'Member',
+    content: row.content,
+    imageUrl: row.imageUrl,
+    imageName: row.imageName,
+    imageSize: row.imageSize,
+    createdAt: row.createdAt.toISOString(),
+    reactions: (row.reactions as Record<string, string[]> | null) ?? {},
+  };
 }
 
-/**
- * GET /api/projects/:id/messages
- * Retrieves all team messages for the given project.
- */
-export async function GET(request: NextRequest, context: RouteContext) {
+const fail = (status: number, message: string) =>
+  NextResponse.json({ success: false, error: message }, { status });
+
+/** Accept only image data URLs or http(s) URLs, within the size limit. */
+function validImageUrl(value: unknown): string | null | undefined {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string') return undefined;
+  if (value.length > MAX_IMAGE_URL_LENGTH) return undefined;
+  if (/^data:image\/(png|jpe?g|gif|webp);base64,/i.test(value) || /^https?:\/\//i.test(value)) return value;
+  return undefined;
+}
+
+export async function GET(_request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
     const access = await requireProjectAccess(projectId);
     if (!access.ok) return access.response;
-    if (!projectId) {
-      return NextResponse.json({ success: false, error: 'Project ID is required' }, { status: 400 });
-    }
 
-    const messages = getOrCreateProjectMessages(projectId);
-    return NextResponse.json({
-      success: true,
-      data: messages,
-      meta: { total: messages.length },
+    const rows = await prisma.projectMessage.findMany({
+      where: { projectId },
+      orderBy: { createdAt: 'desc' },
+      take: MESSAGE_PAGE,
+      select: messageSelect,
     });
+    const messages = rows.reverse().map(toDto);
+    return NextResponse.json({ success: true, data: messages, meta: { total: messages.length } });
   } catch (error) {
     console.error('[GET /api/projects/:id/messages] Error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to retrieve messages' }, { status: 500 });
+    return fail(500, 'Failed to retrieve messages');
   }
 }
 
-/**
- * POST /api/projects/:id/messages
- * Sends a new text message and/or image to the project channel.
- */
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
     const access = await requireProjectAccess(projectId);
     if (!access.ok) return access.response;
-    if (!projectId) {
-      return NextResponse.json({ success: false, error: 'Project ID is required' }, { status: 400 });
+
+    let body: Record<string, unknown>;
+    try {
+      body = await request.json();
+    } catch {
+      return fail(400, 'Invalid JSON payload');
     }
 
-    const session = await auth();
-    const body = await request.json();
-    const { content, imageUrl, imageName, imageSize } = body;
+    const content = typeof body.content === 'string' ? body.content.trim() : '';
+    const imageUrl = validImageUrl(body.imageUrl);
+    if (imageUrl === undefined) return fail(400, 'Images must be PNG, JPG, GIF or WebP and under 2 MB.');
+    if (!content && !imageUrl) return fail(400, 'Message must include text content or an image attachment.');
+    if (content.length > MAX_CONTENT) return fail(400, `Messages must be ${MAX_CONTENT} characters or fewer.`);
 
-    const trimmedContent = (content || '').trim();
-    if (!trimmedContent && !imageUrl) {
-      return NextResponse.json(
-        { success: false, error: 'Message must include text content or an image attachment.' },
-        { status: 400 }
-      );
-    }
+    const row = await prisma.projectMessage.create({
+      data: {
+        projectId,
+        userId: access.value.user.id,
+        content,
+        imageUrl,
+        imageName: imageUrl ? (typeof body.imageName === 'string' ? body.imageName.slice(0, 200) : 'image.png') : null,
+        imageSize: imageUrl && typeof body.imageSize === 'number' ? Math.round(body.imageSize) : null,
+      },
+      select: messageSelect,
+    });
 
-    const senderId = (session?.user as { id?: string })?.id;
-    if (!senderId) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized. Please sign in to send messages.' },
-        { status: 401 }
-      );
-    }
-
-    const senderName = session?.user?.name || 'User';
-    const senderEmail = session?.user?.email || '';
-    const senderAvatar =
-      (session?.user as { avatar?: string })?.avatar ||
-      (session?.user?.name ? session.user.name.slice(0, 2).toUpperCase() : 'U');
-    const senderRole = (session?.user as { role?: string })?.role || 'Member';
-
-    const newMessage: ProjectMessage = {
-      id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-      projectId,
-      userId: senderId,
-      userName: senderName,
-      userEmail: senderEmail,
-      userAvatar: senderAvatar,
-      userRole: senderRole,
-      content: trimmedContent,
-      imageUrl: imageUrl || null,
-      imageName: imageName || (imageUrl ? 'image_attachment.png' : null),
-      imageSize: imageSize || null,
-      createdAt: new Date().toISOString(),
-      reactions: {},
-    };
-
-    const messages = getOrCreateProjectMessages(projectId);
-    messages.push(newMessage);
-
-    // Broadcast in real-time to all connected project subscribers via SSE
-    projectStreamBroker.publish(projectId, 'message:created', newMessage);
-
-    return NextResponse.json({ success: true, data: newMessage }, { status: 201 });
+    const message = toDto(row);
+    projectStreamBroker.publish(projectId, 'message:created', message);
+    return NextResponse.json({ success: true, data: message }, { status: 201 });
   } catch (error) {
     console.error('[POST /api/projects/:id/messages] Error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to send message' }, { status: 500 });
+    return fail(500, 'Failed to send message');
   }
 }
 
-/**
- * PATCH /api/projects/:id/messages
- * Toggles an emoji reaction on an existing message.
- */
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
     const access = await requireProjectAccess(projectId);
     if (!access.ok) return access.response;
-    const session = await auth();
-    const currentUid = (session?.user as { id?: string })?.id;
+    const uid = access.value.user.id;
 
-    if (!currentUid) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    let body: Record<string, unknown>;
+    try {
+      body = await request.json();
+    } catch {
+      return fail(400, 'Invalid JSON payload');
     }
+    const messageId = typeof body.messageId === 'string' ? body.messageId : '';
+    const emoji = typeof body.emoji === 'string' ? body.emoji.slice(0, 16) : '';
+    if (!messageId || !emoji) return fail(400, 'messageId and emoji are required');
 
-    const body = await request.json();
-    const { messageId, emoji } = body;
-
-    if (!messageId || !emoji) {
-      return NextResponse.json({ success: false, error: 'messageId and emoji are required' }, { status: 400 });
-    }
-
-    const messages = getOrCreateProjectMessages(projectId);
-    const target = messages.find(m => m.id === messageId);
-
-    if (!target) {
-      return NextResponse.json({ success: false, error: 'Message not found' }, { status: 404 });
-    }
-
-    if (!target.reactions) {
-      target.reactions = {};
-    }
-
-    const userList = target.reactions[emoji] || [];
-    if (userList.includes(currentUid)) {
-      // Remove reaction
-      target.reactions[emoji] = userList.filter(id => id !== currentUid);
-      if (target.reactions[emoji].length === 0) {
-        delete target.reactions[emoji];
+    // Read-modify-write in a transaction so concurrent reactions on the same message don't clobber
+    const row = await prisma.$transaction(async tx => {
+      const existing = await tx.projectMessage.findFirst({
+        where: { id: messageId, projectId },
+        select: { reactions: true },
+      });
+      if (!existing) return null;
+      const reactions = { ...((existing.reactions as Record<string, string[]> | null) ?? {}) };
+      const users = reactions[emoji] ?? [];
+      if (users.includes(uid)) {
+        const remaining = users.filter(id => id !== uid);
+        if (remaining.length) reactions[emoji] = remaining;
+        else delete reactions[emoji];
+      } else {
+        reactions[emoji] = [...users, uid];
       }
-    } else {
-      // Add reaction
-      target.reactions[emoji] = [...userList, currentUid];
-    }
+      return tx.projectMessage.update({ where: { id: messageId }, data: { reactions }, select: messageSelect });
+    });
+    if (!row) return fail(404, 'Message not found');
 
-    // Broadcast reaction change in real-time via SSE
-    projectStreamBroker.publish(projectId, 'message:updated', target);
-
-    return NextResponse.json({ success: true, data: target });
+    const message = toDto(row);
+    projectStreamBroker.publish(projectId, 'message:updated', message);
+    return NextResponse.json({ success: true, data: message });
   } catch (error) {
     console.error('[PATCH /api/projects/:id/messages] Error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to update reaction' }, { status: 500 });
+    return fail(500, 'Failed to update reaction');
   }
 }
 
-/**
- * DELETE /api/projects/:id/messages?messageId=...
- * Deletes a message if the caller is the author or a project manager.
- */
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
     const access = await requireProjectAccess(projectId);
     if (!access.ok) return access.response;
-    const { searchParams } = new URL(request.url);
-    const messageId = searchParams.get('messageId');
 
-    if (!messageId) {
-      return NextResponse.json({ success: false, error: 'messageId query parameter is required' }, { status: 400 });
+    const messageId = new URL(request.url).searchParams.get('messageId');
+    if (!messageId) return fail(400, 'messageId query parameter is required');
+
+    const existing = await prisma.projectMessage.findFirst({
+      where: { id: messageId, projectId },
+      select: { userId: true },
+    });
+    if (!existing) return fail(404, 'Message not found');
+
+    const isAuthor = existing.userId === access.value.user.id;
+    if (!isAuthor && !canManageProject(access.value)) {
+      return fail(403, 'You can only delete your own messages.');
     }
 
-    const session = await auth();
-    const currentUid = (session?.user as { id?: string })?.id;
-    const currentRole = (session?.user as { role?: string })?.role;
-
-    if (!currentUid) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const messages = getOrCreateProjectMessages(projectId);
-    const index = messages.findIndex(m => m.id === messageId);
-
-    if (index === -1) {
-      return NextResponse.json({ success: false, error: 'Message not found' }, { status: 404 });
-    }
-
-    const targetMsg = messages[index];
-    const isAuthor = targetMsg.userId === currentUid;
-    const isManager = currentRole === 'Project Manager' || currentRole === 'Admin';
-
-    if (!isAuthor && !isManager) {
-      return NextResponse.json({ success: false, error: 'Forbidden: You can only delete your own messages.' }, { status: 403 });
-    }
-
-    messages.splice(index, 1);
-
-    // Broadcast deletion in real-time via SSE
+    await prisma.projectMessage.delete({ where: { id: messageId } });
     projectStreamBroker.publish(projectId, 'message:deleted', { id: messageId });
-
     return NextResponse.json({ success: true, data: { id: messageId } });
   } catch (error) {
     console.error('[DELETE /api/projects/:id/messages] Error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to delete message' }, { status: 500 });
+    return fail(500, 'Failed to delete message');
   }
 }

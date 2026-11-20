@@ -1,13 +1,14 @@
 /**
  * src/api/notifications/preferences/route.ts
  *
- * Notification preferences persistence endpoint:
- *   GET   /api/notifications/preferences  — Fetch user notification preferences
- *   PATCH /api/notifications/preferences  — Update notification preferences
+ * Notification preferences, stored per user in User.notificationPrefs (JSON).
+ *   GET   /api/notifications/preferences  — the signed-in user's preferences (defaults if unset)
+ *   PATCH /api/notifications/preferences  — update known keys only
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import prisma from '@/lib/prisma';
+import { requireUser } from '@/lib/access';
 
 export interface NotificationPreferences {
   // Channels
@@ -48,50 +49,61 @@ export const DEFAULT_PREFERENCES: NotificationPreferences = {
   admin_system_metrics: false,
 };
 
-// Global in-memory storage keyed by user ID
-const userPreferencesStore = new Map<string, NotificationPreferences>();
+const DIGEST_VALUES = new Set(['instant', 'daily', 'off']);
 
-export async function GET(_request: NextRequest) {
+/** Keep only known keys with the right types (ignores anything else a client sends). */
+function sanitize(input: unknown): Partial<NotificationPreferences> {
+  if (!input || typeof input !== 'object') return {};
+  const out: Record<string, unknown> = {};
+  for (const [key, def] of Object.entries(DEFAULT_PREFERENCES)) {
+    const value = (input as Record<string, unknown>)[key];
+    if (value === undefined) continue;
+    if (key === 'emailDigest') {
+      if (typeof value === 'string' && DIGEST_VALUES.has(value)) out[key] = value;
+    } else if (typeof def === 'boolean' && typeof value === 'boolean') {
+      out[key] = value;
+    }
+  }
+  return out as Partial<NotificationPreferences>;
+}
+
+async function loadPrefs(userId: string): Promise<NotificationPreferences> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { notificationPrefs: true } });
+  return { ...DEFAULT_PREFERENCES, ...sanitize(user?.notificationPrefs) };
+}
+
+export async function GET() {
   try {
-    let userId = 'u1';
-    try {
-      const session = await auth();
-      if (session?.user?.id) userId = session.user.id;
-    } catch {}
-
-    const prefs = userPreferencesStore.get(userId) || DEFAULT_PREFERENCES;
-    return NextResponse.json({ success: true, data: prefs }, { status: 200 });
+    const userRes = await requireUser();
+    if (!userRes.ok) return userRes.response;
+    return NextResponse.json({ success: true, data: await loadPrefs(userRes.value.id) });
   } catch (err) {
     console.error('[GET /api/notifications/preferences] Error:', err);
-    return NextResponse.json(
-      { success: false, error: { message: 'Failed to fetch preferences' } },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: { message: 'Failed to fetch preferences' } }, { status: 500 });
   }
 }
 
 export async function PATCH(request: NextRequest) {
   try {
-    let userId = 'u1';
+    const userRes = await requireUser();
+    if (!userRes.ok) return userRes.response;
+    const userId = userRes.value.id;
+
+    let body: unknown;
     try {
-      const session = await auth();
-      if (session?.user?.id) userId = session.user.id;
-    } catch {}
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ success: false, error: { message: 'Invalid JSON payload' } }, { status: 400 });
+    }
 
-    const body = await request.json();
-    const current = userPreferencesStore.get(userId) || DEFAULT_PREFERENCES;
-    const updated: NotificationPreferences = {
-      ...current,
-      ...body,
-    };
-
-    userPreferencesStore.set(userId, updated);
-    return NextResponse.json({ success: true, data: updated }, { status: 200 });
+    const updated: NotificationPreferences = { ...(await loadPrefs(userId)), ...sanitize(body) };
+    await prisma.user.update({
+      where: { id: userId },
+      data: { notificationPrefs: updated as unknown as object },
+    });
+    return NextResponse.json({ success: true, data: updated });
   } catch (err) {
     console.error('[PATCH /api/notifications/preferences] Error:', err);
-    return NextResponse.json(
-      { success: false, error: { message: 'Failed to update preferences' } },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: { message: 'Failed to update preferences' } }, { status: 500 });
   }
 }

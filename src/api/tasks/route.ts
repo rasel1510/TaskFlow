@@ -211,7 +211,7 @@ export async function GET(request: NextRequest) {
       meta: result.meta,
     }, {
       status: 200,
-      headers: { 'Cache-Control': 'private, max-age=15, stale-while-revalidate=60' },
+      headers: { 'Cache-Control': 'private, no-store' },
     });
   } catch (err) {
     console.error('[GET /api/tasks] Error fetching tasks from DB:', err);
@@ -401,7 +401,8 @@ export async function POST(request: NextRequest) {
       } catch {}
 
       // 2. Trigger notification for assignee
-      if (newTask.assigneeId) {
+      // Don't notify people about tasks they assigned to themselves
+      if (newTask.assigneeId && newTask.assigneeId !== dbUser.id) {
         try {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const notifModel = (prisma as any).notification;

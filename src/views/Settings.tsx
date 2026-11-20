@@ -16,6 +16,7 @@
  *   - Zero unmounted setState warnings (AbortController cleanup)
  */
 
+import { invalidateShared } from '@/lib/sharedFetch';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useToast } from '@/components/ui/Toast';
@@ -413,6 +414,7 @@ export default function Settings() {
         } catch {
           // ignore session update errors
         }
+        invalidateShared('/api/users/');
         window.dispatchEvent(new CustomEvent('user-profile-updated', { detail: json.data }));
         toast.success('Profile and Expertise Matrix updated successfully');
       } else {
@@ -456,6 +458,7 @@ export default function Settings() {
         } catch {
           // ignore session update errors
         }
+        invalidateShared('/api/users/');
         window.dispatchEvent(new CustomEvent('user-profile-updated', { detail: json.data }));
         toast.success('Your name has been updated successfully');
       } else {

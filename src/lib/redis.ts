@@ -14,6 +14,9 @@
 
 import Redis from 'ioredis';
 
+/** Max cache lifetime when no shared Redis is configured (see TieredCache.wrap). */
+const LOCAL_ONLY_MAX_TTL_SECONDS = 2;
+
 interface CacheEntry<T> {
   value: T;
   expiresAt: number; // Unix timestamp in ms
@@ -245,11 +248,15 @@ class TieredCache {
       return existingPromise as Promise<T>;
     }
 
-    // 3. Initiate fetcher and record in inFlight map
+    // 3. Initiate fetcher and record in inFlight map.
+    // Without a shared Redis tier, each server instance (each Vercel function) has its own L1 memory
+    // and invalidations can't reach the others — long TTLs would serve stale data after edits.
+    // So in L1-only mode cap the TTL to a couple of seconds: bursts are still collapsed, data stays fresh.
+    const effectiveTtl = this.redis ? ttlSeconds : Math.min(ttlSeconds, LOCAL_ONLY_MAX_TTL_SECONDS);
     const fetchPromise = (async () => {
       try {
         const fresh = await fetcher();
-        await this.set(key, fresh, ttlSeconds);
+        await this.set(key, fresh, effectiveTtl);
         return fresh;
       } finally {
         this.inFlight.delete(key);

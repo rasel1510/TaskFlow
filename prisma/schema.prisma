@@ -95,6 +95,9 @@ model User {
   hasCompletedOnboarding Boolean   @default(false)
   failedPaymentAttempts  Int       @default(0)
 
+  // Per-user notification settings (Settings → Notifications); null = defaults
+  notificationPrefs      Json?
+
   invoices               Invoice[]
 
   tasksAssigned Task[]               @relation("TaskAssignee")
@@ -106,6 +109,7 @@ model User {
   notifications      Notification[]
   sentTeamInvites    TeamInvitation[]    @relation("SentTeamInvites")
   sentProjectInvites ProjectInvitation[] @relation("SentProjectInvites")
+  projectMessages    ProjectMessage[]
 
   @@index([teamId])
 }
@@ -136,6 +140,7 @@ model Project {
   members      ProjectMember[]
   joinRequests ProjectJoinRequest[]
   invitations  ProjectInvitation[]
+  messages     ProjectMessage[]
 
   @@index([lifecycleState])
   @@index([teamId])
@@ -318,4 +323,22 @@ model Invoice {
   @@index([invoiceNumber])
 }
 
+/// Project team chat (Messages tab). Persisted so messages survive restarts and are shared
+/// across all server instances.
+model ProjectMessage {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String   @default("")
+  imageUrl  String?
+  imageName String?
+  imageSize Int?
+  // { [emoji]: userId[] }
+  reactions Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  @@index([projectId, createdAt])
+}

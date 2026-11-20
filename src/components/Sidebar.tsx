@@ -1,3 +1,4 @@
+import { sharedFetchJson } from '@/lib/sharedFetch';
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useTaskContext } from '@/context/TaskContext';
@@ -171,9 +172,9 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
   useEffect(() => {
     if (!userId) return;
     let isMounted = true;
-    fetch(`/api/users/${userId}`, { cache: 'no-store' })
-      .then(res => res.json())
-      .then(json => {
+    sharedFetchJson<{ success?: boolean; data?: { name?: string; avatar?: string; role?: string; expertise?: string[] } }>(`/api/users/${userId}`)
+      .then(({ json }) => {
+        if (!json) return;
         if (isMounted && json.success && json.data) {
           if (json.data.name) setCustomName(json.data.name);
           if (json.data.avatar) setCustomAvatar(json.data.avatar);

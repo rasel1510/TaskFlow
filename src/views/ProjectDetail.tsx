@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
+import { useTasks } from '@/context/TaskContext';
 import { statusColors, priorityColors, type ProjectHealth, type Status, type Priority } from '@/data/mockData';
 import { useToast } from '@/components/ui/Toast';
 import { LIFECYCLE_STATE_CONFIG, validateLifecycleTransition, type ProjectLifecycleState } from '@/lib/projectLifecycle';
@@ -370,6 +371,7 @@ export default function ProjectDetail({
       const res = await fetch(`/api/tasks/${taskToDelete.id}`, { method: 'DELETE' });
       if (res.ok) {
         toast.success('Task deleted successfully');
+        void refreshTasks();
         setProject(prev =>
           prev
             ? {
@@ -460,6 +462,7 @@ export default function ProjectDetail({
       const json = await res.json();
       if (res.ok && json.success && json.data) {
         toast.success('Task created successfully');
+        void refreshTasks();
         const newTask: ProjectTask = json.data;
         setProject(prev =>
           prev
@@ -566,6 +569,8 @@ export default function ProjectDetail({
   const [isSaving, setIsSaving] = useState(false);
 
   const toast = useToast();
+  // Shared task list behind My Tasks / Board / Calendar — refreshed after changes made here
+  const { refreshTasks } = useTasks();
   // Stable refs so fetchProject doesn't change identity on every toast / parent render
   // (the toast context value is a new object whenever a toast shows, which used to
   // re-fetch the whole project and overwrite optimistic updates).
@@ -631,7 +636,7 @@ export default function ProjectDetail({
       console.error('[ProjectDetail] Fetch error:', err);
       toastRef.current.error('Failed to load project details');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, [projectId]);
 
@@ -907,9 +912,9 @@ export default function ProjectDetail({
     }
   }, [activeTab, fetchMembers, fetchJoinRequests, fetchInvitations]);
 
-  const fetchMessages = useCallback(async (signal?: AbortSignal) => {
+  const fetchMessages = useCallback(async (signal?: AbortSignal, silent = false) => {
     try {
-      setMessagesLoading(true);
+      if (!silent) setMessagesLoading(true);
       const res = await fetch(`/api/projects/${projectId}/messages`, { signal });
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
@@ -919,9 +924,23 @@ export default function ProjectDetail({
       if (e instanceof Error && e.name === 'AbortError') return;
       console.warn('[ProjectDetail] Messages fetch error:', e);
     } finally {
-      setMessagesLoading(false);
+      if (!silent) setMessagesLoading(false);
     }
   }, [projectId]);
+
+  // Messages are stored in the database; poll quietly while the tab is open so new messages
+  // arrive even when the live stream is served by a different server instance (e.g. on Vercel).
+  useEffect(() => {
+    if (activeTab !== 'messages') return;
+    const controller = new AbortController();
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') fetchMessages(controller.signal, true);
+    }, 5000);
+    return () => {
+      window.clearInterval(timer);
+      controller.abort();
+    };
+  }, [activeTab, fetchMessages]);
 
   // Real-time Server-Sent Events (SSE) stream for instant live delivery
   useEffect(() => {
@@ -979,8 +998,8 @@ export default function ProjectDetail({
       toast.error('Please select an image file (PNG, JPG, WebP, GIF)');
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('Image size must be under 10MB');
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image size must be under 2 MB');
       return;
     }
     const reader = new FileReader();
@@ -1161,6 +1180,8 @@ export default function ProjectDetail({
       if (!res.ok || !json.success) {
         throw new Error(json?.error?.message || 'Failed to delete project');
       }
+      // The project's tasks are gone too — refresh My Tasks / Board / Calendar
+      void refreshTasks();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to delete project';
       toast.error(msg);

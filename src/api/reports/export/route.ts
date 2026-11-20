@@ -57,7 +57,18 @@ export async function GET(request: NextRequest) {
       projectName: string;
       dueDate: string;
       createdAt: string;
+      completedAt: string;
+      timeSpentHours: string;
+      /** "Column: value; Column: value" — project custom columns */
+      customFields: string;
     }
+
+    // Readable value for a project custom column
+    const formatCustom = (type: string, value: unknown): string => {
+      if (value === null || value === undefined || value === '') return '';
+      if (type === 'checkbox') return value === true ? 'Yes' : '';
+      return String(value);
+    };
 
     let rows: ExportRow[] = [];
 
@@ -91,14 +102,18 @@ export async function GET(request: NextRequest) {
           priority: true,
           dueDate: true,
           createdAt: true,
+          completedAt: true,
+          timeSpent: true,
+          customFields: true,
           assignee: {
             select: { name: true, email: true },
           },
           project: {
-            select: { name: true },
+            select: { name: true, customColumns: true },
           },
         },
         orderBy: { createdAt: 'desc' },
+        take: 10_000, // bounded export
       });
 
       rows = tasks.map((t) => ({
@@ -111,6 +126,15 @@ export async function GET(request: NextRequest) {
         projectName: t.project?.name || 'No Project',
         dueDate: t.dueDate ? t.dueDate.toISOString().split('T')[0] : 'None',
         createdAt: t.createdAt.toISOString().split('T')[0],
+        completedAt: t.completedAt ? t.completedAt.toISOString().split('T')[0] : '',
+        timeSpentHours: t.timeSpent !== null && t.timeSpent !== undefined ? String(Math.round((t.timeSpent / 60) * 100) / 100) : '',
+        customFields: ((t.project?.customColumns as { id: string; title: string; type: string }[] | null) ?? [])
+          .map(col => {
+            const text = formatCustom(col.type, (t.customFields as Record<string, unknown> | null)?.[col.id]);
+            return text ? `${col.title}: ${text}` : '';
+          })
+          .filter(Boolean)
+          .join('; '),
       }));
     } catch (dbErr) {
       console.warn('[GET /api/reports/export] DB query warning:', dbErr);
@@ -128,6 +152,9 @@ export async function GET(request: NextRequest) {
       'Project',
       'Due Date',
       'Created Date',
+      'Completion Date',
+      'Time Spent (hours)',
+      'Custom Fields',
     ];
 
     const csvLines = [headers.map(sanitizeCsvCell).join(',')];
@@ -144,6 +171,9 @@ export async function GET(request: NextRequest) {
           sanitizeCsvCell(r.projectName),
           sanitizeCsvCell(r.dueDate),
           sanitizeCsvCell(r.createdAt),
+          sanitizeCsvCell(r.completedAt),
+          sanitizeCsvCell(r.timeSpentHours),
+          sanitizeCsvCell(r.customFields),
         ].join(',')
       );
     }

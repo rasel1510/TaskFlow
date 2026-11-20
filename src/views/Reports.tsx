@@ -185,7 +185,7 @@ export default function Reports() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
           <div>
             <h1 className="text-[20px] md:text-[24px] font-bold text-[#111111]">Reports & Analytics</h1>
-            <p className="text-[12px] md:text-[13px] text-[rgba(17,17,17,0.45)] mt-0.5">Live PostgreSQL Aggregations</p>
+            <p className="text-[12px] md:text-[13px] text-[rgba(17,17,17,0.45)] mt-0.5">Company-wide: every project and task in your organization</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <button

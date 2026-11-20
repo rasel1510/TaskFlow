@@ -63,16 +63,16 @@ export function applyAuthMiddleware(request: NextRequest): NextResponse | null {
   const sessionToken = getSessionToken(request);
   const onAuthRoute = isAuthRoute(pathname);
 
-  // Public routes: root homepage ('/'), landing showcase, invite links, and developer docs
-  const isPublicRoute =
-    pathname === '/' ||
-    pathname.startsWith('/landing') ||
-    pathname.startsWith('/invite') ||
-    pathname.startsWith('/docs') ||
-    pathname.startsWith('/developers');
+  // Only the signed-in areas are protected. Everything else (home, landing, invite links, docs,
+  // and unknown addresses — which should show the "Page not found" screen) stays public.
+  const isProtectedRoute =
+    pathname === '/app' ||
+    pathname.startsWith('/app/') ||
+    pathname === '/onboarding' ||
+    pathname.startsWith('/onboarding/');
 
-  // Protected routes (like /app) require authentication if no session token is present
-  if (!sessionToken && !onAuthRoute && !isPublicRoute) {
+  // Protected routes require authentication if no session token is present
+  if (!sessionToken && !onAuthRoute && isProtectedRoute) {
     const loginUrl = new URL('/auth/login', request.url);
     const fullCallback = pathname + (search || '');
     loginUrl.searchParams.set('callbackUrl', fullCallback);

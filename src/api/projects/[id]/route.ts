@@ -86,8 +86,10 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         ).length;
 
         const now = new Date();
+        // Overdue = due before today (a task due today is not overdue yet)
+        const startOfToday = new Date(new Date(now).setUTCHours(0, 0, 0, 0));
         const overdueTasks = dbProject.tasks.filter(
-          (t) => t.status !== 'done' && t.dueDate && new Date(t.dueDate) < now
+          (t) => t.status !== 'done' && t.dueDate && new Date(t.dueDate) < startOfToday
         ).length;
 
         const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -137,7 +139,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
           {
             status: 200,
             headers: {
-              'Cache-Control': 'private, max-age=10, stale-while-revalidate=30',
+              'Cache-Control': 'private, no-store',
             },
           }
         );

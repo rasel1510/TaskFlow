@@ -46,7 +46,13 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
     };
   }, []);
 
-  // Restore saved position or position in bottom-right by default
+  /** x for docking against the left or right screen edge */
+  const edgeX = useCallback((side: 'left' | 'right') => {
+    const width = buttonRef.current ? buttonRef.current.offsetWidth : 112;
+    return side === 'left' ? PADDING : window.innerWidth - width - PADDING;
+  }, []);
+
+  // Restore saved position (stored relative to the screen) or bottom-right by default
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -58,8 +64,15 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
-          const clamped = clampPosition(parsed.x, parsed.y);
+        const isMobile = window.innerWidth < 768;
+        // Only reuse a position saved on the same kind of screen; pixel positions from a
+        // desktop would otherwise land in the middle of a phone screen, covering content.
+        if (
+          (parsed.side === 'left' || parsed.side === 'right') &&
+          typeof parsed.yRatio === 'number' &&
+          parsed.mobile === isMobile
+        ) {
+          const clamped = clampPosition(edgeX(parsed.side), parsed.yRatio * window.innerHeight);
           initX = clamped.x;
           initY = clamped.y;
           foundSaved = true;
@@ -85,14 +98,17 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
     if (buttonRef.current) {
       buttonRef.current.style.transform = `translate3d(${initX}px, ${initY}px, 0)`;
     }
-  }, [clampPosition]);
+  }, [clampPosition, edgeX]);
 
   // Adjust position when viewport resizes or rotates on mobile
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const handleResize = () => {
-      const clamped = clampPosition(currentPos.current.x, currentPos.current.y);
+      // Stay docked to the same edge
+      const btnWidth = buttonRef.current ? buttonRef.current.offsetWidth : 112;
+      const side = currentPos.current.x + btnWidth / 2 < window.innerWidth / 2 ? 'left' : 'right';
+      const clamped = clampPosition(edgeX(side), currentPos.current.y);
       currentPos.current = clamped;
       setPosition(clamped);
       if (buttonRef.current) {
@@ -102,7 +118,7 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [clampPosition]);
+  }, [clampPosition, edgeX]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     // Only primary button (left-click / single touch)
@@ -177,11 +193,25 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
     setIsDragging(false);
 
     if (wasDragging) {
-      // Persist the final position
-      const finalPos = currentPos.current;
+      // Snap to the nearest side edge so the button never rests over page content
+      const btnWidth = btn ? btn.offsetWidth : 112;
+      const side: 'left' | 'right' =
+        currentPos.current.x + btnWidth / 2 < window.innerWidth / 2 ? 'left' : 'right';
+      const finalPos = clampPosition(edgeX(side), currentPos.current.y);
+      currentPos.current = finalPos;
       setPosition(finalPos);
+      if (btn) {
+        btn.style.transition = 'transform 180ms ease-out';
+        btn.style.transform = `translate3d(${finalPos.x}px, ${finalPos.y}px, 0)`;
+        window.setTimeout(() => {
+          if (buttonRef.current) buttonRef.current.style.transition = '';
+        }, 200);
+      }
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(finalPos));
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({ side, yRatio: finalPos.y / window.innerHeight, mobile: window.innerWidth < 768 })
+        );
       } catch {}
     } else {
       // Clean tap without drag

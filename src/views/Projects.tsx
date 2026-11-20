@@ -139,7 +139,9 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
       if (err instanceof Error && err.name === 'AbortError') return;
       console.error('[Projects] Error fetching projects:', err);
     } finally {
-      setLoading(false);
+      // A cancelled request must not end the loading state, or "No projects found" flashes
+      // while the replacement request is still in flight.
+      if (!signal?.aborted) setLoading(false);
     }
   }, []);
 
