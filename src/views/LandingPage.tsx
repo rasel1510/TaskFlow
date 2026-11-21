@@ -522,8 +522,8 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
         className="fixed top-0 right-0 left-0 z-50 pointer-events-auto will-change-transform"
       >
         <header className="w-full tracking-tighter transition-all duration-300 bg-transparent border-none">
-          <div className="mx-auto max-w-7xl px-6">
-            <div className="flex h-16 sm:h-20 items-center justify-between gap-8">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <div className="flex h-16 sm:h-20 items-center justify-between gap-3 sm:gap-8">
               {/* Brand Logo */}
               <div className="flex items-center">
                 <Link aria-label="FlowSync" className="flex items-center gap-2.5 group" href="/">
@@ -535,7 +535,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
                       <path d="M12.2792 33.593C16.4726 31.7278 19.3843 29.1194 18.7827 27.767C18.1812 26.4146 14.2942 26.8304 10.1008 28.6957C5.90744 30.5609 2.99571 33.1693 3.59726 34.5217C4.1988 35.8741 8.08584 35.4583 12.2792 33.593Z" />
                     </svg>
                   </div>
-                  <span className="font-bold text-2xl text-black tracking-tighter transition-colors dark:text-white">
+                  <span className="font-bold text-xl sm:text-2xl whitespace-nowrap text-black tracking-tighter transition-colors dark:text-white">
                     FlowSync
                   </span>
                 </Link>
@@ -550,7 +550,7 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
                   onTouchStart={() => router.prefetch(getTryFlowSyncHref())}
                   onClick={handleTryFlowSyncClick}
                 >
-                  <span>{isAuthenticated ? 'Open Dashboard' : 'Try FlowSync'}</span>
+                  <span className="whitespace-nowrap">{isAuthenticated ? 'Open Dashboard' : 'Try FlowSync'}</span>
                 </TactileShaderButton>
               </div>
             </div>
