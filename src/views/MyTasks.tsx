@@ -378,7 +378,7 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
               <button
                 key={s.value}
                 onClick={() => setStatusFilter(s.value as Status | 'all')}
-                className={`px-2.5 md:px-3 py-1 rounded-md text-[12px] md:text-[12.5px] font-medium transition-colors whitespace-nowrap ${statusFilter === s.value
+                className={`px-2.5 md:px-3 py-1.5 md:py-1 rounded-md text-[12px] md:text-[12.5px] font-medium transition-colors whitespace-nowrap shrink-0 ${statusFilter === s.value
                     ? 'bg-white text-[#111111] shadow-sm'
                     : 'text-[rgba(17,17,17,0.5)] hover:text-[#111111]'
                   }`}
@@ -762,7 +762,7 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
           onClick={() => !isDeleting && setTaskToDelete(null)}
         >
           <div
-            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in duration-150 p-6"
+            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-md overflow-y-auto animate-in fade-in duration-150 p-6 max-h-[calc(100dvh-2rem)] overscroll-contain"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-start gap-4">

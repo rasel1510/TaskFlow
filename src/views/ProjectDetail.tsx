@@ -85,11 +85,16 @@ const TASK_STATUS_ORDER: Record<string, number> = { backlog: 0, todo: 1, in_prog
 const TASK_PRIORITY_ORDER: Record<string, number> = { low: 1, medium: 2, high: 3, urgent: 4 };
 
 /**
- * Row grid. Mobile: Task | Status | Actions.
+ * Row grid. Phones: Task | Status | ⋯ (the task name gets every spare pixel).
  * Desktop: the track list is injected as `--task-cols` (system + custom columns, see `taskGrid`).
  */
 const TASK_GRID_COLS =
-  'grid grid-cols-[minmax(0,1fr)_6.5rem_4.5rem] md:[grid-template-columns:var(--task-cols)] items-center gap-x-3';
+  'grid grid-cols-[minmax(0,1fr)_5.75rem_2.25rem] md:[grid-template-columns:var(--task-cols)] items-center gap-x-2 md:gap-x-3';
+/** Inline "add task" row: same columns, but phones need room for the Save + Cancel buttons */
+const TASK_ADD_ROW_COLS =
+  'grid grid-cols-[minmax(0,1fr)_5.75rem_4.25rem] md:[grid-template-columns:var(--task-cols)] items-center gap-x-2 md:gap-x-3';
+/** Left gutter lines rows up under the group chevron on desktop; phones use a normal gutter */
+const ROW_PAD = 'pl-4 md:pl-[42px] pr-3 md:pr-4';
 
 /** Built-in columns in display order. `rem` widths feed the grid template and its min width. */
 const SYSTEM_COLUMNS: { key: TaskSortKey; label: string; className: string; track: string; rem: number }[] = [
@@ -2141,7 +2146,7 @@ export default function ProjectDetail({
               >
               {/* Column header (click a name to sort) */}
               <div
-                className={`${TASK_GRID_COLS} h-9 pl-[42px] pr-4 border-b border-[#E5E7EB] bg-[#FAFAFA] text-[11px] font-medium uppercase tracking-wide text-[rgba(17,17,17,0.45)]`}
+                className={`${TASK_GRID_COLS} h-9 ${ROW_PAD} border-b border-[#E5E7EB] bg-[#FAFAFA] text-[11px] font-medium uppercase tracking-wide text-[rgba(17,17,17,0.45)]`}
               >
                 {SYSTEM_COLUMNS.map(col => {
                   const isSorted = sortConfig?.key === col.key;
@@ -2302,7 +2307,7 @@ export default function ProjectDetail({
                       {isOpen && (
                         <div>
                           {group.tasks.length === 0 && !isAddingHere && (
-                            <p className="flex items-center h-10 pl-[42px] pr-4 border-t border-[#F3F4F6] text-[12.5px] text-[rgba(17,17,17,0.45)]">
+                            <p className={`flex items-center h-10 ${ROW_PAD} border-t border-[#F3F4F6] text-[12.5px] text-[rgba(17,17,17,0.45)]`}>
                               {taskStatusFilter === 'all' ? 'Nothing due today.' : 'No matching tasks due today.'}
                             </p>
                           )}
@@ -2321,7 +2326,7 @@ export default function ProjectDetail({
                                 onKeyDown={e => {
                                   if (e.key === 'Enter' && e.target === e.currentTarget) onTaskClick(task.id);
                                 }}
-                                className={`${TASK_GRID_COLS} relative min-h-11 py-2 pl-[42px] pr-4 border-t border-[#F3F4F6] cursor-pointer hover:bg-[#FAFAFA] focus-visible:bg-[#FAFAFA] outline-none transition-colors duration-100 ease-out ${
+                                className={`${TASK_GRID_COLS} relative min-h-11 py-2 ${ROW_PAD} border-t border-[#F3F4F6] cursor-pointer hover:bg-[#FAFAFA] focus-visible:bg-[#FAFAFA] outline-none transition-colors duration-100 ease-out ${
                                   activeRowMenuId === task.id ? 'z-30' : ''
                                 }`}
                               >
@@ -2412,7 +2417,7 @@ export default function ProjectDetail({
 
                           {/* Inline add (due date = this group's date) */}
                           {isAddingHere ? (
-                            <div className={`${TASK_GRID_COLS} py-2 pl-[42px] pr-4 border-t border-[#F3F4F6] bg-[#FAFAFA]`}>
+                            <div className={`${TASK_ADD_ROW_COLS} py-2 ${ROW_PAD} border-t border-[#F3F4F6] bg-[#FAFAFA]`}>
                               <input
                                 type="text"
                                 autoFocus
@@ -2608,7 +2613,7 @@ export default function ProjectDetail({
                               <button
                                 type="button"
                                 onClick={() => startInlineAdd(group.dateKey)}
-                                className="w-full flex items-center gap-2 h-10 pl-[42px] pr-4 border-t border-[#F3F4F6] text-[13px] text-[rgba(17,17,17,0.45)] hover:text-[#2563EB] hover:bg-[#FAFAFA] transition-colors duration-100 ease-out cursor-pointer"
+                                className={`w-full flex items-center gap-2 h-10 ${ROW_PAD} border-t border-[#F3F4F6] text-[13px] text-[rgba(17,17,17,0.45)] hover:text-[#2563EB] hover:bg-[#FAFAFA] transition-colors duration-100 ease-out cursor-pointer`}
                               >
                                 <Plus className="w-3.5 h-3.5" />
                                 Add task
@@ -3042,8 +3047,9 @@ export default function ProjectDetail({
                   }}
                 />
 
-                {/* Textarea */}
+                {/* Textarea (data-hide-flowai: phones hide the floating FlowAi button over the composer) */}
                 <textarea
+                  data-hide-flowai
                   rows={2}
                   value={messageText}
                   onChange={e => setMessageText(e.target.value)}
@@ -3146,7 +3152,7 @@ export default function ProjectDetail({
           onClick={() => setShowEmailInviteModal(false)}
         >
           <div
-            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-lg p-6 animate-in zoom-in-95 duration-150"
+            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-lg p-6 animate-in zoom-in-95 duration-150 overflow-y-auto max-h-[calc(100dvh-2rem)] overscroll-contain"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between pb-4 border-b border-[#F3F4F6]">
@@ -3221,7 +3227,7 @@ export default function ProjectDetail({
           onClick={() => !isDeletingProject && setShowDeleteModal(false)}
         >
           <div
-            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-150"
+            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-150 overflow-y-auto max-h-[calc(100dvh-2rem)] overscroll-contain"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-start gap-3.5 mb-4">
@@ -3275,7 +3281,7 @@ export default function ProjectDetail({
           onClick={() => !isRemovingMember && setMemberToRemove(null)}
         >
           <div
-            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-150 relative"
+            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-150 relative overflow-y-auto max-h-[calc(100dvh-2rem)] overscroll-contain"
             onClick={e => e.stopPropagation()}
           >
             {/* Close button */}
@@ -3364,7 +3370,7 @@ export default function ProjectDetail({
           onClick={() => !isDeletingTask && setTaskToDelete(null)}
         >
           <div
-            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-150 relative"
+            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-150 relative overflow-y-auto max-h-[calc(100dvh-2rem)] overscroll-contain"
             onClick={e => e.stopPropagation()}
           >
             {/* Close button */}

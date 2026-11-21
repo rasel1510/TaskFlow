@@ -23,7 +23,8 @@ import {
   DragOverlay,
   useDraggable,
   useDroppable,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   KeyboardSensor,
   useSensor,
   useSensors,
@@ -150,7 +151,8 @@ function DraggableCard({ task, onClick }: { task: DBTask; onClick: () => void })
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    // select-none + no touch callout: a long press picks the card up instead of selecting text
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="select-none [-webkit-touch-callout:none]">
       <KanbanCard task={task} onClick={onClick} />
     </div>
   );
@@ -190,7 +192,7 @@ function KanbanColumn({
       className={`flex flex-col h-full snap-center md:snap-align-none transition-[width,min-width] duration-150 ${
         layoutMode === 'fit'
           ? 'w-[82vw] min-w-[270px] sm:w-auto sm:flex-1 sm:min-w-[185px] max-w-full shrink-0 sm:shrink'
-          : 'w-[272px] min-w-[272px] shrink-0'
+          : 'w-[82vw] min-w-[270px] md:w-[272px] md:min-w-[272px] shrink-0'
       }`}
     >
       {/* Column Header */}
@@ -268,14 +270,12 @@ export default function KanbanBoard({ onTaskClick, onCreateTask }: KanbanBoardPr
   const [layoutMode, setLayoutMode] = useState<'fit' | 'wide'>('fit');
   const [activeTask, setActiveTask] = useState<DBTask | null>(null);
 
-  // Set up pointer sensor with 5px distance constraint to ensure clicks aren't intercepted as drags
-  const pointerSensor = useSensor(PointerSensor, {
-    activationConstraint: {
-      distance: 5,
-    },
-  });
+  // Mouse: drag after moving 5px, so clicks still open the task.
+  // Touch: press and hold (250ms) to pick a card up; a normal swipe scrolls between columns.
+  const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 5 } });
+  const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } });
   const keyboardSensor = useSensor(KeyboardSensor);
-  const sensors = useSensors(pointerSensor, keyboardSensor);
+  const sensors = useSensors(mouseSensor, touchSensor, keyboardSensor);
 
   // Extract unique projects from tasks for filter with O(N) complexity
   const uniqueProjects = useMemo(() => {
@@ -371,9 +371,9 @@ export default function KanbanBoard({ onTaskClick, onCreateTask }: KanbanBoardPr
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
           {/* Search box */}
-          <div className="flex items-center gap-2 px-3 py-1.5 border border-[#E5E7EB] hover:border-[#CBD5E1] rounded-lg bg-[#F9FAFB] focus-within:bg-white focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-[#DBEAFE] transition-all shadow-2xs">
+          <div className="flex flex-1 sm:flex-initial min-w-0 items-center gap-2 px-3 py-2 sm:py-1.5 border border-[#E5E7EB] hover:border-[#CBD5E1] rounded-lg bg-[#F9FAFB] focus-within:bg-white focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-[#DBEAFE] transition-all shadow-2xs">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" className="shrink-0">
               <circle cx="11" cy="11" r="8"/>
               <line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -382,7 +382,7 @@ export default function KanbanBoard({ onTaskClick, onCreateTask }: KanbanBoardPr
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search board..."
-              className="bg-transparent text-[13px] text-[#111111] placeholder-[#9CA3AF] outline-none border-none focus:outline-none focus:ring-0 w-28 sm:w-36 md:w-48"
+              className="bg-transparent text-[13px] text-[#111111] placeholder-[#9CA3AF] outline-none border-none focus:outline-none focus:ring-0 w-full min-w-0 sm:w-36 md:w-48"
             />
             {search && (
               <button
@@ -399,8 +399,8 @@ export default function KanbanBoard({ onTaskClick, onCreateTask }: KanbanBoardPr
             )}
           </div>
 
-          {/* Layout Mode Toggle */}
-          <div className="flex items-center bg-[#F3F4F6] p-0.5 rounded-lg border border-[#E5E7EB] text-[12px]">
+          {/* Layout Mode Toggle — tablet and up (phones always get one swipeable column at a time) */}
+          <div className="hidden md:flex items-center bg-[#F3F4F6] p-0.5 rounded-lg border border-[#E5E7EB] text-[12px]">
             <button
               onClick={() => setLayoutMode('fit')}
               title="Fit all columns to screen width"
@@ -437,7 +437,8 @@ export default function KanbanBoard({ onTaskClick, onCreateTask }: KanbanBoardPr
           {/* Add Task Button */}
           <button
             onClick={onCreateTask}
-            className="flex items-center gap-1.5 px-3 md:px-3.5 py-1.5 bg-[#2563EB] text-white rounded-lg text-[13px] font-semibold hover:bg-[#1D4ED8] transition-colors shadow-xs active:scale-[0.98]"
+            aria-label="Add task"
+            className="flex items-center justify-center shrink-0 gap-1.5 w-9 h-9 sm:w-auto sm:h-auto px-0 sm:px-3 md:px-3.5 sm:py-1.5 bg-[#2563EB] text-white rounded-lg text-[13px] font-semibold hover:bg-[#1D4ED8] transition-colors shadow-xs active:scale-[0.98]"
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="12" y1="5" x2="12" y2="19"/>
@@ -460,7 +461,7 @@ export default function KanbanBoard({ onTaskClick, onCreateTask }: KanbanBoardPr
                 const el = document.getElementById(`kanban-col-${col.status}`);
                 el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
               }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-medium bg-white border border-[#E5E7EB] shadow-2xs whitespace-nowrap shrink-0 active:bg-gray-100"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-medium bg-white border border-[#E5E7EB] shadow-2xs whitespace-nowrap shrink-0 active:bg-gray-100"
             >
               <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.text }} />
               <span>{col.label}</span>

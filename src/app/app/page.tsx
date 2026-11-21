@@ -51,7 +51,10 @@ function AppContent() {
   const searchParams = useSearchParams();
 
   const [view, setView] = useState<View>('dashboard');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Tablets (768–1023px) start with the icon-only sidebar so pages keep their width; laptops get the full one
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth < 1024
+  );
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
 

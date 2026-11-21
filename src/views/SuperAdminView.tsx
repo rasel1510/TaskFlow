@@ -986,7 +986,7 @@ export default function SuperAdminView() {
       {/* ─── MODAL: EDIT COMPANY TIER / STATUS ─── */}
       {editingCompany && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px]">
-          <div className="relative w-full max-w-md bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200/90 dark:border-neutral-800 p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="relative w-full max-w-md bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200/90 dark:border-neutral-800 p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150 overflow-y-auto max-h-[calc(100dvh-2rem)] overscroll-contain">
             <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">
               Manage Company: {editingCompany.name}
             </h3>
@@ -1049,7 +1049,7 @@ export default function SuperAdminView() {
       {/* ─── MODAL: EDIT USER ─── */}
       {editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px]">
-          <div className="relative w-full max-w-md bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200/90 dark:border-neutral-800 p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="relative w-full max-w-md bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200/90 dark:border-neutral-800 p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150 overflow-y-auto max-h-[calc(100dvh-2rem)] overscroll-contain">
             <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">
               Edit User: {editingUser.name}
             </h3>
@@ -1117,7 +1117,7 @@ export default function SuperAdminView() {
       {/* ─── MODAL: DELETE COMPANY ─── */}
       {deletingCompany && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px]">
-          <div className="relative w-full max-w-sm bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200/90 dark:border-neutral-800 p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="relative w-full max-w-sm bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200/90 dark:border-neutral-800 p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150 overflow-y-auto max-h-[calc(100dvh-2rem)] overscroll-contain">
             <h3 className="text-sm font-semibold text-red-600">Delete Company & Entire History?</h3>
             <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
               Are you sure you want to permanently delete{' '}
@@ -1150,7 +1150,7 @@ export default function SuperAdminView() {
       {/* ─── MODAL: DELETE USER ─── */}
       {deletingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px]">
-          <div className="relative w-full max-w-sm bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200/90 dark:border-neutral-800 p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="relative w-full max-w-sm bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200/90 dark:border-neutral-800 p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150 overflow-y-auto max-h-[calc(100dvh-2rem)] overscroll-contain">
             <h3 className="text-sm font-semibold text-red-600">Delete User Account?</h3>
             <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
               Are you sure you want to permanently delete{' '}

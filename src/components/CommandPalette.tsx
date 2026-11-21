@@ -342,7 +342,7 @@ export default function CommandPalette({
             type="text"
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Type a command, search tasks, or jump to a project..."
+            placeholder="Search tasks, projects, or commands..."
             className="flex-1 bg-transparent text-[14px] text-[#111111] placeholder-[#9CA3AF] outline-none"
           />
           {loading && (
@@ -392,7 +392,7 @@ export default function CommandPalette({
                           )}
                         </div>
                       </div>
-                      <span className="text-[11px] text-[rgba(17,17,17,0.35)] shrink-0 ml-2">Jump</span>
+                      <span className="hidden sm:inline text-[11px] text-[rgba(17,17,17,0.35)] shrink-0 ml-2">Jump</span>
                     </button>
                   );
                 })}
@@ -517,7 +517,7 @@ export default function CommandPalette({
         </div>
 
         {/* Footer shortcuts */}
-        <div className="flex items-center justify-between px-4 py-2.5 bg-[#F9FAFB] border-t border-[#E5E7EB] text-[11px] text-[#9CA3AF]">
+        <div className="hidden sm:flex items-center justify-between px-4 py-2.5 bg-[#F9FAFB] border-t border-[#E5E7EB] text-[11px] text-[#9CA3AF]">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1">
               <kbd className="px-1.5 py-0.5 rounded border border-[#E5E7EB] bg-white font-mono">↑</kbd>

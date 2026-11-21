@@ -271,7 +271,9 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
           <div className="ml-auto flex items-center gap-0.5 p-1 bg-[#F3F4F6] rounded-lg">
             <button
               onClick={() => setView('grid')}
-              className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+              aria-label="Grid view"
+              title="Grid view"
+              className={`w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded transition-colors ${
                 view === 'grid' ? 'bg-white shadow-sm text-[#111111]' : 'text-[rgba(17,17,17,0.4)] hover:text-[#111111]'
               }`}
             >
@@ -284,7 +286,9 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
             </button>
             <button
               onClick={() => setView('list')}
-              className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+              aria-label="List view"
+              title="List view"
+              className={`w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded transition-colors ${
                 view === 'list' ? 'bg-white shadow-sm text-[#111111]' : 'text-[rgba(17,17,17,0.4)] hover:text-[#111111]'
               }`}
             >
@@ -517,15 +521,16 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
         ) : (
           /* List view */
           <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-x-auto shadow-xs">
-            <div className="min-w-[680px]">
-              <div className="flex items-center gap-4 px-5 py-3 bg-[#F9FAFB] border-b border-[#E5E7EB] text-[11.5px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)]">
+            {/* Phones show Project · Progress · Access; wider screens add the other columns */}
+            <div className="lg:min-w-[680px]">
+              <div className="flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3 bg-[#F9FAFB] border-b border-[#E5E7EB] text-[11.5px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)]">
                 <span className="flex-1">Project</span>
-                <span className="w-28">Health</span>
-                <span className="w-20">Progress</span>
-                <span className="w-20">Tasks</span>
-                <span className="w-24">Members</span>
-                <span className="w-24">Deadline</span>
-                <span className="w-36 text-right">Status / Access</span>
+                <span className="w-28 hidden sm:block">Health</span>
+                <span className="w-10 sm:w-20 text-right sm:text-left"><span className="sm:hidden">%</span><span className="hidden sm:inline">Progress</span></span>
+                <span className="w-20 hidden lg:block">Tasks</span>
+                <span className="w-24 hidden md:block">Members</span>
+                <span className="w-24 hidden lg:block">Deadline</span>
+                <span className="sm:w-36 text-right hidden sm:block">Status / Access</span>
               </div>
               {filtered.map((p, i) => (
                 <div
@@ -539,7 +544,7 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
                       setRequestMessage('');
                     }
                   }}
-                  className={`flex items-center gap-4 px-5 py-4 hover:bg-[#F9FAFB] cursor-pointer transition-colors ${i < filtered.length - 1 ? 'border-b border-[#F3F4F6]' : ''}`}
+                  className={`flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3.5 sm:py-4 hover:bg-[#F9FAFB] cursor-pointer transition-colors ${i < filtered.length - 1 ? 'border-b border-[#F3F4F6]' : ''}`}
                 >
                   <div className="flex-1 flex items-center gap-3 min-w-0">
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: p.color + '20' }}>
@@ -549,20 +554,20 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
                       <div className="text-[13.5px] font-medium text-[#111111] truncate">{p.name}</div>
                     </div>
                   </div>
-                  <div className="w-28">
+                  <div className="w-28 hidden sm:block">
                     <span className="flex items-center gap-1.5 text-[11.5px] font-medium" style={{ color: healthColors[p.health].text }}>
                       {healthIcons[p.health]}
                       {healthColors[p.health].label}
                     </span>
                   </div>
-                  <div className="w-20 flex items-center gap-2">
-                    <div className="flex-1 h-1.5 bg-[#F3F4F6] rounded-full overflow-hidden">
+                  <div className="w-10 sm:w-20 flex items-center justify-end sm:justify-start gap-2">
+                    <div className="hidden sm:block flex-1 h-1.5 bg-[#F3F4F6] rounded-full overflow-hidden">
                       <div className="h-full rounded-full" style={{ width: `${p.progress}%`, backgroundColor: p.color }} />
                     </div>
                     <span className="text-[11.5px] text-[rgba(17,17,17,0.5)] shrink-0">{p.progress}%</span>
                   </div>
-                  <div className="w-20 text-[12.5px] text-[rgba(17,17,17,0.6)]">{p.completedTasks}/{p.taskCount}</div>
-                  <div className="w-24 flex items-center gap-1.5">
+                  <div className="w-20 hidden lg:block text-[12.5px] text-[rgba(17,17,17,0.6)]">{p.completedTasks}/{p.taskCount}</div>
+                  <div className="w-24 hidden md:flex items-center gap-1.5">
                     <div className="flex -space-x-1.5">
                       {p.members.slice(0, 3).map((m, mi) => (
                         <div
@@ -592,8 +597,8 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
                       </button>
                     )}
                   </div>
-                  <span className="w-24 text-[12.5px] text-[rgba(17,17,17,0.6)]">{p.dueDate}</span>
-                  <div className="w-36 text-right flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
+                  <span className="w-24 hidden lg:block text-[12.5px] text-[rgba(17,17,17,0.6)]">{p.dueDate}</span>
+                  <div className="shrink-0 sm:w-36 text-right flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
                     {p.isOwner ? (
                       <span className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]">
                         Owner
@@ -630,7 +635,8 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
                         type="button"
                         title="Delete Project"
                         onClick={() => setProjectToDelete(p)}
-                        className="p-1 text-gray-400 hover:text-[#DC2626] hover:bg-[#FEF2F2] rounded transition-colors cursor-pointer"
+                        aria-label="Delete project"
+                        className="p-2 sm:p-1 text-gray-400 hover:text-[#DC2626] hover:bg-[#FEF2F2] rounded-md sm:rounded transition-colors cursor-pointer"
                       >
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M3 6h18"/>
@@ -654,7 +660,7 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
           onClick={() => setRequestModalProject(null)}
         >
           <div
-            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-150"
+            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-150 overflow-y-auto max-h-[calc(100dvh-2rem)] overscroll-contain"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#F3F4F6]">
@@ -718,7 +724,7 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
           onClick={() => !isDeleting && setProjectToDelete(null)}
         >
           <div
-            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-150"
+            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-150 overflow-y-auto max-h-[calc(100dvh-2rem)] overscroll-contain"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-start gap-3.5 mb-4">

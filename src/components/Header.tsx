@@ -449,7 +449,8 @@ export default function Header({
           {showNotifs && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowNotifs(false)} />
-              <div className="absolute right-0 top-11 w-[calc(100vw-2rem)] sm:w-[420px] max-w-md bg-white border border-[#E5E7EB] rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
+              {/* Phones: pinned under the header, full width with a gutter. sm+: dropdown anchored to the bell. */}
+              <div className="fixed inset-x-3 top-[calc(60px+env(safe-area-inset-top,0px))] sm:absolute sm:inset-x-auto sm:right-0 sm:top-11 sm:w-[420px] max-w-md mx-auto sm:mx-0 bg-white border border-[#E5E7EB] rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
                 {/* Header */}
                 <div className="px-4 py-3 border-b border-[#F1F3F5] flex items-center justify-between bg-white">
                   <div className="flex items-center gap-2">
@@ -483,7 +484,7 @@ export default function Header({
                 </div>
 
                 {/* Activity Filter Tabs */}
-                <div className="flex border-b border-[#F1F3F5] px-2 bg-[#FAFBFC]">
+                <div className="flex border-b border-[#F1F3F5] px-1 sm:px-2 bg-[#FAFBFC] overflow-x-auto no-scrollbar">
                   {[
                     { key: 'all' as const, label: 'All', unread: unreadTotal, count: notificationsList.length },
                     { key: 'assigned' as const, label: 'Assigned', unread: unreadAssigned, count: assignedList.length },
@@ -493,7 +494,7 @@ export default function Header({
                     <button
                       key={tab.key}
                       onClick={() => setNotifTab(tab.key)}
-                      className={`flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium border-b-2 transition-all cursor-pointer relative ${
+                      className={`flex flex-1 sm:flex-none justify-center items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2.5 sm:py-2 text-[12px] font-medium whitespace-nowrap shrink-0 border-b-2 transition-all cursor-pointer relative ${
                         notifTab === tab.key
                           ? 'border-[#2563EB] text-[#2563EB]'
                           : 'border-transparent text-[rgba(17,17,17,0.55)] hover:text-[#111111]'
@@ -510,7 +511,7 @@ export default function Header({
                 </div>
 
                 {/* Notification Items List */}
-                <div className="max-h-[380px] overflow-y-auto divide-y divide-[#F1F3F5]">
+                <div className="max-h-[min(380px,calc(100dvh-230px))] overflow-y-auto overscroll-contain divide-y divide-[#F1F3F5]">
                   {filteredNotifications.length === 0 ? (
                     <div className="text-center py-10 px-4">
                       <p className="text-[13px] font-medium text-[rgba(17,17,17,0.6)]">No notifications</p>

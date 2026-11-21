@@ -377,7 +377,7 @@ export default function ForgotPasswordModal({ isOpen, onClose }: ForgotPasswordM
       />
 
       {/* Modal Card */}
-      <div className="relative w-full max-w-[400px] bg-white rounded-2xl border border-[#E5E7EB] shadow-[0_20px_60px_-10px_rgba(0,0,0,0.15)] overflow-hidden animate-fadeIn">
+      <div className="relative w-full max-w-[400px] max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain bg-white rounded-2xl border border-[#E5E7EB] shadow-[0_20px_60px_-10px_rgba(0,0,0,0.15)] animate-fadeIn">
         {/* Progress bar */}
         <div className="h-0.5 bg-[#F3F4F6]">
           <div

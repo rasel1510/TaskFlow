@@ -88,7 +88,7 @@ function TeamSkeleton() {
         </div>
 
         {/* Stats Grid Skeleton */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="bg-white border border-[#E5E7EB] rounded-xl p-4 shadow-xs space-y-2">
               <div className="flex items-center justify-between mb-2">
@@ -504,7 +504,7 @@ export default function TeamView() {
               <button
                 type="button"
                 onClick={() => setInviteModalOpen(true)}
-                className="h-8 inline-flex items-center gap-2 px-3.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-xl shadow-xs transition-all active:scale-[0.98] cursor-pointer"
+                className="h-8 inline-flex items-center gap-2 px-3.5 whitespace-nowrap bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-xl shadow-xs transition-all active:scale-[0.98] cursor-pointer"
               >
                 <UserPlus className="w-4 h-4" />
                 <span>Invite Member</span>
@@ -524,7 +524,7 @@ export default function TeamView() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5">
           {/* Total Members */}
           <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 shadow-xs">
             <div className="flex items-center justify-between text-gray-500 mb-2">
@@ -567,13 +567,13 @@ export default function TeamView() {
         </div>
 
         {/* Toolbar & Filter Tabs */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3">
           {/* Tabs */}
-          <div className="flex items-center gap-1 bg-[#E5E7EB]/60 p-1 rounded-xl text-xs font-medium">
+          <div className="flex items-center gap-1 bg-[#E5E7EB]/60 p-1 rounded-xl text-xs font-medium overflow-x-auto no-scrollbar max-w-full">
             <button
               type="button"
               onClick={() => setActiveTab('all')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeTab === 'all'
+              className={`px-3 py-2 sm:py-1.5 rounded-lg whitespace-nowrap shrink-0 transition-all cursor-pointer ${activeTab === 'all'
                 ? 'bg-white text-[#111111] font-semibold shadow-xs'
                 : 'text-gray-600 hover:text-gray-900'
                 }`}
@@ -583,7 +583,7 @@ export default function TeamView() {
             <button
               type="button"
               onClick={() => setActiveTab('admins')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeTab === 'admins'
+              className={`px-3 py-2 sm:py-1.5 rounded-lg whitespace-nowrap shrink-0 transition-all cursor-pointer ${activeTab === 'admins'
                 ? 'bg-white text-purple-700 font-semibold shadow-xs'
                 : 'text-gray-600 hover:text-gray-900'
                 }`}
@@ -593,7 +593,7 @@ export default function TeamView() {
             <button
               type="button"
               onClick={() => setActiveTab('managers')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeTab === 'managers'
+              className={`px-3 py-2 sm:py-1.5 rounded-lg whitespace-nowrap shrink-0 transition-all cursor-pointer ${activeTab === 'managers'
                 ? 'bg-white text-[#2563EB] font-semibold shadow-xs'
                 : 'text-gray-600 hover:text-gray-900'
                 }`}
@@ -603,7 +603,7 @@ export default function TeamView() {
             <button
               type="button"
               onClick={() => setActiveTab('members')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeTab === 'members'
+              className={`px-3 py-2 sm:py-1.5 rounded-lg whitespace-nowrap shrink-0 transition-all cursor-pointer ${activeTab === 'members'
                 ? 'bg-white text-emerald-700 font-semibold shadow-xs'
                 : 'text-gray-600 hover:text-gray-900'
                 }`}
@@ -613,7 +613,7 @@ export default function TeamView() {
             <button
               type="button"
               onClick={() => setActiveTab('invites')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'invites'
+              className={`px-3 py-2 sm:py-1.5 rounded-lg whitespace-nowrap shrink-0 transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'invites'
                 ? 'bg-white text-amber-700 font-semibold shadow-xs'
                 : 'text-gray-600 hover:text-gray-900'
                 }`}
@@ -628,14 +628,14 @@ export default function TeamView() {
           </div>
 
           {/* Search box */}
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full xl:w-64">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               placeholder="Search member or email..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3.5 py-1.5 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all shadow-xs"
+              className="w-full pl-9 pr-3.5 py-2 sm:py-1.5 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all shadow-xs"
             />
           </div>
         </div>
@@ -647,11 +647,11 @@ export default function TeamView() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-[#E5E7EB] bg-[#F9FAFB]/75 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                    <th className="py-3 px-5">Member</th>
-                    <th className="py-3 px-5">Role</th>
-                    <th className="py-3 px-5">Expertise</th>
-                    <th className="py-3 px-5">Joined</th>
-                    {isAdmin && <th className="py-3 px-5 text-right">Actions</th>}
+                    <th className="py-3 px-4 sm:px-5">Member</th>
+                    <th className="py-3 px-5 hidden sm:table-cell">Role</th>
+                    <th className="py-3 px-5 hidden lg:table-cell">Expertise</th>
+                    <th className="py-3 px-5 hidden xl:table-cell">Joined</th>
+                    {isAdmin && <th className="py-3 px-4 sm:px-5 text-right">Actions</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-xs">
@@ -673,7 +673,7 @@ export default function TeamView() {
                       return (
                         <tr key={member.id} className="hover:bg-gray-50/70 transition-colors">
                           {/* Member info */}
-                          <td className="py-3.5 px-5">
+                          <td className="py-3.5 px-4 sm:px-5 max-w-0 w-full">
                             <div className="flex items-center gap-3">
                               <div
                                 className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 overflow-hidden ${isMemberAdmin
@@ -690,25 +690,29 @@ export default function TeamView() {
                                 )}
                               </div>
                               <div className="min-w-0">
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex items-center gap-1.5 min-w-0">
                                   <span className="font-semibold text-[#111111] truncate">
                                     {member.name}
                                   </span>
                                   {isSelf && (
-                                    <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-gray-100 text-gray-600">
+                                    <span className="shrink-0 whitespace-nowrap px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-600">
                                       You
                                     </span>
                                   )}
                                 </div>
                                 <div className="text-[11px] text-gray-500 truncate">{member.email}</div>
+                                {/* Role shown inline on phones (its own column is hidden) */}
+                                <div className="sm:hidden mt-1 text-[10.5px] font-semibold text-gray-600">
+                                  {isMemberAdmin ? 'Admin' : isMemberPM ? 'Project Manager' : 'Member'}
+                                </div>
                               </div>
                             </div>
                           </td>
 
                           {/* Role Badge */}
-                          <td className="py-3.5 px-5">
+                          <td className="py-3.5 px-5 hidden sm:table-cell">
                             <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+                              <span className="inline-flex items-center whitespace-nowrap px-2.5 py-1 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-700 border border-gray-200">
                                 {isMemberAdmin
                                   ? 'Admin'
                                   : isMemberPM
@@ -719,7 +723,7 @@ export default function TeamView() {
                           </td>
 
                           {/* Expertise tags */}
-                          <td className="py-3.5 px-5">
+                          <td className="py-3.5 px-5 hidden lg:table-cell">
                             {member.expertise && member.expertise.length > 0 ? (
                               <div className="flex flex-wrap gap-1 max-w-xs">
                                 {member.expertise.slice(0, 3).map((exp, i) => (
@@ -742,7 +746,7 @@ export default function TeamView() {
                           </td>
 
                           {/* Joined date */}
-                          <td className="py-3.5 px-5 text-gray-500 text-[11px]">
+                          <td className="py-3.5 px-5 text-gray-500 text-[11px] hidden xl:table-cell whitespace-nowrap">
                             {new Date(member.createdAt).toLocaleDateString(undefined, {
                               year: 'numeric',
                               month: 'short',
@@ -752,14 +756,14 @@ export default function TeamView() {
 
                           {/* Actions (Admin Only) */}
                           {isAdmin && (
-                            <td className="py-3.5 px-5 text-right">
-                              <div className="flex items-center justify-end gap-2">
+                            <td className="py-3.5 pl-0 pr-3 sm:px-5 text-right w-px whitespace-nowrap">
+                              <div className="flex items-center justify-end gap-0.5 sm:gap-2">
                                 {/* Role Dropdown Selector */}
                                 <select
                                   disabled={updatingMemberId === member.id || (isSelf && isMemberAdmin && data.stats.adminsCount <= 1)}
                                   value={isMemberAdmin ? 'Admin' : isMemberPM ? 'Project Manager' : 'Member'}
                                   onChange={e => handleUpdateRole(member.id, e.target.value)}
-                                  className="text-[11px] bg-white border border-[#E5E7EB] hover:border-gray-400 text-gray-700 py-1 px-2 rounded-lg font-medium outline-none focus:border-[#2563EB] cursor-pointer"
+                                  className="text-[11px] w-[6.5rem] sm:w-auto sm:max-w-[150px] bg-white border border-[#E5E7EB] hover:border-gray-400 text-gray-700 py-1 px-1.5 sm:px-2 rounded-lg font-medium outline-none focus:border-[#2563EB] cursor-pointer"
                                 >
                                   <option value="Admin">Admin</option>
                                   <option value="Project Manager">Project Manager</option>
@@ -774,7 +778,7 @@ export default function TeamView() {
                                   <button
                                     type="button"
                                     onClick={() => setMemberToRemove(member)}
-                                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                    className="p-2 sm:p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                                     title="Remove from team"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
@@ -798,12 +802,12 @@ export default function TeamView() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-[#E5E7EB] bg-[#F9FAFB]/75 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                    <th className="py-3 px-5">Invited Email</th>
-                    <th className="py-3 px-5">Invited Role</th>
-                    <th className="py-3 px-5">Temporary Password</th>
-                    <th className="py-3 px-5">Invited By</th>
-                    <th className="py-3 px-5">Expires</th>
-                    <th className="py-3 px-5 text-right">Invitation Link & Action</th>
+                    <th className="py-3 px-4 sm:px-5">Invited Email</th>
+                    <th className="py-3 px-5 hidden sm:table-cell">Invited Role</th>
+                    <th className="py-3 px-5 hidden xl:table-cell">Temporary Password</th>
+                    <th className="py-3 px-5 hidden xl:table-cell">Invited By</th>
+                    <th className="py-3 px-5 hidden lg:table-cell">Expires</th>
+                    <th className="py-3 px-4 sm:px-5 text-right"><span className="hidden sm:inline">Invitation Link & Action</span><span className="sm:hidden">Action</span></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-xs">
@@ -823,14 +827,17 @@ export default function TeamView() {
 
                       return (
                         <tr key={inv.id} className="hover:bg-gray-50/70 transition-colors">
-                          <td className="py-3.5 px-5 font-medium text-[#111111]">
-                            <div className="flex items-center gap-2">
-                              <Mail className="w-3.5 h-3.5 text-gray-400" />
-                              <span>{inv.email}</span>
+                          <td className="py-3.5 px-4 sm:px-5 font-medium text-[#111111] max-w-0 w-full">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                              <span className="truncate">{inv.email}</span>
+                            </div>
+                            <div className="sm:hidden mt-1 pl-5.5 text-[10.5px] font-medium text-gray-500">
+                              {inv.role === 'PROJECT_MANAGER' ? 'Project Manager' : inv.role === 'ADMIN' ? 'Admin' : 'Member'} · expires {new Date(inv.expiresAt).toLocaleDateString()}
                             </div>
                           </td>
-                          <td className="py-3.5 px-5">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+                          <td className="py-3.5 px-5 hidden sm:table-cell">
+                            <span className="inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-gray-100 text-gray-700 border border-gray-200">
                               {inv.role === 'PROJECT_MANAGER'
                                 ? 'Project Manager'
                                 : inv.role === 'ADMIN'
@@ -838,7 +845,7 @@ export default function TeamView() {
                                   : 'Member'}
                             </span>
                           </td>
-                          <td className="py-3.5 px-5">
+                          <td className="py-3.5 px-5 hidden xl:table-cell">
                             {inv.initialPassword ? (
                               <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-200/80">
                                 <KeyRound className="w-3.5 h-3.5 text-gray-400 shrink-0" />
@@ -879,14 +886,14 @@ export default function TeamView() {
                               <span className="text-gray-400 text-xs italic">—</span>
                             )}
                           </td>
-                          <td className="py-3.5 px-5 text-gray-500">
+                          <td className="py-3.5 px-5 text-gray-500 hidden xl:table-cell whitespace-nowrap">
                             {inv.invitedBy?.name || 'Team Lead'}
                           </td>
-                          <td className="py-3.5 px-5 text-gray-400 text-[11px]">
+                          <td className="py-3.5 px-5 text-gray-400 text-[11px] hidden lg:table-cell whitespace-nowrap">
                             {new Date(inv.expiresAt).toLocaleDateString()}
                           </td>
-                          <td className="py-3.5 px-5 text-right">
-                            <div className="flex items-center justify-end gap-2">
+                          <td className="py-3.5 pl-0 pr-3 sm:px-5 text-right w-px whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1 sm:gap-2">
                               <button
                                 type="button"
                                 onClick={() => handleCopyLink(fullLink, inv.token)}
@@ -903,7 +910,7 @@ export default function TeamView() {
                                 ) : (
                                   <>
                                     <Copy className="w-3 h-3 text-gray-500" />
-                                    <span>Copy Invite Link</span>
+                                    <span className="whitespace-nowrap"><span className="hidden sm:inline">Copy Invite Link</span><span className="sm:hidden">Copy link</span></span>
                                   </>
                                 )}
                               </button>
@@ -935,7 +942,7 @@ export default function TeamView() {
       {/* ============================================================ */}
       {inviteModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="relative w-full max-w-md bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-150">
+          <div className="relative w-full max-w-md bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-150 overflow-y-auto max-h-[calc(100dvh-2rem)] overscroll-contain">
             {/* Header */}
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div className="flex items-center gap-3">
@@ -1156,7 +1163,7 @@ export default function TeamView() {
       {/* ============================================================ */}
       {memberToRemove && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <div className="w-full max-w-sm bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-2xl space-y-4">
+          <div className="w-full max-w-sm bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-2xl space-y-4 overflow-y-auto max-h-[calc(100dvh-2rem)] overscroll-contain">
             <div className="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center">
               <ShieldAlert className="w-5 h-5" />
             </div>

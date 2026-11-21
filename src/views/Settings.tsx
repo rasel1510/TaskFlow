@@ -1400,7 +1400,7 @@ export default function Settings() {
             {/* Invite Teammate Modal */}
             {showInviteModal && (
               <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
-                <div className="relative w-full max-w-md bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-xl space-y-5 animate-in zoom-in-95 duration-150">
+                <div className="relative w-full max-w-md bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-xl space-y-5 animate-in zoom-in-95 duration-150 overflow-y-auto max-h-[calc(100dvh-2rem)] overscroll-contain">
                   {/* Close button */}
                   <button
                     type="button"
@@ -1822,7 +1822,7 @@ export default function Settings() {
         {/* ── Admin Edit Member Job Title Modal ── */}
         {isAdmin && editingTitleMember && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-            <div className="bg-white rounded-2xl shadow-xl border border-[#E5E7EB] w-full max-w-md overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-xl border border-[#E5E7EB] w-full max-w-md overflow-y-auto max-h-[calc(100dvh-2rem)] overscroll-contain">
               <div className="flex items-center justify-between px-6 py-4 border-b border-[#F3F4F6]">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-full bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-600">

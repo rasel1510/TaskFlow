@@ -62,7 +62,7 @@ function ModalShell({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="w-full max-w-[460px] max-h-[calc(100vh-2rem)] flex flex-col rounded-2xl border border-[#E5E7EB] bg-white shadow-xl"
+        className="w-full max-w-[460px] max-h-[calc(100dvh-2rem)] flex flex-col rounded-2xl border border-[#E5E7EB] bg-white shadow-xl"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 pt-4 pb-3">

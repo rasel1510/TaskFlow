@@ -129,6 +129,8 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [projectFilter, setProjectFilter] = useState<string>('all');
   const [showUnscheduledDrawer, setShowUnscheduledDrawer] = useState(false);
+  // Phones: search / filters / grouping sit behind a toggle so the chart keeps the space
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   // Hover state for interactive tooltip
   const [hoveredTask, setHoveredTask] = useState<DBTask | null>(null);
@@ -396,17 +398,33 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
+            {/* Filters toggle — phones only (row 2 is always visible on sm+) */}
+            <button
+              type="button"
+              onClick={() => setShowMobileFilters(v => !v)}
+              aria-label={showMobileFilters ? 'Hide filters' : 'Show filters'}
+              aria-expanded={showMobileFilters}
+              className={`sm:hidden relative w-8 h-8 shrink-0 flex items-center justify-center rounded-lg border transition-colors cursor-pointer ${
+                showMobileFilters ? 'border-[#BFDBFE] bg-[#EFF6FF] text-[#2563EB]' : 'border-[#E5E7EB] bg-[#F9FAFB] text-[#6B7280]'
+              }`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              {(search || projectFilter !== 'all' || statusFilter !== 'all' || priorityFilter !== 'all') && (
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#2563EB] ring-2 ring-white" />
+              )}
+            </button>
+
             {/* Today jump */}
             <button
               onClick={handleToday}
-              className="px-2.5 py-1.5 text-[12px] font-medium text-[#374151] hover:text-[#111111] bg-[#F9FAFB] hover:bg-[#F3F4F6] border border-[#E5E7EB] rounded-lg transition-colors cursor-pointer"
+              className="h-8 px-2.5 shrink-0 text-[12px] font-medium text-[#374151] hover:text-[#111111] bg-[#F9FAFB] hover:bg-[#F3F4F6] border border-[#E5E7EB] rounded-lg transition-colors cursor-pointer"
             >
               Today
             </button>
 
             {/* Prev / Next controls */}
-            <div className="flex items-center border border-[#E5E7EB] rounded-lg overflow-hidden bg-white">
+            <div className="flex items-center shrink-0 border border-[#E5E7EB] rounded-lg overflow-hidden bg-white">
               <button
                 onClick={handlePrev}
                 className="w-8 h-8 flex items-center justify-center text-[#6B7280] hover:text-[#111111] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
@@ -425,12 +443,12 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
             </div>
 
             {/* View scale segmented pill */}
-            <div className="flex items-center bg-[#F3F4F6] p-0.5 rounded-lg border border-[#E5E7EB]">
+            <div className="flex flex-1 sm:flex-none items-center bg-[#F3F4F6] p-0.5 rounded-lg border border-[#E5E7EB] min-w-0">
               {(['days', 'weeks', 'months'] as ViewScale[]).map(scale => (
                 <button
                   key={scale}
                   onClick={() => setViewScale(scale)}
-                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-md capitalize transition-all cursor-pointer ${
+                  className={`flex-1 sm:flex-none px-2 sm:px-2.5 py-1.5 sm:py-1 text-[11px] font-semibold rounded-md capitalize transition-all cursor-pointer ${
                     viewScale === scale
                       ? 'bg-white text-[#111111] shadow-2xs font-bold'
                       : 'text-[#6B7280] hover:text-[#111111]'
@@ -444,26 +462,27 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
             {/* Create Task Button */}
             <button
               onClick={() => onCreateTask?.(todayKey)}
-              className="px-3 py-1.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[12px] font-semibold rounded-lg transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer"
+              aria-label="New task"
+              className="h-8 w-8 sm:w-auto shrink-0 justify-center sm:px-3 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[12px] font-semibold rounded-lg transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>New Task</span>
+              <span className="hidden sm:inline">New Task</span>
             </button>
           </div>
         </div>
 
-        {/* Row 2: Search, Filters & Grouping — hidden on mobile, shown on sm+ */}
-        <div className="hidden sm:flex flex-wrap items-center justify-between gap-2.5 pt-1 border-t border-[#F3F4F6]">
-          <div className="flex flex-wrap items-center gap-2">
+        {/* Row 2: Search, Filters & Grouping — behind the filters toggle on phones, always shown on sm+ */}
+        <div className={`${showMobileFilters ? 'flex' : 'hidden'} sm:flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between gap-2 sm:gap-2.5 pt-2 sm:pt-1 border-t border-[#F3F4F6]`}>
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
             {/* Search */}
-            <div className="relative">
+            <div className="relative col-span-2">
               <Search className="w-3.5 h-3.5 text-[#9CA3AF] absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search timeline..."
-                className="pl-8 pr-7 py-1 text-[11.5px] bg-[#F9FAFB] border border-[#E5E7EB] hover:border-[#CBD5E1] rounded-lg focus:bg-white focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] focus:outline-none w-44 md:w-56 transition-all shadow-2xs"
+                className="pl-8 pr-7 py-1 text-[11.5px] bg-[#F9FAFB] border border-[#E5E7EB] hover:border-[#CBD5E1] rounded-lg focus:bg-white focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] focus:outline-none w-full sm:w-44 md:w-56 transition-all shadow-2xs"
               />
               {search && (
                 <button
@@ -475,11 +494,11 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
               )}
             </div>
 
-            {/* Project Filter */}
+            {/* Project Filter (full row on phones) */}
             <select
               value={projectFilter}
               onChange={e => setProjectFilter(e.target.value)}
-              className="text-[11.5px] bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg px-2 py-1 text-[#374151] focus:outline-none focus:border-[#2563EB] cursor-pointer"
+              className="col-span-2 min-w-0 text-[11.5px] bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg px-2 py-1.5 sm:py-1 text-[#374151] focus:outline-none focus:border-[#2563EB] cursor-pointer"
             >
               <option value="all">All Projects</option>
               {allProjects.map(p => (
@@ -493,7 +512,7 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
-              className="text-[11.5px] bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg px-2 py-1 text-[#374151] focus:outline-none focus:border-[#2563EB] cursor-pointer"
+              className="min-w-0 text-[11.5px] bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg px-2 py-1.5 sm:py-1 text-[#374151] focus:outline-none focus:border-[#2563EB] cursor-pointer"
             >
               <option value="all">All Statuses</option>
               <option value="backlog">Backlog</option>
@@ -507,7 +526,7 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
             <select
               value={priorityFilter}
               onChange={e => setPriorityFilter(e.target.value)}
-              className="text-[11.5px] bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg px-2 py-1 text-[#374151] focus:outline-none focus:border-[#2563EB] cursor-pointer"
+              className="min-w-0 text-[11.5px] bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg px-2 py-1.5 sm:py-1 text-[#374151] focus:outline-none focus:border-[#2563EB] cursor-pointer"
             >
               <option value="all">All Priorities</option>
               <option value="urgent">Urgent</option>
@@ -519,14 +538,14 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
 
           {/* Group By selector */}
           <div className="flex items-center gap-1.5 text-[11.5px] text-[#6B7280]">
-            <SlidersHorizontal className="w-3 h-3 text-[#9CA3AF]" />
-            <span>Group by:</span>
-            <div className="flex items-center bg-[#F3F4F6] p-0.5 rounded-md">
+            <SlidersHorizontal className="w-3 h-3 text-[#9CA3AF] hidden sm:block" />
+            <span className="shrink-0">Group by:</span>
+            <div className="flex flex-1 sm:flex-none items-center bg-[#F3F4F6] p-0.5 rounded-md">
               {(['project', 'status', 'assignee', 'none'] as GroupBy[]).map(g => (
                 <button
                   key={g}
                   onClick={() => setGroupBy(g)}
-                  className={`px-2 py-0.5 text-[11px] font-medium rounded capitalize cursor-pointer transition-colors ${
+                  className={`flex-1 sm:flex-none px-2 py-1.5 sm:py-0.5 text-[11px] font-medium rounded capitalize cursor-pointer transition-colors ${
                     groupBy === g
                       ? 'bg-white text-[#111111] shadow-2xs font-semibold'
                       : 'text-[#6B7280] hover:text-[#111111]'
@@ -977,8 +996,9 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
       {/* ========================================================= */}
       {/* 5. FOOTER STATS & STATUS LEGEND                           */}
       {/* ========================================================= */}
-      <footer className="shrink-0 border-t border-[#E5E7EB] bg-[#FAFAFC] px-4 py-2 flex flex-wrap items-center justify-between gap-3 text-[11px] text-[#6B7280]">
-        <div className="flex items-center gap-4">
+      <footer className="shrink-0 border-t border-[#E5E7EB] bg-[#FAFAFC] px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] text-[#6B7280]">
+        {/* Range + hint: tablet and up (on phones the legend alone is enough) */}
+        <div className="hidden md:flex items-center gap-4">
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-[#2563EB]" />
             <span>Active Range: {dayColumns[0]?.key} &rarr; {dayColumns[dayColumns.length - 1]?.key}</span>
@@ -987,7 +1007,7 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
           <span>Double-click or click any day to schedule</span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 w-full md:w-auto justify-between md:justify-start">
           <div className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-[#6B7280]" />
             <span>Backlog</span>

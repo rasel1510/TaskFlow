@@ -81,7 +81,8 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
     } catch {}
 
     if (!foundSaved) {
-      const width = 112;
+      // Phones get the compact 44px round button; larger screens the labelled pill
+      const width = window.innerWidth < 768 ? 44 : 112;
       const height = 44;
       const sideOffset = window.innerWidth < 768 ? 16 : 24;
       const bottomOffset = window.innerWidth < 768 ? 82 : 24;
@@ -253,7 +254,7 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
           : 'translate3d(calc(100vw - 136px), calc(100vh - 68px), 0)',
         willChange: 'transform',
       }}
-      className={`group fixed z-40 flex items-center justify-center rounded-full px-4 py-2.5 [isolation:isolate] select-none touch-none focus:outline-none ${
+      className={`flowai-fab group fixed z-40 flex items-center justify-center rounded-full w-11 h-11 md:w-auto md:h-auto md:px-4 md:py-2.5 [isolation:isolate] select-none touch-none focus:outline-none ${
         isDragging
           ? 'cursor-grabbing scale-105 shadow-[0_0_50px_0px_rgba(234,88,12,0.85)] transition-none'
           : 'cursor-grab hover:scale-[1.03] active:scale-95 shadow-xl shadow-black/40 hover:shadow-[0_0_45px_-8px_rgba(234,88,12,0.65)] transition-transform duration-200 ease-out'
@@ -321,7 +322,7 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
 
       {/* Content - strictly preserved without altering icon or text */}
       <div className="relative z-10 flex items-center gap-2 pointer-events-none">
-        <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 pointer-events-none transition-transform duration-300 group-hover:scale-110">
+        <div className="w-6 h-6 md:w-5 md:h-5 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 pointer-events-none transition-transform duration-300 group-hover:scale-110">
           <svg
             width="14"
             height="14"
@@ -336,7 +337,7 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
             <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
           </svg>
         </div>
-        <span className="text-[12.5px] font-semibold tracking-tight text-white/90 transition-colors duration-300 group-hover:text-white pointer-events-none">
+        <span className="hidden md:inline text-[12.5px] font-semibold tracking-tight text-white/90 transition-colors duration-300 group-hover:text-white pointer-events-none">
           FlowAi
         </span>
       </div>

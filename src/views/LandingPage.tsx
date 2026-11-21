@@ -766,22 +766,22 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
                             </span>
                           </div>
 
-                          <div className="grid grid-cols-3 gap-3 my-auto">
-                            <div className="p-3 rounded-xl bg-white/70 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-sm">
-                              <span className="text-[11px] text-black/50 dark:text-white/50">Completion</span>
-                              <p className="text-xl font-bold text-black dark:text-white">94.2%</p>
+                          <div className="grid grid-cols-3 gap-2 sm:gap-3 my-auto">
+                            <div className="p-2.5 sm:p-3 rounded-xl bg-white/70 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-sm min-w-0">
+                              <span className="block text-[10px] sm:text-[11px] leading-tight [word-break:normal] text-black/50 dark:text-white/50">Completion</span>
+                              <p className="text-lg sm:text-xl font-bold whitespace-nowrap text-black dark:text-white">94.2%</p>
                             </div>
-                            <div className="p-3 rounded-xl bg-white/70 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-sm">
-                              <span className="text-[11px] text-black/50 dark:text-white/50">Cycle Time</span>
-                              <p className="text-xl font-bold text-black dark:text-white">2.1d</p>
+                            <div className="p-2.5 sm:p-3 rounded-xl bg-white/70 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-sm min-w-0">
+                              <span className="block text-[10px] sm:text-[11px] leading-tight [word-break:normal] text-black/50 dark:text-white/50">Cycle Time</span>
+                              <p className="text-lg sm:text-xl font-bold whitespace-nowrap text-black dark:text-white">2.1d</p>
                             </div>
-                            <div className="p-3 rounded-xl bg-white/70 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-sm">
-                              <span className="text-[11px] text-black/50 dark:text-white/50">Tasks Shipped</span>
-                              <p className="text-xl font-bold text-black dark:text-white">128</p>
+                            <div className="p-2.5 sm:p-3 rounded-xl bg-white/70 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-sm min-w-0">
+                              <span className="block text-[10px] sm:text-[11px] leading-tight [word-break:normal] text-black/50 dark:text-white/50">Tasks Shipped</span>
+                              <p className="text-lg sm:text-xl font-bold whitespace-nowrap text-black dark:text-white">128</p>
                             </div>
                           </div>
 
-                          <div className="p-3 rounded-xl bg-white/80 dark:bg-white/[0.04] border border-black/5 dark:border-white/10 flex items-center justify-between text-xs">
+                          <div className="p-3 rounded-xl bg-white/80 dark:bg-white/[0.04] border border-black/5 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
                             <span className="text-black/60 dark:text-white/60">Automated velocity calculation</span>
                             <span className="font-mono text-black dark:text-white font-medium">Zero bottleneck detected</span>
                           </div>

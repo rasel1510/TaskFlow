@@ -164,6 +164,32 @@ select:focus-visible {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
+   PHONES: FORM FIELDS & TOUCH
+   iOS Safari zooms the whole page when a field with text under 16px gets
+   focus. 16px on phones keeps the layout still; desktop keeps the compact sizes.
+   ───────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 767px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file']),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* The floating FlowAi button steps aside on screens that have their own
+     bottom-anchored input (chat composer, full-screen task detail). */
+  body:has([data-hide-flowai]) .flowai-fab {
+    display: none;
+  }
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
    TYPOGRAPHY MOBILE FIXES
    ───────────────────────────────────────────────────────────────────────── */
 

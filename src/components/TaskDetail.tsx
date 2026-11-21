@@ -1020,7 +1020,7 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
                                 autoFocus
                               />
                               <div className="flex items-center justify-between">
-                                <span className="text-[10.5px] text-[rgba(17,17,17,0.4)]">Ctrl+Enter to save · Esc to cancel</span>
+                                <span className="text-[10.5px] text-[rgba(17,17,17,0.4)]"><span className="hidden sm:inline">Ctrl+Enter to save · Esc to cancel</span></span>
                                 <div className="flex items-center gap-1.5">
                                   <button
                                     type="button"
@@ -1250,8 +1250,8 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
                   }}
                   placeholder={
                     replyingTo
-                      ? `Reply to @${replyingTo.user?.name}... (Ctrl+Enter to post)`
-                      : 'Add a comment or type @ to mention... (Ctrl+Enter to post)'
+                      ? `Reply to @${replyingTo.user?.name}...`
+                      : 'Add a comment or type @ to mention...'
                   }
                   rows={2}
                   className="w-full px-3 pt-2.5 pb-1 text-[13px] text-[#111111] placeholder-[#9CA3AF] outline-none resize-none"

@@ -65,7 +65,9 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [projectFilter, setProjectFilter] = useState<string>('all');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Filters panel: open beside the calendar on laptops and up; on phones and tablets it is a
+  // drawer that starts closed so the calendar itself is what people see first.
+  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === 'undefined' || window.innerWidth >= 1024);
   const [popoverDateKey, setPopoverDateKey] = useState<string | null>(null);
 
   // Available projects from tasks and API
@@ -467,7 +469,7 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="w-7 h-7 flex items-center justify-center rounded-md text-[#6B7280] hover:text-[#111111] hover:bg-[#F3F4F6] transition-colors"
+              className="w-9 h-9 -mr-1.5 flex items-center justify-center rounded-md text-[#6B7280] hover:text-[#111111] hover:bg-[#F3F4F6] transition-colors"
               aria-label="Close panel"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -714,20 +716,20 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
       {/* ========================================================= */}
       <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0 bg-white">
         {/* Header Bar */}
-        <header className="flex flex-col sm:flex-row sm:items-center justify-between px-3 sm:px-5 py-2.5 sm:py-3 border-b border-[#E5E7EB] bg-white shrink-0 gap-2">
+        <header className="flex flex-col lg:flex-row lg:items-center justify-between px-3 sm:px-5 py-2.5 sm:py-3 border-b border-[#E5E7EB] bg-white shrink-0 gap-2">
           {/* Left Controls: Sidebar toggle, Prev/Next, Month Title, Today */}
-          <div className="flex items-center justify-between sm:justify-start gap-1.5 sm:gap-3 min-w-0">
+          <div className="flex items-center justify-between lg:justify-start gap-1.5 sm:gap-3 min-w-0">
             <div className="flex items-center gap-1.5">
               {/* Sidebar toggle */}
               <button
                 onClick={() => setSidebarOpen(prev => !prev)}
-                className={`p-1.5 rounded-lg border transition-colors relative shrink-0 ${
+                className={`p-2 sm:p-1.5 rounded-lg border transition-colors relative shrink-0 ${
                   sidebarOpen
                     ? 'border-[#E5E7EB] bg-[#F9FAFB] text-[#111111]'
                     : 'border-[#E5E7EB] hover:bg-[#F9FAFB] text-[#6B7280]'
                 }`}
-                title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar & filters'}
-                aria-label="Toggle sidebar"
+                title={sidebarOpen ? 'Hide filters' : 'Show calendar & filters'}
+                aria-label="Toggle calendar filters"
               >
                 {/* On mobile show funnel filter icon; on desktop show sidebar panel icon */}
                 <svg className="hidden sm:block" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -746,7 +748,7 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
               <div className="flex items-center gap-0.5">
                 <button
                   onClick={handlePrev}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg border border-[#E5E7EB] hover:bg-[#F9FAFB] text-[#6B7280] hover:text-[#111111] transition-colors"
+                  className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg border border-[#E5E7EB] hover:bg-[#F9FAFB] text-[#6B7280] hover:text-[#111111] transition-colors"
                   aria-label="Previous period"
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -755,7 +757,7 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
                 </button>
                 <button
                   onClick={handleNext}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg border border-[#E5E7EB] hover:bg-[#F9FAFB] text-[#6B7280] hover:text-[#111111] transition-colors"
+                  className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg border border-[#E5E7EB] hover:bg-[#F9FAFB] text-[#6B7280] hover:text-[#111111] transition-colors"
                   aria-label="Next period"
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -767,7 +769,7 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
               {/* Today Button */}
               <button
                 onClick={handleToday}
-                className="text-[12px] font-semibold text-[#2563EB] hover:bg-[#EFF6FF] px-2 py-1 rounded-md transition-colors"
+                className="text-[12px] font-semibold text-[#2563EB] hover:bg-[#EFF6FF] px-2 py-1.5 sm:py-1 rounded-md transition-colors"
               >
                 Today
               </button>
@@ -787,9 +789,9 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
           </div>
 
           {/* Right Controls: Search, View Switcher, Create Task */}
-          <div className="flex items-center justify-between sm:justify-end gap-1.5 sm:gap-2 shrink-0">
+          <div className="flex items-center justify-between lg:justify-end gap-1.5 sm:gap-2 shrink-0">
             {/* Search Input */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[#E5E7EB] hover:border-[#CBD5E1] bg-[#F9FAFB] focus-within:bg-white focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-[#DBEAFE] transition-all text-[12px] flex-1 sm:flex-initial shadow-2xs">
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 sm:py-1 rounded-lg border border-[#E5E7EB] hover:border-[#CBD5E1] bg-[#F9FAFB] focus-within:bg-white focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-[#DBEAFE] transition-all text-[12px] flex-1 lg:flex-initial shadow-2xs">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" className="shrink-0">
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -799,7 +801,7 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search tasks..."
-                className="bg-transparent text-[#111111] placeholder-[#9CA3AF] outline-none border-none focus:outline-none focus:ring-0 w-full sm:w-32 md:w-44"
+                className="bg-transparent text-[#111111] placeholder-[#9CA3AF] outline-none border-none focus:outline-none focus:ring-0 w-full lg:w-44"
               />
               {search && (
                 <button
@@ -820,7 +822,7 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
             <div className="flex items-center p-0.5 bg-[#F3F4F6] rounded-lg shrink-0">
               <button
                 onClick={() => setViewMode('month')}
-                className={`px-2.5 py-1 rounded-md text-[11px] sm:text-[12px] font-medium transition-all ${
+                className={`px-2.5 py-1.5 sm:py-1 rounded-md text-[11px] sm:text-[12px] font-medium transition-all ${
                   viewMode === 'month'
                     ? 'bg-white text-[#111111] shadow-2xs font-semibold'
                     : 'text-[#6B7280] hover:text-[#111111]'
@@ -830,7 +832,7 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
               </button>
               <button
                 onClick={() => setViewMode('week')}
-                className={`px-2.5 py-1 rounded-md text-[11px] sm:text-[12px] font-medium transition-all ${
+                className={`px-2.5 py-1.5 sm:py-1 rounded-md text-[11px] sm:text-[12px] font-medium transition-all ${
                   viewMode === 'week'
                     ? 'bg-white text-[#111111] shadow-2xs font-semibold'
                     : 'text-[#6B7280] hover:text-[#111111]'
@@ -840,7 +842,7 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
               </button>
               <button
                 onClick={() => setViewMode('agenda')}
-                className={`px-2.5 py-1 rounded-md text-[11px] sm:text-[12px] font-medium transition-all ${
+                className={`px-2.5 py-1.5 sm:py-1 rounded-md text-[11px] sm:text-[12px] font-medium transition-all ${
                   viewMode === 'agenda'
                     ? 'bg-white text-[#111111] shadow-2xs font-semibold'
                     : 'text-[#6B7280] hover:text-[#111111]'
@@ -1438,7 +1440,7 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
           onClick={() => setPopoverDateKey(null)}
         >
           <div
-            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-md overflow-hidden"
+            className="bg-white rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-md overflow-y-auto max-h-[calc(100dvh-2rem)] overscroll-contain"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#E5E7EB] bg-[#FAFAFA]">
