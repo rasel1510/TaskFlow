@@ -36,6 +36,7 @@ import Lenis from 'lenis';
 import { LiquidGlassCard, LiquidButton } from '@/components/kokonutui/liquid-glass-card';
 import PWAModal from '@/components/PWAModal';
 import TrustedBySection from '@/components/TrustedBySection';
+import AliveDeer, { DEER_BOX } from '@/components/landing/AliveDeer';
 import StreamlineVelocitySection from '@/components/StreamlineVelocitySection';
 import WireStackIntegrationsSection from '@/components/WireStackIntegrationsSection';
 import Footer from '@/components/Footer';
@@ -55,6 +56,21 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
 
   // Navigation states
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // The animated deer appears only once the hero photo is painted (never floating on the sky)
+  const [heroSceneLoaded, setHeroSceneLoaded] = useState(false);
+  const heroSceneRef = useRef<HTMLImageElement>(null);
+  useEffect(() => {
+    // A cached photo can finish before hydration, in which case onLoad never fires
+    const img = heroSceneRef.current;
+    if (!img) return;
+    const done = () => setHeroSceneLoaded(true);
+    if (img.complete && img.naturalWidth > 0) {
+      done();
+      return;
+    }
+    img.addEventListener('load', done);
+    return () => img.removeEventListener('load', done);
+  }, []);
   const [activeFeatureIndex, setActiveFeatureIndex] = useState(0);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
   const [isPWAModalOpen, setIsPWAModalOpen] = useState(false);
@@ -590,18 +606,40 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
               />
             </div>
 
-            {/* Landscape with Hills & Foreground (masked at top to blend seamlessly with CloudSky) */}
-            <Image
-              src="/hero-landscape.jpg"
-              alt="Scenic Green Grassland Landscape"
-              fill
-              priority
-              className="object-cover object-[center_35%] w-full h-full scale-105"
+            {/* Landscape with Hills & Foreground (masked at top to blend seamlessly with CloudSky).
+                The photo and the animated deer share one box with the photo's aspect ratio, sized like
+                object-cover (anchored at center / 35%), so the deer stays on its spot at every screen size. */}
+            <div
+              className="absolute inset-0 overflow-hidden [container-type:size]"
               style={{
                 maskImage: 'linear-gradient(to bottom, transparent 0%, transparent 20%, black 40%, black 100%)',
                 WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, transparent 20%, black 40%, black 100%)',
               }}
-            />
+            >
+              <div className="absolute inset-0 scale-105">
+                <div className="absolute left-1/2 top-[35%] -translate-x-1/2 -translate-y-[35%] aspect-[1376/768] w-[max(100cqw,calc(100cqh*1376/768))]">
+                  <Image
+                    src="/hero-landscape-scene.jpg"
+                    alt="Scenic Green Grassland Landscape"
+                    fill
+                    priority
+                    sizes="(max-width: 768px) 200vw, 110vw"
+                    className="object-cover"
+                    ref={heroSceneRef}
+                    onLoad={() => setHeroSceneLoaded(true)}
+                  />
+                  <AliveDeer
+                    className={`absolute transition-opacity duration-700 ease-out ${heroSceneLoaded ? 'opacity-100' : 'opacity-0'}`}
+                    style={{
+                      left: `${(DEER_BOX.x / DEER_BOX.imageW) * 100}%`,
+                      top: `${(DEER_BOX.y / DEER_BOX.imageH) * 100}%`,
+                      width: `${(DEER_BOX.w / DEER_BOX.imageW) * 100}%`,
+                      height: `${(DEER_BOX.h / DEER_BOX.imageH) * 100}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
             {/* Ambient Daylight Overlay for optimal text readability */}
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white/95 dark:from-transparent dark:via-black/40 dark:to-[#0c0d0e]" />
 
