@@ -357,7 +357,7 @@ export default function ProjectDetail({
   const [addingTaskDate, setAddingTaskDate] = useState<string | null>(null);
   const [inlineTaskTitle, setInlineTaskTitle] = useState('');
   const [inlineTaskPriority, setInlineTaskPriority] = useState<Priority>('medium');
-  const [inlineTaskStatus, setInlineTaskStatus] = useState<'todo' | 'in_progress' | 'in_review'>('todo');
+  const [inlineTaskStatus, setInlineTaskStatus] = useState<'todo' | 'in_progress' | 'in_review' | 'done'>('todo');
   const [inlineTaskCompletion, setInlineTaskCompletion] = useState(''); // YYYY-MM-DD
   const [inlineTaskHours, setInlineTaskHours] = useState('');
   /** Custom-column values entered while adding a task, keyed by column id (checkbox → boolean) */
@@ -2561,6 +2561,7 @@ export default function ProjectDetail({
                                 <option value="todo">To Do</option>
                                 <option value="in_progress">In Progress</option>
                                 <option value="in_review">In Review</option>
+                                <option value="done">Done</option>
                               </select>
 
                               <select
