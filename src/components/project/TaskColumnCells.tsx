@@ -275,7 +275,7 @@ export function CustomFieldCell({
       const menuOptions = [
         ...(current && idx < 0 ? [current] : []),
         ...options,
-      ].map(o => ({ value: o, label: o, dot: PILL_PALETTE[Math.max(0, options.indexOf(o)) % PILL_PALETTE.length].fg }));
+      ].map(o => ({ value: o, label: o }));
       return (
         <div className="relative flex items-center h-8 min-w-0 w-full" onClick={stop}>
           <SelectMenu

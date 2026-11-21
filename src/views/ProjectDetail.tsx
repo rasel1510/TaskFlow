@@ -97,11 +97,10 @@ const ROW_PAD = 'pl-4 md:pl-[42px] pr-3 md:pr-4';
 /** Options for the inline add row's Status / Priority menus (colored like the badges in the table) */
 const INLINE_STATUS_OPTIONS: SelectOption<'todo' | 'in_progress' | 'in_review' | 'done'>[] = (
   ['todo', 'in_progress', 'in_review', 'done'] as const
-).map(s => ({ value: s, label: statusColors[s].label, dot: statusColors[s].text }));
+).map(s => ({ value: s, label: statusColors[s].label }));
 const INLINE_PRIORITY_OPTIONS: SelectOption<Priority>[] = (['low', 'medium', 'high', 'urgent'] as const).map(p => ({
   value: p,
   label: priorityColors[p].label,
-  dot: priorityColors[p].color,
 }));
 /** Remembers that this browser has swiped the task table, so the hint stops showing */
 const SWIPE_HINT_KEY = 'flowsync_task_swipe_hint_v1';
@@ -2373,9 +2372,7 @@ export default function ProjectDetail({
                       {group.isToday ? (
                         <div className="flex items-center h-11 px-4">
                           <span className="sticky left-4 flex items-center gap-2.5">
-                            <span className="w-4 flex justify-center shrink-0" aria-hidden="true">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB]" />
-                            </span>
+                            <span className="w-4 shrink-0" aria-hidden="true" />
                             <span className="text-[13px] font-semibold text-[#111111]">Today</span>
                             <span className="text-[12.5px] text-[rgba(17,17,17,0.45)]">{group.label}</span>
                           </span>
@@ -2456,7 +2453,6 @@ export default function ProjectDetail({
                                 </span>
 
                                 <span className="flex items-center gap-1.5 text-[12.5px] text-[rgba(17,17,17,0.7)]">
-                                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: priorityCfg.color }} />
                                   {priorityCfg.label}
                                 </span>
 

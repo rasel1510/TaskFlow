@@ -464,7 +464,6 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
           {/* Mobile drawer header */}
           <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-[#E5E7EB] bg-[#FAFAFA]">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-[#2563EB]" />
               <span className="text-[14px] font-bold text-[#111111]">Calendar & Filters</span>
             </div>
             <button
@@ -607,10 +606,6 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
                       }`}
                     >
                       <div className="flex items-center gap-2 truncate">
-                        <span
-                          className="w-1.5 h-1.5 rounded-full shrink-0"
-                          style={{ backgroundColor: item.dot }}
-                        />
                         <span className="truncate">{item.label}</span>
                       </div>
                       <span className="text-[11px] text-[#9CA3AF] font-mono shrink-0 ml-1">
@@ -647,10 +642,6 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
                       }`}
                     >
                       <div className="flex items-center gap-2 truncate">
-                        <span
-                          className="w-1.5 h-1.5 rounded-full shrink-0"
-                          style={{ backgroundColor: item.dot }}
-                        />
                         <span className="truncate">{item.label}</span>
                       </div>
                       <span className="text-[11px] text-[#9CA3AF] font-mono shrink-0 ml-1">
@@ -678,7 +669,6 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
                     }`}
                   >
                     <div className="flex items-center gap-2 truncate">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#6B7280] shrink-0" />
                       <span className="truncate">All Projects</span>
                     </div>
                   </button>
@@ -695,10 +685,6 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
                         }`}
                       >
                         <div className="flex items-center gap-2 truncate">
-                          <span
-                            className="w-2 h-2 rounded-full shrink-0"
-                            style={{ backgroundColor: proj.color }}
-                          />
                           <span className="truncate text-left">{proj.name}</span>
                         </div>
                       </button>
@@ -953,10 +939,6 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
                             }`}
                             title={task.title}
                           >
-                            <span
-                              className="w-1.5 h-1.5 rounded-full shrink-0"
-                              style={{ backgroundColor: priorityCfg.color }}
-                            />
                             <span className="truncate">
                               {task.title}
                             </span>
@@ -1022,8 +1004,7 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
                           return (
                             <span
                               key={t.id}
-                              className="w-1.5 h-1.5 rounded-full"
-                              style={{ backgroundColor: priorityCfg.color }}
+                              className="w-1.5 h-1.5 rounded-full bg-[#9CA3AF]"
                             />
                           );
                         })}
@@ -1083,10 +1064,6 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
                           <div className="flex items-center gap-1.5 truncate">
                             {task.project && (
                               <span className="inline-flex items-center gap-1 text-[10px] font-medium text-[#4B5563] bg-[#F3F4F6] px-1.5 py-0.5 rounded truncate">
-                                <span
-                                  className="w-1.5 h-1.5 rounded-full"
-                                  style={{ backgroundColor: task.project.color || '#2563EB' }}
-                                />
                                 {task.project.name}
                               </span>
                             )}
@@ -1112,10 +1089,6 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
 
                         <div className="flex items-center justify-between pt-1 border-t border-[#F3F4F6] text-[11px] text-[#6B7280]">
                           <span className="flex items-center gap-1">
-                            <span
-                              className="w-2 h-2 rounded-full"
-                              style={{ backgroundColor: priorityCfg.color }}
-                            />
                             {priorityCfg.label}
                           </span>
 
@@ -1237,10 +1210,6 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
 
                             <div className="flex items-center justify-between pt-1 border-t border-[#F3F4F6] text-[10px]">
                               <span className="flex items-center gap-1 text-[#6B7280]">
-                                <span
-                                  className="w-1.5 h-1.5 rounded-full"
-                                  style={{ backgroundColor: priorityCfg.color }}
-                                />
                                 {priorityCfg.label}
                               </span>
 
@@ -1362,11 +1331,6 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
                             className="p-3.5 rounded-xl border border-[#E5E7EB] hover:border-[#93C5FD] bg-white shadow-2xs hover:shadow-xs cursor-pointer transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                           >
                             <div className="flex items-start gap-3 min-w-0">
-                              <span
-                                className="w-2.5 h-2.5 rounded-full shrink-0 mt-1"
-                                style={{ backgroundColor: priorityCfg.color }}
-                                title={`Priority: ${priorityCfg.label}`}
-                              />
 
                               <div className="space-y-1 min-w-0">
                                 <div className="flex items-center gap-2">
@@ -1390,10 +1354,6 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
                             <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                               {task.project && (
                                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-[#F3F4F6] text-[#374151]">
-                                  <span
-                                    className="w-1.5 h-1.5 rounded-full"
-                                    style={{ backgroundColor: task.project.color || '#2563EB' }}
-                                  />
                                   <span className="truncate max-w-[100px]">{task.project.name}</span>
                                 </span>
                               )}
@@ -1487,10 +1447,6 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5 truncate">
-                        <span
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{ backgroundColor: priorityCfg.color }}
-                        />
                         <h4
                           className={`text-[12px] font-semibold text-[#111111] truncate ${
                             isDone ? 'line-through text-[#9CA3AF]' : ''

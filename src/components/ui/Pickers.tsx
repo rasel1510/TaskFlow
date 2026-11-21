@@ -102,8 +102,6 @@ const PANEL_BASE =
 export interface SelectOption<V extends string = string> {
   value: V;
   label: string;
-  /** Small colored dot before the label (status / priority) */
-  dot?: string;
   /** Text color of the label (e.g. status color) */
   tone?: string;
 }
@@ -226,7 +224,6 @@ export function SelectMenu<V extends string>({
           renderValue(selected)
         ) : (
           <>
-            {selected?.dot && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: selected.dot }} />}
             <span className={`flex-1 min-w-0 truncate ${selected ? '' : 'text-[#9CA3AF]'}`}>
               {selected ? selected.label : placeholder}
             </span>
@@ -271,11 +268,6 @@ export function SelectMenu<V extends string>({
                     i === active ? 'bg-[#F3F4F6]' : ''
                   } ${row.value === '' ? 'text-[rgba(17,17,17,0.5)]' : 'text-[#111111]'}`}
                 >
-                  {row.value === '' ? (
-                    <span className="w-2 h-2 rounded-full shrink-0 border border-dashed border-[#D1D5DB]" />
-                  ) : opt.dot ? (
-                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: opt.dot }} />
-                  ) : null}
                   <span className="flex-1 min-w-0 truncate" style={opt.tone ? { color: opt.tone } : undefined}>
                     {row.label}
                   </span>

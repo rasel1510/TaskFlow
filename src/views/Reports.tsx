@@ -374,7 +374,7 @@ export default function Reports() {
                           <tr key={p.id} className="hover:bg-[#F9FAFB] transition-colors">
                             <td className="px-5 py-3.5">
                               <div className="flex items-center gap-2.5">
-                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
+                                
                                 <span className="text-[13px] font-medium text-[#111111]">{p.name}</span>
                               </div>
                             </td>

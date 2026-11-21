@@ -593,12 +593,6 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
                           <ChevronDown className="w-3.5 h-3.5" />
                         )}
                       </span>
-                      {group.color && (
-                        <span
-                          className="w-2.5 h-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: group.color }}
-                        />
-                      )}
                       <span className="text-[12px] font-bold text-[#111111] truncate">
                         {group.title}
                       </span>
@@ -865,12 +859,7 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
                               <div className="relative flex items-center gap-1.5 min-w-0 pr-1 z-1">
                                 {isDone ? (
                                   <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981] shrink-0" />
-                                ) : (
-                                  <div
-                                    className="w-2 h-2 rounded-full shrink-0"
-                                    style={{ backgroundColor: barColor }}
-                                  />
-                                )}
+                                ) : null}
                                 <span className="text-[11px] font-semibold text-[#111111] truncate leading-none">
                                   {item.task.title}
                                 </span>
@@ -1000,7 +989,6 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
         {/* Range + hint: tablet and up (on phones the legend alone is enough) */}
         <div className="hidden md:flex items-center gap-4">
           <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[#2563EB]" />
             <span>Active Range: {dayColumns[0]?.key} &rarr; {dayColumns[dayColumns.length - 1]?.key}</span>
           </div>
           <span>&bull;</span>
@@ -1009,23 +997,23 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 w-full md:w-auto justify-between md:justify-start">
           <div className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-[#6B7280]" />
+            <span className="w-3 h-1.5 rounded-sm bg-[#6B7280]" />
             <span>Backlog</span>
           </div>
           <div className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-[#3B82F6]" />
+            <span className="w-3 h-1.5 rounded-sm bg-[#3B82F6]" />
             <span>To Do</span>
           </div>
           <div className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-[#F59E0B]" />
+            <span className="w-3 h-1.5 rounded-sm bg-[#F59E0B]" />
             <span>In Progress</span>
           </div>
           <div className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-[#8B5CF6]" />
+            <span className="w-3 h-1.5 rounded-sm bg-[#8B5CF6]" />
             <span>In Review</span>
           </div>
           <div className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-[#10B981]" />
+            <span className="w-3 h-1.5 rounded-sm bg-[#10B981]" />
             <span>Done</span>
           </div>
         </div>

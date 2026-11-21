@@ -49,11 +49,6 @@ const columns: { status: Status; label: string }[] = [
   { status: 'done',        label: 'Done' },
 ];
 
-function PriorityDot({ priority }: { priority: string }) {
-  const p = priorityColors[priority as keyof typeof priorityColors] || priorityColors.medium;
-  return <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ backgroundColor: p.color }} />;
-}
-
 // ---------------------------------------------------------------------------
 // Pure Presentation Card
 // ---------------------------------------------------------------------------
@@ -89,7 +84,6 @@ function KanbanCard({
           ))}
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <PriorityDot priority={task.priority} />
           <span className="text-[10.5px] text-[rgba(17,17,17,0.5)] capitalize">{pConfig.label}</span>
         </div>
       </div>
@@ -463,7 +457,6 @@ export default function KanbanBoard({ onTaskClick, onCreateTask }: KanbanBoardPr
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-medium bg-white border border-[#E5E7EB] shadow-2xs whitespace-nowrap shrink-0 active:bg-gray-100"
             >
-              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.text }} />
               <span>{col.label}</span>
               <span className="text-[10px] text-gray-400 font-semibold">{count}</span>
             </button>

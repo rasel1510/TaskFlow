@@ -603,10 +603,6 @@ export default function SuperAdminView() {
                               : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400'
                             }`}
                         >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${company.status === 'active' ? 'bg-emerald-500' : 'bg-red-500'
-                              }`}
-                          />
                           {company.status === 'active' ? 'Active' : 'Suspended'}
                         </span>
                       </td>
@@ -958,7 +954,7 @@ export default function SuperAdminView() {
                     {inspectingCompany.projects.map(p => (
                       <div key={p.id} className="p-3 flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.color }} />
+                          
                           <span className="font-medium text-neutral-900 dark:text-white">{p.name}</span>
                         </div>
                         <div className="text-[11px] text-neutral-400">

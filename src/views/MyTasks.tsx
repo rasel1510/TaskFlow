@@ -590,10 +590,9 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
               title="Click to cycle priority sort: Urgent → High → Medium → Low → Default"
             >
               <span>Priority</span>
-              {sortMode === 'urgent' && <span className="w-2 h-2 rounded-full bg-[#EF4444] shrink-0" />}
-              {sortMode === 'high' && <span className="w-2 h-2 rounded-full bg-[#EA580C] shrink-0" />}
-              {sortMode === 'medium' && <span className="w-2 h-2 rounded-full bg-[#F59E0B] shrink-0" />}
-              {sortMode === 'low' && <span className="w-2 h-2 rounded-full bg-[#6B7280] shrink-0" />}
+              {sortMode !== 'none' && (
+                <span className="text-[11px] font-semibold capitalize text-[#2563EB]">{sortMode}</span>
+              )}
               {sortMode === 'none' && (
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-0 group-hover:opacity-50 transition-opacity">
                   <path d="M7 15l5 5 5-5" />

@@ -425,13 +425,11 @@ export default function CommandPalette({
                       }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="w-2 h-2 rounded-full bg-[#3B82F6] shrink-0" />
                         <span className="font-medium truncate">{t.title}</span>
                         {t.project && (
                           <span
                             className="hidden sm:inline-flex items-center gap-1 text-[11px] text-[rgba(17,17,17,0.5)] truncate"
                           >
-                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: t.project.color }} />
                             {t.project.name}
                           </span>
                         )}
@@ -483,7 +481,9 @@ export default function CommandPalette({
                           className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
                           style={{ backgroundColor: p.color + '20' }}
                         >
-                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
+                          <span className="text-[11px] font-semibold" style={{ color: p.color }}>
+                            {p.name.charAt(0).toUpperCase()}
+                          </span>
                         </div>
                         <div className="truncate">
                           <span className="font-semibold">{p.name}</span>

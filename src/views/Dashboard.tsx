@@ -36,7 +36,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Delta, DeltaIcon, DeltaValue } from '@/components/delta';
-import { StatusIndicator } from '@/components/indicator';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -44,6 +43,7 @@ import { StatCardSkeleton, TaskRowSkeleton } from '@/components/ui/Skeleton';
 import { Area, AreaChart, CartesianGrid, LabelList, Pie, PieChart, XAxis, YAxis } from 'recharts';
 import { NumberPopIn } from '@/components/NumberPopIn';
 import {
+  AlertTriangle,
   Building2,
   CalendarDays,
   CheckCircle2,
@@ -410,7 +410,7 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
                 <CardTitle className="font-normal text-muted-foreground text-xs">
                   Overdue
                 </CardTitle>
-                <StatusIndicator color={overdueCount > 0 ? 'rose' : 'emerald'} pulse={overdueCount > 0} />
+                <AlertTriangle className={`size-4 ${overdueCount > 0 ? 'text-rose-500' : 'text-emerald-500'}`} />
               </CardHeader>
               <CardContent className="flex flex-col gap-1.5">
                 <div className={`text-2xl sm:text-3xl font-semibold tracking-tight tabular-nums ${overdueCount > 0 ? 'text-destructive' : 'text-foreground'}`}>
@@ -672,10 +672,6 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
                         >
                           <TableCell className="py-3">
                             <div className="flex items-center gap-2.5">
-                              <span
-                                className="size-2.5 rounded-full shrink-0"
-                                style={{ backgroundColor: project.color }}
-                              />
                               <div className="min-w-0">
                                 <div className="font-medium text-xs sm:text-sm truncate">
                                   {project.name}
@@ -810,10 +806,6 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
                         onClick={() => onTaskClick(task.id)}
                         className="flex items-center gap-3 px-5 py-3 hover:bg-muted/40 cursor-pointer transition-colors"
                       >
-                        <span
-                          className="size-2 rounded-full shrink-0"
-                          style={{ backgroundColor: sc.text }}
-                        />
                         <div className="flex-1 min-w-0">
                           <div className="text-xs sm:text-sm font-medium truncate">
                             {task.title}

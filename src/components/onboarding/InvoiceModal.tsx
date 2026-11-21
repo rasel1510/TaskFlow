@@ -51,7 +51,6 @@ export default function InvoiceModal({ open, onClose, invoice }: InvoiceModalPro
         <div className="px-6 py-3.5 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between bg-neutral-50/50 dark:bg-neutral-900/50">
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               Paid
             </span>
             <span className="text-xs text-neutral-300 dark:text-neutral-700">|</span>

@@ -548,7 +548,7 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
                 >
                   <div className="flex-1 flex items-center gap-3 min-w-0">
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: p.color + '20' }}>
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.color }} />
+                      <span className="text-[12px] font-semibold" style={{ color: p.color }}>{p.name.charAt(0).toUpperCase()}</span>
                     </div>
                     <div className="min-w-0">
                       <div className="text-[13.5px] font-medium text-[#111111] truncate">{p.name}</div>

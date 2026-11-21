@@ -850,7 +850,6 @@ export default function Settings() {
                       title="Expertise matrix required"
                       className="flex items-center gap-1 text-[10.5px] font-semibold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full"
                     >
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                       Required
                     </span>
                   )}
@@ -957,12 +956,10 @@ export default function Settings() {
                         </span>
                         {pExpertise.length === 0 ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-red-50 text-red-600 border border-red-200">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
                             Required
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
                             {pExpertise.length} Selected
                           </span>
                         )}
@@ -982,7 +979,6 @@ export default function Settings() {
                     {/* Prominent warning callout if unset */}
                     {pExpertise.length === 0 && (
                       <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-[12.5px]">
-                        <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
                         <span>
                           <strong className="font-semibold text-red-900">Expertise matrix is required:</strong> Please select at least one domain below.
                         </span>

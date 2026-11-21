@@ -762,7 +762,6 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
                   label: 'Priority',
                   content: (
                     <span className="flex items-center gap-1.5 text-[12.5px]" style={{ color: p.color }}>
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
                       {p.label}
                     </span>
                   ),
