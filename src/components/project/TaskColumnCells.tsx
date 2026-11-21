@@ -2,7 +2,8 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { CalendarDays, X } from 'lucide-react';
+import { DatePopover, SelectMenu } from '@/components/ui/Pickers';
 import {
   formatHours,
   formatShortDate,
@@ -271,33 +272,31 @@ export function CustomFieldCell({
       const current = typeof value === 'string' && value ? value : '';
       const idx = options.indexOf(current);
       const tone = PILL_PALETTE[(idx < 0 ? 0 : idx) % PILL_PALETTE.length];
+      const menuOptions = [
+        ...(current && idx < 0 ? [current] : []),
+        ...options,
+      ].map(o => ({ value: o, label: o, dot: PILL_PALETTE[Math.max(0, options.indexOf(o)) % PILL_PALETTE.length].fg }));
       return (
-        <div
-          className="relative flex items-center h-8 min-w-0 w-full px-2 -mx-2 rounded-md hover:bg-[#F3F4F6] transition-colors duration-100 ease-out"
-          onClick={stop}
-        >
-          {current && (
-            <span
-              className="max-w-full truncate px-2 py-0.5 rounded-md text-[11.5px] font-medium"
-              style={{ backgroundColor: tone.bg, color: tone.fg }}
-            >
-              {current}
-            </span>
-          )}
-          <select
-            aria-label={label}
+        <div className="relative flex items-center h-8 min-w-0 w-full" onClick={stop}>
+          <SelectMenu
+            ariaLabel={label}
             value={current}
-            onChange={e => onSave(e.target.value || null)}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-          >
-            <option value="">—</option>
-            {current && idx < 0 && <option value={current}>{current}</option>}
-            {options.map(o => (
-              <option key={o} value={o}>
-                {o}
-              </option>
-            ))}
-          </select>
+            options={menuOptions}
+            allowEmpty
+            emptyLabel="No value"
+            onChange={v => onSave(v || null)}
+            triggerClassName="w-full min-w-0 h-8 px-2 -mx-2 inline-flex items-center rounded-md text-left hover:bg-[#F3F4F6] transition-colors duration-100 ease-out cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#DBEAFE]"
+            renderValue={() =>
+              current ? (
+                <span
+                  className="max-w-full truncate px-2 py-0.5 rounded-md text-[11.5px] font-medium"
+                  style={{ backgroundColor: tone.bg, color: tone.fg }}
+                >
+                  {current}
+                </span>
+              ) : null
+            }
+          />
         </div>
       );
     }
@@ -305,8 +304,8 @@ export function CustomFieldCell({
 }
 
 /**
- * Click-to-pick date (native calendar). `cell` blends into a table row; `field` looks like a form input.
- * Values are YYYY-MM-DD strings.
+ * Click-to-pick date with the FlowSync calendar popover. `cell` blends into a table row;
+ * `field` looks like a form input. Values are YYYY-MM-DD strings.
  */
 export function DateField({
   label,
@@ -321,42 +320,46 @@ export function DateField({
   variant?: 'cell' | 'field';
   placeholder?: string;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
   const isField = variant === 'field';
-
-  const openPicker = () => {
-    const el = inputRef.current;
-    if (!el) return;
-    try {
-      el.showPicker();
-    } catch {
-      el.focus();
-    }
-  };
 
   return (
     <div className="group/date relative flex items-center h-8 min-w-0 w-full" onClick={stop}>
-      <button
-        type="button"
-        aria-label={`Edit ${label}`}
-        onClick={e => {
-          stop(e);
-          openPicker();
-        }}
-        className={
-          isField
-            ? 'flex-1 min-w-0 h-8 pl-2.5 pr-7 rounded-md border border-[#E5E7EB] bg-white text-left text-[12.5px] text-[#111111] truncate hover:border-[#D1D5DB] focus-visible:border-[#2563EB] focus-visible:ring-2 focus-visible:ring-[#DBEAFE] outline-none transition-colors cursor-pointer'
-            : 'flex-1 min-w-0 h-8 px-2 -mx-2 rounded-md text-left text-[12.5px] text-[rgba(17,17,17,0.75)] truncate hover:bg-[#F3F4F6] transition-colors duration-100 ease-out cursor-pointer'
-        }
-      >
-        {value ? (
-          formatShortDate(value)
-        ) : isField ? (
-          <span className="text-[#9CA3AF]">{placeholder ?? 'Select date'}</span>
-        ) : (
-          EMPTY
+      <DatePopover
+        value={value}
+        onChange={onSave}
+        label={label}
+        renderTrigger={({ ref, open, toggle, ariaProps }) => (
+          <button
+            ref={ref}
+            type="button"
+            aria-label={`Edit ${label}`}
+            {...ariaProps}
+            onClick={toggle}
+            className={
+              isField
+                ? `flex-1 min-w-0 h-8 pl-2.5 pr-7 inline-flex items-center gap-2 rounded-md border bg-white text-left text-[12.5px] text-[#111111] outline-none transition-[border-color,box-shadow] duration-150 ease-out cursor-pointer ${
+                    open
+                      ? 'border-[#2563EB] ring-2 ring-[#DBEAFE]'
+                      : 'border-[#E5E7EB] hover:border-[#D1D5DB] focus-visible:border-[#2563EB] focus-visible:ring-2 focus-visible:ring-[#DBEAFE]'
+                  }`
+                : `flex-1 min-w-0 h-8 px-2 -mx-2 rounded-md text-left text-[12.5px] text-[rgba(17,17,17,0.75)] truncate transition-colors duration-100 ease-out cursor-pointer ${
+                    open ? 'bg-[#F3F4F6]' : 'hover:bg-[#F3F4F6]'
+                  }`
+            }
+          >
+            {isField && <CalendarDays className="w-3.5 h-3.5 shrink-0 text-[#9CA3AF]" />}
+            <span className="min-w-0 truncate">
+              {value ? (
+                formatShortDate(value)
+              ) : isField ? (
+                <span className="text-[#9CA3AF]">{placeholder ?? 'Select date'}</span>
+              ) : (
+                EMPTY
+              )}
+            </span>
+          </button>
         )}
-      </button>
+      />
       {value && (
         <button
           type="button"
@@ -372,16 +375,6 @@ export function DateField({
           <X className="w-3 h-3" />
         </button>
       )}
-      {/* Off-screen native picker; opened from the button above */}
-      <input
-        ref={inputRef}
-        type="date"
-        value={value ?? ''}
-        tabIndex={-1}
-        aria-hidden="true"
-        onChange={e => onSave(e.target.value || null)}
-        className="absolute left-0 bottom-0 w-0 h-0 opacity-0 pointer-events-none"
-      />
     </div>
   );
 }

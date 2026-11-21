@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useSession } from 'next-auth/react';
 import { useTasks } from '@/context/TaskContext';
 import { statusColors, priorityColors, type ProjectHealth, type Status, type Priority } from '@/data/mockData';
+import { SelectMenu, type SelectOption } from '@/components/ui/Pickers';
 import { useToast } from '@/components/ui/Toast';
 import { LIFECYCLE_STATE_CONFIG, validateLifecycleTransition, type ProjectLifecycleState } from '@/lib/projectLifecycle';
 import { ROLE_DESCRIPTIONS, type ProjectRole, normalizeDesignation } from '@/lib/permissions';
@@ -93,6 +94,15 @@ const TASK_GRID_COLS =
   'grid [grid-template-columns:var(--task-cols-sm)] md:[grid-template-columns:var(--task-cols)] items-center gap-x-3';
 /** Left gutter lines rows up under the group chevron on desktop; phones use a normal gutter */
 const ROW_PAD = 'pl-4 md:pl-[42px] pr-3 md:pr-4';
+/** Options for the inline add row's Status / Priority menus (colored like the badges in the table) */
+const INLINE_STATUS_OPTIONS: SelectOption<'todo' | 'in_progress' | 'in_review' | 'done'>[] = (
+  ['todo', 'in_progress', 'in_review', 'done'] as const
+).map(s => ({ value: s, label: statusColors[s].label, dot: statusColors[s].text }));
+const INLINE_PRIORITY_OPTIONS: SelectOption<Priority>[] = (['low', 'medium', 'high', 'urgent'] as const).map(p => ({
+  value: p,
+  label: priorityColors[p].label,
+  dot: priorityColors[p].color,
+}));
 /** Remembers that this browser has swiped the task table, so the hint stops showing */
 const SWIPE_HINT_KEY = 'flowsync_task_swipe_hint_v1';
 /**
@@ -2552,29 +2562,19 @@ export default function ProjectDetail({
                               </span>
                               </span>
 
-                              <select
+                              <SelectMenu
+                                ariaLabel="Status"
                                 value={inlineTaskStatus}
-                                onChange={e => setInlineTaskStatus(e.target.value as typeof inlineTaskStatus)}
-                                aria-label="Status"
-                                className="h-8 w-full min-w-0 px-2 rounded-md border border-[#E5E7EB] bg-white text-[12.5px] text-[#111111] outline-none cursor-pointer hover:border-[#D1D5DB] focus-visible:border-[#2563EB] focus-visible:ring-2 focus-visible:ring-[#DBEAFE] transition-colors"
-                              >
-                                <option value="todo">To Do</option>
-                                <option value="in_progress">In Progress</option>
-                                <option value="in_review">In Review</option>
-                                <option value="done">Done</option>
-                              </select>
+                                options={INLINE_STATUS_OPTIONS}
+                                onChange={v => v && setInlineTaskStatus(v)}
+                              />
 
-                              <select
+                              <SelectMenu
+                                ariaLabel="Priority"
                                 value={inlineTaskPriority}
-                                onChange={e => setInlineTaskPriority(e.target.value as Priority)}
-                                aria-label="Priority"
-                                className="h-8 w-full min-w-0 px-2 rounded-md border border-[#E5E7EB] bg-white text-[12.5px] text-[#111111] outline-none cursor-pointer hover:border-[#D1D5DB] focus-visible:border-[#2563EB] focus-visible:ring-2 focus-visible:ring-[#DBEAFE] transition-colors"
-                              >
-                                <option value="low">Low</option>
-                                <option value="medium">Medium</option>
-                                <option value="high">High</option>
-                                <option value="urgent">Urgent</option>
-                              </select>
+                                options={INLINE_PRIORITY_OPTIONS}
+                                onChange={v => v && setInlineTaskPriority(v)}
+                              />
 
                               {/* The creator is the assignee automatically */}
                               <span className="flex items-center gap-2 min-w-0" title="Tasks you create are assigned to you">
@@ -2671,19 +2671,15 @@ export default function ProjectDetail({
                                       </span>
                                     )}
                                     {col.type === 'dropdown' && (
-                                      <select
+                                      <SelectMenu
+                                        ariaLabel={label}
                                         value={typeof draft === 'string' ? draft : ''}
-                                        aria-label={label}
-                                        onChange={e => setInlineCustom(col.id, e.target.value)}
-                                        className="h-8 w-full min-w-0 px-2.5 rounded-md border border-[#E5E7EB] bg-white text-[12.5px] text-[#111111] placeholder-[#9CA3AF] outline-none transition-[border-color,box-shadow] duration-150 ease-out focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] cursor-pointer px-2"
-                                      >
-                                        <option value="">Select</option>
-                                        {(col.options ?? []).map(o => (
-                                          <option key={o} value={o}>
-                                            {o}
-                                          </option>
-                                        ))}
-                                      </select>
+                                        options={(col.options ?? []).map(o => ({ value: o, label: o }))}
+                                        allowEmpty
+                                        emptyLabel="No value"
+                                        placeholder="Select"
+                                        onChange={v => setInlineCustom(col.id, v)}
+                                      />
                                     )}
                                   </span>
                                 );
