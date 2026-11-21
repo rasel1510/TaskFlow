@@ -58,6 +58,11 @@ const navItems: NavItem[] = [
     icon: <Icon path="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10" />,
   },
   {
+    id: 'projects',
+    label: 'Projects',
+    icon: <Icon path="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z" />,
+  },
+  {
     id: 'tasks',
     label: 'My Tasks',
     icon: <Icon path="M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />,
@@ -83,11 +88,6 @@ const navItems: NavItem[] = [
     id: 'timeline',
     label: 'Timeline',
     icon: <Icon path="M3 12h18M3 6h18M3 18h18" />,
-  },
-  {
-    id: 'projects',
-    label: 'Projects',
-    icon: <Icon path="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z" />,
   },
   {
     id: 'team',
@@ -361,9 +361,6 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
             <span className={`flex-1 text-left md:${collapsed ? 'hidden' : 'block'}`}>Install App</span>
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-[#2563EB] md:${collapsed ? 'hidden' : 'inline-block'}`}>
-              PWA
-            </span>
           </button>
         )}
         <button
