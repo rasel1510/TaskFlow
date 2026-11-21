@@ -183,6 +183,16 @@ select:focus-visible {
   }
 }
 
+/* "Swipe" hint arrow on the project task table (phones) */
+@keyframes swipeHintArrow {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(3px); }
+}
+.animate-swipe-hint { animation: swipeHintArrow 1.1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-swipe-hint { animation: none; }
+}
+
 html {
   -webkit-tap-highlight-color: transparent;
   -webkit-text-size-adjust: 100%;

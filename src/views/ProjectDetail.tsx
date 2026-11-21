@@ -85,25 +85,31 @@ const TASK_STATUS_ORDER: Record<string, number> = { backlog: 0, todo: 1, in_prog
 const TASK_PRIORITY_ORDER: Record<string, number> = { low: 1, medium: 2, high: 3, urgent: 4 };
 
 /**
- * Row grid. Phones: Task | Status | ⋯ (the task name gets every spare pixel).
- * Desktop: the track list is injected as `--task-cols` (system + custom columns, see `taskGrid`).
+ * Row grid: every column on every screen. The track lists come from `taskGrid` as CSS variables
+ * (`--task-cols-sm` on phones with a narrower Task column, `--task-cols` from md). When the columns
+ * don't fit, the table swipes sideways with the Task column pinned on the left.
  */
 const TASK_GRID_COLS =
-  'grid grid-cols-[minmax(0,1fr)_5.75rem_2.25rem] md:[grid-template-columns:var(--task-cols)] items-center gap-x-2 md:gap-x-3';
-/** Inline "add task" row: same columns, but phones need room for the Save + Cancel buttons */
-const TASK_ADD_ROW_COLS =
-  'grid grid-cols-[minmax(0,1fr)_5.75rem_4.25rem] md:[grid-template-columns:var(--task-cols)] items-center gap-x-2 md:gap-x-3';
+  'grid [grid-template-columns:var(--task-cols-sm)] md:[grid-template-columns:var(--task-cols)] items-center gap-x-3';
 /** Left gutter lines rows up under the group chevron on desktop; phones use a normal gutter */
 const ROW_PAD = 'pl-4 md:pl-[42px] pr-3 md:pr-4';
+/** Remembers that this browser has swiped the task table, so the hint stops showing */
+const SWIPE_HINT_KEY = 'flowsync_task_swipe_hint_v1';
+/**
+ * Pinned Task cell. It reaches back over the row gutter so nothing shows through on the left while
+ * swiping, takes the row's background (header, hover, add row), and gets a soft edge once scrolled.
+ */
+const PINNED_TASK_CELL =
+  'sticky left-0 z-[1] -ml-4 pl-4 md:-ml-[42px] md:pl-[42px] self-stretch flex items-center min-w-0 bg-inherit transition-shadow duration-150 ease-out group-data-[scrolled=true]/tbl:shadow-[6px_0_8px_-6px_rgba(17,17,17,0.14)]';
 
 /** Built-in columns in display order. `rem` widths feed the grid template and its min width. */
 const SYSTEM_COLUMNS: { key: TaskSortKey; label: string; className: string; track: string; rem: number }[] = [
   { key: 'title', label: 'Task', className: '', track: 'minmax(12rem,1fr)', rem: 12 },
   { key: 'status', label: 'Status', className: '', track: '7rem', rem: 7 },
-  { key: 'priority', label: 'Priority', className: 'hidden md:flex', track: '6rem', rem: 6 },
-  { key: 'assignee', label: 'Assignee', className: 'hidden md:flex', track: '8.5rem', rem: 8.5 },
-  { key: 'completion', label: 'Completion date', className: 'hidden md:flex', track: '8rem', rem: 8 },
-  { key: 'timeSpent', label: 'Time spent', className: 'hidden md:flex', track: '6rem', rem: 6 },
+  { key: 'priority', label: 'Priority', className: '', track: '6rem', rem: 6 },
+  { key: 'assignee', label: 'Assignee', className: '', track: '8.5rem', rem: 8.5 },
+  { key: 'completion', label: 'Completion date', className: '', track: '8rem', rem: 8 },
+  { key: 'timeSpent', label: 'Time spent', className: '', track: '6rem', rem: 6 },
 ];
 
 /** Completion date chosen for the task (or auto-set when it was marked done) */
@@ -1357,21 +1363,88 @@ export default function ProjectDetail({
 
   const customColumns = useMemo<CustomColumn[]>(() => project?.customColumns ?? [], [project?.customColumns]);
 
-  /** Desktop grid template + minimum table width (the table scrolls sideways below that). */
+  /**
+   * Grid templates + minimum table widths (the table swipes sideways below that).
+   * Phones get a narrower Task column (10rem) and the smaller row gutter.
+   */
   const taskGrid = useMemo(() => {
-    const tracks = [
-      ...SYSTEM_COLUMNS.map(c => c.track),
+    const rest = [
+      ...SYSTEM_COLUMNS.slice(1).map(c => c.track),
       ...customColumns.map(c => COLUMN_TYPE_META[c.type].track),
       '4.5rem', // row menu / add-row actions / "+" add-column button
     ];
-    const rem =
-      SYSTEM_COLUMNS.reduce((n, c) => n + c.rem, 0) +
+    const restRem =
+      SYSTEM_COLUMNS.slice(1).reduce((n, c) => n + c.rem, 0) +
       customColumns.reduce((n, c) => n + COLUMN_TYPE_META[c.type].rem, 0) +
       4.5 +
-      (tracks.length - 1) * 0.75 + // column gaps (gap-x-3)
-      3.7; // left gutter (42px) + right padding (1rem)
-    return { cols: tracks.join(' '), minWidth: `${rem}rem` };
+      rest.length * 0.75; // column gaps (gap-x-3)
+    return {
+      cols: [SYSTEM_COLUMNS[0].track, ...rest].join(' '),
+      minWidth: `${SYSTEM_COLUMNS[0].rem + restRem + 3.7}rem`, // + left gutter (42px) + right padding (1rem)
+      colsSm: ['minmax(10rem,1fr)', ...rest].join(' '),
+      minWidthSm: `${10 + restRem + 1.75}rem`, // + left gutter (1rem) + right padding (0.75rem)
+    };
   }, [customColumns]);
+
+  /** Sideways-scroll state of the task table: pinned-column shadow, right-edge fade, visible width. */
+  const taskTableRef = useRef<HTMLDivElement>(null);
+  // Phones: a one-time nudge + "Swipe" pill teach that the task table scrolls sideways
+  const swipeNudgingRef = useRef(false);
+  const [hasSwipedTasks, setHasSwipedTasks] = useState(() => {
+    try { return typeof window !== 'undefined' && localStorage.getItem(SWIPE_HINT_KEY) === '1'; } catch { return false; }
+  });
+  const [taskTableEdges, setTaskTableEdges] = useState({ scrolled: false, more: false, width: 0 });
+  const updateTaskTableEdges = useCallback(() => {
+    const el = taskTableRef.current;
+    if (!el) return;
+    const next = {
+      scrolled: el.scrollLeft > 2,
+      more: el.scrollLeft + el.clientWidth < el.scrollWidth - 2,
+      width: el.clientWidth,
+    };
+    setTaskTableEdges(prev =>
+      prev.scrolled === next.scrolled && prev.more === next.more && prev.width === next.width ? prev : next
+    );
+    // The first real swipe retires the "Swipe" hint (the automatic nudge below doesn't count)
+    if (next.scrolled && !swipeNudgingRef.current && !hasSwipedTasks) {
+      setHasSwipedTasks(true);
+      try { localStorage.setItem(SWIPE_HINT_KEY, '1'); } catch { /* storage unavailable */ }
+    }
+  }, [hasSwipedTasks]);
+  useEffect(() => {
+    const el = taskTableRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    updateTaskTableEdges();
+    const ro = new ResizeObserver(updateTaskTableEdges);
+    ro.observe(el);
+    if (el.firstElementChild) ro.observe(el.firstElementChild);
+    return () => ro.disconnect();
+  }, [activeTab, updateTaskTableEdges]);
+
+  // Gentle peek: slide the table left a little and back, once, so people see there's more to swipe to
+  useEffect(() => {
+    const el = taskTableRef.current;
+    if (activeTab !== 'tasks' || hasSwipedTasks || !taskTableEdges.more || !el) return;
+    if (window.innerWidth >= 768 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let cancelled = false;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    timers.push(setTimeout(() => {
+      if (cancelled || el.scrollLeft > 2) return;
+      swipeNudgingRef.current = true;
+      el.scrollTo({ left: 72, behavior: 'smooth' });
+      timers.push(setTimeout(() => {
+        el.scrollTo({ left: 0, behavior: 'smooth' });
+        timers.push(setTimeout(() => { swipeNudgingRef.current = false; }, 500));
+      }, 650));
+    }, 900));
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+      swipeNudgingRef.current = false;
+    };
+    // run once per visit to the Tasks tab
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, taskTableEdges.more]);
 
   /** Optimistically saves Time spent / custom values for one task; reverts only the touched keys on failure. */
   const saveTaskFields = async (
@@ -2138,24 +2211,37 @@ export default function ProjectDetail({
               </div>
             </div>
 
-            {/* Task list (scrolls sideways when the columns don't fit) */}
-            <div className="overflow-x-auto rounded-xl border border-[#E5E7EB] bg-white">
+            {/* Task list: swipes sideways when the columns don't fit; the Task column stays pinned */}
+            <div className="relative rounded-xl border border-[#E5E7EB] bg-white overflow-hidden">
+            <div
+              ref={taskTableRef}
+              onScroll={updateTaskTableEdges}
+              data-scrolled={taskTableEdges.scrolled}
+              className="group/tbl overflow-x-auto overscroll-x-contain"
+            >
               <div
-                className="md:[min-width:var(--task-min)]"
-                style={{ '--task-cols': taskGrid.cols, '--task-min': taskGrid.minWidth } as React.CSSProperties}
+                className="[min-width:var(--task-min-sm)] md:[min-width:var(--task-min)]"
+                style={
+                  {
+                    '--task-cols': taskGrid.cols,
+                    '--task-min': taskGrid.minWidth,
+                    '--task-cols-sm': taskGrid.colsSm,
+                    '--task-min-sm': taskGrid.minWidthSm,
+                  } as React.CSSProperties
+                }
               >
               {/* Column header (click a name to sort) */}
               <div
                 className={`${TASK_GRID_COLS} h-9 ${ROW_PAD} border-b border-[#E5E7EB] bg-[#FAFAFA] text-[11px] font-medium uppercase tracking-wide text-[rgba(17,17,17,0.45)]`}
               >
-                {SYSTEM_COLUMNS.map(col => {
+                {SYSTEM_COLUMNS.map((col, colIndex) => {
                   const isSorted = sortConfig?.key === col.key;
                   return (
                     <button
                       key={col.key}
                       type="button"
                       onClick={() => handleToggleSort(col.key)}
-                      className={`${col.className || 'flex'} items-center gap-1 min-w-0 uppercase tracking-wide hover:text-[#111111] transition-colors cursor-pointer ${
+                      className={`${colIndex === 0 ? PINNED_TASK_CELL : col.className || 'flex'} items-center gap-1 min-w-0 uppercase tracking-wide hover:text-[#111111] transition-colors cursor-pointer ${
                         isSorted ? 'text-[#111111]' : ''
                       }`}
                       title={`Sort by ${col.label.toLowerCase()}`}
@@ -2172,7 +2258,7 @@ export default function ProjectDetail({
                 })}
 
                 {customColumns.map((col, i) => (
-                  <div key={col.id} className="group/col relative hidden md:flex items-center gap-0.5 min-w-0">
+                  <div key={col.id} className="group/col relative flex items-center gap-0.5 min-w-0">
                     <span className="truncate" title={col.title}>
                       {col.title}
                     </span>
@@ -2237,7 +2323,7 @@ export default function ProjectDetail({
                       onClick={() => setColumnModal({})}
                       aria-label="Add column"
                       title="Add column"
-                      className="hidden md:inline-flex p-1 rounded-md text-[rgba(17,17,17,0.5)] hover:text-[#2563EB] hover:bg-[#EFF6FF] transition-colors cursor-pointer"
+                      className="inline-flex p-1 rounded-md text-[rgba(17,17,17,0.5)] hover:text-[#2563EB] hover:bg-[#EFF6FF] transition-colors cursor-pointer"
                     >
                       <Plus className="w-4 h-4" />
                     </button>
@@ -2246,7 +2332,10 @@ export default function ProjectDetail({
               </div>
 
               {taskDateGroups.length === 0 ? (
-                <div className="px-4 py-12 text-center">
+                <div
+                  className="sticky left-0 px-4 py-12 text-center"
+                  style={{ width: taskTableEdges.width ? `${taskTableEdges.width}px` : '100%' }}
+                >
                   <p className="text-[13px] text-[rgba(17,17,17,0.55)]">
                     {isSearching ? `No tasks match “${taskSearch.trim()}”.` : 'No tasks match this filter.'}
                   </p>
@@ -2272,13 +2361,15 @@ export default function ProjectDetail({
                     <section key={group.dateKey} className="border-b border-[#F0F0F0] last:border-b-0">
                       {/* Date row */}
                       {group.isToday ? (
-                        <div className="flex items-center gap-2.5 h-11 px-4">
-                          <span className="w-4 flex justify-center shrink-0" aria-hidden="true">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB]" />
+                        <div className="flex items-center h-11 px-4">
+                          <span className="sticky left-4 flex items-center gap-2.5">
+                            <span className="w-4 flex justify-center shrink-0" aria-hidden="true">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB]" />
+                            </span>
+                            <span className="text-[13px] font-semibold text-[#111111]">Today</span>
+                            <span className="text-[12.5px] text-[rgba(17,17,17,0.45)]">{group.label}</span>
                           </span>
-                          <span className="text-[13px] font-semibold text-[#111111]">Today</span>
-                          <span className="text-[12.5px] text-[rgba(17,17,17,0.45)]">{group.label}</span>
-                          <span className="ml-auto text-[12px] tabular-nums text-[rgba(17,17,17,0.45)]">{countLabel}</span>
+                          <span className="sticky right-4 ml-auto pl-3 text-[12px] tabular-nums text-[rgba(17,17,17,0.45)]">{countLabel}</span>
                         </div>
                       ) : (
                         <button
@@ -2286,16 +2377,18 @@ export default function ProjectDetail({
                           onClick={() => toggleDateGroup(group.dateKey)}
                           disabled={isSearching}
                           aria-expanded={isOpen}
-                          className="w-full flex items-center gap-2.5 h-11 px-4 text-left hover:bg-[#FAFAFA] transition-colors duration-100 ease-out cursor-pointer disabled:cursor-default disabled:hover:bg-transparent"
+                          className="w-full flex items-center h-11 px-4 text-left hover:bg-[#FAFAFA] transition-colors duration-100 ease-out cursor-pointer disabled:cursor-default disabled:hover:bg-transparent"
                         >
-                          <ChevronRight
-                            className={`w-4 h-4 shrink-0 text-[#9CA3AF] transition-transform duration-150 ease-out ${isOpen ? 'rotate-90' : ''}`}
-                          />
-                          <span className="text-[13px] font-medium text-[#111111]">{group.label}</span>
-                          {group.relative && (
-                            <span className="hidden sm:inline text-[12px] text-[rgba(17,17,17,0.45)]">{group.relative}</span>
-                          )}
-                          <span className="ml-auto flex items-center gap-3 text-[12px] tabular-nums">
+                          <span className="sticky left-4 flex items-center gap-2.5">
+                            <ChevronRight
+                              className={`w-4 h-4 shrink-0 text-[#9CA3AF] transition-transform duration-150 ease-out ${isOpen ? 'rotate-90' : ''}`}
+                            />
+                            <span className="text-[13px] font-medium text-[#111111]">{group.label}</span>
+                            {group.relative && (
+                              <span className="hidden sm:inline text-[12px] text-[rgba(17,17,17,0.45)]">{group.relative}</span>
+                            )}
+                          </span>
+                          <span className="sticky right-4 ml-auto pl-3 flex items-center gap-3 text-[12px] tabular-nums">
                             {overdueCount > 0 && (
                               <span className="font-medium text-[#DC2626]">{overdueCount} overdue</span>
                             )}
@@ -2308,7 +2401,9 @@ export default function ProjectDetail({
                         <div>
                           {group.tasks.length === 0 && !isAddingHere && (
                             <p className={`flex items-center h-10 ${ROW_PAD} border-t border-[#F3F4F6] text-[12.5px] text-[rgba(17,17,17,0.45)]`}>
-                              {taskStatusFilter === 'all' ? 'Nothing due today.' : 'No matching tasks due today.'}
+                              <span className="sticky left-4 md:left-[42px]">
+                                {taskStatusFilter === 'all' ? 'Nothing due today.' : 'No matching tasks due today.'}
+                              </span>
                             </p>
                           )}
 
@@ -2326,16 +2421,19 @@ export default function ProjectDetail({
                                 onKeyDown={e => {
                                   if (e.key === 'Enter' && e.target === e.currentTarget) onTaskClick(task.id);
                                 }}
-                                className={`${TASK_GRID_COLS} relative min-h-11 py-2 ${ROW_PAD} border-t border-[#F3F4F6] cursor-pointer hover:bg-[#FAFAFA] focus-visible:bg-[#FAFAFA] outline-none transition-colors duration-100 ease-out ${
+                                className={`${TASK_GRID_COLS} relative min-h-11 py-2 ${ROW_PAD} border-t border-[#F3F4F6] bg-white cursor-pointer hover:bg-[#FAFAFA] focus-visible:bg-[#FAFAFA] outline-none transition-colors duration-100 ease-out ${
                                   activeRowMenuId === task.id ? 'z-30' : ''
                                 }`}
                               >
-                                <span
-                                  className={`truncate text-[13.5px] ${
-                                    isDone ? 'line-through text-[rgba(17,17,17,0.4)]' : 'text-[#111111]'
-                                  }`}
-                                >
-                                  {task.title}
+                                <span className={`${PINNED_TASK_CELL} -my-2 py-2`}>
+                                  <span
+                                    className={`truncate text-[13.5px] ${
+                                      isDone ? 'line-through text-[rgba(17,17,17,0.4)]' : 'text-[#111111]'
+                                    }`}
+                                    title={task.title}
+                                  >
+                                    {task.title}
+                                  </span>
                                 </span>
 
                                 <span>
@@ -2347,12 +2445,12 @@ export default function ProjectDetail({
                                   </span>
                                 </span>
 
-                                <span className="hidden md:flex items-center gap-1.5 text-[12.5px] text-[rgba(17,17,17,0.7)]">
+                                <span className="flex items-center gap-1.5 text-[12.5px] text-[rgba(17,17,17,0.7)]">
                                   <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: priorityCfg.color }} />
                                   {priorityCfg.label}
                                 </span>
 
-                                <span className="hidden md:flex items-center gap-2 min-w-0">
+                                <span className="flex items-center gap-2 min-w-0">
                                   {task.assignee ? (
                                     <>
                                       {renderUserAvatar(
@@ -2370,7 +2468,7 @@ export default function ProjectDetail({
                                   )}
                                 </span>
 
-                                <span className="hidden md:flex min-w-0">
+                                <span className="flex min-w-0">
                                   <DateField
                                     label={`completion date for ${task.title}`}
                                     value={toDateInputValue(task.completedAt) || null}
@@ -2378,7 +2476,7 @@ export default function ProjectDetail({
                                   />
                                 </span>
 
-                                <span className="hidden md:flex min-w-0">
+                                <span className="flex min-w-0">
                                   <TimeSpentCell
                                     minutes={task.timeSpent}
                                     taskTitle={task.title}
@@ -2387,7 +2485,7 @@ export default function ProjectDetail({
                                 </span>
 
                                 {customColumns.map(col => (
-                                  <span key={col.id} className="hidden md:flex min-w-0">
+                                  <span key={col.id} className="flex min-w-0">
                                     <CustomFieldCell
                                       column={col}
                                       value={task.customFields?.[col.id]}
@@ -2417,7 +2515,9 @@ export default function ProjectDetail({
 
                           {/* Inline add (due date = this group's date) */}
                           {isAddingHere ? (
-                            <div className={`${TASK_ADD_ROW_COLS} py-2 ${ROW_PAD} border-t border-[#F3F4F6] bg-[#FAFAFA]`}>
+                            <div className={`${TASK_GRID_COLS} py-2 ${ROW_PAD} border-t border-[#F3F4F6] bg-[#FAFAFA]`}>
+                              <span className={`${PINNED_TASK_CELL} -my-2 py-2 pr-1`}>
+                              <span className="relative w-full min-w-0">
                               <input
                                 type="text"
                                 autoFocus
@@ -2434,8 +2534,23 @@ export default function ProjectDetail({
                                 }}
                                 placeholder="Task name"
                                 aria-label="New task name"
-                                className="h-8 w-full min-w-0 px-2.5 rounded-md border border-[#2563EB] bg-white text-[13px] text-[#111111] placeholder-[#9CA3AF] outline-none ring-2 ring-[#DBEAFE]"
+                                className="h-8 w-full min-w-0 pl-2.5 pr-8 md:pr-2.5 rounded-md border border-[#2563EB] bg-white text-[13px] text-[#111111] placeholder-[#9CA3AF] outline-none ring-2 ring-[#DBEAFE]"
                               />
+                              {/* Phones: Cancel lives inside the name field so only Save is pinned on the right */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAddingTaskDate(null);
+                                  resetInlineDraft();
+                                }}
+                                aria-label="Cancel"
+                                title="Cancel"
+                                className="md:hidden absolute right-1 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-6 h-6 rounded text-[#9CA3AF] hover:text-[#111111] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                              </span>
+                              </span>
 
                               <select
                                 value={inlineTaskStatus}
@@ -2452,7 +2567,7 @@ export default function ProjectDetail({
                                 value={inlineTaskPriority}
                                 onChange={e => setInlineTaskPriority(e.target.value as Priority)}
                                 aria-label="Priority"
-                                className="hidden md:block h-8 w-full min-w-0 px-2 rounded-md border border-[#E5E7EB] bg-white text-[12.5px] text-[#111111] outline-none cursor-pointer hover:border-[#D1D5DB] focus-visible:border-[#2563EB] focus-visible:ring-2 focus-visible:ring-[#DBEAFE] transition-colors"
+                                className="h-8 w-full min-w-0 px-2 rounded-md border border-[#E5E7EB] bg-white text-[12.5px] text-[#111111] outline-none cursor-pointer hover:border-[#D1D5DB] focus-visible:border-[#2563EB] focus-visible:ring-2 focus-visible:ring-[#DBEAFE] transition-colors"
                               >
                                 <option value="low">Low</option>
                                 <option value="medium">Medium</option>
@@ -2461,7 +2576,7 @@ export default function ProjectDetail({
                               </select>
 
                               {/* The creator is the assignee automatically */}
-                              <span className="hidden md:flex items-center gap-2 min-w-0" title="Tasks you create are assigned to you">
+                              <span className="flex items-center gap-2 min-w-0" title="Tasks you create are assigned to you">
                                 {renderUserAvatar(
                                   (session?.user as { avatar?: string } | undefined)?.avatar || session?.user?.image,
                                   session?.user?.name,
@@ -2471,7 +2586,7 @@ export default function ProjectDetail({
                                 <span className="truncate text-[12.5px] text-[rgba(17,17,17,0.7)]">You</span>
                               </span>
 
-                              <span className="hidden md:block min-w-0">
+                              <span className="block min-w-0">
                                 <DateField
                                   variant="field"
                                   label="completion date"
@@ -2481,7 +2596,7 @@ export default function ProjectDetail({
                                 />
                               </span>
 
-                              <span className="hidden md:block min-w-0">
+                              <span className="block min-w-0">
                                 <HoursInput
                                   value={inlineTaskHours}
                                   onChange={setInlineTaskHours}
@@ -2503,7 +2618,7 @@ export default function ProjectDetail({
                                   }
                                 };
                                 return (
-                                  <span key={col.id} className="hidden md:block min-w-0">
+                                  <span key={col.id} className="block min-w-0">
                                     {col.type === 'text' && (
                                       <input
                                         type="text"
@@ -2573,7 +2688,8 @@ export default function ProjectDetail({
                                 );
                               })}
 
-                              <span className="flex items-center justify-end gap-1">
+                              {/* Save / Cancel stay pinned on the right so they are reachable mid-swipe */}
+                              <span className="sticky right-0 z-[1] -mr-3 md:-mr-4 pr-3 md:pr-4 -my-2 py-2 pl-1 self-stretch flex items-center justify-end gap-1 bg-inherit transition-shadow duration-150 ease-out group-data-[scrolled=true]/tbl:shadow-[-6px_0_8px_-6px_rgba(17,17,17,0.14)]">
                                 <button
                                   type="button"
                                   disabled={
@@ -2600,7 +2716,7 @@ export default function ProjectDetail({
                                     setAddingTaskDate(null);
                                     resetInlineDraft();
                                   }}
-                                  className="inline-flex items-center justify-center w-8 h-8 rounded-md text-[#9CA3AF] hover:text-[#111111] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+                                  className="hidden md:inline-flex items-center justify-center w-8 h-8 rounded-md text-[#9CA3AF] hover:text-[#111111] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
                                   title="Cancel (Esc)"
                                   aria-label="Cancel"
                                 >
@@ -2615,8 +2731,10 @@ export default function ProjectDetail({
                                 onClick={() => startInlineAdd(group.dateKey)}
                                 className={`w-full flex items-center gap-2 h-10 ${ROW_PAD} border-t border-[#F3F4F6] text-[13px] text-[rgba(17,17,17,0.45)] hover:text-[#2563EB] hover:bg-[#FAFAFA] transition-colors duration-100 ease-out cursor-pointer`}
                               >
-                                <Plus className="w-3.5 h-3.5" />
-                                Add task
+                                <span className="sticky left-4 md:left-[42px] flex items-center gap-2">
+                                  <Plus className="w-3.5 h-3.5" />
+                                  Add task
+                                </span>
                               </button>
                             )
                           )}
@@ -2627,6 +2745,24 @@ export default function ProjectDetail({
                 })
               )}
               </div>
+            </div>
+              {/* Phones: "Swipe" pill until the first swipe */}
+              {taskTableEdges.more && !taskTableEdges.scrolled && !hasSwipedTasks && (
+                <div
+                  aria-hidden="true"
+                  className="md:hidden pointer-events-none absolute right-2.5 top-1.5 z-[2] inline-flex items-center gap-1 rounded-full bg-[#111111]/80 px-2 py-0.5 text-[10.5px] font-medium text-white shadow-sm animate-fade-in-up"
+                >
+                  Swipe
+                  <ChevronRight className="w-3 h-3 animate-swipe-hint" />
+                </div>
+              )}
+              {/* "More to the right" hint while columns are hidden past the right edge */}
+              <div
+                aria-hidden="true"
+                className={`pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white to-transparent transition-opacity duration-150 ease-out ${
+                  taskTableEdges.more ? 'opacity-100' : 'opacity-0'
+                }`}
+              />
             </div>
           </div>
         )}
