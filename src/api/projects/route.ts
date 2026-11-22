@@ -14,6 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { recipientsWanting, wantsNotification } from '@/lib/notificationPrefs';
 import { auth } from '@/auth';
 import { CreateProjectSchema, validationError } from '@/lib/validators';
 import redisCache from '@/lib/redis';
@@ -406,8 +407,11 @@ export async function POST(request: NextRequest) {
               // Fire notifications asynchronously without delaying HTTP response
               (async () => {
                 try {
+                  const wanting = new Set(await recipientsWanting(membersToInsert.map(m => m.userId), 'project_activity'));
+                  const toNotify = membersToInsert.filter(m => wanting.has(m.userId));
+                  if (toNotify.length === 0) return;
                   await prisma.notification.createMany({
-                    data: membersToInsert.map(m => ({
+                    data: toNotify.map(m => ({
                       userId: m.userId,
                       type: 'member_added',
                       title: 'Added to Project',

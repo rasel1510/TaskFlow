@@ -6,6 +6,7 @@
 
 import prisma from '@/lib/prisma';
 import redisCache from '@/lib/redis';
+import { wantsNotification } from '@/lib/notificationPrefs';
 
 export const projectInviteSelect = {
   id: true,
@@ -51,6 +52,7 @@ export function inviteStatusMessage(status: string, projectName: string): string
 /** In-app notification to the person who sent the invitation. Never throws. */
 export async function notifyInviter(inv: LoadedProjectInvite, kind: 'accepted' | 'declined', actorName: string) {
   try {
+    if (!(await wantsNotification(inv.invitedById, 'project_activity'))) return;
     await prisma.notification.create({
       data: {
         userId: inv.invitedById,

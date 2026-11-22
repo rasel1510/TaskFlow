@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { requireProjectAccess } from '@/lib/access';
 import prisma from '@/lib/prisma';
+import { recipientsWanting, wantsNotification } from '@/lib/notificationPrefs';
 import {
   ProjectMemberInviteSchema,
   BatchProjectMemberInviteSchema,
@@ -381,6 +382,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
         // Dispatch in-app notification to member (no email sending needed)
         try {
+          if (await wantsNotification(targetUserId, 'project_activity'))
           await prisma.notification.create({
             data: {
               userId: targetUserId,

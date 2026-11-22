@@ -118,47 +118,19 @@ interface MemberRow {
   avatar: string;
 }
 
+/** Mirrors src/lib/notificationPrefs.ts — only notifications FlowSync actually sends have a switch. */
 export interface NotificationPreferences {
-  // Delivery Channels
-  inApp: boolean;
-  browserPush: boolean;
-  emailDigest: 'instant' | 'daily' | 'off';
-
-  // Task & Personal Workflow
   task_assigned: boolean;
-  task_due_soon: boolean;
-  comment_on_task: boolean;
   mentioned: boolean;
-  status_changed: boolean;
-  new_member: boolean;
-
-  // Product Manager & Sprints
-  pm_project_at_risk: boolean;
-  pm_sprint_milestones: boolean;
-
-  // Admin & System Governance
-  admin_security_alerts: boolean;
-  admin_system_metrics: boolean;
+  project_activity: boolean;
 }
 
 const NOTIF_KEY = 'tf_notification_prefs';
 
 const DEFAULT_NOTIF_PREFS: NotificationPreferences = {
-  inApp: true,
-  browserPush: false,
-  emailDigest: 'daily',
-
   task_assigned: true,
-  task_due_soon: true,
-  comment_on_task: true,
   mentioned: true,
-  status_changed: true,
-  new_member: false,
-
-  pm_project_at_risk: true,
-  pm_sprint_milestones: true,
-  admin_security_alerts: true,
-  admin_system_metrics: false,
+  project_activity: true,
 };
 
 /* ─────────────── nav ─────────────── */
@@ -627,8 +599,12 @@ export default function Settings() {
     try {
       const raw = localStorage.getItem(NOTIF_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw);
-        setNotifPrefs(prev => ({ ...prev, ...parsed }));
+        const parsed = JSON.parse(raw) as Partial<NotificationPreferences>;
+        setNotifPrefs(prev => ({
+          task_assigned: typeof parsed.task_assigned === 'boolean' ? parsed.task_assigned : prev.task_assigned,
+          mentioned: typeof parsed.mentioned === 'boolean' ? parsed.mentioned : prev.mentioned,
+          project_activity: typeof parsed.project_activity === 'boolean' ? parsed.project_activity : prev.project_activity,
+        }));
       }
     } catch { }
 
@@ -663,28 +639,16 @@ export default function Settings() {
         body: JSON.stringify({
           category: 'user',
           type: 'system_test',
-          title: 'Notification Pipeline Verified',
-          body: 'Your notification preferences are active! In-app, push, and digest channels are fully operational.',
+          title: 'Test notification',
+          body: 'Notifications are working. You will see new ones here and in your Inbox.',
         }),
       });
 
       // Dispatch global event so header bell & count updates immediately
       window.dispatchEvent(new CustomEvent('notifications-updated'));
 
-      // If browser push is active and permitted, show OS desktop alert
-      if (
-        notifPrefs.browserPush &&
-        typeof window !== 'undefined' &&
-        'Notification' in window &&
-        Notification.permission === 'granted'
-      ) {
-        new Notification('FlowSync Test Alert', {
-          body: 'Your notification preferences are working perfectly.',
-          icon: '/favicon.ico',
-        });
-      }
 
-      toast.success('Test notification sent! Check the bell icon in the top header.');
+      toast.success('Test notification sent — check the bell menu.');
     } catch {
       toast.error('Failed to send test notification');
     } finally {
@@ -1034,52 +998,32 @@ export default function Settings() {
               }
             />
 
-            {(
-              [
-                {
-                  title: 'Tasks',
-                  items: [
-                    { key: 'task_assigned', label: 'Assigned to you', desc: 'When a task is assigned to you.' },
-                    { key: 'task_due_soon', label: 'Due soon', desc: '24 hours before one of your tasks is due.' },
-                    { key: 'comment_on_task', label: 'Comments', desc: 'On tasks you created or follow.' },
-                    { key: 'mentioned', label: 'Mentions', desc: 'When someone @mentions you.' },
-                    { key: 'status_changed', label: 'Status changes', desc: 'When a task you follow changes status.' },
-                  ],
-                },
-                {
-                  title: 'Workspace',
-                  items: [
-                    { key: 'new_member', label: 'New members', desc: 'When someone joins your workspace.' },
-                    { key: 'pm_project_at_risk', label: 'Projects at risk', desc: 'When a project falls behind schedule.' },
-                    { key: 'pm_sprint_milestones', label: 'Milestones', desc: 'When a project passes 80% complete.' },
-                  ],
-                },
-                ...(isAdmin
-                  ? [
-                      {
-                        title: 'Administration',
-                        items: [
-                          { key: 'admin_security_alerts', label: 'Security activity', desc: 'Role and permission changes in your workspace.' },
-                        ],
-                      },
-                    ]
-                  : []),
-              ] as { title: string; items: { key: keyof NotificationPreferences; label: string; desc: string }[] }[]
-            ).map(group => (
-              <Panel key={group.title} title={group.title}>
-                <div className="divide-y divide-[#F3F4F6]">
-                  {group.items.map(({ key, label, desc }) => (
-                    <div key={key} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
-                      <div className="min-w-0">
-                        <div className="text-[13.5px] font-medium text-[#111111]">{label}</div>
-                        <div className="text-[12.5px] text-[rgba(17,17,17,0.5)] mt-0.5">{desc}</div>
-                      </div>
-                      <Toggle checked={!!notifPrefs[key]} onChange={() => toggleNotif(key)} label={label} />
+            <Panel title="In-app notifications" description="Shown in the bell menu and your Inbox.">
+              <div className="divide-y divide-[#F3F4F6]">
+                {(
+                  [
+                    { key: 'task_assigned', label: 'Task assignments', desc: 'When someone assigns a task to you.' },
+                    { key: 'mentioned', label: 'Mentions and replies', desc: 'When someone @mentions you or replies to your comment.' },
+                    {
+                      key: 'project_activity',
+                      label: 'Project activity',
+                      desc: "When you're added to a project, your request to join is answered, or someone replies to your invitation.",
+                    },
+                  ] as { key: keyof NotificationPreferences; label: string; desc: string }[]
+                ).map(({ key, label, desc }) => (
+                  <div key={key} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                    <div className="min-w-0">
+                      <div className="text-[13.5px] font-medium text-[#111111]">{label}</div>
+                      <div className="text-[12.5px] text-[rgba(17,17,17,0.5)] mt-0.5">{desc}</div>
                     </div>
-                  ))}
-                </div>
-              </Panel>
-            ))}
+                    <Toggle checked={notifPrefs[key]} onChange={() => toggleNotif(key)} label={label} />
+                  </div>
+                ))}
+              </div>
+            </Panel>
+            <p className="-mt-2 text-[12px] text-[rgba(17,17,17,0.5)]">
+              Requests to join a project you manage always notify you, since they need your reply.
+            </p>
 
             <div className="flex items-center justify-between">
               <button

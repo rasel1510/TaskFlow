@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { recipientsWanting, wantsNotification } from '@/lib/notificationPrefs';
 import { auth } from '@/auth';
 import { timeAgo } from '@/lib/timeAgo';
 import { requireTaskAccess } from '@/lib/access';
@@ -232,6 +233,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
             if (matchedUser && !notifiedUserIds.has(matchedUser.id)) {
               notifiedUserIds.add(matchedUser.id);
+              if (!(await wantsNotification(matchedUser.id, 'mentioned'))) continue;
               await notifModel.create({
                 data: {
                   userId: matchedUser.id,
@@ -246,7 +248,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
         }
 
         // 2. If replying to another comment, notify the parent comment author
-        if (newComment.replyTo?.user?.id && !notifiedUserIds.has(newComment.replyTo.user.id)) {
+        if (
+          newComment.replyTo?.user?.id &&
+          !notifiedUserIds.has(newComment.replyTo.user.id) &&
+          (await wantsNotification(newComment.replyTo.user.id, 'mentioned'))
+        ) {
           notifiedUserIds.add(newComment.replyTo.user.id);
           await notifModel.create({
             data: {

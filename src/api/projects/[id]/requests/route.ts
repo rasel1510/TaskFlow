@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { recipientsWanting, wantsNotification } from '@/lib/notificationPrefs';
 import { auth } from '@/auth';
 import { requireProjectAccess } from '@/lib/access';
 import redisCache from '@/lib/redis';
@@ -291,6 +292,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
       // 3. Notify applicant
       try {
+        if (await wantsNotification(targetUserId, 'project_activity'))
         await prisma.notification.create({
           data: {
             userId: targetUserId,
@@ -338,6 +340,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       });
 
       try {
+        if (await wantsNotification(targetUserId, 'project_activity'))
         await prisma.notification.create({
           data: {
             userId: targetUserId,

@@ -38,6 +38,7 @@ function parseSafeDate(raw: unknown): Date | undefined {
 
 
 import prisma from '@/lib/prisma';
+import { recipientsWanting, wantsNotification } from '@/lib/notificationPrefs';
 import { UpdateTaskSchema, validationError } from '@/lib/validators';
 import { logActivity } from '@/lib/activity';
 import { recomputeProjectProgress } from '@/lib/projectProgress';
@@ -303,16 +304,20 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         logs.push(logActivity(id, `Assigned to ${name}`, '👤'));
         // Tell the new assignee (unless they assigned themselves)
         if (updateData.assigneeId && updateData.assigneeId !== access.value.user.id) {
+          const assigneeId = updateData.assigneeId as string;
           logs.push(
-            prisma.notification.create({
-              data: {
-                userId: updateData.assigneeId,
-                type: 'task_assigned',
-                title: 'Assigned to a task',
-                body: `You were assigned to ${updated.taskNumber ?? 'task'}: ${updated.title}`,
-                taskId: id,
-              },
-            })
+            (async () => {
+              if (!(await wantsNotification(assigneeId, 'task_assigned'))) return;
+              await prisma.notification.create({
+                data: {
+                  userId: assigneeId,
+                  type: 'task_assigned',
+                  title: 'Assigned to a task',
+                  body: `You were assigned to ${updated.taskNumber ?? 'task'}: ${updated.title}`,
+                  taskId: id,
+                },
+              });
+            })()
           );
         }
       }

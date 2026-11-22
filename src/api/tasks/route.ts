@@ -60,6 +60,7 @@ import { recomputeProjectProgress } from '@/lib/projectProgress';
 import redisCache from '@/lib/redis';
 import { isSuperAdmin } from '@/lib/permissions';
 import { enqueueBackgroundTask } from '@/lib/asyncQueue';
+import { recipientsWanting, wantsNotification } from '@/lib/notificationPrefs';
 
 // Prisma-generated enum types (used for strict typing in create/update calls)
 type PrismaStatus = Prisma.TaskCreateInput['status'];
@@ -402,7 +403,7 @@ export async function POST(request: NextRequest) {
 
       // 2. Trigger notification for assignee
       // Don't notify people about tasks they assigned to themselves
-      if (newTask.assigneeId && newTask.assigneeId !== dbUser.id) {
+      if (newTask.assigneeId && newTask.assigneeId !== dbUser.id && (await wantsNotification(newTask.assigneeId, 'task_assigned'))) {
         try {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const notifModel = (prisma as any).notification;
