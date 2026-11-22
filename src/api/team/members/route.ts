@@ -5,7 +5,8 @@ import { auth } from '@/auth';
 import { getOrProvisionUserTeam } from '@/lib/tenant';
 
 // ---------------------------------------------------------------------------
-// GET /api/team/members — Retrieve team details, all members, and invitations
+// GET /api/team/members — The whole company: workspace members, outside collaborators working
+// in the company's projects, which projects each person works in, and pending invitations.
 // ---------------------------------------------------------------------------
 export async function GET() {
   try {
@@ -29,7 +30,7 @@ export async function GET() {
     const cacheKey = `team:members:${teamContext.teamId}`;
     const payload = await redisCache.wrap(cacheKey, 15, async () => {
       // Parallel DB queries — cuts Neon round-trip latency in half
-      const [members, invitations] = await Promise.all([
+      const [members, invitations, memberships] = await Promise.all([
         prisma.user.findMany({
           where: { teamId: teamContext.teamId },
           select: {
@@ -67,7 +68,32 @@ export async function GET() {
           },
           orderBy: { createdAt: 'desc' },
         }),
+        // Who works in which of the company's projects (one query; O(memberships) memory)
+        prisma.projectMember.findMany({
+          where: { project: { teamId: teamContext.teamId } },
+          select: { userId: true, project: { select: { id: true, name: true } } },
+        }),
       ]);
+
+      // userId → projects (O(1) lookups while building the response)
+      const projectsByUser = new Map<string, { id: string; name: string }[]>();
+      for (const m of memberships) {
+        const list = projectsByUser.get(m.userId);
+        if (list) list.push(m.project);
+        else projectsByUser.set(m.userId, [m.project]);
+      }
+      for (const list of projectsByUser.values()) list.sort((a, b) => a.name.localeCompare(b.name));
+
+      // People from outside the workspace who were invited into one of the company's projects
+      const memberIds = new Set(members.map(m => m.id));
+      const collaboratorIds = Array.from(projectsByUser.keys()).filter(id => !memberIds.has(id));
+      const collaborators = collaboratorIds.length
+        ? await prisma.user.findMany({
+            where: { id: { in: collaboratorIds } },
+            select: { id: true, name: true, email: true, avatar: true, createdAt: true },
+            orderBy: { name: 'asc' },
+          })
+        : [];
 
       let adminsCount = 0;
       let pmCount = 0;
@@ -92,6 +118,7 @@ export async function GET() {
           pmCount,
           usersCount,
           pendingInvitesCount: invitations.length,
+          collaboratorsCount: collaborators.length,
         },
         members: members.map(m => {
           const r = m.role?.toLowerCase() || '';
@@ -100,8 +127,9 @@ export async function GET() {
             : (r === 'project manager' || r === 'project_manager')
               ? 'Project Manager'
               : 'Member';
-          return { ...m, role };
+          return { ...m, role, projects: projectsByUser.get(m.id) ?? [] };
         }),
+        collaborators: collaborators.map(c => ({ ...c, projects: projectsByUser.get(c.id) ?? [] })),
         invitations,
       };
     });
