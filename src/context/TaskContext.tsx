@@ -49,6 +49,10 @@ export interface DBTask {
   creatorId?: string | null;
   creator?: DBUser | null;
   project: DBProject | null;
+  /** Set when the task is marked done (or picked by hand); ISO string */
+  completedAt?: string | null;
+  /** Whole minutes */
+  timeSpent?: number | null;
 }
 
 export interface CreateTaskPayload {
@@ -61,6 +65,8 @@ export interface CreateTaskPayload {
   dueDate?: string;
   estimate?: string;
   labels?: string[];
+  completedAt?: string | null;
+  timeSpent?: number | null;
 }
 
 interface TaskContextValue {

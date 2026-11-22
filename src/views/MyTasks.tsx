@@ -10,6 +10,10 @@ import { EmptyState } from '@/components/EmptyState';
 import gsap from 'gsap';
 import { RadialTaskMenu } from '@/components/RadialTaskMenu';
 import { triggerParticleExplosion } from '@/lib/particleExplosion';
+import { useSession } from 'next-auth/react';
+import { SelectMenu, type SelectOption } from '@/components/ui/Pickers';
+import { DateField, TimeSpentCell } from '@/components/project/TaskColumnCells';
+import { toDateInputValue } from '@/lib/taskColumns';
 
 type SortMode = 'none' | 'urgent' | 'high' | 'medium' | 'low';
 
@@ -27,18 +31,88 @@ const statuses: { value: Status | 'all'; label: string }[] = [
   { value: 'done', label: 'Done' },
 ];
 
-function formatDate(d: string | null): string {
-  if (!d) return '—';
-  try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
-  catch {
-    return d;
+/**
+ * Task table grid — same columns as the project task table, plus Project (and Due date, since
+ * this list is not grouped by date). Phones get a narrower pinned Task column and swipe sideways.
+ */
+const MT_TRACKS = ['8rem', '7.5rem', '6.5rem', '7rem', '7rem', '7.5rem', '5.5rem', '2.5rem'];
+const MT_REST_REM = 8 + 7.5 + 6.5 + 7 + 7 + 7.5 + 5.5 + 2.5 + MT_TRACKS.length * 0.75;
+const GRID_VARS = {
+  '--mt-cols': ['minmax(11rem,1fr)', ...MT_TRACKS].join(' '),
+  '--mt-min': `${11 + MT_REST_REM + 2.5}rem`,
+  '--mt-cols-sm': ['minmax(10rem,1fr)', ...MT_TRACKS].join(' '),
+  '--mt-min-sm': `${10 + MT_REST_REM + 2}rem`,
+} as React.CSSProperties;
+const MT_GRID =
+  'grid [grid-template-columns:var(--mt-cols-sm)] md:[grid-template-columns:var(--mt-cols)] items-center gap-x-3';
+const MT_ROW_PAD = 'px-4 md:px-5';
+/** Pinned Task cell: covers the row gutter, takes the row background, soft edge once scrolled */
+const MT_PINNED =
+  'sticky left-0 z-[1] -ml-4 pl-4 md:-ml-5 md:pl-5 self-stretch flex items-center min-w-0 bg-inherit transition-shadow duration-150 ease-out group-data-[scrolled=true]/tbl:shadow-[6px_0_8px_-6px_rgba(17,17,17,0.14)]';
+/** Table-cell look for the Status / Priority menus */
+const CELL_TRIGGER =
+  'w-full min-w-0 h-8 px-2 -mx-2 inline-flex items-center rounded-md text-left hover:bg-[#F3F4F6] transition-colors duration-100 ease-out cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#DBEAFE]';
 
-  }
-}
+const STATUS_OPTIONS: SelectOption<Status>[] = (['backlog', 'todo', 'in_progress', 'in_review', 'done'] as const).map(s => ({
+  value: s,
+  label: statusColors[s].label,
+}));
+const PRIORITY_OPTIONS: SelectOption<Priority>[] = (['low', 'medium', 'high', 'urgent'] as const).map(p => ({
+  value: p,
+  label: priorityColors[p].label,
+}));
+
+const localDateKey = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
-  const { tasks, isLoading, deleteTask, refreshTasks } = useTasks();
+  const { tasks: allTasks, isLoading, deleteTask, refreshTasks, updateTask } = useTasks();
   const toast = useToast();
+  const { data: session } = useSession();
+  const currentUserId = (session?.user as { id?: string } | undefined)?.id;
+
+  // My Tasks = tasks assigned to me or created by me (the shared list also holds teammates' tasks
+  // from projects I belong to). O(N) single pass.
+  const tasks = useMemo(
+    () => (currentUserId ? allTasks.filter(t => t.assigneeId === currentUserId || t.creatorId === currentUserId) : []),
+    [allTasks, currentUserId]
+  );
+  const todayKey = localDateKey();
+
+  /** Inline edits from the table (optimistic; TaskContext rolls back and toasts on failure) */
+  const saveTask = useCallback(
+    (task: DBTask, payload: Parameters<typeof updateTask>[1]) => {
+      updateTask(task.id, payload).catch(() => {
+        /* rollback + toast handled by TaskContext */
+      });
+    },
+    [updateTask]
+  );
+
+  /** Sideways-scroll state: pinned-column shadow, right-edge fade, visible width */
+  const tableRef = useRef<HTMLDivElement>(null);
+  const [tableEdges, setTableEdges] = useState({ scrolled: false, more: false, width: 0 });
+  const updateTableEdges = useCallback(() => {
+    const el = tableRef.current;
+    if (!el) return;
+    const next = {
+      scrolled: el.scrollLeft > 2,
+      more: el.scrollLeft + el.clientWidth < el.scrollWidth - 2,
+      width: el.clientWidth,
+    };
+    setTableEdges(prev => (prev.scrolled === next.scrolled && prev.more === next.more && prev.width === next.width ? prev : next));
+  }, []);
+  useEffect(() => {
+    const el = tableRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    updateTableEdges();
+    const ro = new ResizeObserver(updateTableEdges);
+    ro.observe(el);
+    if (el.firstElementChild) ro.observe(el.firstElementChild);
+    return () => ro.disconnect();
+  }, [updateTableEdges]);
   const [statusFilter, setStatusFilter] = useState<Status | 'all'>('all');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -225,15 +299,6 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
     });
   }, [tasks, statusFilter, search, sortMode]);
 
-  const toggleSelect = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setSelected(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  };
-
   const selectAll = () => {
     if (selected.size === filtered.length) {
       setSelected(new Set());
@@ -331,7 +396,9 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
           <div>
             <h1 className="text-[20px] md:text-[24px] font-bold text-[#111111]">My Tasks</h1>
             <p className="text-[12px] md:text-[13px] text-[rgba(17,17,17,0.45)] mt-0.5">
-              {isLoading && tasks.length === 0 ? 'Loading tasks...' : `${tasks.length} total tasks`}
+              {isLoading && tasks.length === 0
+                ? 'Loading tasks...'
+                : `${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'} assigned to or created by you`}
             </p>
           </div>
           <button
@@ -568,181 +635,236 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
           </div>
         )}
 
-        {/* ── Desktop Table ── */}
-        <div className="hidden md:block bg-white border border-[#E5E7EB] rounded-xl">
-          {/* Table header */}
-          <div className="flex items-center gap-3 px-5 py-3 bg-[#F9FAFB] border-b border-[#E5E7EB] rounded-t-xl text-[11.5px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)]">
-            <span className="flex-1">Task</span>
-            <span className="w-32">Project</span>
-            <span className="w-28">Status</span>
-            <button
-              type="button"
-              onClick={() => {
-                setSortMode(prev => {
-                  if (prev === 'none') return 'urgent';
-                  if (prev === 'urgent') return 'high';
-                  if (prev === 'high') return 'medium';
-                  if (prev === 'medium') return 'low';
-                  return 'none';
-                });
-              }}
-              className="w-24 flex items-center gap-1.5 hover:text-[#111111] transition-colors text-left uppercase tracking-wide cursor-pointer group"
-              title="Click to cycle priority sort: Urgent → High → Medium → Low → Default"
-            >
-              <span>Priority</span>
-              {sortMode !== 'none' && (
-                <span className="text-[11px] font-semibold capitalize text-[#2563EB]">{sortMode}</span>
-              )}
-              {sortMode === 'none' && (
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-0 group-hover:opacity-50 transition-opacity">
-                  <path d="M7 15l5 5 5-5" />
-                  <path d="M7 9l5-5 5 5" />
-                </svg>
-              )}
-            </button>
-            <span className="w-28">Assignee</span>
-            <span className="w-28">Due Date</span>
-            <span className="w-16">Est.</span>
-            <span className="w-20 text-right pr-2">Actions</span>
-          </div>
+        {/* ── Task table (all screens): swipes sideways on small screens, Task column pinned ── */}
+        <div className="relative rounded-xl border border-[#E5E7EB] bg-white overflow-hidden">
+          <div
+            ref={tableRef}
+            onScroll={updateTableEdges}
+            data-scrolled={tableEdges.scrolled}
+            className="group/tbl overflow-x-auto overscroll-x-contain"
+          >
+            <div className="min-w-[var(--mt-min-sm)] md:min-w-[var(--mt-min)]" style={GRID_VARS}>
+              {/* Column header */}
+              <div className={`${MT_GRID} h-10 ${MT_ROW_PAD} border-b border-[#E5E7EB] bg-[#FAFAFA] text-[11px] font-medium uppercase tracking-wide text-[rgba(17,17,17,0.45)]`}>
+                <div className={`${MT_PINNED} gap-2.5`}>
+                  <input
+                    type="checkbox"
+                    aria-label="Select all tasks"
+                    checked={filtered.length > 0 && selected.size === filtered.length}
+                    ref={el => {
+                      if (el) el.indeterminate = selected.size > 0 && selected.size < filtered.length;
+                    }}
+                    onChange={selectAll}
+                    disabled={filtered.length === 0}
+                    className="w-3.5 h-3.5 rounded border-[#D1D5DB] accent-[#2563EB] cursor-pointer shrink-0"
+                  />
+                  <span>Task</span>
+                </div>
+                <span>Project</span>
+                <span>Status</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSortMode(prev => {
+                      if (prev === 'none') return 'urgent';
+                      if (prev === 'urgent') return 'high';
+                      if (prev === 'high') return 'medium';
+                      if (prev === 'medium') return 'low';
+                      return 'none';
+                    });
+                  }}
+                  className="flex items-center gap-1.5 min-w-0 uppercase tracking-wide hover:text-[#111111] transition-colors text-left cursor-pointer"
+                  title="Click to cycle priority sort: Urgent → High → Medium → Low → Default"
+                >
+                  <span>Priority</span>
+                  {sortMode !== 'none' && (
+                    <span className="text-[10.5px] font-semibold capitalize text-[#2563EB] normal-case">{sortMode}</span>
+                  )}
+                </button>
+                <span>Assignee</span>
+                <span>Due date</span>
+                <span className="truncate">Completion date</span>
+                <span>Time spent</span>
+                <span aria-hidden="true" />
+              </div>
 
-          {/* Desktop Rows */}
-          {isLoading && tasks.length === 0 ? (
-            <div>
-              <TaskRowSkeleton />
-              <TaskRowSkeleton />
-              <TaskRowSkeleton />
-              <TaskRowSkeleton />
-              <TaskRowSkeleton />
-            </div>
-          ) : filtered.length === 0 ? (
-            <EmptyState
-              title="No tasks found"
-              description={search || statusFilter !== 'all' ? 'Try adjusting your filters or search query' : 'Create your first task to start organizing work'}
-              action={!search && statusFilter === 'all' ? { label: 'Create Task', onClick: onCreateTask } : undefined}
-            />
-          ) : (
-            filtered.map((task, i) => (
-              <div
-                key={task.id}
-                onClick={() => onTaskClick(task.id)}
-                className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer transition-colors hover:bg-[#F9FAFB] group ${activeRowMenuId === task.id ? 'z-30 relative' : 'relative'
-                  } ${selected.has(task.id) ? 'bg-[#FAFBFF]' : ''
-                  } ${i < filtered.length - 1 ? 'border-b border-[#F3F4F6]' : 'rounded-b-xl'}`}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-[13.5px] font-medium text-[#111111] truncate ${task.status === 'done' ? 'line-through opacity-50' : ''}`}>{task.title}</span>
-                    {task.labels.slice(0, 2).map(label => (
-                      <span key={label} className="text-[10px] px-1.5 py-0.5 rounded bg-[#F3F4F6] text-[rgba(17,17,17,0.5)] shrink-0 hidden group-hover:inline-block">{label}</span>
-                    ))}
-                  </div>
+              {isLoading && tasks.length === 0 ? (
+                <div>
+                  <TaskRowSkeleton />
+                  <TaskRowSkeleton />
+                  <TaskRowSkeleton />
+                  <TaskRowSkeleton />
                 </div>
-                <span className="w-32 text-[12.5px] text-[rgba(17,17,17,0.6)] truncate">{task.project?.name ?? '—'}</span>
-                <div className="w-28">
-                  <span className="text-[11px] font-medium px-2 py-1 rounded-full" style={{ backgroundColor: sc(task.status).bg, color: sc(task.status).text }}>{sc(task.status).label}</span>
-                </div>
-                <div className="w-24"><span className="text-[12.5px] text-[rgba(17,17,17,0.7)]">{pc(task.priority).label}</span></div>
-                <div className="w-28 flex items-center gap-2">
-                  {task.assignee ? (
-                    <>
-                      <div className="w-6 h-6 rounded-full bg-[#2563EB] flex items-center justify-center text-[9px] font-bold text-white shrink-0 overflow-hidden">
-                        {task.assignee.avatar?.startsWith('http') || task.assignee.avatar?.startsWith('/') ? (
-                          <img src={task.assignee.avatar} alt={task.assignee.name} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
-                        ) : (
-                          (task.assignee.avatar && task.assignee.avatar.length <= 3 ? task.assignee.avatar : task.assignee.name.slice(0, 2)).toUpperCase()
-                        )}
-                      </div>
-                      <span className="text-[12.5px] text-[rgba(17,17,17,0.7)] truncate">{task.assignee.name.split(' ')[0]}</span>
-                    </>
-                  ) : <span className="text-[12px] text-[rgba(17,17,17,0.35)]">Unassigned</span>}
-                </div>
-                <span className="w-28 text-[12.5px] text-[rgba(17,17,17,0.6)]">{formatDate(task.dueDate)}</span>
-                <span className="w-16 text-[12.5px] text-[rgba(17,17,17,0.5)]">{task.estimate ?? '—'}</span>
-                <div className="w-20 flex items-center justify-end pr-1 shrink-0 relative" onClick={e => e.stopPropagation()}>
-                  <RadialTaskMenu
-                    isOpen={activeRowMenuId === task.id}
-                    onToggle={() => setActiveRowMenuId(prev => (prev === task.id ? null : task.id))}
-                    onEdit={() => {
-                      setEditingTask(task);
-                      setActiveRowMenuId(null);
-                    }}
-                    onDelete={() => {
-                      setTaskToDelete(task);
-                      setActiveRowMenuId(null);
-                    }}
-                    taskTitle={task.title}
+              ) : filtered.length === 0 ? (
+                <div className="sticky left-0" style={{ width: tableEdges.width ? `${tableEdges.width}px` : '100%' }}>
+                  <EmptyState
+                    title="No tasks found"
+                    description={
+                      search || statusFilter !== 'all'
+                        ? 'Try adjusting your filters or search query'
+                        : 'Tasks assigned to you or created by you will appear here'
+                    }
+                    action={!search && statusFilter === 'all' ? { label: 'Create Task', onClick: onCreateTask } : undefined}
                   />
                 </div>
-              </div>
-            ))
-          )}
-        </div>
+              ) : (
+                filtered.map(task => {
+                  const status = sc(task.status);
+                  const isDone = task.status === 'done';
+                  const isSelected = selected.has(task.id);
+                  const overdue = !isDone && task.dueDate && task.dueDate < todayKey;
+                  return (
+                    <div
+                      key={task.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => onTaskClick(task.id)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && e.target === e.currentTarget) onTaskClick(task.id);
+                      }}
+                      className={`${MT_GRID} relative min-h-12 py-2 ${MT_ROW_PAD} border-t border-[#F3F4F6] first:border-t-0 cursor-pointer outline-none transition-colors duration-100 ease-out ${
+                        isSelected ? 'bg-[#F5F8FF] hover:bg-[#EEF3FF]' : 'bg-white hover:bg-[#FAFAFA] focus-visible:bg-[#FAFAFA]'
+                      } ${activeRowMenuId === task.id ? 'z-30' : ''}`}
+                    >
+                      {/* Task (pinned) */}
+                      <div className={`${MT_PINNED} gap-2.5 -my-2 py-2`}>
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${task.title}`}
+                          checked={isSelected}
+                          onClick={e => e.stopPropagation()}
+                          onChange={() =>
+                            setSelected(prev => {
+                              const next = new Set(prev);
+                              if (next.has(task.id)) next.delete(task.id);
+                              else next.add(task.id);
+                              return next;
+                            })
+                          }
+                          className="w-3.5 h-3.5 rounded border-[#D1D5DB] accent-[#2563EB] cursor-pointer shrink-0"
+                        />
+                        <span
+                          className={`truncate text-[13.5px] ${isDone ? 'line-through text-[rgba(17,17,17,0.4)]' : 'text-[#111111] font-medium'}`}
+                          title={task.title}
+                        >
+                          {task.title}
+                        </span>
+                      </div>
 
-        {/* ── Mobile Card List ── */}
-        <div className="md:hidden space-y-2">
-          {isLoading ? (
-            <div className="space-y-2">
-              <TaskRowSkeleton />
-              <TaskRowSkeleton />
-              <TaskRowSkeleton />
-            </div>
-          ) : filtered.length === 0 ? (
-            <EmptyState
-              title="No tasks found"
-              description={search || statusFilter !== 'all' ? 'Try adjusting your filters' : 'Create your first task to get started'}
-              action={!search && statusFilter === 'all' ? { label: 'Create Task', onClick: onCreateTask } : undefined}
-            />
-          ) : (
-            filtered.map(task => (
-              <div
-                key={task.id}
-                onClick={() => onTaskClick(task.id)}
-                className={`bg-white border border-[#E5E7EB] rounded-xl px-4 py-3.5 cursor-pointer transition-colors active:bg-[#F9FAFB] ${activeRowMenuId === task.id ? 'z-30 relative' : 'relative'
-                  } ${selected.has(task.id) ? 'border-[#93C5FD] bg-[#FAFBFF]' : ''
-                  }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-[14px] font-medium text-[#111111] leading-snug ${task.status === 'done' ? 'line-through opacity-50' : ''}`}>
-                      {task.title}
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <span className="text-[11px] text-[rgba(17,17,17,0.5)] truncate">{task.project?.name ?? '—'}</span>
+                      {/* Project */}
+                      <span className="truncate text-[12.5px] text-[rgba(17,17,17,0.7)]" title={task.project?.name ?? undefined}>
+                        {task.project?.name ?? <span className="text-[rgba(17,17,17,0.35)]">No project</span>}
+                      </span>
+
+                      {/* Status (editable) */}
+                      <div className="min-w-0" onClick={e => e.stopPropagation()}>
+                        <SelectMenu
+                          ariaLabel={`Status of ${task.title}`}
+                          value={(task.status in statusColors ? task.status : 'todo') as Status}
+                          options={STATUS_OPTIONS}
+                          onChange={v => v && v !== task.status && saveTask(task, { status: v })}
+                          triggerClassName={CELL_TRIGGER}
+                          renderValue={() => (
+                            <span
+                              className="inline-block max-w-full truncate px-2 py-0.5 rounded-md text-[11.5px] font-medium"
+                              style={{ backgroundColor: status.bg, color: status.text }}
+                            >
+                              {status.label}
+                            </span>
+                          )}
+                        />
+                      </div>
+
+                      {/* Priority (editable) */}
+                      <div className="min-w-0" onClick={e => e.stopPropagation()}>
+                        <SelectMenu
+                          ariaLabel={`Priority of ${task.title}`}
+                          value={(task.priority in priorityColors ? task.priority : 'medium') as Priority}
+                          options={PRIORITY_OPTIONS}
+                          onChange={v => v && v !== task.priority && saveTask(task, { priority: v })}
+                          triggerClassName={CELL_TRIGGER}
+                          renderValue={() => (
+                            <span className="truncate text-[12.5px] text-[rgba(17,17,17,0.75)]">{pc(task.priority).label}</span>
+                          )}
+                        />
+                      </div>
+
+                      {/* Assignee */}
+                      <span className="flex items-center gap-2 min-w-0">
+                        {task.assignee ? (
+                          <>
+                            <span className="w-6 h-6 rounded-full bg-[#2563EB] flex items-center justify-center text-[9px] font-bold text-white shrink-0 overflow-hidden">
+                              {task.assignee.avatar?.startsWith('http') || task.assignee.avatar?.startsWith('/') ? (
+                                <img src={task.assignee.avatar} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                              ) : (
+                                (task.assignee.avatar && task.assignee.avatar.length <= 3 ? task.assignee.avatar : task.assignee.name.slice(0, 2)).toUpperCase()
+                              )}
+                            </span>
+                            <span className="truncate text-[12.5px] text-[rgba(17,17,17,0.7)]">
+                              {task.assignee.id === currentUserId ? 'You' : task.assignee.name.split(' ')[0]}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-[12.5px] text-[rgba(17,17,17,0.35)]">Unassigned</span>
+                        )}
+                      </span>
+
+                      {/* Due date (editable) */}
+                      <span className={`flex min-w-0 ${overdue ? '[&_button]:text-[#DC2626]' : ''}`}>
+                        <DateField
+                          label={`due date for ${task.title}`}
+                          value={task.dueDate || null}
+                          onSave={value => saveTask(task, { dueDate: value ?? '' })}
+                        />
+                      </span>
+
+                      {/* Completion date (editable) */}
+                      <span className="flex min-w-0">
+                        <DateField
+                          label={`completion date for ${task.title}`}
+                          value={toDateInputValue(task.completedAt) || null}
+                          onSave={value => saveTask(task, { completedAt: value })}
+                        />
+                      </span>
+
+                      {/* Time spent (editable) */}
+                      <span className="flex min-w-0">
+                        <TimeSpentCell
+                          minutes={task.timeSpent}
+                          taskTitle={task.title}
+                          onSave={minutes => saveTask(task, { timeSpent: minutes })}
+                        />
+                      </span>
+
+                      {/* Row menu */}
+                      <span className="flex justify-end" onClick={e => e.stopPropagation()}>
+                        <RadialTaskMenu
+                          isOpen={activeRowMenuId === task.id}
+                          onToggle={() => setActiveRowMenuId(prev => (prev === task.id ? null : task.id))}
+                          onEdit={() => {
+                            setEditingTask(task);
+                            setActiveRowMenuId(null);
+                          }}
+                          onDelete={() => {
+                            setTaskToDelete(task);
+                            setActiveRowMenuId(null);
+                          }}
+                          taskTitle={task.title}
+                        />
+                      </span>
                     </div>
-                  </div>
-                  {/* Action button */}
-                  <div className="flex items-center justify-end shrink-0 relative pr-1" onClick={e => e.stopPropagation()}>
-                    <RadialTaskMenu
-                      isOpen={activeRowMenuId === task.id}
-                      onToggle={() => setActiveRowMenuId(prev => (prev === task.id ? null : task.id))}
-                      onEdit={() => {
-                        setEditingTask(task);
-                        setActiveRowMenuId(null);
-                      }}
-                      onDelete={() => {
-                        setTaskToDelete(task);
-                        setActiveRowMenuId(null);
-                      }}
-                      taskTitle={task.title}
-                    />
-                  </div>
-                </div>
-                {/* Bottom row: status + priority + due date */}
-                <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap shrink-0" style={{ backgroundColor: sc(task.status).bg, color: sc(task.status).text }}>
-                    {sc(task.status).label}
-                  </span>
-                  <span className="text-[11px] font-medium whitespace-nowrap shrink-0" style={{ color: pc(task.priority).color }}>
-                    {pc(task.priority).label}
-                  </span>
-                  {task.dueDate && (
-                    <span className="text-[11px] text-[rgba(17,17,17,0.45)] ml-auto whitespace-nowrap shrink-0">{formatDate(task.dueDate)}</span>
-                  )}
-                </div>
-              </div>
-            ))
-          )}
+                  );
+                })
+              )}
+            </div>
+          </div>
+          {/* "More to the right" hint while columns are hidden past the right edge */}
+          <div
+            aria-hidden="true"
+            className={`pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white to-transparent transition-opacity duration-150 ease-out ${
+              tableEdges.more ? 'opacity-100' : 'opacity-0'
+            }`}
+          />
         </div>
       </div>
 
