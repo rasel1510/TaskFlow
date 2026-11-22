@@ -437,7 +437,7 @@ export default function TeamView() {
           <div className="min-w-0">
             <h1 className="text-[20px] font-semibold text-[#111111] tracking-tight">Team</h1>
             <p className="mt-1 text-[13px] text-[rgba(17,17,17,0.55)]">
-              Everyone at <span className="text-[#111111] font-medium">{data.team.name}</span> and the projects they work in.
+              Everyone at <span className="text-[#111111] font-medium">{data.team.name}</span> and everyone you share projects with.
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -609,7 +609,7 @@ export default function TeamView() {
                   <>
                     <div className="px-5 pt-5 pb-2 border-t border-[#F3F4F6] first:border-t-0">
                       <p className="text-[12px] font-medium text-[rgba(17,17,17,0.5)]">
-                        Collaborators · people from outside {data.team.name} who work in your projects
+                        Collaborators · people outside {data.team.name} you share projects with
                       </p>
                     </div>
                     {filteredCollaborators.map(c => (

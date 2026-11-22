@@ -5,8 +5,10 @@ import { auth } from '@/auth';
 import { getOrProvisionUserTeam } from '@/lib/tenant';
 
 // ---------------------------------------------------------------------------
-// GET /api/team/members — The whole company: workspace members, outside collaborators working
-// in the company's projects, which projects each person works in, and pending invitations.
+// GET /api/team/members — Everyone you work with: your workspace members, plus collaborators —
+// people from outside the workspace who share a project with the company or with you (including
+// projects owned by another workspace that you were invited into) — with the projects each person
+// works in, and pending invitations.
 // ---------------------------------------------------------------------------
 export async function GET() {
   try {
@@ -27,7 +29,8 @@ export async function GET() {
       );
     }
 
-    const cacheKey = `team:members:${teamContext.teamId}`;
+    // Per user: the set of shared projects depends on which projects this user belongs to
+    const cacheKey = `team:members:${teamContext.teamId}:${userId}`;
     const payload = await redisCache.wrap(cacheKey, 15, async () => {
       // Parallel DB queries — cuts Neon round-trip latency in half
       const [members, invitations, memberships] = await Promise.all([
@@ -68,9 +71,14 @@ export async function GET() {
           },
           orderBy: { createdAt: 'desc' },
         }),
-        // Who works in which of the company's projects (one query; O(memberships) memory)
+        // Who works in which project — the company's projects plus any project this user is in
+        // (one query; O(memberships) memory)
         prisma.projectMember.findMany({
-          where: { project: { teamId: teamContext.teamId } },
+          where: {
+            project: {
+              OR: [{ teamId: teamContext.teamId }, { members: { some: { userId } } }],
+            },
+          },
           select: { userId: true, project: { select: { id: true, name: true } } },
         }),
       ]);
@@ -84,7 +92,7 @@ export async function GET() {
       }
       for (const list of projectsByUser.values()) list.sort((a, b) => a.name.localeCompare(b.name));
 
-      // People from outside the workspace who were invited into one of the company's projects
+      // People from outside the workspace who share one of those projects
       const memberIds = new Set(members.map(m => m.id));
       const collaboratorIds = Array.from(projectsByUser.keys()).filter(id => !memberIds.has(id));
       const collaborators = collaboratorIds.length
