@@ -6,8 +6,7 @@
  * Fully live settings view:
  *   - Profile:       PATCH /api/users/:id  (name, job title, avatar initials, skills)
  *   - Security:      PATCH /api/users/:id/password  (bcrypt verify + update)
- *   - General:       read-only workspace details (name, member count, your role)
- *   - Members:       GET /api/users + /api/team/invite (members, pending invitations)
+ *   - General:       read-only workspace details (name, member count, your role); people are managed on the Team page
  *   - Notifications: GET/PATCH /api/notifications/preferences (localStorage as instant cache)
  *
  * Layout: SectionHeader → Panel(s) → Row (label column + control) — one calm visual language.
@@ -23,11 +22,11 @@ import { invalidateShared } from '@/lib/sharedFetch';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useToast } from '@/components/ui/Toast';
-import { Eye, EyeOff, Send, RefreshCw, Copy, Check, X, Plus, Loader2, Lock } from 'lucide-react';
+import { Eye, EyeOff, Send, RefreshCw, Check, X, Lock } from 'lucide-react';
 
 /* ─────────────── types ─────────────── */
 
-type Section = 'profile' | 'workspace' | 'members' | 'notifications' | 'security';
+type Section = 'profile' | 'workspace' | 'notifications' | 'security';
 
 export const DEFAULT_EXPERTISE_OPTIONS = [
   { id: 'UI Design', label: 'UI Design' },
@@ -168,7 +167,6 @@ const navItems: { id: Section; label: string; group: string }[] = [
   { id: 'profile', label: 'Profile', group: 'Account' },
   { id: 'security', label: 'Security', group: 'Account' },
   { id: 'workspace', label: 'General', group: 'Workspace' },
-  { id: 'members', label: 'Members', group: 'Workspace' },
   { id: 'notifications', label: 'Notifications', group: 'Workspace' },
 ];
 const groups = ['Account', 'Workspace'];
@@ -389,11 +387,6 @@ export default function Settings() {
     effectiveUserRole === 'Admin' ||
     effectiveUserRole === 'ADMIN' ||
     effectiveUserRole.toLowerCase() === 'admin';
-  const isPM =
-    isAdmin ||
-    effectiveUserRole === 'Project Manager' ||
-    effectiveUserRole === 'PROJECT_MANAGER' ||
-    effectiveUserRole.toLowerCase() === 'project manager';
 
   // Close auto-suggest dropdown when clicking outside
   useEffect(() => {
@@ -574,101 +567,15 @@ export default function Settings() {
     }
   };
 
-  /* ─────────── 3.3 Members & Team Invites state ─────────── */
+  /* ─────────── Workspace (General) data ─────────── */
   interface PendingInvite {
     id: string;
-    email: string;
-    role: string;
-    status: string;
-    token: string;
-    expiresAt: string;
-    createdAt: string;
-    invitedBy?: {
-      name: string;
-      email: string;
-    };
   }
 
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [teamName, setTeamName] = useState<string>('Your Workspace');
   const [invites, setInvites] = useState<PendingInvite[]>([]);
-  const [showInviteModal, setShowInviteModal] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<'ADMIN' | 'PROJECT_MANAGER' | 'MEMBER'>('MEMBER');
-  const [invitePassword, setInvitePassword] = useState('');
-  const [showInvitePassword, setShowInvitePassword] = useState(false);
-  const [sendingInvite, setSendingInvite] = useState(false);
-  const [devInviteUrl, setDevInviteUrl] = useState<string | null>(null);
-  const [copiedLink, setCopiedLink] = useState(false);
-
-  // Admin Job Title Modification state
-  const [editingTitleMember, setEditingTitleMember] = useState<MemberRow | null>(null);
-  const [memberJobTitleInput, setMemberJobTitleInput] = useState('');
-  const [savingMemberTitle, setSavingMemberTitle] = useState(false);
-
-  const handleOpenEditMemberTitle = (member: MemberRow) => {
-    setEditingTitleMember(member);
-    setMemberJobTitleInput(member.role || '');
-  };
-
-  const handleSaveMemberTitle = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!editingTitleMember || !memberJobTitleInput.trim()) return;
-
-    const trimmedTitle = memberJobTitleInput.trim();
-    setSavingMemberTitle(true);
-    try {
-      const res = await fetch(`/api/users/${editingTitleMember.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: trimmedTitle }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        toast.error(json.error?.message || 'Failed to update job title');
-        return;
-      }
-
-      setMembers(prev =>
-        prev.map(m => (m.id === editingTitleMember.id ? { ...m, role: trimmedTitle } : m))
-      );
-
-      if (editingTitleMember.id === userId) {
-        setPRole(trimmedTitle);
-        setProfile(prev => (prev ? { ...prev, role: trimmedTitle } : null));
-        try {
-          await updateSession?.({ role: trimmedTitle });
-        } catch { }
-      }
-
-      window.dispatchEvent(
-        new CustomEvent('user-profile-updated', {
-          detail: { id: editingTitleMember.id, role: trimmedTitle },
-        })
-      );
-      toast.success(`Job title for ${editingTitleMember.name} updated to "${trimmedTitle}"`);
-      setEditingTitleMember(null);
-    } catch {
-      toast.error('Network error updating job title');
-    } finally {
-      setSavingMemberTitle(false);
-    }
-  };
-
-  const generateRandomPassword = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
-    const num = Math.floor(100 + Math.random() * 900);
-    const suffix = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-    return `FlowSync@${num}${suffix}`;
-  };
-
-  useEffect(() => {
-    if (showInviteModal) {
-      setInvitePassword(generateRandomPassword());
-      setShowInvitePassword(false);
-    }
-  }, [showInviteModal]);
 
   const fetchMembersAndInvites = useCallback(async (signal?: AbortSignal) => {
     setMembersLoading(true);
@@ -701,67 +608,11 @@ export default function Settings() {
   }, []);
 
   useEffect(() => {
-    if (section !== 'members' && section !== 'workspace') return;
+    if (section !== 'workspace') return;
     const ctrl = new AbortController();
     fetchMembersAndInvites(ctrl.signal);
     return () => ctrl.abort();
   }, [section, fetchMembersAndInvites]);
-
-  const handleSendInvite = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inviteEmail.trim()) return;
-
-    setSendingInvite(true);
-    setDevInviteUrl(null);
-
-    try {
-      const res = await fetch('/api/team/invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: inviteEmail.trim(),
-          role: inviteRole,
-          password: invitePassword.trim(),
-        }),
-      });
-
-      const json = await res.json();
-
-      if (!res.ok || !json.success) {
-        toast.error(json.error?.message || 'Failed to dispatch invitation');
-      } else {
-        toast.success(json.message || `Invitation dispatched to ${inviteEmail}`);
-        if (json.data?.inviteUrl) {
-          setDevInviteUrl(json.data.inviteUrl);
-        } else {
-          setShowInviteModal(false);
-          setInviteEmail('');
-        }
-        fetchMembersAndInvites();
-      }
-    } catch {
-      toast.error('Network error dispatching invitation');
-    } finally {
-      setSendingInvite(false);
-    }
-  };
-
-  const handleRevokeInvite = async (inviteId: string) => {
-    // Instant optimistic removal (<1ms perceived latency)
-    setInvites(prev => prev.filter(inv => inv.id !== inviteId));
-    toast.success('Invitation revoked');
-    try {
-      const res = await fetch(`/api/team/invite?id=${encodeURIComponent(inviteId)}`, {
-        method: 'DELETE',
-      });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        toast.error(json.error || 'Failed to revoke invitation');
-      }
-    } catch {
-      toast.error('Network error revoking invitation');
-    }
-  };
 
   /* ─────────── 3.4 Notifications state & real logic ─────────── */
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(DEFAULT_NOTIF_PREFS);
@@ -1159,337 +1010,8 @@ export default function Settings() {
               </Row>
             </Panel>
             <p className="mt-3 text-[12px] text-[rgba(17,17,17,0.5)]">
-              Workspace details are set when the workspace is created. Manage people from{' '}
-              <button type="button" onClick={() => setSection('members')} className="font-medium text-[#2563EB] hover:underline cursor-pointer">
-                Members
-              </button>
-              .
+              Workspace details are set when the workspace is created. Invite and manage people from the Team page.
             </p>
-          </div>
-        )}
-
-        {/* ━━━━━━━━━━━━━━  MEMBERS  ━━━━━━━━━━━━━━ */}
-        {section === 'members' && (
-          <div className="max-w-4xl space-y-5">
-            <SectionHeader
-              title="Members"
-              description={
-                membersLoading && members.length === 0
-                  ? 'Loading members…'
-                  : `${members.length} ${members.length === 1 ? 'member' : 'members'} in ${teamName}${
-                      invites.length > 0 ? ` · ${invites.length} pending ${invites.length === 1 ? 'invitation' : 'invitations'}` : ''
-                    }`
-              }
-              action={
-                isPM ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowInviteModal(true);
-                      setDevInviteUrl(null);
-                    }}
-                    className="inline-flex items-center gap-1.5 h-9 px-3.5 bg-[#2563EB] text-white rounded-lg text-[13px] font-medium hover:bg-[#1D4ED8] transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Invite member
-                  </button>
-                ) : undefined
-              }
-            />
-
-            <Panel flush>
-              <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_11rem_5.5rem] gap-4 px-5 h-10 items-center border-b border-[#F0F0F0] bg-[#FAFAFA] text-[11.5px] font-medium text-[rgba(17,17,17,0.5)]">
-                <span>Member</span>
-                <span>Job title</span>
-                <span className="text-right">{isAdmin ? 'Actions' : ''}</span>
-              </div>
-              {membersLoading && members.length === 0 ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-3 px-5 py-3.5 border-t border-[#F3F4F6] first:border-t-0 animate-pulse">
-                    <div className="w-8 h-8 rounded-full bg-[#F3F4F6]" />
-                    <div className="space-y-1.5">
-                      <div className="h-3 w-28 rounded bg-[#F3F4F6]" />
-                      <div className="h-2.5 w-40 rounded bg-[#F3F4F6]" />
-                    </div>
-                  </div>
-                ))
-              ) : members.length === 0 ? (
-                <div className="text-center py-10 text-[13px] text-[rgba(17,17,17,0.45)]">No members yet</div>
-              ) : (
-                members.map(u => (
-                  <div
-                    key={u.id}
-                    className="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_11rem_5.5rem] gap-4 items-center px-5 py-3 border-t border-[#F3F4F6] first:border-t-0"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-[#2563EB] flex items-center justify-center text-[11px] font-semibold text-white shrink-0 overflow-hidden">
-                        {u.avatar?.startsWith('http') || u.avatar?.startsWith('/') ? (
-                          <img src={u.avatar} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                        ) : (
-                          (u.avatar && u.avatar.length <= 3 ? u.avatar : u.name?.slice(0, 2) || 'U').toUpperCase()
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span className="truncate text-[13.5px] font-medium text-[#111111]">{u.name}</span>
-                          {u.id === userId && (
-                            <span className="shrink-0 text-[11px] font-medium text-[rgba(17,17,17,0.45)]">(you)</span>
-                          )}
-                        </div>
-                        <div className="truncate text-[12px] text-[rgba(17,17,17,0.5)]">{u.email}</div>
-                        <div className="sm:hidden truncate text-[12px] text-[rgba(17,17,17,0.6)] mt-0.5">{roleLabel(u.role)}</div>
-                      </div>
-                    </div>
-                    <span className="hidden sm:block truncate text-[13px] text-[rgba(17,17,17,0.7)]" title={roleLabel(u.role)}>
-                      {roleLabel(u.role)}
-                    </span>
-                    <div className="flex justify-end">
-                      {isAdmin && (
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditMemberTitle(u)}
-                          className="h-8 px-2.5 rounded-md text-[12.5px] font-medium text-[rgba(17,17,17,0.7)] hover:text-[#111111] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
-                          aria-label={`Edit job title for ${u.name}`}
-                        >
-                          Edit
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </Panel>
-
-            {isPM && invites.length > 0 && (
-              <Panel title="Pending invitations" description="Invitations that haven't been accepted yet." flush>
-                <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_9rem_7rem_5.5rem] gap-4 px-5 h-10 items-center border-y border-[#F0F0F0] bg-[#FAFAFA] text-[11.5px] font-medium text-[rgba(17,17,17,0.5)]">
-                  <span>Email</span>
-                  <span>Role</span>
-                  <span>Expires</span>
-                  <span />
-                </div>
-                {invites.map(inv => (
-                  <div
-                    key={inv.id}
-                    className="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_9rem_7rem_5.5rem] gap-4 items-center px-5 py-3 border-t border-[#F3F4F6] first:border-t-0"
-                  >
-                    <div className="min-w-0">
-                      <div className="truncate text-[13.5px] font-medium text-[#111111]">{inv.email}</div>
-                      <div className="text-[12px] text-[rgba(17,17,17,0.5)]">
-                        Invited {new Date(inv.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        <span className="sm:hidden"> · {roleLabel(inv.role)}</span>
-                      </div>
-                    </div>
-                    <span className="hidden sm:block text-[13px] text-[rgba(17,17,17,0.7)]">{roleLabel(inv.role)}</span>
-                    <span className="hidden sm:block text-[13px] text-[rgba(17,17,17,0.6)]">
-                      {new Date(inv.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </span>
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => handleRevokeInvite(inv.id)}
-                        className="h-8 px-2.5 rounded-md text-[12.5px] font-medium text-[#DC2626] hover:bg-[#FEF2F2] transition-colors cursor-pointer"
-                      >
-                        Revoke
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </Panel>
-            )}
-
-            {/* Invite member dialog */}
-            {showInviteModal && (
-              <div
-                className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 animate-in fade-in duration-150"
-                onMouseDown={e => {
-                  if (e.target === e.currentTarget) {
-                    setShowInviteModal(false);
-                    setDevInviteUrl(null);
-                  }
-                }}
-              >
-                <div
-                  role="dialog"
-                  aria-modal="true"
-                  aria-labelledby="invite-member-title"
-                  className="w-full sm:max-w-md bg-white sm:rounded-2xl rounded-t-2xl border border-[#E5E7EB] shadow-xl overflow-y-auto max-h-[calc(100dvh-2rem)] overscroll-contain pb-safe"
-                >
-                  <div className="flex items-start justify-between gap-4 px-5 pt-5 pb-3">
-                    <div>
-                      <h3 id="invite-member-title" className="text-[15px] font-semibold text-[#111111]">Invite member</h3>
-                      <p className="mt-0.5 text-[12.5px] text-[rgba(17,17,17,0.55)]">Add someone to {teamName}.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowInviteModal(false);
-                        setDevInviteUrl(null);
-                      }}
-                      aria-label="Close"
-                      className="p-1.5 -mr-1.5 rounded-md text-[#9CA3AF] hover:text-[#111111] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {devInviteUrl ? (
-                    <div className="px-5 pb-5 space-y-4">
-                      <div>
-                        <FieldLabel>Invite link</FieldLabel>
-                        <p className="mb-2 text-[12.5px] text-[rgba(17,17,17,0.55)]">
-                          Email isn&apos;t set up in this environment, so share this link with {inviteEmail || 'them'} directly.
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            readOnly
-                            value={devInviteUrl}
-                            onFocus={e => e.currentTarget.select()}
-                            className="flex-1 min-w-0 h-9 px-3 border border-[#E5E7EB] rounded-lg bg-[#F9FAFB] text-[12.5px] font-mono text-[#111111]"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(devInviteUrl);
-                              setCopiedLink(true);
-                              setTimeout(() => setCopiedLink(false), 2000);
-                            }}
-                            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#E5E7EB] bg-white text-[13px] font-medium text-[#111111] hover:bg-[#F9FAFB] transition-colors cursor-pointer shrink-0"
-                          >
-                            {copiedLink ? <Check className="w-3.5 h-3.5 text-[#16A34A]" /> : <Copy className="w-3.5 h-3.5" />}
-                            {copiedLink ? 'Copied' : 'Copy'}
-                          </button>
-                        </div>
-                      </div>
-                      <div className="flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowInviteModal(false);
-                            setDevInviteUrl(null);
-                            setInviteEmail('');
-                          }}
-                          className="h-9 px-4 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[13px] font-medium transition-colors cursor-pointer"
-                        >
-                          Done
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <form onSubmit={handleSendInvite}>
-                      <div className="px-5 pb-5 space-y-4">
-                        <div>
-                          <FieldLabel htmlFor="invite-email">Email</FieldLabel>
-                          <input
-                            id="invite-email"
-                            type="email"
-                            required
-                            autoFocus
-                            placeholder="name@company.com"
-                            value={inviteEmail}
-                            onChange={e => setInviteEmail(e.target.value)}
-                            className="w-full h-9 px-3 border border-[#E5E7EB] rounded-lg bg-white text-[13.5px] text-[#111111] placeholder-[#9CA3AF] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-[border-color,box-shadow] duration-150 ease-out"
-                          />
-                        </div>
-
-                        <div>
-                          <FieldLabel>Role</FieldLabel>
-                          <div className="grid gap-2" role="radiogroup" aria-label="Role">
-                            {[
-                              { id: 'MEMBER', label: 'Member', desc: 'Works on tasks and collaborates.' },
-                              { id: 'PROJECT_MANAGER', label: 'Project Manager', desc: 'Creates and manages projects.' },
-                              { id: 'ADMIN', label: 'Admin', desc: 'Full access to the workspace.' },
-                            ].map(r => {
-                              const active = inviteRole === r.id;
-                              return (
-                                <button
-                                  key={r.id}
-                                  type="button"
-                                  role="radio"
-                                  aria-checked={active}
-                                  onClick={() => setInviteRole(r.id as 'ADMIN' | 'PROJECT_MANAGER' | 'MEMBER')}
-                                  className={`flex items-start gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors cursor-pointer ${
-                                    active ? 'border-[#2563EB] bg-[#EFF6FF]' : 'border-[#E5E7EB] bg-white hover:bg-[#F9FAFB]'
-                                  }`}
-                                >
-                                  <span
-                                    className={`mt-0.5 w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
-                                      active ? 'border-[#2563EB]' : 'border-[#D1D5DB]'
-                                    }`}
-                                    aria-hidden="true"
-                                  >
-                                    {active && <span className="w-2 h-2 rounded-full bg-[#2563EB]" />}
-                                  </span>
-                                  <span className="min-w-0">
-                                    <span className="block text-[13px] font-medium text-[#111111]">{r.label}</span>
-                                    <span className="block text-[12px] text-[rgba(17,17,17,0.55)]">{r.desc}</span>
-                                  </span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <label htmlFor="invite-password" className="text-[13px] font-medium text-[#111111]">
-                              Temporary password
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() => setInvitePassword(generateRandomPassword())}
-                              className="inline-flex items-center gap-1 text-[12.5px] font-medium text-[rgba(17,17,17,0.6)] hover:text-[#111111] transition-colors cursor-pointer"
-                            >
-                              <RefreshCw className="w-3 h-3" />
-                              Regenerate
-                            </button>
-                          </div>
-                          <div className="relative">
-                            <input
-                              id="invite-password"
-                              type={showInvitePassword ? 'text' : 'password'}
-                              required
-                              minLength={6}
-                              value={invitePassword}
-                              onChange={e => setInvitePassword(e.target.value)}
-                              className="w-full h-9 pl-3 pr-10 border border-[#E5E7EB] rounded-lg bg-white text-[13px] font-mono text-[#111111] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-[border-color,box-shadow] duration-150 ease-out"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowInvitePassword(!showInvitePassword)}
-                              aria-label={showInvitePassword ? 'Hide password' : 'Show password'}
-                              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-[rgba(17,17,17,0.4)] hover:text-[#111111] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
-                            >
-                              {showInvitePassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                            </button>
-                          </div>
-                          <p className="mt-1.5 text-[12px] text-[rgba(17,17,17,0.5)]">They can change it after signing in.</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[#F0F0F0] bg-[#FAFAFA]">
-                        <button
-                          type="button"
-                          onClick={() => setShowInviteModal(false)}
-                          className="h-9 px-3.5 rounded-lg border border-[#E5E7EB] bg-white text-[13px] font-medium text-[#111111] hover:bg-[#F9FAFB] transition-colors cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={sendingInvite || !inviteEmail.trim()}
-                          className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[13px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                        >
-                          {sendingInvite && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                          {sendingInvite ? 'Sending…' : 'Send invite'}
-                        </button>
-                      </div>
-                    </form>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -1575,102 +1097,6 @@ export default function Settings() {
 
         </div>
 
-        {/* Edit job title dialog (admins) */}
-        {isAdmin && editingTitleMember && (
-          <div
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 animate-in fade-in duration-150"
-            onMouseDown={e => {
-              if (e.target === e.currentTarget) setEditingTitleMember(null);
-            }}
-          >
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="edit-title-heading"
-              className="w-full sm:max-w-md bg-white sm:rounded-2xl rounded-t-2xl border border-[#E5E7EB] shadow-xl overflow-y-auto max-h-[calc(100dvh-2rem)] overscroll-contain pb-safe"
-            >
-              <div className="flex items-start justify-between gap-4 px-5 pt-5 pb-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-full bg-[#2563EB] flex items-center justify-center text-[12px] font-semibold text-white shrink-0 overflow-hidden">
-                    {editingTitleMember.avatar?.startsWith('http') || editingTitleMember.avatar?.startsWith('/') ? (
-                      <img src={editingTitleMember.avatar} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    ) : (
-                      (editingTitleMember.avatar && editingTitleMember.avatar.length <= 3 ? editingTitleMember.avatar : editingTitleMember.name?.slice(0, 2) || 'U').toUpperCase()
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <h3 id="edit-title-heading" className="text-[15px] font-semibold text-[#111111] truncate">
-                      Edit job title
-                    </h3>
-                    <p className="text-[12.5px] text-[rgba(17,17,17,0.55)] truncate">
-                      {editingTitleMember.name} · {editingTitleMember.email}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setEditingTitleMember(null)}
-                  aria-label="Close"
-                  className="p-1.5 -mr-1.5 rounded-md text-[#9CA3AF] hover:text-[#111111] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <form onSubmit={handleSaveMemberTitle}>
-                <div className="px-5 pb-5 space-y-3">
-                  <div>
-                    <FieldLabel htmlFor="member-title">Job title</FieldLabel>
-                    <TextInput
-                      id="member-title"
-                      value={memberJobTitleInput}
-                      onChange={setMemberJobTitleInput}
-                      placeholder="e.g. Product Designer"
-                    />
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-[12px] text-[rgba(17,17,17,0.5)] mr-0.5">Quick pick:</span>
-                    {['Admin', 'Project Manager', 'Member'].map(preset => {
-                      const active = memberJobTitleInput.toLowerCase() === preset.toLowerCase();
-                      return (
-                        <button
-                          key={preset}
-                          type="button"
-                          onClick={() => setMemberJobTitleInput(preset)}
-                          className={`h-7 px-2.5 rounded-full border text-[12px] font-medium transition-colors cursor-pointer ${
-                            active
-                              ? 'border-[#BFDBFE] bg-[#EFF6FF] text-[#1D4ED8]'
-                              : 'border-[#E5E7EB] bg-white text-[rgba(17,17,17,0.7)] hover:text-[#111111]'
-                          }`}
-                        >
-                          {preset}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[#F0F0F0] bg-[#FAFAFA]">
-                  <button
-                    type="button"
-                    onClick={() => setEditingTitleMember(null)}
-                    className="h-9 px-3.5 rounded-lg border border-[#E5E7EB] bg-white text-[13px] font-medium text-[#111111] hover:bg-[#F9FAFB] transition-colors cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={savingMemberTitle || !memberJobTitleInput.trim()}
-                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[13px] font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
-                  >
-                    {savingMemberTitle && <Loader2 size={13} className="animate-spin" />}
-                    {savingMemberTitle ? 'Saving…' : 'Save'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
