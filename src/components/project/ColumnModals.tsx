@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useId, useMemo, useState } from 'react';
-import { CalendarDays, Hash, SquareCheck, SquareChevronDown, Type, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import {
   COLUMN_TYPE_META,
   COLUMN_TYPE_ORDER,
@@ -9,13 +9,25 @@ import {
   type CustomColumnType,
 } from '@/lib/taskColumns';
 
-const TYPE_ICON: Record<CustomColumnType, { Icon: React.ComponentType<{ className?: string }>; bg: string; fg: string }> = {
-  text: { Icon: Type, bg: '#FEF3C7', fg: '#B45309' },
-  number: { Icon: Hash, bg: '#FFEDD5', fg: '#C2410C' },
-  date: { Icon: CalendarDays, bg: '#F3E8FF', fg: '#7E22CE' },
-  checkbox: { Icon: SquareCheck, bg: '#FFE4E6', fg: '#BE123C' },
-  dropdown: { Icon: SquareChevronDown, bg: '#DCFCE7', fg: '#15803D' },
+/**
+ * Column-type icons drawn in the sidebar's icon style (24px grid, 1.75 outline stroke, neutral until
+ * selected). Date reuses the sidebar Calendar icon and Checkbox the My Tasks icon.
+ */
+const TYPE_ICON_PATH: Record<CustomColumnType, string> = {
+  text: 'M4 7V5h16v2 M12 5v14 M9 19h6',
+  number: 'M4 9h16 M4 15h16 M10 3L8 21 M16 3l-2 18',
+  date: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z',
+  checkbox: 'M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11',
+  dropdown: 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M8 10l4 4 4-4',
 };
+
+function TypeIcon({ type }: { type: CustomColumnType }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={TYPE_ICON_PATH[type]} />
+    </svg>
+  );
+}
 
 export interface ColumnDraft {
   type: CustomColumnType;
@@ -170,7 +182,6 @@ export function ColumnModal({
           <p className="mb-2 text-[12px] font-medium text-[rgba(17,17,17,0.55)]">Column type</p>
           <div role="radiogroup" aria-label="Column type" className="grid grid-cols-2 gap-2">
             {COLUMN_TYPE_ORDER.map(t => {
-              const { Icon, bg, fg } = TYPE_ICON[t];
               const selected = type === t;
               return (
                 <button
@@ -183,17 +194,20 @@ export function ColumnModal({
                     // Double-click adds right away (dropdowns still need their options first)
                     if (t !== 'dropdown' && !busy) onSubmit({ type: t, title: autoTitleFor(t) });
                   }}
-                  className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-colors duration-100 ease-out cursor-pointer ${
+                  className={`group flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-colors duration-100 ease-out cursor-pointer ${
                     selected
                       ? 'border-[#2563EB] bg-[#EFF6FF] ring-1 ring-[#2563EB]'
                       : 'border-[#E5E7EB] bg-white hover:bg-[#F9FAFB]'
                   }`}
                 >
                   <span
-                    className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: bg, color: fg }}
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border transition-colors duration-100 ease-out ${
+                      selected
+                        ? 'bg-white border-[#BFDBFE] text-[#2563EB]'
+                        : 'bg-[#F9FAFB] border-[#F0F0F0] text-[rgba(17,17,17,0.5)] group-hover:text-[rgba(17,17,17,0.75)]'
+                    }`}
                   >
-                    <Icon className="w-4 h-4" />
+                    <TypeIcon type={t} />
                   </span>
                   <span className="min-w-0">
                     <span className="block text-[13px] font-medium text-[#111111]">{COLUMN_TYPE_META[t].label}</span>
