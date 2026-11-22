@@ -1021,9 +1021,6 @@ export default function Settings() {
                 ))}
               </div>
             </Panel>
-            <p className="-mt-2 text-[12px] text-[rgba(17,17,17,0.5)]">
-              Requests to join a project you manage always notify you, since they need your reply.
-            </p>
 
             <div className="flex items-center justify-between">
               <button
