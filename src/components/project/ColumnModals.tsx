@@ -112,23 +112,28 @@ export function ColumnModal({
   const isEdit = Boolean(column);
   const titleId = useId();
   const [type, setType] = useState<CustomColumnType>(column?.type ?? 'text');
-  const [title, setTitle] = useState(column?.title ?? COLUMN_TYPE_META.text.label);
-  const [touched, setTouched] = useState(isEdit);
+  const [title, setTitle] = useState(column?.title ?? '');
   const [options, setOptions] = useState<string[]>(column?.options ?? []);
   const [optionDraft, setOptionDraft] = useState('');
 
   const taken = useMemo(() => new Set(otherTitles.map(t => t.trim().toLowerCase())), [otherTitles]);
-  const trimmed = title.trim();
-  const duplicate = taken.has(trimmed.toLowerCase());
+
+  /** Add mode names the column after its type, numbered if that name is taken ("Text", "Text 2", …). */
+  const autoTitleFor = (t: CustomColumnType) => {
+    const base = COLUMN_TYPE_META[t].label;
+    if (!taken.has(base.toLowerCase())) return base;
+    let i = 2;
+    while (taken.has(`${base} ${i}`.toLowerCase())) i++;
+    return `${base} ${i}`;
+  };
+
+  const trimmed = isEdit ? title.trim() : autoTitleFor(type);
+  const duplicate = isEdit && taken.has(trimmed.toLowerCase());
   const needsOptions = type === 'dropdown';
   const optionsMissing = needsOptions && options.length === 0;
   const canSubmit = trimmed.length > 0 && !duplicate && !optionsMissing && !busy;
 
-  const pickType = (next: CustomColumnType) => {
-    setType(next);
-    // Keep the suggested name in sync until the user types their own
-    if (!touched) setTitle(COLUMN_TYPE_META[next].label);
-  };
+  const pickType = (next: CustomColumnType) => setType(next);
 
   const addOption = () => {
     const value = optionDraft.trim().slice(0, 40);
@@ -174,6 +179,10 @@ export function ColumnModal({
                   role="radio"
                   aria-checked={selected}
                   onClick={() => pickType(t)}
+                  onDoubleClick={() => {
+                    // Double-click adds right away (dropdowns still need their options first)
+                    if (t !== 'dropdown' && !busy) onSubmit({ type: t, title: autoTitleFor(t) });
+                  }}
                   className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-colors duration-100 ease-out cursor-pointer ${
                     selected
                       ? 'border-[#2563EB] bg-[#EFF6FF] ring-1 ring-[#2563EB]'
@@ -199,6 +208,8 @@ export function ColumnModal({
         </div>
       )}
 
+      {/* Renaming happens from Edit column; adding just picks a type */}
+      {isEdit && (
       <div>
         <label htmlFor={`${titleId}-name`} className="mb-1.5 block text-[12px] font-medium text-[rgba(17,17,17,0.55)]">
           Column name
@@ -209,10 +220,7 @@ export function ColumnModal({
           autoFocus
           maxLength={40}
           value={title}
-          onChange={e => {
-            setTitle(e.target.value);
-            setTouched(true);
-          }}
+          onChange={e => setTitle(e.target.value)}
           onKeyDown={e => {
             if (e.key === 'Enter') {
               e.preventDefault();
@@ -228,6 +236,7 @@ export function ColumnModal({
         />
         {duplicate && <p className="mt-1.5 text-[12px] text-[#DC2626]">A column with this name already exists.</p>}
       </div>
+      )}
 
       {needsOptions && (
         <div>
