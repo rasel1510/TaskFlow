@@ -17,6 +17,7 @@ import { ProjectEmailInviteSchema, validationError } from '@/lib/validators';
 import { sendProjectInviteEmail } from '@/lib/mail';
 import { getAppOrigin } from '@/lib/origin';
 import { ROLE_DESCRIPTIONS, type ProjectRole } from '@/lib/permissions';
+import { COMPANY_ROLES, toCompanyRole } from '@/lib/companyRoles';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -65,7 +66,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       id: inv.id,
       projectId: inv.projectId,
       email: inv.email,
-      role: inv.role as ProjectRole,
+      role: toCompanyRole(inv.role) as ProjectRole,
       status: inv.expiresAt < now ? 'expired' : inv.status,
       invitedByName: inv.invitedBy?.name || 'Project Manager',
       invitedByEmail: inv.invitedBy?.email || '',
@@ -78,7 +79,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       success: true,
       data: formatted.map(inv => ({
         ...inv,
-        roleConfig: ROLE_DESCRIPTIONS[inv.role] || ROLE_DESCRIPTIONS.CONTRIBUTOR,
+        roleConfig: ROLE_DESCRIPTIONS[toCompanyRole(inv.role)] || ROLE_DESCRIPTIONS.Member,
       })),
     });
   } catch (error) {
@@ -96,8 +97,11 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 const INVITE_EXPIRY_DAYS = 7;
 const RESEND_COOLDOWN_MS = 30_000;
 
-/** Roles an invitation can grant (project-level). Admin can only be granted by full project admins. */
-const INVITABLE_ROLES = new Set(['Member', 'Project Manager', 'Admin', 'CONTRIBUTOR', 'LEAD', 'VIEWER']);
+/**
+ * Roles an invitation can grant — the same three roles the company uses. The invitee joins the
+ * company with this role. Admin can only be granted by the project owner or a company Admin.
+ */
+const INVITABLE_ROLES = new Set<string>(COMPANY_ROLES);
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
@@ -133,7 +137,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
     }
     if (role === 'Admin' && !isProjectAdmin(access.value)) {
-      return forbidden('Only the project owner or an Admin can invite someone as a project Admin');
+      return forbidden('Only the project owner or a company Admin can invite someone as an Admin');
     }
     if (email === inviter.email) {
       return NextResponse.json(

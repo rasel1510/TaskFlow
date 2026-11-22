@@ -17,6 +17,7 @@
 
 import { z } from 'zod';
 import { NextResponse } from 'next/server';
+import { toCompanyRole } from '@/lib/companyRoles';
 
 // ---------------------------------------------------------------------------
 // Shared enum constants (mirrors Prisma schema enums exactly)
@@ -163,15 +164,13 @@ export type ProjectLifecycleTransitionInput = z.infer<
 // Project schemas
 // ---------------------------------------------------------------------------
 
-export const PROJECT_ROLES = [
-  'Admin',
-  'Project Manager',
-  'Member',
-  'OWNER',
-  'LEAD',
-  'CONTRIBUTOR',
-  'VIEWER',
-] as const;
+/**
+ * Project roles: exactly Admin, Project Manager, Member. Older spellings (OWNER, LEAD,
+ * CONTRIBUTOR, VIEWER) are still accepted from old clients but are stored as one of the three.
+ */
+export const PROJECT_ROLES = ['Admin', 'Project Manager', 'Member'] as const;
+const PROJECT_ROLE_INPUTS = [...PROJECT_ROLES, 'OWNER', 'LEAD', 'CONTRIBUTOR', 'VIEWER'] as const;
+const projectRole = z.enum(PROJECT_ROLE_INPUTS).transform(r => toCompanyRole(r));
 
 export const CreateProjectSchema = z.object({
   name: z
@@ -203,7 +202,7 @@ export const CreateProjectSchema = z.object({
     .array(
       z.object({
         userId: z.string().min(1, 'User ID is required'),
-        role: z.enum(PROJECT_ROLES).default('Member'),
+        role: projectRole.default('Member'),
       })
     )
     .optional(),
@@ -361,7 +360,7 @@ export type UpdateMilestoneInput = z.infer<typeof UpdateMilestoneSchema>;
 
 export const ProjectMemberInviteSchema = z.object({
   userId: z.string().min(1, 'User ID is required'),
-  role: z.enum(PROJECT_ROLES).default('Member'),
+  role: projectRole.default('Member'),
 });
 
 export const BatchProjectMemberInviteSchema = z.object({
@@ -369,19 +368,19 @@ export const BatchProjectMemberInviteSchema = z.object({
     .array(
       z.object({
         userId: z.string().min(1, 'User ID is required'),
-        role: z.enum(PROJECT_ROLES).default('Member'),
+        role: projectRole.default('Member'),
       })
     )
     .min(1, 'At least one member must be selected'),
 });
 
 export const ProjectMemberUpdateSchema = z.object({
-  role: z.enum(PROJECT_ROLES),
+  role: projectRole,
 });
 
 export const ProjectEmailInviteSchema = z.object({
   email: z.string().email('Please enter a valid email address').trim().toLowerCase(),
-  role: z.enum(PROJECT_ROLES).default('Member'),
+  role: projectRole.default('Member'),
 });
 
 export type ProjectMemberInviteInput = z.infer<typeof ProjectMemberInviteSchema>;

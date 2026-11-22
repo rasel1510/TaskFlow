@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { toCompanyRole } from '@/lib/companyRoles';
 
 
 
@@ -618,11 +619,9 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
-/** Human label for a project role ("CONTRIBUTOR" → "Contributor", "Project Manager" stays) */
+/** Human label for a project role — always Admin, Project Manager or Member */
 function formatProjectRole(role: string): string {
-  if (!role) return 'Member';
-  if (/[a-z]/.test(role)) return role;
-  return role.charAt(0) + role.slice(1).toLowerCase();
+  return toCompanyRole(role);
 }
 
 /**

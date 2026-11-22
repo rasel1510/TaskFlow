@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { recipientsWanting, wantsNotification } from '@/lib/notificationPrefs';
+import { joinCompany, toCompanyRole } from '@/lib/companyMembership';
 import { auth } from '@/auth';
 import { requireProjectAccess } from '@/lib/access';
 import redisCache from '@/lib/redis';
@@ -216,7 +217,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     const project = await prisma.project.findUnique({
       where: { id: projectId },
-      select: { id: true, name: true, ownerId: true },
+      select: { id: true, name: true, ownerId: true, teamId: true },
     });
 
     if (!project) {
@@ -277,7 +278,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       });
 
       // 2. Add to ProjectMember
-      const memberRole = role || 'Member';
+      // Roles are always Admin / Project Manager / Member; only the owner or a company Admin grants Admin
+      let memberRole = toCompanyRole(role || 'Member');
+      if (memberRole === 'Admin' && project.ownerId !== currentUserId && (currentUserRole || '').toLowerCase() !== 'admin') {
+        memberRole = 'Project Manager';
+      }
       await prisma.projectMember.upsert({
         where: { projectId_userId: { projectId, userId: targetUserId } },
         create: {
@@ -289,6 +294,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           role: memberRole,
         },
       });
+
+      // Approved people are part of the project's company, with this role
+      await joinCompany(targetUserId, project.teamId, memberRole).catch(() => 'skipped');
+      await redisCache.delPattern('team:members:*').catch(() => {});
 
       // 3. Notify applicant
       try {

@@ -348,14 +348,14 @@ export async function POST(request: NextRequest) {
 
       targetProjectId = targetProject.id;
 
-      // Automatically register same-company user as a CONTRIBUTOR if not already a member
+      // Automatically register same-company user as a Member if not already a member
       if (!isOwner && !isMember && sameTeam) {
         try {
           await prisma.projectMember.create({
             data: {
               projectId: targetProject.id,
               userId: dbUser.id,
-              role: 'CONTRIBUTOR',
+              role: 'Member',
             },
           });
         } catch {

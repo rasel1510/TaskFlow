@@ -30,15 +30,8 @@ interface TeamMember {
   expertise?: string[];
   createdAt: string;
   projects?: ProjectRef[];
-}
-
-interface Collaborator {
-  id: string;
-  name: string;
-  email: string;
-  avatar: string;
-  createdAt: string;
-  projects: ProjectRef[];
+  /** Belongs to another company's workspace; role shown is their project role here (read-only) */
+  managedElsewhere?: boolean;
 }
 
 interface TeamInvitation {
@@ -61,16 +54,14 @@ interface TeamData {
     pmCount: number;
     usersCount: number;
     pendingInvitesCount: number;
-    collaboratorsCount?: number;
   };
   members: TeamMember[];
-  collaborators?: Collaborator[];
   invitations: TeamInvitation[];
   currentUserRole: string;
   currentUserId: string;
 }
 
-type Filter = 'all' | 'admins' | 'managers' | 'members' | 'collaborators' | 'invites';
+type Filter = 'all' | 'admins' | 'managers' | 'members' | 'invites';
 
 /* ─────────────── helpers ─────────────── */
 
@@ -371,15 +362,9 @@ export default function TeamView() {
       if (filter === 'admins' && k !== 'admin') return false;
       if (filter === 'managers' && k !== 'manager') return false;
       if (filter === 'members' && k !== 'member') return false;
-      if (filter === 'collaborators' || filter === 'invites') return false;
+      if (filter === 'invites') return false;
       return matches(m.name, m.email);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, filter, q]);
-
-  const filteredCollaborators = useMemo(() => {
-    if (!data?.collaborators || (filter !== 'all' && filter !== 'collaborators')) return [];
-    return data.collaborators.filter(c => matches(c.name, c.email));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, filter, q]);
 
@@ -413,21 +398,19 @@ export default function TeamView() {
     );
   }
 
-  const collaboratorsCount = data.collaborators?.length ?? 0;
-  const peopleCount = data.members.length + collaboratorsCount;
-  const lastAdmin = data.stats.adminsCount <= 1;
+  const peopleCount = data.members.length;
+  const lastAdmin = data.members.filter(m => !m.managedElsewhere && roleKind(m.role) === 'admin').length <= 1;
 
   const filters: { id: Filter; label: string; count: number; show: boolean }[] = [
     { id: 'all', label: 'Everyone', count: peopleCount, show: true },
     { id: 'admins', label: 'Admins', count: data.stats.adminsCount, show: true },
     { id: 'managers', label: 'Project Managers', count: data.stats.pmCount, show: true },
     { id: 'members', label: 'Members', count: data.stats.usersCount, show: true },
-    { id: 'collaborators', label: 'Collaborators', count: collaboratorsCount, show: collaboratorsCount > 0 },
     { id: 'invites', label: 'Invitations', count: data.invitations.length, show: canInvite },
   ];
 
   const showPeopleTable = filter !== 'invites';
-  const emptyPeople = filteredMembers.length === 0 && filteredCollaborators.length === 0;
+  const emptyPeople = filteredMembers.length === 0;
 
   return (
     <div className="flex-1 h-full overflow-y-auto bg-[#FCFCFD]">
@@ -437,7 +420,7 @@ export default function TeamView() {
           <div className="min-w-0">
             <h1 className="text-[20px] font-semibold text-[#111111] tracking-tight">Team</h1>
             <p className="mt-1 text-[13px] text-[rgba(17,17,17,0.55)]">
-              Everyone at <span className="text-[#111111] font-medium">{data.team.name}</span> and everyone you share projects with.
+              Everyone at <span className="text-[#111111] font-medium">{data.team.name}</span> and the projects they work in.
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -522,7 +505,8 @@ export default function TeamView() {
                 {filteredMembers.map(member => {
                   const isSelf = member.id === data.currentUserId;
                   const k = roleKind(member.role);
-                  const roleLocked = isSelf && k === 'admin' && lastAdmin;
+                  const roleLocked = (isSelf && k === 'admin' && lastAdmin) || Boolean(member.managedElsewhere);
+                  const canRemove = isAdmin && !isSelf && !member.managedElsewhere;
                   return (
                     <div
                       key={member.id}
@@ -561,7 +545,13 @@ export default function TeamView() {
                         ) : (
                           <span
                             className="text-[13px] text-[rgba(17,17,17,0.8)]"
-                            title={roleLocked ? 'The only admin can’t change their own role' : undefined}
+                            title={
+                              member.managedElsewhere
+                                ? 'Their role in this company’s projects'
+                                : roleLocked
+                                  ? 'The only admin can’t change their own role'
+                                  : undefined
+                            }
                           >
                             {roleLabel(member.role)}
                           </span>
@@ -580,7 +570,7 @@ export default function TeamView() {
 
                       {/* Actions */}
                       <div className="hidden lg:flex justify-end">
-                        {isAdmin && !isSelf && (
+                        {canRemove && (
                           <button
                             type="button"
                             onClick={() => setMemberToRemove(member)}
@@ -590,7 +580,7 @@ export default function TeamView() {
                           </button>
                         )}
                       </div>
-                      {isAdmin && !isSelf && (
+                      {canRemove && (
                         <div className="lg:hidden col-span-2 pl-11 -mt-1">
                           <button
                             type="button"
@@ -605,37 +595,6 @@ export default function TeamView() {
                   );
                 })}
 
-                {filteredCollaborators.length > 0 && (
-                  <>
-                    <div className="px-5 pt-5 pb-2 border-t border-[#F3F4F6] first:border-t-0">
-                      <p className="text-[12px] font-medium text-[rgba(17,17,17,0.5)]">
-                        Collaborators · people outside {data.team.name} you share projects with
-                      </p>
-                    </div>
-                    {filteredCollaborators.map(c => (
-                      <div
-                        key={c.id}
-                        className="grid grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1.3fr)_9.5rem_minmax(0,1.3fr)_4.5rem] xl:grid-cols-[minmax(0,1.3fr)_9.5rem_minmax(0,1.3fr)_7rem_4.5rem] gap-x-4 gap-y-2 items-center px-5 py-3.5 border-t border-[#F3F4F6]"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <Avatar name={c.name} avatar={c.avatar} />
-                          <div className="min-w-0">
-                            <div className="truncate text-[13.5px] font-medium text-[#111111]">{c.name}</div>
-                            <div className="truncate text-[12.5px] text-[rgba(17,17,17,0.5)]">{c.email}</div>
-                          </div>
-                        </div>
-                        <span className="justify-self-end lg:justify-self-stretch text-[13px] text-[rgba(17,17,17,0.55)]">Collaborator</span>
-                        <div className="col-span-2 lg:col-span-1 min-w-0 pl-11 lg:pl-0">
-                          <ProjectList projects={c.projects} />
-                        </div>
-                        <span className="hidden xl:block text-[12.5px] text-[rgba(17,17,17,0.55)] whitespace-nowrap">
-                          {shortDate(c.createdAt)}
-                        </span>
-                        <span className="hidden lg:block" />
-                      </div>
-                    ))}
-                  </>
-                )}
               </>
             )}
           </section>

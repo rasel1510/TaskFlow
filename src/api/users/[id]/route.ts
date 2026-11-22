@@ -14,6 +14,7 @@ import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
 import { normalizeDesignation, isSuperAdmin } from '@/lib/permissions';
 import { UpdateProfileSchema, validationError } from '@/lib/validators';
+import { isCompanyRole, toCompanyRole } from '@/lib/companyRoles';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -197,7 +198,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const parsed = UpdateProfileSchema.safeParse(body);
     if (!parsed.success) return validationError(parsed.error);
 
-    // 2. Job Title (role) security: ONLY administrators can set or change Job Title
+    // 2. Role security: ONLY administrators can change a role (Admin / Project Manager / Member)
     const newRole = parsed.data.role;
     const isAttemptingRoleChange = newRole !== undefined && newRole !== null;
 
@@ -211,6 +212,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return NextResponse.json(
         { success: false, error: { code: 'FORBIDDEN', message: 'The Super Admin role cannot be assigned here' } },
         { status: 403 }
+      );
+    }
+    // Companies use exactly three roles: Admin, Project Manager, Member
+    if (isAttemptingRoleChange && typeof newRole === 'string' && !isCompanyRole(newRole) && normalizeDesignation(newRole) !== 'Super Admin') {
+      return NextResponse.json(
+        { success: false, error: { code: 'BAD_REQUEST', message: 'Role must be Admin, Project Manager or Member' } },
+        { status: 400 }
       );
     }
     if (isAttemptingRoleChange && typeof newRole === 'string') {
@@ -231,7 +239,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
               success: false,
               error: {
                 code: 'FORBIDDEN',
-                message: 'Only workspace administrators are authorized to change job titles.',
+                message: 'Only workspace administrators can change roles.',
               },
             },
             { status: 403 }
@@ -245,7 +253,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             select: { role: true, teamId: true },
           });
 
-          if (target?.role?.toLowerCase() === 'admin' && newRole.trim().toLowerCase() !== 'admin') {
+          if (target?.role?.toLowerCase() === 'admin' && toCompanyRole(newRole) !== 'Admin') {
             if (target.teamId) {
               const adminCount = await prisma.user.count({
                 where: {
@@ -270,7 +278,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
     // Strictly apply role update only if requester is an administrator!
     if (isRequesterAdmin && parsed.data.role !== undefined && parsed.data.role !== null) {
-      updateData.role = parsed.data.role.trim();
+      updateData.role =
+        normalizeDesignation(parsed.data.role) === 'Super Admin' ? 'Super Admin' : toCompanyRole(parsed.data.role);
     }
     if (parsed.data.avatar !== undefined && parsed.data.avatar !== null) updateData.avatar = parsed.data.avatar;
     if (parsed.data.expertise !== undefined) updateData.expertise = parsed.data.expertise;

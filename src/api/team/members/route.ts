@@ -3,12 +3,15 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
 import { getOrProvisionUserTeam } from '@/lib/tenant';
+import { toCompanyRole, type CompanyRole } from '@/lib/companyRoles';
 
 // ---------------------------------------------------------------------------
-// GET /api/team/members — Everyone you work with: your workspace members, plus collaborators —
-// people from outside the workspace who share a project with the company or with you (including
-// projects owned by another workspace that you were invited into) — with the projects each person
-// works in, and pending invitations.
+// GET /api/team/members — The whole company: everyone in the workspace plus anyone working in one
+// of the company's projects, each with one of the three roles (Admin, Project Manager, Member) and
+// the company projects they work in, and pending invitations.
+// People added to a company project normally join the workspace (src/lib/companyMembership.ts);
+// the rare person who still belongs to another active company is listed with their project role
+// and `managedElsewhere: true` (their workspace role can't be changed from here).
 // ---------------------------------------------------------------------------
 export async function GET() {
   try {
@@ -29,7 +32,6 @@ export async function GET() {
       );
     }
 
-    // Per user: the set of shared projects depends on which projects this user belongs to
     const cacheKey = `team:members:${teamContext.teamId}:${userId}`;
     const payload = await redisCache.wrap(cacheKey, 15, async () => {
       // Parallel DB queries — cuts Neon round-trip latency in half
@@ -71,46 +73,63 @@ export async function GET() {
           },
           orderBy: { createdAt: 'desc' },
         }),
-        // Who works in which project — the company's projects plus any project this user is in
-        // (one query; O(memberships) memory)
+        // Who works in which of the company's projects (one query; O(memberships) memory)
         prisma.projectMember.findMany({
-          where: {
-            project: {
-              OR: [{ teamId: teamContext.teamId }, { members: { some: { userId } } }],
-            },
-          },
-          select: { userId: true, project: { select: { id: true, name: true } } },
+          where: { project: { teamId: teamContext.teamId } },
+          select: { userId: true, role: true, project: { select: { id: true, name: true } } },
         }),
       ]);
 
-      // userId → projects (O(1) lookups while building the response)
+      // userId → company projects and highest project role (O(1) lookups while building the response)
+      const RANK: Record<CompanyRole, number> = { Member: 0, 'Project Manager': 1, Admin: 2 };
       const projectsByUser = new Map<string, { id: string; name: string }[]>();
+      const projectRoleByUser = new Map<string, CompanyRole>();
       for (const m of memberships) {
         const list = projectsByUser.get(m.userId);
         if (list) list.push(m.project);
         else projectsByUser.set(m.userId, [m.project]);
+        const role = toCompanyRole(m.role);
+        const prev = projectRoleByUser.get(m.userId);
+        if (!prev || RANK[role] > RANK[prev]) projectRoleByUser.set(m.userId, role);
       }
       for (const list of projectsByUser.values()) list.sort((a, b) => a.name.localeCompare(b.name));
 
-      // People from outside the workspace who share one of those projects
+      // Anyone in a company project who isn't in the workspace (they belong to another company)
       const memberIds = new Set(members.map(m => m.id));
-      const collaboratorIds = Array.from(projectsByUser.keys()).filter(id => !memberIds.has(id));
-      const collaborators = collaboratorIds.length
+      const elsewhereIds = Array.from(projectsByUser.keys()).filter(id => !memberIds.has(id));
+      const elsewhere = elsewhereIds.length
         ? await prisma.user.findMany({
-            where: { id: { in: collaboratorIds } },
-            select: { id: true, name: true, email: true, avatar: true, createdAt: true },
+            where: { id: { in: elsewhereIds } },
+            select: { id: true, name: true, email: true, avatar: true, expertise: true, createdAt: true },
             orderBy: { name: 'asc' },
           })
         : [];
 
+      const people = [
+        ...members.map(m => ({
+          ...m,
+          role: toCompanyRole(m.role) as string,
+          projects: projectsByUser.get(m.id) ?? [],
+          managedElsewhere: false,
+        })),
+        ...elsewhere.map(u => ({
+          ...u,
+          role: (projectRoleByUser.get(u.id) ?? 'Member') as string,
+          projects: projectsByUser.get(u.id) ?? [],
+          managedElsewhere: true,
+        })),
+      ];
+      // The platform owner account counts as an Admin of its own workspace
+      for (let i = 0; i < members.length; i++) {
+        if ((members[i].role || '').toLowerCase().replace(/_/g, ' ').trim() === 'super admin') people[i].role = 'Admin';
+      }
+
       let adminsCount = 0;
       let pmCount = 0;
       let usersCount = 0;
-
-      for (const m of members) {
-        const r = m.role?.toLowerCase() || '';
-        if (r === 'admin') adminsCount++;
-        else if (r === 'project manager' || r === 'project_manager') pmCount++;
+      for (const p of people) {
+        if (p.role === 'Admin') adminsCount++;
+        else if (p.role === 'Project Manager') pmCount++;
         else usersCount++;
       }
 
@@ -121,23 +140,13 @@ export async function GET() {
           slug: teamContext.teamSlug,
         },
         stats: {
-          totalMembers: members.length,
+          totalMembers: people.length,
           adminsCount,
           pmCount,
           usersCount,
           pendingInvitesCount: invitations.length,
-          collaboratorsCount: collaborators.length,
         },
-        members: members.map(m => {
-          const r = m.role?.toLowerCase() || '';
-          const role = r === 'admin'
-            ? 'Admin'
-            : (r === 'project manager' || r === 'project_manager')
-              ? 'Project Manager'
-              : 'Member';
-          return { ...m, role, projects: projectsByUser.get(m.id) ?? [] };
-        }),
-        collaborators: collaborators.map(c => ({ ...c, projects: projectsByUser.get(c.id) ?? [] })),
+        members: people,
         invitations,
       };
     });

@@ -3286,8 +3286,8 @@ export default function ProjectDetail({
           >
             <div className="flex items-center justify-between pb-4 border-b border-[#F3F4F6]">
               <div>
-                <h3 className="text-base font-bold text-[#111111]">Invite External Collaborator</h3>
-                <p className="text-xs text-gray-500 mt-0.5">Send an email invitation link to someone outside your organization.</p>
+                <h3 className="text-base font-bold text-[#111111]">Invite by email</h3>
+                <p className="text-xs text-gray-500 mt-0.5">They join this project and your company with the role you choose.</p>
               </div>
               <button
                 type="button"

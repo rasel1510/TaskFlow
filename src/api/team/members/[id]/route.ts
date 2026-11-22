@@ -6,6 +6,7 @@ import { auth } from '@/auth';
 import { normalizeDesignation, isSuperAdmin } from '@/lib/permissions';
 import { getOrProvisionUserTeam } from '@/lib/tenant';
 import { updateStoredUser } from '@/data/userStore';
+import { isCompanyRole, toCompanyRole } from '@/lib/companyRoles';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -14,8 +15,8 @@ interface RouteContext {
 const UpdateRoleSchema = z.object({
   role: z
     .string()
-    .min(1, 'Role / Job title cannot be empty')
-    .max(100, 'Role / Job title must be 100 characters or fewer')
+    .min(1, 'Role cannot be empty')
+    .max(100, 'Role must be 100 characters or fewer')
     .trim(),
 });
 
@@ -101,6 +102,15 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       );
     }
 
+    // Companies use exactly three roles: Admin, Project Manager, Member
+    if (!isCompanyRole(newRole) && normalizeDesignation(newRole) !== 'Super Admin') {
+      return NextResponse.json(
+        { success: false, error: { code: 'BAD_REQUEST', message: 'Role must be Admin, Project Manager or Member' } },
+        { status: 400 }
+      );
+    }
+    const storedRole = normalizeDesignation(newRole) === 'Super Admin' ? 'Super Admin' : toCompanyRole(newRole);
+
     // Ensure target member belongs to the same team
     const targetMember = await prisma.user.findFirst({
       where: {
@@ -117,7 +127,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     }
 
     // Safety check: Cannot demote the last admin
-    if (targetMember.role.toLowerCase() === 'admin' && newRole.toLowerCase() !== 'admin') {
+    if (targetMember.role.toLowerCase() === 'admin' && storedRole !== 'Admin') {
       const adminCount = await prisma.user.count({
         where: {
           teamId: teamContext.teamId,
@@ -136,7 +146,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     // Update in database
     const updated = await prisma.user.update({
       where: { id: targetMemberId },
-      data: { role: newRole },
+      data: { role: storedRole },
       select: {
         id: true,
         name: true,

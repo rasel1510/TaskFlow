@@ -18,6 +18,7 @@ import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import redisCache from '@/lib/redis';
 import { getSessionUser } from '@/lib/access';
+import { joinCompany, toCompanyRole } from '@/lib/companyMembership';
 import {
   effectiveInviteStatus,
   initialsFor,
@@ -80,7 +81,7 @@ export async function GET(req: NextRequest) {
           status,
           statusMessage: status === 'pending' ? null : inviteStatusMessage(status, inv.project.name),
           email: inv.email,
-          role: inv.role,
+          role: toCompanyRole(inv.role),
           projectId: inv.project.id,
           projectName: inv.project.name,
           projectColor: inv.project.color || '#2563EB',
@@ -222,8 +223,8 @@ async function acceptProjectInvite(
             name: newAccount.name,
             email: inviteEmail,
             password: newAccount.passwordHash,
-            // Workspace role is always Member — the project role lives on the membership only
-            role: 'Member',
+            // The invitee joins the company with the role the admin chose
+            role: toCompanyRole(inv.role),
             avatar: initialsFor(newAccount.name),
             teamId: inv.project.teamId,
             emailVerified: new Date(), // the invitation link proves the email address
@@ -236,7 +237,7 @@ async function acceptProjectInvite(
 
       await tx.projectMember.upsert({
         where: { projectId_userId: { projectId: inv.projectId, userId: uid! } },
-        create: { projectId: inv.projectId, userId: uid!, role: inv.role },
+        create: { projectId: inv.projectId, userId: uid!, role: toCompanyRole(inv.role) },
         update: {}, // already a member — keep their current role
       });
       return uid!;
@@ -248,6 +249,9 @@ async function acceptProjectInvite(
     throw err;
   }
 
+  // An existing account joins the project's company too, with the invited role
+  if (!newAccount) await joinCompany(userId, inv.project.teamId, inv.role).catch(() => 'skipped');
+
   if (!actorName) {
     const u = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
     actorName = u?.name || inviteEmail;
@@ -258,6 +262,7 @@ async function acceptProjectInvite(
     redisCache.delPattern('projects:*'),
     redisCache.delPattern('project:detail:*'),
     redisCache.del(`tenant:${userId}`),
+    redisCache.delPattern('team:members:*'),
   ]);
 
   return NextResponse.json({

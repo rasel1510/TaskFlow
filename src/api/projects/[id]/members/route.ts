@@ -2,7 +2,7 @@
  * src/api/projects/[id]/members/route.ts
  *
  * Project-Scoped RBAC & Team Management
- * Manages project member roles: OWNER > LEAD > CONTRIBUTOR > VIEWER
+ * Manages project member roles: Admin > Project Manager > Member
  *
  * GET    /api/projects/:id/members          — List all project members with roles
  * POST   /api/projects/:id/members          — Add/invite a user to the project with a role
@@ -15,6 +15,7 @@ import { auth } from '@/auth';
 import { requireProjectAccess } from '@/lib/access';
 import prisma from '@/lib/prisma';
 import { recipientsWanting, wantsNotification } from '@/lib/notificationPrefs';
+import { joinCompany, toCompanyRole } from '@/lib/companyMembership';
 import {
   ProjectMemberInviteSchema,
   BatchProjectMemberInviteSchema,
@@ -92,7 +93,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       const formatted: MemberRecord[] = (dbMembers || []).map((m) => ({
         userId: m.userId,
         projectId: m.projectId,
-        role: m.role as ProjectRole,
+        role: toCompanyRole(m.role) as ProjectRole,
         joinedAt: m.joinedAt.toISOString(),
         name: m.user?.name || 'Unknown',
         email: m.user?.email || '',
@@ -184,7 +185,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
             where: { projectId_userId: { projectId, userId: sessionUserId } },
             select: { role: true },
           });
-          isProjectLead = memberRecord?.role === 'OWNER' || memberRecord?.role === 'LEAD';
+          const projectRole = toCompanyRole(memberRecord?.role);
+          isProjectLead = projectRole === 'Admin' || projectRole === 'Project Manager';
         } catch (_) {}
       }
 
@@ -234,10 +236,22 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
     }
 
-    // Deduplicate member inputs by userId
+    // Deduplicate member inputs by userId; roles are always Admin / Project Manager / Member
     const uniqueInputs = new Map<string, ProjectRole>();
     for (const item of membersToAdd) {
-      uniqueInputs.set(item.userId.trim(), item.role);
+      uniqueInputs.set(item.userId.trim(), toCompanyRole(item.role));
+    }
+
+    // Only the project owner or a company Admin can make someone an Admin
+    if (Array.from(uniqueInputs.values()).includes('Admin')) {
+      const canGrantAdmin =
+        project.ownerId === sessionUserId || (sessionUserRole || '').toLowerCase() === 'admin';
+      if (!canGrantAdmin) {
+        return NextResponse.json(
+          { success: false, error: { code: 'FORBIDDEN', message: 'Only the project owner or a company Admin can add someone as an Admin.' } },
+          { status: 403 }
+        );
+      }
     }
 
     const requestedUserIds = Array.from(uniqueInputs.keys());
@@ -380,6 +394,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
           },
         });
 
+        // Anyone added to a company's project is part of that company, with this role
+        await joinCompany(targetUserId, projectTeamId, memberRole).catch(() => 'skipped');
+
         // Dispatch in-app notification to member (no email sending needed)
         try {
           if (await wantsNotification(targetUserId, 'project_activity'))
@@ -411,7 +428,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     // Invalidate Redis cache
     try {
-      await redisCache.delPattern('projects:*');
+      await Promise.all([redisCache.delPattern('projects:*'), redisCache.delPattern('team:members:*')]);
     } catch (_) {}
 
     if (addedMembers.length === 0) {
@@ -624,15 +641,10 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       );
     }
 
-    // Prevent OWNER removal
-    const existing = await prisma.projectMember.findUnique({
-      where: { projectId_userId: { projectId, userId: targetUserId } },
-      select: { role: true },
-    });
-
-    if (existing?.role === 'OWNER') {
+    // The project owner can't be removed
+    if (project?.ownerId && project.ownerId === targetUserId) {
       return NextResponse.json(
-        { success: false, error: { code: 'FORBIDDEN', message: 'Cannot remove the project OWNER. Transfer ownership first.' } },
+        { success: false, error: { code: 'FORBIDDEN', message: "The project owner can't be removed. Transfer ownership first." } },
         { status: 403 }
       );
     }
@@ -641,7 +653,10 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       where: { projectId, userId: targetUserId },
     });
 
-    await redisCache.delPattern('projects:*');
+    await Promise.all([
+      redisCache.delPattern('projects:*'),
+      redisCache.delPattern('team:members:*'),
+    ]).catch(() => {});
 
     return NextResponse.json(
       { success: true, data: { message: 'Member removed from project' } },

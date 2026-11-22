@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { recipientsWanting, wantsNotification } from '@/lib/notificationPrefs';
+import { toCompanyRole } from '@/lib/companyRoles';
 import { auth } from '@/auth';
 import { CreateProjectSchema, validationError } from '@/lib/validators';
 import redisCache from '@/lib/redis';
@@ -173,7 +174,7 @@ export async function GET(request: NextRequest) {
         const memberList = (p.members || []).map(m => ({
           id: m.id,
           userId: m.userId,
-          role: m.role,
+          role: toCompanyRole(m.role),
           joinedAt: m.joinedAt.toISOString(),
           user: m.user,
         }));
@@ -355,13 +356,13 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Automatically add the Project Manager as a ProjectMember with role 'OWNER'
+      // The creator owns the project and is its Admin
       try {
         await prisma.projectMember.create({
           data: {
             projectId: newProject.id,
             userId: validOwnerId,
-            role: 'OWNER',
+            role: 'Admin',
           },
         });
       } catch (memErr) {
@@ -370,10 +371,13 @@ export async function POST(request: NextRequest) {
 
       // Add selected initial team members — Optimized batch insertion O(1) roundtrip
       if (Array.isArray(initialMembers) && initialMembers.length > 0) {
+        // Roles are always Admin / Project Manager / Member; only a company Admin can grant Admin
+        const callerIsAdmin = (sessionUserRole || '').toLowerCase() === 'admin';
         const uniqueMembers = new Map<string, string>();
         for (const item of initialMembers) {
           if (item.userId && item.userId !== validOwnerId) {
-            uniqueMembers.set(item.userId, item.role || 'Member');
+            const role = toCompanyRole(item.role);
+            uniqueMembers.set(item.userId, role === 'Admin' && !callerIsAdmin ? 'Project Manager' : role);
           }
         }
 
@@ -442,7 +446,7 @@ export async function POST(request: NextRequest) {
         populatedMembers = dbMembers.map(m => ({
           id: m.id,
           userId: m.userId,
-          role: m.role,
+          role: toCompanyRole(m.role),
           joinedAt: m.joinedAt.toISOString(),
           user: m.user,
         }));

@@ -23,6 +23,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useToast } from '@/components/ui/Toast';
 import { Eye, EyeOff, Send, RefreshCw, Check, X, Lock } from 'lucide-react';
+import { toCompanyRole } from '@/lib/companyRoles';
 
 /* ─────────────── types ─────────────── */
 
@@ -319,14 +320,9 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: () =
   );
 }
 
+/** Admin, Project Manager or Member (the platform owner shows as Super Admin) */
 const roleLabel = (role?: string) =>
-  role === 'PROJECT_MANAGER' || role === 'Project Manager'
-    ? 'Project Manager'
-    : role === 'ADMIN'
-      ? 'Admin'
-      : role === 'MEMBER'
-        ? 'Member'
-        : role || 'Member';
+  (role || '').toLowerCase().replace(/_/g, ' ').trim() === 'super admin' ? 'Super Admin' : toCompanyRole(role);
 
 /* ════════════════════════════════════════
    MAIN COMPONENT
@@ -345,7 +341,6 @@ export default function Settings() {
 
   const [pName, setPName] = useState('');
   const [secName, setSecName] = useState('');
-  const [pRole, setPRole] = useState('');
   const [pAvatar, setPAvatar] = useState('');
   const [pExpertise, setPExpertise] = useState<string[]>([]);
   const [customSkill, setCustomSkill] = useState('');
@@ -355,10 +350,6 @@ export default function Settings() {
 
   // Derived user roles with database-first priority
   const effectiveUserRole = profile?.role || (session?.user as { role?: string })?.role || '';
-  const isAdmin =
-    effectiveUserRole === 'Admin' ||
-    effectiveUserRole === 'ADMIN' ||
-    effectiveUserRole.toLowerCase() === 'admin';
 
   // Close auto-suggest dropdown when clicking outside
   useEffect(() => {
@@ -397,7 +388,6 @@ export default function Settings() {
         setProfile(u);
         setPName(u.name);
         setSecName(u.name);
-        setPRole(u.role);
         setPAvatar(u.avatar);
         setPExpertise(Array.isArray(u.expertise) ? u.expertise : []);
       }
@@ -442,7 +432,6 @@ export default function Settings() {
     try {
       const payload: {
         name?: string;
-        role?: string;
         avatar?: string;
         expertise: string[];
       } = {
@@ -451,12 +440,6 @@ export default function Settings() {
 
       const trimmedName = pName.trim() || session?.user?.name || profile?.name;
       if (trimmedName) payload.name = trimmedName;
-
-      // Only administrators are permitted to update their Job Title / role
-      if (isAdmin) {
-        const trimmedRole = pRole.trim() || (session?.user as { role?: string })?.role || profile?.role;
-        if (trimmedRole) payload.role = trimmedRole;
-      }
 
       const trimmedAvatar = pAvatar.trim() || (session?.user as { avatar?: string })?.avatar || profile?.avatar;
       if (trimmedAvatar) payload.avatar = trimmedAvatar;
@@ -473,13 +456,9 @@ export default function Settings() {
           setPName(json.data.name);
           setSecName(json.data.name);
         }
-        if (isAdmin && json.data.role) {
-          setPRole(json.data.role);
-        }
         try {
           await updateSession?.({
             name: json.data.name,
-            ...(isAdmin && json.data.role ? { role: json.data.role } : {}),
             avatar: json.data.avatar,
           });
         } catch {
@@ -777,25 +756,14 @@ export default function Settings() {
                     <TextInput id="settings-email" value={profile?.email ?? session?.user?.email ?? ''} onChange={() => {}} type="email" disabled />
                   </Row>
                   <Row
-                    label="Job title"
-                    htmlFor="settings-title"
+                    label="Role"
                     hint={
-                      isAdmin ? (
-                        'Visible to everyone in your workspace.'
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5">
-                          <Lock size={11} className="shrink-0" /> Managed by your workspace admin.
-                        </span>
-                      )
+                      <span className="inline-flex items-center gap-1.5">
+                        <Lock size={11} className="shrink-0" /> Admins change roles on the Team page.
+                      </span>
                     }
                   >
-                    <TextInput
-                      id="settings-title"
-                      value={pRole}
-                      onChange={setPRole}
-                      placeholder={isAdmin ? 'e.g. Product Designer' : 'Not set'}
-                      disabled={!isAdmin}
-                    />
+                    <p className="md:pt-2 text-[13.5px] text-[#111111]">{roleLabel(effectiveUserRole)}</p>
                   </Row>
                 </Panel>
 
