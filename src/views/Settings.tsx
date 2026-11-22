@@ -4,10 +4,13 @@
  * src/views/Settings.tsx
  *
  * Fully live settings view:
- *   - 3.1 Profile: PATCH /api/users/:id  (name, role, avatar initials)
- *   - 3.2 Security: PATCH /api/users/:id/password  (bcrypt verify + update)
- *   - 3.3 Members: GET  /api/users  (real DB user list)
- *   - 3.4 Notifications: persisted in localStorage (typed prefs, instant UI)
+ *   - Profile:       PATCH /api/users/:id  (name, job title, avatar initials, skills)
+ *   - Security:      PATCH /api/users/:id/password  (bcrypt verify + update)
+ *   - General:       read-only workspace details (name, member count, your role)
+ *   - Members:       GET /api/users + /api/team/invite (members, pending invitations)
+ *   - Notifications: GET/PATCH /api/notifications/preferences (localStorage as instant cache)
+ *
+ * Layout: SectionHeader → Panel(s) → Row (label column + control) — one calm visual language.
  *
  * Patterns:
  *   - Optimistic UI with rollback on error
@@ -20,7 +23,7 @@ import { invalidateShared } from '@/lib/sharedFetch';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useToast } from '@/components/ui/Toast';
-import { Eye, EyeOff, Send, Shield, Briefcase, User, RefreshCw, Mail, Copy, Check, Trash2, X, Plus, Building2, Loader2, Lock } from 'lucide-react';
+import { Eye, EyeOff, Send, RefreshCw, Copy, Check, X, Plus, Loader2, Lock } from 'lucide-react';
 
 /* ─────────────── types ─────────────── */
 
@@ -185,9 +188,9 @@ function Spinner({ size = 14 }: { size?: number }) {
   );
 }
 
-function FieldLabel({ children }: { children: React.ReactNode }) {
+function FieldLabel({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {
   return (
-    <label className="block text-[12px] font-semibold text-[rgba(17,17,17,0.55)] mb-1.5 uppercase tracking-wide">
+    <label htmlFor={htmlFor} className="block text-[13px] font-medium text-[#111111] mb-1.5">
       {children}
     </label>
   );
@@ -199,12 +202,16 @@ function TextInput({
   type = 'text',
   placeholder = '',
   disabled = false,
+  id,
+  autoComplete,
 }: {
   value: string;
   onChange: (v: string) => void;
   type?: string;
   placeholder?: string;
   disabled?: boolean;
+  id?: string;
+  autoComplete?: string;
 }) {
   const [showPassword, setShowPassword] = useState(false);
   const isPassword = type === 'password';
@@ -212,14 +219,16 @@ function TextInput({
   return (
     <div className="relative">
       <input
+        id={id}
         type={isPassword ? (showPassword ? 'text' : 'password') : type}
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        className={`w-full ${isPassword ? 'pl-3.5 pr-10' : 'px-3.5'} py-2.5 border border-[#E5E7EB] rounded-lg text-[13.5px] text-[#111111]
-                   outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all
-                   disabled:bg-[#F9FAFB] disabled:cursor-not-allowed`}
+        autoComplete={autoComplete}
+        className={`w-full h-9 ${isPassword ? 'pl-3 pr-10' : 'px-3'} border border-[#E5E7EB] rounded-lg bg-white text-[13.5px] text-[#111111] placeholder-[#9CA3AF]
+                   outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-[border-color,box-shadow] duration-150 ease-out
+                   disabled:bg-[#F9FAFB] disabled:text-[rgba(17,17,17,0.55)] disabled:cursor-not-allowed`}
       />
       {isPassword && (
         <button
@@ -228,28 +237,126 @@ function TextInput({
           onClick={() => setShowPassword(!showPassword)}
           aria-label={showPassword ? 'Hide password' : 'Show password'}
           title={showPassword ? 'Hide password' : 'Show password'}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[rgba(17,17,17,0.4)] hover:text-[#111111] transition-colors p-1 rounded-md hover:bg-[#F3F4F6] cursor-pointer"
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[rgba(17,17,17,0.4)] hover:text-[#111111] transition-colors p-1.5 rounded-md hover:bg-[#F3F4F6] cursor-pointer"
         >
-          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
         </button>
       )}
     </div>
   );
 }
 
-function SaveButton({ loading, onClick, label = 'Save Changes' }: { loading: boolean; onClick: () => void; label?: string }) {
+function SaveButton({ loading, onClick, label = 'Save changes' }: { loading: boolean; onClick: () => void; label?: string }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={loading}
-      className="flex items-center gap-2 px-5 py-2 bg-[#2563EB] text-white rounded-lg text-[13.5px]
-                 font-semibold hover:bg-[#1D4ED8] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+      className="inline-flex items-center justify-center gap-2 h-9 px-4 bg-[#2563EB] text-white rounded-lg text-[13px]
+                 font-medium hover:bg-[#1D4ED8] transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
     >
       {loading && <Spinner size={13} />}
       {label}
     </button>
   );
 }
+
+/** Page heading for a settings section */
+function SectionHeader({ title, description, action }: { title: string; description?: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
+      <div className="min-w-0">
+        <h2 className="text-[18px] font-semibold text-[#111111] tracking-tight">{title}</h2>
+        {description && <p className="mt-1 text-[13px] text-[rgba(17,17,17,0.55)]">{description}</p>}
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
+    </div>
+  );
+}
+
+/** Bordered settings card with an optional heading and action footer */
+function Panel({
+  title,
+  description,
+  aside,
+  footer,
+  children,
+  flush = false,
+}: {
+  title?: string;
+  description?: string;
+  aside?: React.ReactNode;
+  footer?: React.ReactNode;
+  children: React.ReactNode;
+  /** No inner padding (tables) */
+  flush?: boolean;
+}) {
+  return (
+    <section className="rounded-xl border border-[#E5E7EB] bg-white overflow-hidden">
+      {(title || aside) && (
+        <div className="flex items-start justify-between gap-4 px-5 pt-4 pb-3">
+          <div className="min-w-0">
+            {title && <h3 className="text-[14px] font-semibold text-[#111111]">{title}</h3>}
+            {description && <p className="mt-0.5 text-[12.5px] text-[rgba(17,17,17,0.55)]">{description}</p>}
+          </div>
+          {aside && <div className="shrink-0">{aside}</div>}
+        </div>
+      )}
+      <div className={flush ? '' : `px-5 ${title || aside ? 'pb-5' : 'py-5'}`}>{children}</div>
+      {footer && (
+        <div className="flex items-center justify-end gap-3 px-5 py-3 border-t border-[#F0F0F0] bg-[#FAFAFA]">{footer}</div>
+      )}
+    </section>
+  );
+}
+
+/** Label column + control column; stacks on phones */
+function Row({ label, hint, htmlFor, children }: { label: string; hint?: React.ReactNode; htmlFor?: string; children: React.ReactNode }) {
+  return (
+    <div className="grid gap-2 md:grid-cols-[200px_minmax(0,1fr)] md:gap-6 py-4 first:pt-0 last:pb-0 border-t border-[#F3F4F6] first:border-t-0">
+      <div className="md:pt-2">
+        <label htmlFor={htmlFor} className="block text-[13px] font-medium text-[#111111]">
+          {label}
+        </label>
+      </div>
+      <div className="min-w-0">
+        {children}
+        {hint && <p className="mt-1.5 text-[12px] text-[rgba(17,17,17,0.5)]">{hint}</p>}
+      </div>
+    </div>
+  );
+}
+
+/** Accessible on/off switch */
+function Toggle({ checked, onChange, label }: { checked: boolean; onChange: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={onChange}
+      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#93C5FD] ${
+        checked ? 'bg-[#2563EB]' : 'bg-[#E5E7EB]'
+      }`}
+    >
+      <span
+        className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-150 ease-out ${
+          checked ? 'translate-x-4' : 'translate-x-0'
+        }`}
+      />
+    </button>
+  );
+}
+
+const roleLabel = (role?: string) =>
+  role === 'PROJECT_MANAGER' || role === 'Project Manager'
+    ? 'Project Manager'
+    : role === 'ADMIN'
+      ? 'Admin'
+      : role === 'MEMBER'
+        ? 'Member'
+        : role || 'Member';
 
 /* ════════════════════════════════════════
    MAIN COMPONENT
@@ -268,7 +375,6 @@ export default function Settings() {
 
   const [pName, setPName] = useState('');
   const [secName, setSecName] = useState('');
-  const [secNameLoading, setSecNameLoading] = useState(false);
   const [pRole, setPRole] = useState('');
   const [pAvatar, setPAvatar] = useState('');
   const [pExpertise, setPExpertise] = useState<string[]>([]);
@@ -364,7 +470,7 @@ export default function Settings() {
   const handleSaveProfile = async () => {
     if (!userId) return;
     if (pExpertise.length === 0) {
-      toast.error('Please configure at least one domain in your Expertise Matrix');
+      toast.error('Choose at least one skill');
       return;
     }
     setProfileLoading(true);
@@ -416,7 +522,7 @@ export default function Settings() {
         }
         invalidateShared('/api/users/');
         window.dispatchEvent(new CustomEvent('user-profile-updated', { detail: json.data }));
-        toast.success('Profile and Expertise Matrix updated successfully');
+        toast.success('Profile saved');
       } else {
         const detailMsg = json.error?.details
           ? Object.entries(json.error.details)
@@ -429,45 +535,6 @@ export default function Settings() {
       toast.error('Network error — please try again');
     } finally {
       setProfileLoading(false);
-    }
-  };
-
-  const handleUpdateName = async () => {
-    const targetName = (secName || pName).trim();
-    if (!targetName) {
-      toast.error('Please enter a valid name');
-      return;
-    }
-    if (!userId) return;
-    setSecNameLoading(true);
-    try {
-      const res = await fetch(`/api/users/${userId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: targetName }),
-      });
-      const json = await res.json();
-      if (res.ok && json.success) {
-        setProfile(json.data);
-        setPName(json.data.name);
-        setSecName(json.data.name);
-        try {
-          await updateSession?.({
-            name: json.data.name,
-          });
-        } catch {
-          // ignore session update errors
-        }
-        invalidateShared('/api/users/');
-        window.dispatchEvent(new CustomEvent('user-profile-updated', { detail: json.data }));
-        toast.success('Your name has been updated successfully');
-      } else {
-        toast.error(json.error?.message ?? 'Failed to update name');
-      }
-    } catch {
-      toast.error('Network error — please try again');
-    } finally {
-      setSecNameLoading(false);
     }
   };
 
@@ -634,7 +701,7 @@ export default function Settings() {
   }, []);
 
   useEffect(() => {
-    if (section !== 'members') return;
+    if (section !== 'members' && section !== 'workspace') return;
     const ctrl = new AbortController();
     fetchMembersAndInvites(ctrl.signal);
     return () => ctrl.abort();
@@ -807,773 +874,618 @@ export default function Settings() {
   return (
     <div className="flex-1 flex flex-col md:flex-row overflow-hidden bg-white">
 
-      {/* ── Mobile Category Tabs ── */}
-      <div className="md:hidden flex items-center gap-1 px-3 py-2 border-b border-[#E5E7EB] bg-[#FAFAFB] overflow-x-auto no-scrollbar shrink-0">
+      {/* ── Mobile section tabs ── */}
+      <div className="md:hidden flex items-center gap-1 px-3 py-2 border-b border-[#E5E7EB] bg-white overflow-x-auto no-scrollbar shrink-0">
         {navItems.map(item => (
           <button
             key={item.id}
             onClick={() => setSection(item.id)}
-            className={`px-3 py-1.5 rounded-lg text-[12.5px] font-medium whitespace-nowrap transition-colors shrink-0 flex items-center gap-1.5 ${section === item.id
-              ? 'bg-white text-[#2563EB] shadow-2xs font-semibold'
-              : 'text-[rgba(17,17,17,0.55)] hover:text-[#111111]'
-              }`}
+            aria-current={section === item.id ? 'page' : undefined}
+            className={`relative px-3 py-1.5 rounded-lg text-[13px] font-medium whitespace-nowrap transition-colors shrink-0 ${
+              section === item.id ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[rgba(17,17,17,0.6)] hover:text-[#111111]'
+            }`}
           >
-            <span>{item.label}</span>
+            {item.label}
             {item.id === 'profile' && isExpertiseUnset && (
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" title="Expertise matrix required" />
+              <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#DC2626]" aria-label="Action needed" />
             )}
           </button>
         ))}
       </div>
 
-      {/* ── Desktop Settings nav ── */}
-      <div className="hidden md:block w-52 border-r border-[#E5E7EB] overflow-y-auto shrink-0 py-4 px-2">
+      {/* ── Desktop section nav ── */}
+      <nav className="hidden md:block w-52 border-r border-[#E5E7EB] overflow-y-auto shrink-0 py-5 px-3" aria-label="Settings">
         {groups.map(group => {
           const items = navItems.filter(i => i.group === group);
           return (
-            <div key={group} className="mb-4">
-              <div className="px-3 py-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-[rgba(17,17,17,0.35)]">
-                {group}
-              </div>
+            <div key={group} className="mb-5">
+              <div className="px-2.5 pb-1.5 text-[11px] font-medium text-[rgba(17,17,17,0.4)]">{group}</div>
               {items.map(item => (
                 <button
                   key={item.id}
                   onClick={() => setSection(item.id)}
-                  className={`w-full flex items-center justify-between text-left px-3 py-2 rounded-lg text-[13px] font-medium mb-0.5 transition-colors ${section === item.id
-                    ? 'bg-[#EFF6FF] text-[#2563EB]'
-                    : 'text-[rgba(17,17,17,0.65)] hover:bg-[#F3F4F6] hover:text-[#111111]'
-                    }`}
+                  aria-current={section === item.id ? 'page' : undefined}
+                  className={`w-full flex items-center justify-between text-left px-2.5 py-1.5 rounded-md text-[13px] font-medium mb-0.5 transition-colors ${
+                    section === item.id
+                      ? 'bg-[#F3F4F6] text-[#111111]'
+                      : 'text-[rgba(17,17,17,0.6)] hover:bg-[#F9FAFB] hover:text-[#111111]'
+                  }`}
                 >
                   <span>{item.label}</span>
                   {item.id === 'profile' && isExpertiseUnset && (
-                    <span
-                      title="Expertise matrix required"
-                      className="flex items-center gap-1 text-[10.5px] font-semibold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full"
-                    >
-                      Required
-                    </span>
+                    <span className="text-[11px] font-medium text-[#DC2626]">Required</span>
                   )}
                 </button>
               ))}
             </div>
           );
         })}
-      </div>
+      </nav>
 
-      {/* ── Content panel ── */}
-      <div className="flex-1 overflow-y-auto px-4 sm:px-6 md:px-8 py-5 md:py-6">
+      {/* ── Content ── */}
+      <div className="flex-1 overflow-y-auto bg-[#FCFCFD]">
+        {/* Extra bottom space so the floating FlowAi button never covers the last action */}
+        <div className="px-4 sm:px-6 md:px-10 pt-6 md:pt-8 pb-24">
 
-        {/* ━━━━━━━━━━━━━━━━━━━━━━━━
-            3.1  PROFILE
-        ━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        {/* ━━━━━━━━━━━━━━  PROFILE  ━━━━━━━━━━━━━━ */}
         {section === 'profile' && (
-          <div className="max-w-xl">
-            <h2 className="text-[20px] font-bold text-[#111111] mb-6">Profile</h2>
+          <div className="max-w-3xl">
+            <SectionHeader title="Profile" description="How you appear to your teammates across FlowSync." />
 
-            {profileFetching ? (
-              <div className="flex items-center gap-2 text-[13px] text-[rgba(17,17,17,0.4)] py-6">
+            {profileFetching && !profile ? (
+              <div className="flex items-center gap-2 text-[13px] text-[rgba(17,17,17,0.45)] py-6">
                 <Spinner size={14} /> Loading profile…
               </div>
             ) : (
-              <>
-                {/* Avatar row */}
-                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-[#F3F4F6]">
-                  <div className="w-16 h-16 rounded-full bg-[#2563EB] flex items-center justify-center text-[22px] font-bold text-white select-none">
-                    {pAvatar || pName?.slice(0, 2)?.toUpperCase() || '?'}
-                  </div>
-                  <div>
-                    <p className="text-[12px] text-[rgba(17,17,17,0.45)] mb-2">
-                      Change your initials — they appear on your avatar across the app.
-                    </p>
-                    <div className="flex items-center gap-2">
+              <div className="space-y-5">
+                <Panel title="Personal information">
+                  <Row label="Avatar" htmlFor="settings-initials" hint="Shown when you have no profile photo. Up to 2 letters.">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-[#2563EB] flex items-center justify-center text-[14px] font-semibold text-white select-none shrink-0">
+                        {pAvatar || pName?.slice(0, 2)?.toUpperCase() || '?'}
+                      </div>
                       <input
+                        id="settings-initials"
                         type="text"
                         maxLength={2}
                         value={pAvatar}
                         onChange={e => setPAvatar(e.target.value.toUpperCase())}
                         placeholder="AB"
-                        className="w-16 px-2.5 py-1.5 border border-[#E5E7EB] rounded-lg text-[13px] text-center font-bold
-                                   text-[#111111] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all uppercase"
+                        className="w-20 h-9 px-3 border border-[#E5E7EB] rounded-lg bg-white text-[13.5px] text-center font-medium uppercase text-[#111111] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-[border-color,box-shadow] duration-150 ease-out"
                       />
-                      <span className="text-[12px] text-[rgba(17,17,17,0.4)]">max 2 chars</span>
                     </div>
-                  </div>
-                </div>
-
-                {/* Fields */}
-                <div className="space-y-4">
-                  <div>
-                    <FieldLabel>Full Name</FieldLabel>
-                    <TextInput value={pName} onChange={setPName} placeholder="Your full name" />
-                  </div>
-                  <div>
-                    <FieldLabel>Work Email</FieldLabel>
-                    <TextInput
-                      value={profile?.email ?? session?.user?.email ?? ''}
-                      onChange={() => { }}
-                      type="email"
-                      disabled
-                    />
-                    <p className="text-[11px] text-[rgba(17,17,17,0.35)] mt-1">
-                      Email cannot be changed from here.
-                    </p>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <FieldLabel>Job Title</FieldLabel>
-                      {!isAdmin && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                          <Lock size={11} className="text-amber-600" />
-                          <span>Admin managed</span>
+                  </Row>
+                  <Row label="Full name" htmlFor="settings-name">
+                    <TextInput id="settings-name" value={pName} onChange={setPName} placeholder="Your full name" autoComplete="name" />
+                  </Row>
+                  <Row label="Email" htmlFor="settings-email" hint="Your sign-in email can't be changed here.">
+                    <TextInput id="settings-email" value={profile?.email ?? session?.user?.email ?? ''} onChange={() => {}} type="email" disabled />
+                  </Row>
+                  <Row
+                    label="Job title"
+                    htmlFor="settings-title"
+                    hint={
+                      isAdmin ? (
+                        'Visible to everyone in your workspace.'
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5">
+                          <Lock size={11} className="shrink-0" /> Managed by your workspace admin.
                         </span>
-                      )}
-                    </div>
+                      )
+                    }
+                  >
                     <TextInput
+                      id="settings-title"
                       value={pRole}
                       onChange={setPRole}
-                      placeholder={isAdmin ? "e.g. Admin, Project Manager, or Member" : "No designation set"}
+                      placeholder={isAdmin ? 'e.g. Product Designer' : 'Not set'}
                       disabled={!isAdmin}
                     />
-                    {!isAdmin ? (
-                      <p className="text-[11px] text-[rgba(17,17,17,0.45)] mt-1.5 flex items-center gap-1.5">
-                        <Lock size={12} className="text-gray-400 shrink-0" />
-                        Only workspace administrators can change the designation of project managers and members.
-                      </p>
-                    ) : (
-                      <p className="text-[11px] text-[rgba(17,17,17,0.35)] mt-1.5">
-                        As an administrator, you have permission to change your job title and workspace roles.
-                      </p>
-                    )}
-                  </div>
+                  </Row>
+                </Panel>
 
-                  {/* Expertise Matrix */}
-                  <div className="pt-5 border-t border-[#F3F4F6] space-y-3.5">
-                    {/* Header with Title and Live Counter Badge */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-[12px] font-bold uppercase tracking-wider text-gray-500">
-                          Expertise Matrix
-                        </span>
-                        {pExpertise.length === 0 ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-red-50 text-red-600 border border-red-200">
-                            Required
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]">
-                            {pExpertise.length} Selected
-                          </span>
-                        )}
-                      </div>
-
-                      {pExpertise.length > 0 && (
+                <Panel
+                  title="Skills"
+                  description="Used to match you with the right tasks. Choose at least one."
+                  aside={
+                    pExpertise.length > 0 ? (
+                      <div className="flex items-center gap-3 text-[12.5px]">
+                        <span className="text-[rgba(17,17,17,0.5)]">{pExpertise.length} selected</span>
                         <button
                           type="button"
                           onClick={() => setPExpertise([])}
-                          className="text-[11.5px] font-medium text-gray-400 hover:text-red-600 transition-colors self-start sm:self-auto cursor-pointer"
+                          className="font-medium text-[rgba(17,17,17,0.6)] hover:text-[#111111] transition-colors cursor-pointer"
                         >
-                          Clear all
+                          Clear
                         </button>
-                      )}
-                    </div>
-
-                    {/* Prominent warning callout if unset */}
-                    {pExpertise.length === 0 && (
-                      <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-[12.5px]">
-                        <span>
-                          <strong className="font-semibold text-red-900">Expertise matrix is required:</strong> Please select at least one domain below.
-                        </span>
                       </div>
-                    )}
-
-                    {/* Presets Grid - Simple & Professional Selectable Cards */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                      {DEFAULT_EXPERTISE_OPTIONS.map(opt => {
-                        const isSelected = pExpertise.includes(opt.id);
-                        return (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            onClick={() => toggleExpertise(opt.id)}
-                            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl border text-left transition-all duration-150 cursor-pointer select-none ${isSelected
-                              ? 'border-[#2563EB] bg-white ring-1 ring-[#2563EB] shadow-2xs'
-                              : 'border-[#E5E7EB] bg-white hover:border-gray-300 hover:bg-[#F9FAFB]'
-                              }`}
-                          >
-                            <div
-                              className={`w-4.5 h-4.5 rounded-[4px] border flex items-center justify-center shrink-0 transition-colors ${isSelected
-                                ? 'bg-[#2563EB] border-[#2563EB] text-white'
-                                : 'border-gray-300 bg-white'
-                                }`}
-                            >
-                              {isSelected && (
-                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                  <polyline points="20 6 9 17 4 12" />
-                                </svg>
-                              )}
-                            </div>
-                            <span className="text-[13.5px] font-semibold text-gray-900 truncate">
-                              {opt.label}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Custom Domain Input with Auto-Suggest for Non-Mentioned Expertise */}
-                    <div className="relative" ref={suggestionsRef}>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={customSkill}
-                          onChange={e => {
-                            setCustomSkill(e.target.value);
-                            setShowSuggestions(true);
-                            setActiveSuggestionIndex(-1);
-                          }}
-                          onFocus={() => {
-                            if (customSkill.trim()) setShowSuggestions(true);
-                          }}
-                          onKeyDown={e => {
-                            if (e.key === 'ArrowDown' && showSuggestions && matchingSuggestions.length > 0) {
-                              e.preventDefault();
-                              setActiveSuggestionIndex(prev => (prev + 1) % matchingSuggestions.length);
-                            } else if (e.key === 'ArrowUp' && showSuggestions && matchingSuggestions.length > 0) {
-                              e.preventDefault();
-                              setActiveSuggestionIndex(prev => (prev <= 0 ? matchingSuggestions.length - 1 : prev - 1));
-                            } else if (e.key === 'Enter') {
-                              e.preventDefault();
-                              if (showSuggestions && activeSuggestionIndex >= 0 && matchingSuggestions[activeSuggestionIndex]) {
-                                addCustomExpertise(matchingSuggestions[activeSuggestionIndex]);
-                              } else {
-                                addCustomExpertise();
-                              }
-                            } else if (e.key === 'Escape') {
-                              setShowSuggestions(false);
-                            }
-                          }}
-                          placeholder="Add other (type any word to see suggestions, e.g. DevOps, Mobile, QA)..."
-                          className="flex-1 text-[13px] px-3.5 py-2 border border-[#E5E7EB] rounded-lg outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] bg-white placeholder-gray-400 text-gray-800 transition-all"
-                        />
+                    ) : undefined
+                  }
+                >
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="Skills">
+                    {[
+                      ...DEFAULT_EXPERTISE_OPTIONS.map(o => o.id),
+                      ...pExpertise.filter(item => !DEFAULT_EXPERTISE_OPTIONS.some(o => o.id === item)),
+                    ].map(skill => {
+                      const isSelected = pExpertise.includes(skill);
+                      const isCustom = !DEFAULT_EXPERTISE_OPTIONS.some(o => o.id === skill);
+                      return (
                         <button
+                          key={skill}
                           type="button"
-                          onClick={() => {
+                          aria-pressed={isSelected}
+                          onClick={() => toggleExpertise(skill)}
+                          className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full border text-[13px] font-medium transition-colors duration-100 ease-out cursor-pointer select-none ${
+                            isSelected
+                              ? 'border-[#BFDBFE] bg-[#EFF6FF] text-[#1D4ED8]'
+                              : 'border-[#E5E7EB] bg-white text-[rgba(17,17,17,0.7)] hover:border-[#D1D5DB] hover:text-[#111111]'
+                          }`}
+                        >
+                          {isSelected && !isCustom && <Check size={13} className="shrink-0" />}
+                          <span>{skill}</span>
+                          {isCustom && <X size={13} className="shrink-0 opacity-60" aria-label={`Remove ${skill}`} />}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Add a skill that isn't listed (with suggestions) */}
+                  <div className="relative mt-4 max-w-md" ref={suggestionsRef}>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={customSkill}
+                        aria-label="Add a skill"
+                        onChange={e => {
+                          setCustomSkill(e.target.value);
+                          setShowSuggestions(true);
+                          setActiveSuggestionIndex(-1);
+                        }}
+                        onFocus={() => {
+                          if (customSkill.trim()) setShowSuggestions(true);
+                        }}
+                        onKeyDown={e => {
+                          if (e.key === 'ArrowDown' && showSuggestions && matchingSuggestions.length > 0) {
+                            e.preventDefault();
+                            setActiveSuggestionIndex(prev => (prev + 1) % matchingSuggestions.length);
+                          } else if (e.key === 'ArrowUp' && showSuggestions && matchingSuggestions.length > 0) {
+                            e.preventDefault();
+                            setActiveSuggestionIndex(prev => (prev <= 0 ? matchingSuggestions.length - 1 : prev - 1));
+                          } else if (e.key === 'Enter') {
+                            e.preventDefault();
                             if (showSuggestions && activeSuggestionIndex >= 0 && matchingSuggestions[activeSuggestionIndex]) {
                               addCustomExpertise(matchingSuggestions[activeSuggestionIndex]);
                             } else {
                               addCustomExpertise();
                             }
-                          }}
-                          disabled={!customSkill.trim()}
-                          className="px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[13px] font-semibold rounded-lg disabled:opacity-40 transition-colors cursor-pointer shrink-0"
+                          } else if (e.key === 'Escape') {
+                            setShowSuggestions(false);
+                          }
+                        }}
+                        placeholder="Add another skill, e.g. DevOps"
+                        className="flex-1 min-w-0 h-9 px-3 border border-[#E5E7EB] rounded-lg bg-white text-[13.5px] text-[#111111] placeholder-[#9CA3AF] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-[border-color,box-shadow] duration-150 ease-out"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (showSuggestions && activeSuggestionIndex >= 0 && matchingSuggestions[activeSuggestionIndex]) {
+                            addCustomExpertise(matchingSuggestions[activeSuggestionIndex]);
+                          } else {
+                            addCustomExpertise();
+                          }
+                        }}
+                        disabled={!customSkill.trim()}
+                        className="h-9 px-3.5 rounded-lg border border-[#E5E7EB] bg-white text-[13px] font-medium text-[#111111] hover:bg-[#F9FAFB] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer shrink-0"
+                      >
+                        Add
+                      </button>
+                    </div>
+
+                    {showSuggestions && customSkill.trim().length > 0 && matchingSuggestions.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full mt-1.5 z-30 rounded-xl border border-[#E5E7EB] bg-white p-1 shadow-[0_12px_32px_-8px_rgba(17,17,17,0.18)] max-h-56 overflow-y-auto" role="listbox">
+                        {matchingSuggestions.map((suggestion, idx) => (
+                          <button
+                            key={suggestion}
+                            type="button"
+                            role="option"
+                            aria-selected={idx === activeSuggestionIndex}
+                            onMouseEnter={() => setActiveSuggestionIndex(idx)}
+                            onClick={() => addCustomExpertise(suggestion)}
+                            className={`w-full flex items-center h-8 px-2.5 rounded-lg text-left text-[13px] transition-colors cursor-pointer ${
+                              idx === activeSuggestionIndex ? 'bg-[#F3F4F6] text-[#111111]' : 'text-[rgba(17,17,17,0.75)]'
+                            }`}
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {pExpertise.length === 0 && (
+                    <p className="mt-3 text-[12.5px] text-[#DC2626]">Choose at least one skill before saving.</p>
+                  )}
+                </Panel>
+
+                <div className="flex justify-end">
+                  <SaveButton loading={profileLoading} onClick={handleSaveProfile} />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ━━━━━━━━━━━━━━  SECURITY  ━━━━━━━━━━━━━━ */}
+        {section === 'security' && (
+          <div className="max-w-3xl">
+            <SectionHeader title="Security" description="Keep your account secure." />
+            <Panel
+              title="Password"
+              description="Use at least 6 characters."
+              footer={<SaveButton loading={pwLoading} onClick={handleChangePassword} label="Update password" />}
+            >
+              <Row label="Current password" htmlFor="pw-current">
+                <TextInput id="pw-current" value={currPw} onChange={setCurrPw} type="password" autoComplete="current-password" />
+              </Row>
+              <Row label="New password" htmlFor="pw-new">
+                <TextInput id="pw-new" value={newPw} onChange={setNewPw} type="password" autoComplete="new-password" />
+              </Row>
+              <Row label="Confirm new password" htmlFor="pw-confirm">
+                <TextInput id="pw-confirm" value={confirmPw} onChange={setConfirmPw} type="password" autoComplete="new-password" />
+                {pwError && <p className="mt-2 text-[12.5px] text-[#DC2626]">{pwError}</p>}
+              </Row>
+            </Panel>
+          </div>
+        )}
+
+        {/* ━━━━━━━━━━━━━━  GENERAL (workspace)  ━━━━━━━━━━━━━━ */}
+        {section === 'workspace' && (
+          <div className="max-w-3xl">
+            <SectionHeader title="General" description="Details of the workspace you belong to." />
+            <Panel title="Workspace">
+              <Row label="Name">
+                <p className="md:pt-2 text-[13.5px] text-[#111111]">{membersLoading && teamName === 'Your Workspace' ? '…' : teamName}</p>
+              </Row>
+              <Row label="Members">
+                <p className="md:pt-2 text-[13.5px] text-[#111111]">
+                  {membersLoading && members.length === 0 ? '…' : `${members.length} ${members.length === 1 ? 'member' : 'members'}`}
+                  {invites.length > 0 && (
+                    <span className="text-[rgba(17,17,17,0.5)]"> · {invites.length} pending</span>
+                  )}
+                </p>
+              </Row>
+              <Row label="Your role">
+                <p className="md:pt-2 text-[13.5px] text-[#111111]">{roleLabel(effectiveUserRole)}</p>
+              </Row>
+            </Panel>
+            <p className="mt-3 text-[12px] text-[rgba(17,17,17,0.5)]">
+              Workspace details are set when the workspace is created. Manage people from{' '}
+              <button type="button" onClick={() => setSection('members')} className="font-medium text-[#2563EB] hover:underline cursor-pointer">
+                Members
+              </button>
+              .
+            </p>
+          </div>
+        )}
+
+        {/* ━━━━━━━━━━━━━━  MEMBERS  ━━━━━━━━━━━━━━ */}
+        {section === 'members' && (
+          <div className="max-w-4xl space-y-5">
+            <SectionHeader
+              title="Members"
+              description={
+                membersLoading && members.length === 0
+                  ? 'Loading members…'
+                  : `${members.length} ${members.length === 1 ? 'member' : 'members'} in ${teamName}${
+                      invites.length > 0 ? ` · ${invites.length} pending ${invites.length === 1 ? 'invitation' : 'invitations'}` : ''
+                    }`
+              }
+              action={
+                isPM ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowInviteModal(true);
+                      setDevInviteUrl(null);
+                    }}
+                    className="inline-flex items-center gap-1.5 h-9 px-3.5 bg-[#2563EB] text-white rounded-lg text-[13px] font-medium hover:bg-[#1D4ED8] transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Invite member
+                  </button>
+                ) : undefined
+              }
+            />
+
+            <Panel flush>
+              <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_11rem_5.5rem] gap-4 px-5 h-10 items-center border-b border-[#F0F0F0] bg-[#FAFAFA] text-[11.5px] font-medium text-[rgba(17,17,17,0.5)]">
+                <span>Member</span>
+                <span>Job title</span>
+                <span className="text-right">{isAdmin ? 'Actions' : ''}</span>
+              </div>
+              {membersLoading && members.length === 0 ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 px-5 py-3.5 border-t border-[#F3F4F6] first:border-t-0 animate-pulse">
+                    <div className="w-8 h-8 rounded-full bg-[#F3F4F6]" />
+                    <div className="space-y-1.5">
+                      <div className="h-3 w-28 rounded bg-[#F3F4F6]" />
+                      <div className="h-2.5 w-40 rounded bg-[#F3F4F6]" />
+                    </div>
+                  </div>
+                ))
+              ) : members.length === 0 ? (
+                <div className="text-center py-10 text-[13px] text-[rgba(17,17,17,0.45)]">No members yet</div>
+              ) : (
+                members.map(u => (
+                  <div
+                    key={u.id}
+                    className="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_11rem_5.5rem] gap-4 items-center px-5 py-3 border-t border-[#F3F4F6] first:border-t-0"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-[#2563EB] flex items-center justify-center text-[11px] font-semibold text-white shrink-0 overflow-hidden">
+                        {u.avatar?.startsWith('http') || u.avatar?.startsWith('/') ? (
+                          <img src={u.avatar} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          (u.avatar && u.avatar.length <= 3 ? u.avatar : u.name?.slice(0, 2) || 'U').toUpperCase()
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="truncate text-[13.5px] font-medium text-[#111111]">{u.name}</span>
+                          {u.id === userId && (
+                            <span className="shrink-0 text-[11px] font-medium text-[rgba(17,17,17,0.45)]">(you)</span>
+                          )}
+                        </div>
+                        <div className="truncate text-[12px] text-[rgba(17,17,17,0.5)]">{u.email}</div>
+                        <div className="sm:hidden truncate text-[12px] text-[rgba(17,17,17,0.6)] mt-0.5">{roleLabel(u.role)}</div>
+                      </div>
+                    </div>
+                    <span className="hidden sm:block truncate text-[13px] text-[rgba(17,17,17,0.7)]" title={roleLabel(u.role)}>
+                      {roleLabel(u.role)}
+                    </span>
+                    <div className="flex justify-end">
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditMemberTitle(u)}
+                          className="h-8 px-2.5 rounded-md text-[12.5px] font-medium text-[rgba(17,17,17,0.7)] hover:text-[#111111] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+                          aria-label={`Edit job title for ${u.name}`}
                         >
-                          + Add
+                          Edit
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </Panel>
+
+            {isPM && invites.length > 0 && (
+              <Panel title="Pending invitations" description="Invitations that haven't been accepted yet." flush>
+                <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_9rem_7rem_5.5rem] gap-4 px-5 h-10 items-center border-y border-[#F0F0F0] bg-[#FAFAFA] text-[11.5px] font-medium text-[rgba(17,17,17,0.5)]">
+                  <span>Email</span>
+                  <span>Role</span>
+                  <span>Expires</span>
+                  <span />
+                </div>
+                {invites.map(inv => (
+                  <div
+                    key={inv.id}
+                    className="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_9rem_7rem_5.5rem] gap-4 items-center px-5 py-3 border-t border-[#F3F4F6] first:border-t-0"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate text-[13.5px] font-medium text-[#111111]">{inv.email}</div>
+                      <div className="text-[12px] text-[rgba(17,17,17,0.5)]">
+                        Invited {new Date(inv.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        <span className="sm:hidden"> · {roleLabel(inv.role)}</span>
+                      </div>
+                    </div>
+                    <span className="hidden sm:block text-[13px] text-[rgba(17,17,17,0.7)]">{roleLabel(inv.role)}</span>
+                    <span className="hidden sm:block text-[13px] text-[rgba(17,17,17,0.6)]">
+                      {new Date(inv.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => handleRevokeInvite(inv.id)}
+                        className="h-8 px-2.5 rounded-md text-[12.5px] font-medium text-[#DC2626] hover:bg-[#FEF2F2] transition-colors cursor-pointer"
+                      >
+                        Revoke
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </Panel>
+            )}
+
+            {/* Invite member dialog */}
+            {showInviteModal && (
+              <div
+                className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 animate-in fade-in duration-150"
+                onMouseDown={e => {
+                  if (e.target === e.currentTarget) {
+                    setShowInviteModal(false);
+                    setDevInviteUrl(null);
+                  }
+                }}
+              >
+                <div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="invite-member-title"
+                  className="w-full sm:max-w-md bg-white sm:rounded-2xl rounded-t-2xl border border-[#E5E7EB] shadow-xl overflow-y-auto max-h-[calc(100dvh-2rem)] overscroll-contain pb-safe"
+                >
+                  <div className="flex items-start justify-between gap-4 px-5 pt-5 pb-3">
+                    <div>
+                      <h3 id="invite-member-title" className="text-[15px] font-semibold text-[#111111]">Invite member</h3>
+                      <p className="mt-0.5 text-[12.5px] text-[rgba(17,17,17,0.55)]">Add someone to {teamName}.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowInviteModal(false);
+                        setDevInviteUrl(null);
+                      }}
+                      aria-label="Close"
+                      className="p-1.5 -mr-1.5 rounded-md text-[#9CA3AF] hover:text-[#111111] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {devInviteUrl ? (
+                    <div className="px-5 pb-5 space-y-4">
+                      <div>
+                        <FieldLabel>Invite link</FieldLabel>
+                        <p className="mb-2 text-[12.5px] text-[rgba(17,17,17,0.55)]">
+                          Email isn&apos;t set up in this environment, so share this link with {inviteEmail || 'them'} directly.
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            readOnly
+                            value={devInviteUrl}
+                            onFocus={e => e.currentTarget.select()}
+                            className="flex-1 min-w-0 h-9 px-3 border border-[#E5E7EB] rounded-lg bg-[#F9FAFB] text-[12.5px] font-mono text-[#111111]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(devInviteUrl);
+                              setCopiedLink(true);
+                              setTimeout(() => setCopiedLink(false), 2000);
+                            }}
+                            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#E5E7EB] bg-white text-[13px] font-medium text-[#111111] hover:bg-[#F9FAFB] transition-colors cursor-pointer shrink-0"
+                          >
+                            {copiedLink ? <Check className="w-3.5 h-3.5 text-[#16A34A]" /> : <Copy className="w-3.5 h-3.5" />}
+                            {copiedLink ? 'Copied' : 'Copy'}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowInviteModal(false);
+                            setDevInviteUrl(null);
+                            setInviteEmail('');
+                          }}
+                          className="h-9 px-4 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[13px] font-medium transition-colors cursor-pointer"
+                        >
+                          Done
                         </button>
                       </div>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSendInvite}>
+                      <div className="px-5 pb-5 space-y-4">
+                        <div>
+                          <FieldLabel htmlFor="invite-email">Email</FieldLabel>
+                          <input
+                            id="invite-email"
+                            type="email"
+                            required
+                            autoFocus
+                            placeholder="name@company.com"
+                            value={inviteEmail}
+                            onChange={e => setInviteEmail(e.target.value)}
+                            className="w-full h-9 px-3 border border-[#E5E7EB] rounded-lg bg-white text-[13.5px] text-[#111111] placeholder-[#9CA3AF] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-[border-color,box-shadow] duration-150 ease-out"
+                          />
+                        </div>
 
-                      {/* Auto-suggest dropdown popup for non-mentioned expertise */}
-                      {showSuggestions && customSkill.trim().length > 0 && matchingSuggestions.length > 0 && (
-                        <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-white border border-[#E5E7EB] rounded-lg shadow-lg overflow-hidden">
-                          <div className="p-1 max-h-48 overflow-y-auto">
-                            {matchingSuggestions.map((suggestion, idx) => {
-                              const isActive = idx === activeSuggestionIndex;
+                        <div>
+                          <FieldLabel>Role</FieldLabel>
+                          <div className="grid gap-2" role="radiogroup" aria-label="Role">
+                            {[
+                              { id: 'MEMBER', label: 'Member', desc: 'Works on tasks and collaborates.' },
+                              { id: 'PROJECT_MANAGER', label: 'Project Manager', desc: 'Creates and manages projects.' },
+                              { id: 'ADMIN', label: 'Admin', desc: 'Full access to the workspace.' },
+                            ].map(r => {
+                              const active = inviteRole === r.id;
                               return (
                                 <button
-                                  key={suggestion}
+                                  key={r.id}
                                   type="button"
-                                  onClick={() => addCustomExpertise(suggestion)}
-                                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-md text-left text-[12.5px] transition-colors cursor-pointer ${isActive
-                                    ? 'bg-[#EFF6FF] text-[#2563EB] font-semibold'
-                                    : 'text-gray-700 hover:bg-[#F3F4F6] hover:text-gray-900'
-                                    }`}
+                                  role="radio"
+                                  aria-checked={active}
+                                  onClick={() => setInviteRole(r.id as 'ADMIN' | 'PROJECT_MANAGER' | 'MEMBER')}
+                                  className={`flex items-start gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors cursor-pointer ${
+                                    active ? 'border-[#2563EB] bg-[#EFF6FF]' : 'border-[#E5E7EB] bg-white hover:bg-[#F9FAFB]'
+                                  }`}
                                 >
-                                  <span>{suggestion}</span>
-                                  <span className="text-[11px] text-[#2563EB] font-medium">+ Add</span>
+                                  <span
+                                    className={`mt-0.5 w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                                      active ? 'border-[#2563EB]' : 'border-[#D1D5DB]'
+                                    }`}
+                                    aria-hidden="true"
+                                  >
+                                    {active && <span className="w-2 h-2 rounded-full bg-[#2563EB]" />}
+                                  </span>
+                                  <span className="min-w-0">
+                                    <span className="block text-[13px] font-medium text-[#111111]">{r.label}</span>
+                                    <span className="block text-[12px] text-[rgba(17,17,17,0.55)]">{r.desc}</span>
+                                  </span>
                                 </button>
                               );
                             })}
                           </div>
                         </div>
-                      )}
-                    </div>
 
-                    {/* Selected Custom Tags */}
-                    {pExpertise.filter(item => !DEFAULT_EXPERTISE_OPTIONS.some(o => o.id === item)).length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 pt-0.5">
-                        {pExpertise
-                          .filter(item => !DEFAULT_EXPERTISE_OPTIONS.some(o => o.id === item))
-                          .map(tag => (
-                            <span
-                              key={tag}
-                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[12px] font-medium bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE] transition-colors"
-                            >
-                              <span>{tag}</span>
-                              <button
-                                type="button"
-                                onClick={() => toggleExpertise(tag)}
-                                className="w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-blue-200 text-[#2563EB] cursor-pointer text-[13px] leading-none"
-                                aria-label={`Remove ${tag}`}
-                              >
-                                ×
-                              </button>
-                            </span>
-                          ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-6 flex justify-end">
-                  <SaveButton loading={profileLoading} onClick={handleSaveProfile} />
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* ━━━━━━━━━━━━━━━━━━━━━━━━
-            3.2  SECURITY / PASSWORD
-        ━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        {section === 'security' && (
-          <div className="max-w-xl">
-            <h2 className="text-[20px] font-bold text-[#111111] mb-1">Security</h2>
-            <p className="text-[13px] text-[rgba(17,17,17,0.45)] mb-6">
-              Manage your account credentials and personal details.
-            </p>
-
-            {/* Update Name (Similar to Password) */}
-            <div className="border border-[#E5E7EB] rounded-xl p-5 mb-5 bg-white">
-              <h3 className="text-[14px] font-semibold text-[#111111] mb-4">Update Name</h3>
-              <div className="space-y-4">
-                <div>
-                  <FieldLabel>Full Name</FieldLabel>
-                  <TextInput
-                    value={secName || pName}
-                    onChange={(val) => {
-                      setSecName(val);
-                      setPName(val);
-                    }}
-                    placeholder="Enter your full name"
-                  />
-                </div>
-                <div className="flex justify-end pt-1">
-                  <SaveButton loading={secNameLoading} onClick={handleUpdateName} label="Update Name" />
-                </div>
-              </div>
-            </div>
-
-            {/* Change Password */}
-            <div className="border border-[#E5E7EB] rounded-xl p-5 mb-5">
-              <h3 className="text-[14px] font-semibold text-[#111111] mb-4">Change Password</h3>
-              <div className="space-y-4">
-                <div>
-                  <FieldLabel>Current Password</FieldLabel>
-                  <TextInput value={currPw} onChange={setCurrPw} type="password" placeholder="Enter current password" />
-                </div>
-                <div>
-                  <FieldLabel>New Password</FieldLabel>
-                  <TextInput value={newPw} onChange={setNewPw} type="password" placeholder="Min. 6 characters" />
-                </div>
-                <div>
-                  <FieldLabel>Confirm New Password</FieldLabel>
-                  <TextInput value={confirmPw} onChange={setConfirmPw} type="password" placeholder="Repeat new password" />
-                </div>
-                {pwError && (
-                  <div className="text-[12.5px] text-[#DC2626] bg-[#FEF2F2] border border-[#FECACA] rounded-lg px-3.5 py-2.5">
-                    {pwError}
-                  </div>
-                )}
-                <div className="flex justify-end pt-1">
-                  <SaveButton loading={pwLoading} onClick={handleChangePassword} label="Update Password" />
-                </div>
-              </div>
-            </div>
-
-          </div>
-        )}
-
-        {/* ━━━━━━━━━━━━━━━━━━━━━━━━
-            3.3  MEMBERS & TEAM INVITATIONS (Multi-Tenant SaaS)
-        ━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        {section === 'members' && (
-          <div className="space-y-6">
-            {/* Team / Workspace Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#F3F4F6]">
-              <div>
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#2563EB] flex items-center justify-center shrink-0">
-                    <Building2 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h2 className="text-[20px] font-bold text-[#111111] tracking-tight">{teamName}</h2>
-                  </div>
-                </div>
-                {membersLoading ? (
-                  <div className="flex items-center gap-1.5 text-[12.5px] text-[rgba(17,17,17,0.4)] mt-1">
-                    <Spinner size={12} /> Loading team members…
-                  </div>
-                ) : (
-                  <p className="text-[12.5px] text-[rgba(17,17,17,0.5)] mt-1">
-                    {members.length} team member{members.length !== 1 ? 's' : ''}
-                    {invites.length > 0 && ` · ${invites.length} pending invitation${invites.length !== 1 ? 's' : ''}`}
-                  </p>
-                )}
-              </div>
-
-              {/* Invite button — Only Project Managers or Admins */}
-              {isPM && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowInviteModal(true);
-                    setDevInviteUrl(null);
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#2563EB] text-white rounded-xl text-[13px] font-semibold hover:bg-[#1D4ED8] active:scale-[0.99] transition-all shadow-xs cursor-pointer shrink-0"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Invite Teammate</span>
-                </button>
-              )}
-            </div>
-
-            {/* Active Members Table */}
-            <div>
-              <h3 className="text-[14px] font-bold text-[#111111] mb-2.5">Active Team Members</h3>
-              <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden shadow-2xs">
-                {/* Table header */}
-                <div className="flex items-center gap-4 px-5 py-3 bg-[#F9FAFB] border-b border-[#E5E7EB] text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)]">
-                  <span className="flex-1">Member</span>
-                  <span className="w-32">Job Title / Role</span>
-                  <span className="w-20">Status</span>
-                  <span className="w-24">Joined</span>
-                  <span className="w-24 text-right">Actions</span>
-                </div>
-
-                {/* Rows */}
-                {membersLoading ? (
-                  Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="flex items-center gap-4 px-5 py-3.5 border-b border-[#F3F4F6] last:border-0 animate-pulse">
-                      <div className="flex-1 flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-[#F3F4F6]" />
-                        <div className="space-y-1.5">
-                          <div className="h-3 w-28 rounded bg-[#F3F4F6]" />
-                          <div className="h-2.5 w-36 rounded bg-[#F3F4F6]" />
-                        </div>
-                      </div>
-                      <div className="h-3 w-16 rounded bg-[#F3F4F6]" />
-                      <div className="h-4 w-12 rounded-full bg-[#F3F4F6]" />
-                      <div className="h-3 w-16 rounded bg-[#F3F4F6]" />
-                    </div>
-                  ))
-                ) : members.length === 0 ? (
-                  <div className="text-center py-10 text-[13px] text-[rgba(17,17,17,0.4)]">
-                    No members in this team yet
-                  </div>
-                ) : (
-                  members.map((u, i) => (
-                    <div
-                      key={u.id}
-                      className={`flex items-center gap-4 px-5 py-3.5 hover:bg-[#F9FAFB] transition-colors ${i < members.length - 1 ? 'border-b border-[#F3F4F6]' : ''
-                        }`}
-                    >
-                      <div className="flex-1 flex items-center gap-3 min-w-0">
-                        <div className="w-8 h-8 rounded-full bg-[#2563EB] flex items-center justify-center text-[11px] font-bold text-white shrink-0 overflow-hidden">
-                          {u.avatar?.startsWith('http') || u.avatar?.startsWith('/') ? (
-                            <img src={u.avatar} alt={u.name} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
-                          ) : (
-                            (u.avatar && u.avatar.length <= 3 ? u.avatar : u.name?.slice(0, 2) || 'U').toUpperCase()
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-[13.5px] font-medium text-[#111111] flex items-center gap-1.5 truncate">
-                            <span>{u.name}</span>
-                            {u.id === userId && (
-                              <span className="text-[10px] bg-[#DBEAFE] text-[#2563EB] px-1.5 py-0.5 rounded font-semibold">
-                                You
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[11.5px] text-[rgba(17,17,17,0.45)] truncate">{u.email}</div>
-                        </div>
-                      </div>
-
-                      {/* Role label */}
-                      <span className="w-32 text-[12.5px] font-medium text-gray-700 truncate" title={u.role || 'Member'}>
-                        {u.role === 'PROJECT_MANAGER' || u.role === 'Project Manager' ? 'Project Manager' : u.role || 'Member'}
-                      </span>
-
-                      {/* Status badge */}
-                      <span className="w-20">
-                        <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#16A34A]">
-                          Active
-                        </span>
-                      </span>
-
-                      {/* Member since */}
-                      <span className="w-24 text-[12px] text-[rgba(17,17,17,0.45)]">
-                        {new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                      </span>
-
-                      {/* Actions */}
-                      <div className="w-24 flex items-center justify-end gap-1 text-[11.5px]">
-                        {isAdmin ? (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditMemberTitle(u)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-[#2563EB] bg-[#EFF6FF] hover:bg-[#DBEAFE] border border-[#BFDBFE] transition-colors cursor-pointer"
-                            title={`Change Job Title for ${u.name}`}
-                          >
-                            <span>Edit Title</span>
-                          </button>
-                        ) : (
-                          <span className="text-gray-400">
-                            {u.id === userId ? 'You' : 'Member'}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Pending Invitations Section (Visible to PMs) */}
-            {isPM && invites.length > 0 && (
-              <div className="pt-2">
-                <div className="flex items-center gap-2 mb-2.5">
-                  <Mail className="w-4 h-4 text-[#2563EB]" />
-                  <h3 className="text-[14px] font-bold text-[#111111]">Pending Email Invitations</h3>
-                  <span className="text-[11px] px-2 py-0.2 rounded-full bg-amber-50 text-amber-700 font-semibold border border-amber-200">
-                    {invites.length} Pending
-                  </span>
-                </div>
-
-                <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden shadow-2xs">
-                  <div className="flex items-center gap-4 px-5 py-3 bg-[#F9FAFB] border-b border-[#E5E7EB] text-[11px] font-semibold uppercase tracking-wide text-[rgba(17,17,17,0.4)]">
-                    <span className="flex-1">Invited Email</span>
-                    <span className="w-28">Assigned Role</span>
-                    <span className="w-28">Expires</span>
-                    <span className="w-20 text-right">Action</span>
-                  </div>
-
-                  {invites.map((inv, idx) => (
-                    <div
-                      key={inv.id}
-                      className={`flex items-center gap-4 px-5 py-3.5 hover:bg-[#F9FAFB] transition-colors ${idx < invites.length - 1 ? 'border-b border-[#F3F4F6]' : ''
-                        }`}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[13px] font-medium text-[#111111] truncate">{inv.email}</div>
-                        <div className="text-[11px] text-gray-400">
-                          Invited {new Date(inv.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </div>
-                      </div>
-
-                      <div className="w-28 text-[12px] font-medium text-gray-700">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-[#2563EB]">
-                          {inv.role === 'ADMIN' ? 'Admin' : inv.role === 'PROJECT_MANAGER' ? 'Project Manager' : 'Member'}
-                        </span>
-                      </div>
-
-                      <div className="w-28 text-[11.5px] text-gray-500">
-                        {new Date(inv.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </div>
-
-                      <div className="w-20 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleRevokeInvite(inv.id)}
-                          className="text-[11px] text-red-600 hover:text-red-700 hover:underline font-medium cursor-pointer"
-                        >
-                          Revoke
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Invite Teammate Modal */}
-            {showInviteModal && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
-                <div className="relative w-full max-w-md bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-xl space-y-5 animate-in zoom-in-95 duration-150 overflow-y-auto max-h-[calc(100dvh-2rem)] overscroll-contain">
-                  {/* Close button */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowInviteModal(false);
-                      setDevInviteUrl(null);
-                    }}
-                    className="absolute right-4 top-4 p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center shrink-0">
-                      <Mail className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-bold text-[#111111]">Invite Teammate</h3>
-                      <p className="text-xs text-gray-500">Add a colleague to {teamName}</p>
-                    </div>
-                  </div>
-
-                  {/* Dev Mode direct link display */}
-                  {devInviteUrl && (
-                    <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl space-y-2">
-                      <div className="text-[11px] font-semibold text-blue-900 flex items-center justify-between">
-                        <span>🛠️ Dev Mode Active (Invite Link Generated)</span>
-                        {copiedLink && (
-                          <span className="text-emerald-600 flex items-center gap-1">
-                            <Check className="w-3 h-3" /> Copied!
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          readOnly
-                          value={devInviteUrl}
-                          className="flex-1 text-[11px] font-mono px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-blue-950 select-all"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard.writeText(devInviteUrl);
-                            setCopiedLink(true);
-                            setTimeout(() => setCopiedLink(false), 2000);
-                          }}
-                          className="px-3 py-1.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer shrink-0"
-                        >
-                          <Copy className="w-3 h-3" />
-                          <span>Copy</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {!devInviteUrl && (
-                    <form onSubmit={handleSendInvite} className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-[#111111] mb-1.5">
-                          Colleague&apos;s Work Email
-                        </label>
-                        <input
-                          type="email"
-                          required
-                          placeholder="developer@company.com"
-                          value={inviteEmail}
-                          onChange={e => setInviteEmail(e.target.value)}
-                          className="w-full px-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-[#111111] mb-1.5">
-                          Assigned Role in Team
-                        </label>
-                        <div className="grid grid-cols-3 gap-2">
-                          {[
-                            { id: 'MEMBER', label: 'Member', desc: 'Can work on tasks and collaborate' },
-                            { id: 'PROJECT_MANAGER', label: 'Project Manager', desc: 'Can manage projects' },
-                            { id: 'ADMIN', label: 'Admin', desc: 'Full workspace administrative access' },
-                          ].map(r => (
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label htmlFor="invite-password" className="text-[13px] font-medium text-[#111111]">
+                              Temporary password
+                            </label>
                             <button
-                              key={r.id}
                               type="button"
-                              onClick={() => setInviteRole(r.id as any)}
-                              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${inviteRole === r.id
-                                ? 'border-[#2563EB] bg-blue-50/50 ring-1 ring-[#2563EB]'
-                                : 'border-[#E5E7EB] hover:border-gray-300 bg-white'
-                                }`}
+                              onClick={() => setInvitePassword(generateRandomPassword())}
+                              className="inline-flex items-center gap-1 text-[12.5px] font-medium text-[rgba(17,17,17,0.6)] hover:text-[#111111] transition-colors cursor-pointer"
                             >
-                              <div className="text-xs font-semibold text-gray-900">{r.label}</div>
-                              <div className="text-[10px] text-gray-500 mt-0.5 leading-tight">{r.desc}</div>
+                              <RefreshCw className="w-3 h-3" />
+                              Regenerate
                             </button>
-                          ))}
+                          </div>
+                          <div className="relative">
+                            <input
+                              id="invite-password"
+                              type={showInvitePassword ? 'text' : 'password'}
+                              required
+                              minLength={6}
+                              value={invitePassword}
+                              onChange={e => setInvitePassword(e.target.value)}
+                              className="w-full h-9 pl-3 pr-10 border border-[#E5E7EB] rounded-lg bg-white text-[13px] font-mono text-[#111111] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-[border-color,box-shadow] duration-150 ease-out"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowInvitePassword(!showInvitePassword)}
+                              aria-label={showInvitePassword ? 'Hide password' : 'Show password'}
+                              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-[rgba(17,17,17,0.4)] hover:text-[#111111] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+                            >
+                              {showInvitePassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                          <p className="mt-1.5 text-[12px] text-[rgba(17,17,17,0.5)]">They can change it after signing in.</p>
                         </div>
                       </div>
 
-                      {/* Given Password Input */}
-                      <div>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <label className="block text-xs font-semibold text-[#111111]">
-                            Given Password
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => setInvitePassword(generateRandomPassword())}
-                            className="text-[11px] font-medium text-[#2563EB] hover:text-[#1D4ED8] flex items-center gap-1 cursor-pointer"
-                          >
-                            <RefreshCw className="w-3 h-3" />
-                            <span>Generate New</span>
-                          </button>
-                        </div>
-                        <div className="relative">
-                          <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                          <input
-                            type={showInvitePassword ? 'text' : 'password'}
-                            required
-                            minLength={6}
-                            placeholder="Initial account password"
-                            value={invitePassword}
-                            onChange={e => setInvitePassword(e.target.value)}
-                            className="w-full pl-9 pr-10 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs font-mono text-[#111111] placeholder:text-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowInvitePassword(!showInvitePassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
-                          >
-                            {showInvitePassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="pt-2 flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[#F0F0F0] bg-[#FAFAFA]">
                         <button
                           type="button"
                           onClick={() => setShowInviteModal(false)}
-                          className="px-4 py-2 border border-[#E5E7EB] text-gray-700 hover:bg-gray-50 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                          className="h-9 px-3.5 rounded-lg border border-[#E5E7EB] bg-white text-[13px] font-medium text-[#111111] hover:bg-[#F9FAFB] transition-colors cursor-pointer"
                         >
                           Cancel
                         </button>
                         <button
                           type="submit"
                           disabled={sendingInvite || !inviteEmail.trim()}
-                          className="flex items-center gap-1.5 px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-xl shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
+                          className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[13px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         >
-                          {sendingInvite ? (
-                            <>
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              <span>Sending Invite...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Send className="w-3.5 h-3.5" />
-                              <span>Send</span>
-                            </>
-                          )}
+                          {sendingInvite && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                          {sendingInvite ? 'Sending…' : 'Send invite'}
                         </button>
                       </div>
                     </form>
-                  )}
-
-                  {devInviteUrl && (
-                    <div className="pt-2 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowInviteModal(false);
-                          setDevInviteUrl(null);
-                          setInviteEmail('');
-                        }}
-                        className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
-                      >
-                        Done
-                      </button>
-                    </div>
                   )}
                 </div>
               </div>
@@ -1581,334 +1493,178 @@ export default function Settings() {
           </div>
         )}
 
-        {/* ━━━━━━━━━━━━━━━━━━━━━━━━
-            3.4  NOTIFICATIONS (localStorage)
-        ━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        {/* ━━━━━━━━━━━━━━━━━━━━━━━━
-            3.4  NOTIFICATIONS (Fully Functional Live Preferences)
-        ━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        {/* ━━━━━━━━━━━━━━  NOTIFICATIONS  ━━━━━━━━━━━━━━ */}
         {section === 'notifications' && (
-          <div className="max-w-2xl space-y-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-[20px] font-bold text-[#111111] mb-1">Notification Preferences</h2>
-                <p className="text-[13px] text-[rgba(17,17,17,0.5)]">
-                  Configure automated workflow and role triggers.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleSendTestNotification}
-                disabled={sendingTest}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F3F4F6] hover:bg-[#E5E7EB] text-[#111111] rounded-lg text-[12px] font-medium transition-colors shrink-0 cursor-pointer disabled:opacity-50"
-              >
-                <Send size={13} className="text-[#2563EB]" />
-                <span>{sendingTest ? 'Sending...' : 'Send Test Alert'}</span>
-              </button>
-            </div>
+          <div className="max-w-3xl space-y-5">
+            <SectionHeader
+              title="Notifications"
+              description="Choose what FlowSync notifies you about."
+              action={
+                <button
+                  type="button"
+                  onClick={handleSendTestNotification}
+                  disabled={sendingTest}
+                  className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-[#E5E7EB] bg-white text-[13px] font-medium text-[#111111] hover:bg-[#F9FAFB] transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <Send size={13} className="text-[rgba(17,17,17,0.55)]" />
+                  {sendingTest ? 'Sending…' : 'Send test notification'}
+                </button>
+              }
+            />
 
-            {/* 1. Task & Workflow Triggers */}
-            <div className="border border-[#E5E7EB] rounded-xl p-5 bg-white">
-              <h3 className="text-[13.5px] font-semibold text-[#111111] mb-3 flex items-center gap-2">
-                <User size={15} className="text-[#2563EB]" />
-                <span>Task & Workflow Triggers</span>
-              </h3>
-              <div className="divide-y divide-[#F1F3F5]">
-                {[
-                  {
-                    key: 'task_assigned',
-                    label: 'Task Assignments',
-                    desc: 'When a task is assigned to your account',
-                  },
-                  {
-                    key: 'task_due_soon',
-                    label: 'Upcoming Deadline Warnings',
-                    desc: 'Remind 24 hours prior to scheduled due date',
-                  },
-                  {
-                    key: 'comment_on_task',
-                    label: 'Comments on Owned Tasks',
-                    desc: 'When team members comment on tasks you created or oversee',
-                  },
-                  {
-                    key: 'mentioned',
-                    label: 'Direct Mentions (@you)',
-                    desc: 'When someone tags you in a task discussion or thread',
-                  },
-                  {
-                    key: 'status_changed',
-                    label: 'Status Transitions',
-                    desc: 'When a watched task changes state (e.g. In Progress → Done)',
-                  },
-
-                  {
-                    key: 'new_member',
-                    label: 'Workspace Member Join Alerts',
-                    desc: 'When a new colleague is invited or joins the workspace',
-                  },
-                ].map(({ key, label, desc }) => (
-                  <div key={key} className="flex items-center justify-between py-3">
-                    <div>
-                      <div className="text-[13px] font-medium text-[#111111]">{label}</div>
-                      <div className="text-[11.5px] text-[rgba(17,17,17,0.45)] mt-0.5">{desc}</div>
+            {(
+              [
+                {
+                  title: 'Tasks',
+                  items: [
+                    { key: 'task_assigned', label: 'Assigned to you', desc: 'When a task is assigned to you.' },
+                    { key: 'task_due_soon', label: 'Due soon', desc: '24 hours before one of your tasks is due.' },
+                    { key: 'comment_on_task', label: 'Comments', desc: 'On tasks you created or follow.' },
+                    { key: 'mentioned', label: 'Mentions', desc: 'When someone @mentions you.' },
+                    { key: 'status_changed', label: 'Status changes', desc: 'When a task you follow changes status.' },
+                  ],
+                },
+                {
+                  title: 'Workspace',
+                  items: [
+                    { key: 'new_member', label: 'New members', desc: 'When someone joins your workspace.' },
+                    { key: 'pm_project_at_risk', label: 'Projects at risk', desc: 'When a project falls behind schedule.' },
+                    { key: 'pm_sprint_milestones', label: 'Milestones', desc: 'When a project passes 80% complete.' },
+                  ],
+                },
+                ...(isAdmin
+                  ? [
+                      {
+                        title: 'Administration',
+                        items: [
+                          { key: 'admin_security_alerts', label: 'Security activity', desc: 'Role and permission changes in your workspace.' },
+                        ],
+                      },
+                    ]
+                  : []),
+              ] as { title: string; items: { key: keyof NotificationPreferences; label: string; desc: string }[] }[]
+            ).map(group => (
+              <Panel key={group.title} title={group.title}>
+                <div className="divide-y divide-[#F3F4F6]">
+                  {group.items.map(({ key, label, desc }) => (
+                    <div key={key} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                      <div className="min-w-0">
+                        <div className="text-[13.5px] font-medium text-[#111111]">{label}</div>
+                        <div className="text-[12.5px] text-[rgba(17,17,17,0.5)] mt-0.5">{desc}</div>
+                      </div>
+                      <Toggle checked={!!notifPrefs[key]} onChange={() => toggleNotif(key)} label={label} />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => toggleNotif(key as keyof NotificationPreferences)}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${notifPrefs[key as keyof NotificationPreferences] ? 'bg-[#2563EB]' : 'bg-[#E5E7EB]'
-                        }`}
-                      role="switch"
-                      aria-checked={!!notifPrefs[key as keyof NotificationPreferences]}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${notifPrefs[key as keyof NotificationPreferences] ? 'translate-x-4' : 'translate-x-0'
-                          }`}
-                      />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
+                  ))}
+                </div>
+              </Panel>
+            ))}
 
-            {/* 2. Product Manager & Sprints */}
-            <div className="border border-[#E5E7EB] rounded-xl p-5 bg-white">
-              <h3 className="text-[13.5px] font-semibold text-[#111111] mb-3 flex items-center gap-2">
-                <Briefcase size={15} className="text-[#D97706]" />
-                <span>Product Manager & Project Alerts</span>
-              </h3>
-              <div className="divide-y divide-[#F1F3F5]">
-                {[
-                  {
-                    key: 'pm_project_at_risk',
-                    label: 'Project Health Degradation (At Risk / Delayed)',
-                    desc: 'Alert when project timeline falls behind or hits critical blockers',
-                  },
-                  {
-                    key: 'pm_sprint_milestones',
-                    label: 'Sprint Milestones (80%+ Completion)',
-                    desc: 'Progress summary notifications when sprint targets are achieved',
-                  },
-                ].map(({ key, label, desc }) => (
-                  <div key={key} className="flex items-center justify-between py-3">
-                    <div>
-                      <div className="text-[13px] font-medium text-[#111111]">{label}</div>
-                      <div className="text-[11.5px] text-[rgba(17,17,17,0.45)] mt-0.5">{desc}</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => toggleNotif(key as keyof NotificationPreferences)}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${notifPrefs[key as keyof NotificationPreferences] ? 'bg-[#2563EB]' : 'bg-[#E5E7EB]'
-                        }`}
-                      role="switch"
-                      aria-checked={!!notifPrefs[key as keyof NotificationPreferences]}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${notifPrefs[key as keyof NotificationPreferences] ? 'translate-x-4' : 'translate-x-0'
-                          }`}
-                      />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* 3. Administration & Governance */}
-            <div className="border border-[#E5E7EB] rounded-xl p-5 bg-white">
-              <h3 className="text-[13.5px] font-semibold text-[#111111] mb-3 flex items-center gap-2">
-                <Shield size={15} className="text-[#7C3AED]" />
-                <span>Admin & Security Governance</span>
-              </h3>
-              <div className="divide-y divide-[#F1F3F5]">
-                {[
-                  {
-                    key: 'admin_security_alerts',
-                    label: 'Security & Access Audits',
-                    desc: 'Logins from new IP addresses, role reassignments, and permission changes',
-                  },
-                  {
-                    key: 'admin_system_metrics',
-                    label: 'System & Database Health Snapshots',
-                    desc: 'Database backup success, cache threshold alerts, and sync confirmations',
-                  },
-                ].map(({ key, label, desc }) => (
-                  <div key={key} className="flex items-center justify-between py-3">
-                    <div>
-                      <div className="text-[13px] font-medium text-[#111111]">{label}</div>
-                      <div className="text-[11.5px] text-[rgba(17,17,17,0.45)] mt-0.5">{desc}</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => toggleNotif(key as keyof NotificationPreferences)}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${notifPrefs[key as keyof NotificationPreferences] ? 'bg-[#2563EB]' : 'bg-[#E5E7EB]'
-                        }`}
-                      role="switch"
-                      aria-checked={!!notifPrefs[key as keyof NotificationPreferences]}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${notifPrefs[key as keyof NotificationPreferences] ? 'translate-x-4' : 'translate-x-0'
-                          }`}
-                      />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Save & Reset Actions */}
-            <div className="flex items-center justify-between pt-2">
+            <div className="flex items-center justify-between">
               <button
                 type="button"
                 onClick={resetNotifPrefs}
-                className="flex items-center gap-1.5 px-3 py-2 text-[12.5px] text-[rgba(17,17,17,0.55)] hover:text-[#111111] hover:bg-[#F3F4F6] rounded-lg transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-[13px] font-medium text-[rgba(17,17,17,0.6)] hover:text-[#111111] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
               >
                 <RefreshCw size={13} />
-                <span>Reset to Defaults</span>
+                Reset to defaults
               </button>
-              <SaveButton loading={notifSaving} onClick={saveNotifPrefs} label="Save Preferences" />
+              <SaveButton loading={notifSaving} onClick={saveNotifPrefs} label="Save preferences" />
             </div>
           </div>
         )}
 
-        {/* ━━━━━━━━━━━━━━━━━━━━━━━━
-            WORKSPACE (General)
-        ━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        {section === 'workspace' && (
-          <div className="max-w-xl">
-            <h2 className="text-[20px] font-bold text-[#111111] mb-1">Workspace General</h2>
-            <p className="text-[13px] text-[rgba(17,17,17,0.45)] mb-6">Manage your workspace settings.</p>
-            <div className="space-y-4">
-              {[
-                { label: 'Workspace Name', value: 'FlowSync Inc.' },
-                { label: 'Workspace URL', value: 'flowsync.app' },
-                { label: 'Industry', value: 'Software / Technology' },
-              ].map(({ label, value }) => (
-                <div key={label}>
-                  <FieldLabel>{label}</FieldLabel>
-                  <input
-                    defaultValue={value}
-                    className="w-full px-3.5 py-2.5 border border-[#E5E7EB] rounded-lg text-[13.5px] text-[#111111]
-                               outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all"
-                  />
-                </div>
-              ))}
-            </div>
-            <div className="mt-6 flex justify-end">
-              <button className="px-5 py-2 bg-[#2563EB] text-white rounded-lg text-[13.5px] font-semibold hover:bg-[#1D4ED8] transition-colors">
-                Save Changes
-              </button>
-            </div>
-            <div className="mt-8 pt-6 border-t border-[#F3F4F6]">
-              <div className="border border-[#FECACA] rounded-xl p-4">
-                <div className="text-[13px] font-medium text-[#111111] mb-0.5">Delete Workspace</div>
-                <div className="text-[12px] text-[rgba(17,17,17,0.5)] mb-3">
-                  This action is irreversible. All data will be permanently deleted.
-                </div>
-                <button className="px-4 py-1.5 border border-[#FECACA] rounded-lg text-[12.5px] font-semibold text-[#DC2626] hover:bg-[#FEF2F2] transition-colors">
-                  Delete Workspace
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        </div>
 
-
-
-
-
-        {/* ── Admin Edit Member Job Title Modal ── */}
+        {/* Edit job title dialog (admins) */}
         {isAdmin && editingTitleMember && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-            <div className="bg-white rounded-2xl shadow-xl border border-[#E5E7EB] w-full max-w-md overflow-y-auto max-h-[calc(100dvh-2rem)] overscroll-contain">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-[#F3F4F6]">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-600">
-                    <Shield size={16} />
-                  </div>
-                  <div>
-                    <h3 className="text-[15px] font-bold text-[#111111]">Update Member Job Title</h3>
-                    <p className="text-[11.5px] text-[rgba(17,17,17,0.45)]">Admin Role & Title Management</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setEditingTitleMember(null)}
-                  className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <form onSubmit={handleSaveMemberTitle} className="p-6 space-y-4">
-                <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl p-3 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[#2563EB] flex items-center justify-center text-[13px] font-bold text-white shrink-0 overflow-hidden">
+          <div
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 animate-in fade-in duration-150"
+            onMouseDown={e => {
+              if (e.target === e.currentTarget) setEditingTitleMember(null);
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="edit-title-heading"
+              className="w-full sm:max-w-md bg-white sm:rounded-2xl rounded-t-2xl border border-[#E5E7EB] shadow-xl overflow-y-auto max-h-[calc(100dvh-2rem)] overscroll-contain pb-safe"
+            >
+              <div className="flex items-start justify-between gap-4 px-5 pt-5 pb-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-full bg-[#2563EB] flex items-center justify-center text-[12px] font-semibold text-white shrink-0 overflow-hidden">
                     {editingTitleMember.avatar?.startsWith('http') || editingTitleMember.avatar?.startsWith('/') ? (
-                      <img src={editingTitleMember.avatar} alt={editingTitleMember.name} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+                      <img src={editingTitleMember.avatar} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
                       (editingTitleMember.avatar && editingTitleMember.avatar.length <= 3 ? editingTitleMember.avatar : editingTitleMember.name?.slice(0, 2) || 'U').toUpperCase()
                     )}
                   </div>
                   <div className="min-w-0">
-                    <div className="text-[13px] font-semibold text-[#111111] truncate">{editingTitleMember.name}</div>
-                    <div className="text-[11.5px] text-[rgba(17,17,17,0.45)] truncate">{editingTitleMember.email}</div>
+                    <h3 id="edit-title-heading" className="text-[15px] font-semibold text-[#111111] truncate">
+                      Edit job title
+                    </h3>
+                    <p className="text-[12.5px] text-[rgba(17,17,17,0.55)] truncate">
+                      {editingTitleMember.name} · {editingTitleMember.email}
+                    </p>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingTitleMember(null)}
+                  aria-label="Close"
+                  className="p-1.5 -mr-1.5 rounded-md text-[#9CA3AF] hover:text-[#111111] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
 
-                <div>
-                  <FieldLabel>Job Title / Role</FieldLabel>
-                  <TextInput
-                    value={memberJobTitleInput}
-                    onChange={setMemberJobTitleInput}
-                    placeholder="e.g. Senior Project Manager, Full Stack Engineer"
-                  />
-                </div>
-
-                {/* Quick Preset Badges */}
-                <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-[rgba(17,17,17,0.4)] block mb-1.5">
-                    Suggested Presets
-                  </label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[
-                      'Admin',
-                      'Project Manager',
-                      'Member',
-                    ].map(preset => (
-                      <button
-                        key={preset}
-                        type="button"
-                        onClick={() => setMemberJobTitleInput(preset)}
-                        className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${memberJobTitleInput.toLowerCase() === preset.toLowerCase()
-                          ? 'bg-[#2563EB] text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              <form onSubmit={handleSaveMemberTitle}>
+                <div className="px-5 pb-5 space-y-3">
+                  <div>
+                    <FieldLabel htmlFor="member-title">Job title</FieldLabel>
+                    <TextInput
+                      id="member-title"
+                      value={memberJobTitleInput}
+                      onChange={setMemberJobTitleInput}
+                      placeholder="e.g. Product Designer"
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[12px] text-[rgba(17,17,17,0.5)] mr-0.5">Quick pick:</span>
+                    {['Admin', 'Project Manager', 'Member'].map(preset => {
+                      const active = memberJobTitleInput.toLowerCase() === preset.toLowerCase();
+                      return (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setMemberJobTitleInput(preset)}
+                          className={`h-7 px-2.5 rounded-full border text-[12px] font-medium transition-colors cursor-pointer ${
+                            active
+                              ? 'border-[#BFDBFE] bg-[#EFF6FF] text-[#1D4ED8]'
+                              : 'border-[#E5E7EB] bg-white text-[rgba(17,17,17,0.7)] hover:text-[#111111]'
                           }`}
-                      >
-                        {preset}
-                      </button>
-                    ))}
+                        >
+                          {preset}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-[#F3F4F6]">
+                <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[#F0F0F0] bg-[#FAFAFA]">
                   <button
                     type="button"
                     onClick={() => setEditingTitleMember(null)}
-                    className="px-4 py-2 border border-[#E5E7EB] rounded-lg text-[13px] font-medium text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+                    className="h-9 px-3.5 rounded-lg border border-[#E5E7EB] bg-white text-[13px] font-medium text-[#111111] hover:bg-[#F9FAFB] transition-colors cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={savingMemberTitle || !memberJobTitleInput.trim()}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg text-[13px] font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[13px] font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                   >
-                    {savingMemberTitle ? (
-                      <>
-                        <Loader2 size={13} className="animate-spin" />
-                        Saving…
-                      </>
-                    ) : (
-                      'Save Job Title'
-                    )}
+                    {savingMemberTitle && <Loader2 size={13} className="animate-spin" />}
+                    {savingMemberTitle ? 'Saving…' : 'Save'}
                   </button>
                 </div>
               </form>
