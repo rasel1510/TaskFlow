@@ -389,7 +389,7 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
         </button>
 
         {/* Bottom user profile & session actions */}
-        <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-[#F3F4F6] transition-colors group">
+        <div className={`flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-[#F3F4F6] transition-colors group ${collapsed ? 'md:flex-col md:px-0' : ''}`}>
           <div className="relative shrink-0">
             <div className="w-7 h-7 rounded-full bg-[#2563EB] flex items-center justify-center overflow-hidden shrink-0">
               {isAvatarUrl && !avatarImgError ? (
@@ -424,7 +424,7 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
             onClick={() => signOut({ callbackUrl: '/', redirectTo: '/' })}
             title="Sign Out"
             aria-label="Sign out"
-            className={`md:opacity-0 md:group-hover:opacity-100 p-2 md:p-1 rounded-lg md:rounded hover:bg-[#E5E7EB] text-gray-500 hover:text-red-600 transition-all cursor-pointer md:${collapsed ? 'hidden' : 'block'}`}
+            className="shrink-0 p-2 md:p-1 rounded-lg md:rounded text-gray-400 hover:bg-[#E5E7EB] hover:text-red-600 transition-colors cursor-pointer"
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
