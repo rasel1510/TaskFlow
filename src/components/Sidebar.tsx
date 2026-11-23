@@ -404,20 +404,9 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
                 <span className="text-[11px] font-bold text-white select-none">{userInitials}</span>
               )}
             </div>
-            {expertiseRequired && (
-              <span
-                title="Action Required: Set Expertise Matrix"
-                className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 border-2 border-white animate-pulse"
-              />
-            )}
           </div>
           <div className={`flex-1 min-w-0 md:${collapsed ? 'hidden' : 'block'}`}>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[12.5px] font-semibold text-[#111111] truncate">{userName}</span>
-              {expertiseRequired && (
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" title="Expertise not filled" />
-              )}
-            </div>
+            <div className="text-[12.5px] font-semibold text-[#111111] truncate">{userName}</div>
             <div className="text-[11px] text-[rgba(17,17,17,0.45)] truncate">{userRole}</div>
           </div>
           <button
