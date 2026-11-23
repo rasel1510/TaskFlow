@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
+import { hasActivePlan } from '@/lib/billing';
 
 export async function POST(req: Request) {
   try {
@@ -21,27 +22,28 @@ export async function POST(req: Request) {
 
     const user = await prisma.user.findFirst({
       where: session.user.id ? { id: session.user.id } : { email: session.user.email! },
-      include: { team: true, invoices: true },
+      include: { team: true },
     });
 
     if (!user) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
 
-    // Enforce Mandate: User cannot open company without completing payment using Stripe
-    const hasCompletedPayment =
-      Boolean(user.invoices && user.invoices.some(inv => inv.status === 'paid')) ||
-      user.plan === 'pro' ||
-      user.plan === 'basic';
-
-    if (!hasCompletedPayment) {
+    // A company can only be set up on Pro (verified Stripe payment) or the free Basic plan
+    if (!hasActivePlan(user.plan)) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Payment required: You must complete payment using Stripe before opening your company.',
+          error: 'Choose a plan first. Pro is activated only after your Stripe payment succeeds.',
           requiresPayment: true,
         },
         { status: 402 }
+      );
+    }
+    if (user.teamId) {
+      return NextResponse.json(
+        { success: false, error: 'Your company is already set up.', alreadyOnboarded: true },
+        { status: 409 }
       );
     }
 

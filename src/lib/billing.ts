@@ -32,6 +32,15 @@ export function paymentsConfigProblem(): string | null {
   return null;
 }
 
+/**
+ * Whether someone may set up a company: Pro (only ever set by a verified Stripe payment — the
+ * Checkout return page or a signed webhook) or the free Basic plan they chose. Nothing else counts,
+ * so an unsuccessful or cancelled Stripe payment never reaches company setup.
+ */
+export function hasActivePlan(plan: string | null | undefined): boolean {
+  return plan === 'pro' || plan === 'basic';
+}
+
 /* ───────────────────────────── errors ───────────────────────────── */
 
 export interface BillingError {
@@ -166,7 +175,7 @@ export async function createProCheckout(opts: {
   const successUrl = user.teamId
     ? `${baseUrl}/app?view=billing&payment_success=true&session_id={CHECKOUT_SESSION_ID}`
     : `${baseUrl}/onboarding/organization?session_id={CHECKOUT_SESSION_ID}`;
-  const cancelUrl = user.teamId ? `${baseUrl}/app?view=billing` : `${baseUrl}/onboarding/plans`;
+  const cancelUrl = user.teamId ? `${baseUrl}/app?view=billing` : `${baseUrl}/onboarding/plans?payment=cancelled`;
 
   const metadata = { userId: user.id, plan: 'pro' };
   const session = await stripe.checkout.sessions.create({

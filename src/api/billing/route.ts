@@ -21,6 +21,7 @@ import {
   ensureStripeCustomer,
   findPromotionCode,
   fulfilCheckoutSession,
+  hasActivePlan,
   liveSubscriptions,
   paymentsConfigProblem,
   setWorkspacePlan,
@@ -111,10 +112,9 @@ export async function GET(req: Request) {
       ? { brand: cardInvoice.brand as string, last4: cardInvoice.last4 as string, expMonth: null, expYear: null }
       : null;
 
-    const hasPaid =
-      isPro ||
-      user.plan === 'basic' ||
-      Boolean(mappedInvoices && mappedInvoices.length > 0);
+    const hasPaid = hasActivePlan(user.plan);
+    // After Stripe Checkout: did *this* payment go through? ('paid' only when Pro is now active)
+    const checkout = sessionId ? (isPro ? 'paid' : 'not_paid') : undefined;
 
     // App access: paying users, members of a company whose account is paid (team invites), and
     // anyone who has been added to a project (project invites) — invited people never hit the paywall.
@@ -138,6 +138,7 @@ export async function GET(req: Request) {
         plan: user.plan || 'free',
         hasPaid,
         hasAccess,
+        ...(checkout ? { checkout } : {}),
         isProjectMember,
         teamId: user.teamId,
         billingCycle: isPro ? (user.billingCycle || 'monthly') : 'free',

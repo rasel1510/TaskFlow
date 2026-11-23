@@ -102,7 +102,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               return null;
             }
             const hasPaid =
-              Boolean(dbUser.invoices && dbUser.invoices.some(inv => inv.status === 'paid')) ||
               dbUser.plan === 'pro' ||
               dbUser.plan === 'basic';
 
@@ -197,7 +196,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           // Populate the user object so `jwt` callback attaches DB properties
           const hasPaid =
-            Boolean(dbUser.invoices && dbUser.invoices.some(inv => inv.status === 'paid')) ||
             dbUser.plan === 'pro' ||
             dbUser.plan === 'basic';
 
@@ -289,7 +287,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             if (freshUser.team?.name) token.teamName = freshUser.team.name;
             token.plan = freshUser.plan;
             token.hasPaid =
-              Boolean(freshUser.invoices && freshUser.invoices.some(inv => inv.status === 'paid')) ||
               freshUser.plan === 'pro' ||
               freshUser.plan === 'basic';
             token.hasCompletedOnboarding = Boolean(

@@ -17,11 +17,21 @@ export default function OnboardingPlansPage() {
   const [basicLoading, setBasicLoading] = useState(false);
   const [proLoading, setProLoading] = useState(false);
   const [proError, setProError] = useState<string | null>(null);
+  const [basicError, setBasicError] = useState<string | null>(null);
+
+  // Back from Stripe without a successful payment: say so and let them choose again
+  const paymentNotice =
+    typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('payment') : null;
 
   // If user already paid, prevent paying again: redirect directly to /app or organization setup
   useEffect(() => {
     let isMounted = true;
     async function checkExistingStatus() {
+      // After a cancelled or failed payment, stay here so they can pick a plan again
+      if (paymentNotice === 'cancelled' || paymentNotice === 'failed') {
+        if (isMounted) setVerifyingStatus(false);
+        return;
+      }
       try {
         const res = await fetch('/api/billing', { cache: 'no-store' });
         if (res.ok) {
@@ -73,15 +83,20 @@ export default function OnboardingPlansPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'select_basic_plan' }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (data.success) {
         router.push('/onboarding/organization');
-      } else {
-        router.push('/onboarding/organization');
+        return;
       }
+      if (data.alreadyPro) {
+        router.push('/onboarding/organization');
+        return;
+      }
+      setProError(null);
+      setBasicError(data.error || 'We couldn’t save your plan. Please try again.');
+      setBasicLoading(false);
     } catch {
-      router.push('/onboarding/organization');
-    } finally {
+      setBasicError('Check your internet connection and try again.');
       setBasicLoading(false);
     }
   };
@@ -199,6 +214,18 @@ export default function OnboardingPlansPage() {
           </p>
         </div>
 
+        {(paymentNotice === 'cancelled' || paymentNotice === 'failed') && (
+          <div
+            role="status"
+            className="w-full max-w-4xl -mt-4 mb-8 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200"
+          >
+            <span className="font-semibold">
+              {paymentNotice === 'cancelled' ? 'Payment cancelled.' : 'Your payment didn’t go through.'}
+            </span>{' '}
+            You haven’t been charged and your company hasn’t been set up. Choose a plan to continue.
+          </div>
+        )}
+
         {/* 2 Category Plans Grid — Perfectly Balanced Baselines */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 w-full max-w-4xl items-stretch">
 
@@ -263,6 +290,11 @@ export default function OnboardingPlansPage() {
               >
                 {basicLoading ? 'Activating...' : 'Select Basic Plan'}
               </button>
+              {basicError && (
+                <p role="alert" className="mt-2 text-xs text-rose-600 dark:text-rose-400 font-medium text-center">
+                  {basicError}
+                </p>
+              )}
             </div>
           </div>
 

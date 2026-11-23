@@ -71,12 +71,14 @@ function OnboardingOrganizationContent() {
         const res = await fetch(url, { cache: 'no-store' });
         if (res.ok) {
           const json = await res.json();
-          const hasPaid =
-            Boolean(json.data?.invoices && json.data.invoices.some((inv: any) => inv.status === 'paid')) ||
-            json.data?.plan === 'pro' ||
-            json.data?.plan === 'basic' ||
-            Boolean(json.data?.hasPaid);
+          const hasPaid = Boolean(json.data?.hasPaid);
 
+          // Back from Stripe but the payment didn't succeed → plans, with the reason
+          if (sessionId && json.data?.checkout !== 'paid') {
+            router.replace('/onboarding/plans?payment=failed');
+            return;
+          }
+          // No plan yet (never paid, cancelled, or failed) → plans
           if (!hasPaid) {
             router.replace('/onboarding/plans');
             return;
