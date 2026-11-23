@@ -1,14 +1,16 @@
 'use client';
 
 /**
- * Invite someone to a project by email (used at the top of "Add Team Members").
- * Sends a FlowSync invitation email with Accept / Decline buttons and lists pending invitations
- * with Resend / Cancel.
+ * "Invite by email" section of the Add members dialog: one row (email · role · Invite) plus the
+ * project's pending invitations with Resend / Cancel. The invitee gets an email with
+ * Accept / Decline and joins the project — and the company — with the chosen role.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Loader2, Mail, RotateCw, Send, X } from 'lucide-react';
+import { Loader2, RotateCw, X } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
+import { SelectMenu, type SelectOption } from '@/components/ui/Pickers';
+import { toCompanyRole, type CompanyRole } from '@/lib/companyRoles';
 
 interface PendingInvite {
   id: string;
@@ -16,14 +18,7 @@ interface PendingInvite {
   role: string;
   status: string;
   createdAt: string;
-  expiresAt: string;
 }
-
-const ROLE_OPTIONS = [
-  { value: 'Member', label: 'Member' },
-  { value: 'Project Manager', label: 'Project Manager' },
-  { value: 'Admin', label: 'Admin' },
-];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -36,22 +31,29 @@ function timeAgo(iso: string): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-function roleLabel(role: string): string {
-  return /[a-z]/.test(role) ? role : role.charAt(0) + role.slice(1).toLowerCase();
+export const roleTriggerClass =
+  'h-9 px-2.5 inline-flex items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-white text-[13px] text-[#111111] hover:border-[#D1D5DB] transition-colors duration-100 ease-out cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#DBEAFE]';
+
+export function Chevron() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-[#9CA3AF]" aria-hidden="true">
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
 }
 
 export default function InviteByEmail({
   projectId,
-  projectName,
+  roleOptions,
   onInvited,
 }: {
   projectId: string;
-  projectName: string;
+  roleOptions: SelectOption<CompanyRole>[];
   onInvited?: () => void;
 }) {
   const toast = useToast();
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState('Member');
+  const [role, setRole] = useState<CompanyRole>('Member');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingInvite[]>([]);
@@ -73,16 +75,14 @@ export default function InviteByEmail({
     loadPending();
   }, [loadPending]);
 
-  const send = async (targetEmail: string, targetRole: string, opts: { resend?: boolean } = {}) => {
+  const send = async (targetEmail: string, targetRole: string) => {
     const res = await fetch(`/api/projects/${projectId}/invitations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: targetEmail, role: targetRole }),
     });
     const json = await res.json().catch(() => null);
-    if (!res.ok || !json?.success) {
-      throw new Error(json?.error?.message || (opts.resend ? 'Could not resend the invitation' : 'Could not send the invitation'));
-    }
+    if (!res.ok || !json?.success) throw new Error(json?.error?.message || 'Could not send the invitation');
     return json;
   };
 
@@ -96,8 +96,8 @@ export default function InviteByEmail({
     setError(null);
     setSending(true);
     try {
-      const json = await send(target, role);
-      toast.success(json.message || `Invitation sent to ${target}`);
+      await send(target, role);
+      toast.success(`Invitation sent to ${target}`);
       setEmail('');
       await loadPending();
       onInvited?.();
@@ -111,7 +111,7 @@ export default function InviteByEmail({
   const handleResend = async (inv: PendingInvite) => {
     setBusyId(inv.id);
     try {
-      await send(inv.email, inv.role, { resend: true });
+      await send(inv.email, toCompanyRole(inv.role));
       toast.success(`Invitation resent to ${inv.email}`);
       await loadPending();
       onInvited?.();
@@ -139,18 +139,12 @@ export default function InviteByEmail({
   };
 
   return (
-    <section className="px-4 sm:px-6 py-4 border-b border-[#F3F4F6] bg-white" aria-labelledby="invite-by-email-title">
-      <div className="flex items-center gap-2">
-        <Mail className="w-4 h-4 text-[#2563EB]" />
-        <h4 id="invite-by-email-title" className="text-[13.5px] font-semibold text-[#111111]">
-          Invite by email
-        </h4>
-      </div>
-      <p className="mt-1 text-[12px] text-[rgba(17,17,17,0.55)]">
-        Anyone can join {projectName} — they&apos;ll get a FlowSync email with Accept and Decline buttons.
-      </p>
+    <section className="px-5 py-4" aria-labelledby="invite-by-email-title">
+      <h4 id="invite-by-email-title" className="text-[12.5px] font-medium text-[rgba(17,17,17,0.6)]">
+        Invite by email
+      </h4>
 
-      <form onSubmit={handleSubmit} className="mt-3 flex flex-col sm:flex-row gap-2" noValidate>
+      <form onSubmit={handleSubmit} className="mt-2 flex flex-col sm:flex-row gap-2" noValidate>
         <input
           type="email"
           inputMode="email"
@@ -160,7 +154,7 @@ export default function InviteByEmail({
             setEmail(e.target.value);
             if (error) setError(null);
           }}
-          placeholder="name@example.com"
+          placeholder="name@company.com"
           aria-label="Email address to invite"
           aria-invalid={Boolean(error)}
           className={`flex-1 min-w-0 h-9 px-3 rounded-lg border bg-white text-[13px] text-[#111111] placeholder-[#9CA3AF] outline-none transition-[border-color,box-shadow] duration-150 ease-out focus:ring-2 ${
@@ -168,25 +162,26 @@ export default function InviteByEmail({
           }`}
         />
         <div className="flex gap-2">
-          <select
+          <SelectMenu
+            ariaLabel="Role for the invited person"
             value={role}
-            onChange={e => setRole(e.target.value)}
-            aria-label="Role in the project"
-            className="h-9 px-2 rounded-lg border border-[#E5E7EB] bg-white text-[13px] text-[#111111] outline-none cursor-pointer hover:border-[#D1D5DB] focus-visible:border-[#2563EB] focus-visible:ring-2 focus-visible:ring-[#DBEAFE]"
-          >
-            {ROLE_OPTIONS.map(o => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+            options={roleOptions}
+            onChange={v => v && setRole(v)}
+            triggerClassName={`${roleTriggerClass} flex-1 sm:flex-none justify-between sm:min-w-[9.5rem]`}
+            renderValue={opt => (
+              <>
+                <span className="truncate">{opt?.label ?? role}</span>
+                <Chevron />
+              </>
+            )}
+          />
           <button
             type="submit"
             disabled={sending || !email.trim()}
-            className="h-9 px-3.5 inline-flex items-center gap-1.5 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[13px] font-medium whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            className="h-9 px-4 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[13px] font-medium whitespace-nowrap transition-colors duration-100 ease-out disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-            {sending ? 'Sending…' : 'Send invite'}
+            {sending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            Invite
           </button>
         </div>
       </form>
@@ -198,24 +193,21 @@ export default function InviteByEmail({
 
       {pending.length > 0 && (
         <div className="mt-3">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-[rgba(17,17,17,0.45)]">
-            Pending invitations ({pending.length})
-          </p>
-          <ul className="mt-1.5 divide-y divide-[#F3F4F6] rounded-lg border border-[#F0F0F0]">
+          <p className="text-[12px] text-[rgba(17,17,17,0.5)]">Pending · {pending.length}</p>
+          <ul className="mt-1 divide-y divide-[#F3F4F6]">
             {pending.map(inv => (
-              <li key={inv.id} className="flex items-center gap-3 px-3 py-2">
+              <li key={inv.id} className="flex items-center gap-2 py-2">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13px] text-[#111111]">{inv.email}</p>
-                  <p className="text-[11.5px] text-[rgba(17,17,17,0.45)]">
-                    {roleLabel(inv.role)} · sent {timeAgo(inv.createdAt)}
+                  <p className="text-[12px] text-[rgba(17,17,17,0.45)]">
+                    {toCompanyRole(inv.role)} · sent {timeAgo(inv.createdAt)}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => handleResend(inv)}
                   disabled={busyId === inv.id}
-                  className="inline-flex items-center gap-1 h-7 px-2 rounded-md text-[12px] text-[rgba(17,17,17,0.7)] hover:bg-[#F3F4F6] hover:text-[#111111] transition-colors disabled:opacity-50 cursor-pointer"
-                  title="Send the invitation email again"
+                  className="inline-flex items-center gap-1 h-7 px-2 rounded-md text-[12px] text-[rgba(17,17,17,0.65)] hover:bg-[#F3F4F6] hover:text-[#111111] transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   {busyId === inv.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCw className="w-3 h-3" />}
                   Resend

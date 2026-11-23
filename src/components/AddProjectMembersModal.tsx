@@ -1,40 +1,23 @@
 /**
  * src/components/AddProjectMembersModal.tsx
  *
- * Dedicated, professional modal for Workspace Administrators and Project Managers
- * to directly assign existing organization users to an existing project.
+ * "Add members" dialog for a project. Two simple ways in:
+ *   1. Invite by email — anyone; they accept from the email and join with the chosen role.
+ *   2. People in your company — tick people, pick each person's role, Add (instant, no email).
  *
- * Key Capabilities:
- * - Direct enrollment (NO invitation emails sent to users; instant project access).
- * - Multi-select candidate users with batch enrollment.
- * - Single-click individual enrollment with instant feedback.
- * - Fine-grained project designation selection (Member, Project Manager, Admin).
- * - Real-time candidate filtering by name, email, job title, and expertise/skills.
- * - Linear/Supabase minimalist aesthetic with sub-150ms micro-interactions.
+ * Roles are the company's three: Admin, Project Manager, Member. Only company Admins can grant
+ * Admin (the API enforces the same rule).
  */
 
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import InviteByEmail from '@/components/project/InviteByEmail';
-import {
-  X,
-  Search,
-  UserPlus,
-  Check,
-  CheckSquare,
-  Square,
-  Shield,
-  Briefcase,
-  Users,
-  Sparkles,
-  Loader2,
-  AlertCircle,
-  Filter,
-} from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Check, Loader2, Search, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useToast } from '@/components/ui/Toast';
-import { type ProjectRole, normalizeDesignation } from '@/lib/permissions';
+import { SelectMenu, type SelectOption } from '@/components/ui/Pickers';
+import InviteByEmail, { Chevron } from '@/components/project/InviteByEmail';
+import { toCompanyRole, type CompanyRole } from '@/lib/companyRoles';
 
 export interface AvailableUser {
   id: string;
@@ -56,29 +39,22 @@ interface AddProjectMembersModalProps {
   onInvited?: () => void;
 }
 
-const COMMON_SKILLS = [
-  'Frontend',
-  'Backend',
-  'Full Stack Engineering',
-  'UI Design',
-  'DevOps',
-  'QA Engineering',
-  'Cloud Architecture',
-  'Mobile Development',
-  'AI',
-  'ML',
-  'Cybersecurity',
+const ALL_ROLES: SelectOption<CompanyRole>[] = [
+  { value: 'Member', label: 'Member' },
+  { value: 'Project Manager', label: 'Project Manager' },
+  { value: 'Admin', label: 'Admin' },
 ];
 
-function renderAvatar(avatar?: string, name?: string) {
+function Avatar({ name, avatar }: { name: string; avatar?: string }) {
   if (avatar && (avatar.startsWith('http') || avatar.startsWith('/'))) {
-    return <img src={avatar} alt={name || 'User'} className="w-9 h-9 rounded-full object-cover shrink-0" />;
+    return <img src={avatar} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" referrerPolicy="no-referrer" />;
   }
-  const initials = avatar || (name ? name.slice(0, 2).toUpperCase() : 'U');
+  const parts = (name || '').trim().split(/\s+/);
+  const initials = (avatar && /^[A-Za-z]{1,3}$/.test(avatar) ? avatar : (parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || '?';
   return (
-    <div className="w-9 h-9 rounded-full bg-blue-100 text-[#2563EB] font-bold text-xs flex items-center justify-center shrink-0 border border-blue-200">
+    <span className="w-8 h-8 rounded-full bg-[#EFF6FF] text-[#2563EB] text-[11px] font-semibold flex items-center justify-center shrink-0">
       {initials}
-    </div>
+    </span>
   );
 }
 
@@ -93,232 +69,80 @@ export default function AddProjectMembersModal({
 }: AddProjectMembersModalProps) {
   const toast = useToast();
   const { data: session } = useSession();
-  const userRole = (session?.user as { role?: string })?.role;
-  const isAdmin =
-    userRole === 'Admin' ||
-    userRole === 'ADMIN' ||
-    userRole?.toLowerCase() === 'admin';
+  const isAdmin = toCompanyRole((session?.user as { role?: string })?.role) === 'Admin';
+  // Only company Admins can make someone an Admin
+  const roleOptions = useMemo(() => (isAdmin ? ALL_ROLES : ALL_ROLES.filter(r => r.value !== 'Admin')), [isAdmin]);
 
   const [users, setUsers] = useState<AvailableUser[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'ALL' | 'ADMIN' | 'PM' | 'MEMBER'>('ALL');
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-  
-  // Multi-selection state
-  const [selectedMap, setSelectedMap] = useState<Record<string, ProjectRole>>({});
-  const [bulkRole, setBulkRole] = useState<ProjectRole>('Member');
-  
-  // Submission state
+  const [loading, setLoading] = useState(false);
+  const [query, setQuery] = useState('');
+  const [selected, setSelected] = useState<Record<string, CompanyRole>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [singleAddingId, setSingleAddingId] = useState<string | null>(null);
-  const [showAlreadyEnrolled, setShowAlreadyEnrolled] = useState(false);
 
-  // Fetch organization users when modal opens
+  // Load company people each time the dialog opens; start clean
   useEffect(() => {
     if (!isOpen) return;
-
-    let isMounted = true;
-    const fetchUsers = async () => {
-      setLoadingUsers(true);
-      try {
-        const res = await fetch(`/api/users?projectId=${encodeURIComponent(projectId)}`);
-        const json = await res.json();
-        const list: AvailableUser[] = Array.isArray(json) ? json : (json?.data || []);
-        if (isMounted) {
-          setUsers(list);
-        }
-      } catch (err) {
-        console.warn('[AddProjectMembersModal] Failed to load organization users:', err);
-        toast.error('Failed to load team members');
-      } finally {
-        if (isMounted) setLoadingUsers(false);
-      }
+    let alive = true;
+    setSelected({});
+    setQuery('');
+    setLoading(true);
+    fetch(`/api/users?projectId=${encodeURIComponent(projectId)}`)
+      .then(r => r.json())
+      .then(json => {
+        if (alive) setUsers(Array.isArray(json) ? json : json?.data || []);
+      })
+      .catch(() => alive && toast.error('Couldn’t load people in your company'))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
     };
-
-    fetchUsers();
-    return () => { isMounted = false; };
   }, [isOpen, projectId, toast]);
 
-  // Keyboard dismiss (Escape)
+  // Escape closes (unless saving)
   useEffect(() => {
     if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !submitting) {
-        onClose();
-      }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !submitting) onClose();
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [isOpen, submitting, onClose]);
 
-  // Existing member IDs set for O(1) checks
-  const existingSet = useMemo(() => new Set(existingMemberIds), [existingMemberIds]);
+  const existing = useMemo(() => new Set(existingMemberIds), [existingMemberIds]);
+  const candidates = useMemo(() => users.filter(u => !existing.has(u.id)), [users, existing]);
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return candidates;
+    return candidates.filter(u => u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q));
+  }, [candidates, query]);
 
-  // Filter candidates
-  const { availableCandidates, alreadyEnrolledUsers } = useMemo(() => {
-    const available: AvailableUser[] = [];
-    const enrolled: AvailableUser[] = [];
+  const selectedIds = Object.keys(selected);
+  const count = selectedIds.length;
 
-    const query = searchTerm.trim().toLowerCase();
-
-    for (const u of users) {
-      const isEnrolled = existingSet.has(u.id);
-      
-      // Text search matching
-      const userSkills: string[] = Array.isArray(u.expertise) ? u.expertise : [];
-      const matchesSearch =
-        !query ||
-        u.name?.toLowerCase().includes(query) ||
-        u.email?.toLowerCase().includes(query) ||
-        u.role?.toLowerCase().includes(query) ||
-        userSkills.some(s => s.toLowerCase().includes(query));
-
-      if (!matchesSearch) continue;
-
-      // Role filter matching
-      if (roleFilter !== 'ALL') {
-        const r = (u.role || '').toLowerCase();
-        const isAdm = r.includes('admin');
-        const isPM = r.includes('manager') || r.includes('pm') || r.includes('lead');
-        if (roleFilter === 'ADMIN' && !isAdm) continue;
-        if (roleFilter === 'PM' && !isPM) continue;
-        if (roleFilter === 'MEMBER' && (isAdm || isPM)) continue;
-      }
-
-      // Skill filter matching
-      if (selectedSkills.length > 0) {
-        const hasSkill = selectedSkills.some(req =>
-          userSkills.some(s => s.toLowerCase() === req.toLowerCase())
-        );
-        if (!hasSkill) continue;
-      }
-
-      if (isEnrolled) {
-        enrolled.push(u);
-      } else {
-        available.push(u);
-      }
-    }
-
-    return { availableCandidates: available, alreadyEnrolledUsers: enrolled };
-  }, [users, existingSet, searchTerm, roleFilter, selectedSkills]);
-
-  const selectedCount = Object.keys(selectedMap).length;
-
-  // Toggle selection for a user
-  const toggleSelectUser = (userId: string) => {
-    setSelectedMap(prev => {
+  const toggle = (id: string) =>
+    setSelected(prev => {
       const next = { ...prev };
-      if (next[userId]) {
-        delete next[userId];
-      } else {
-        next[userId] = bulkRole;
-      }
+      if (next[id]) delete next[id];
+      else next[id] = 'Member';
       return next;
     });
-  };
 
-  // Update specific selected user's role
-  const setRoleForUser = (userId: string, role: ProjectRole) => {
-    setSelectedMap(prev => ({
-      ...prev,
-      [userId]: role,
-    }));
-  };
-
-  // Select all available visible candidates
-  const handleSelectAll = () => {
-    const next: Record<string, ProjectRole> = { ...selectedMap };
-    for (const u of availableCandidates) {
-      if (!next[u.id]) {
-        next[u.id] = bulkRole;
-      }
-    }
-    setSelectedMap(next);
-  };
-
-  // Clear all selections
-  const handleClearAll = () => {
-    setSelectedMap({});
-  };
-
-  // Apply bulk role to all currently selected users
-  const handleApplyBulkRole = (newRole: ProjectRole) => {
-    setBulkRole(newRole);
-    setSelectedMap(prev => {
-      const next: Record<string, ProjectRole> = {};
-      for (const k of Object.keys(prev)) {
-        next[k] = newRole;
-      }
-      return next;
-    });
-  };
-
-  // Single-user instant addition
-  const handleAddSingle = async (userId: string, role: ProjectRole) => {
-    setSingleAddingId(userId);
-    const assignedRole = isAdmin ? role : 'Member';
-    try {
-      const res = await fetch(`/api/projects/${projectId}/members`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, role: assignedRole }),
-      });
-
-      const json = await res.json();
-      if (!res.ok || json.success === false) {
-        throw new Error(json.error?.message || json.message || 'Failed to add member');
-      }
-
-      const target = users.find(u => u.id === userId);
-      toast.success(`${target?.name || 'User'} added to ${projectName} as a ${role}`);
-      
-      // Remove from selected if present
-      setSelectedMap(prev => {
-        const next = { ...prev };
-        delete next[userId];
-        return next;
-      });
-
-      onSuccess();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to add member to project');
-    } finally {
-      setSingleAddingId(null);
-    }
-  };
-
-  // Batch addition of all selected users
-  const handleAddBatch = async () => {
-    const entries = Object.entries(selectedMap);
-    if (entries.length === 0) {
-      toast.error('Please select at least one team member');
-      return;
-    }
-
+  const handleAdd = async () => {
+    if (count === 0) return;
     setSubmitting(true);
     try {
-      const membersPayload = entries.map(([userId, role]) => ({ userId, role: isAdmin ? role : 'Member' }));
-
       const res = await fetch(`/api/projects/${projectId}/members`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ members: membersPayload }),
+        body: JSON.stringify({ members: selectedIds.map(userId => ({ userId, role: selected[userId] })) }),
       });
-
-      const json = await res.json();
-      if (!res.ok || json.success === false) {
-        throw new Error(json.error?.message || json.message || 'Failed to add members');
-      }
-
-      toast.success(`Successfully added ${entries.length} member${entries.length === 1 ? '' : 's'} to ${projectName}!`);
-      setSelectedMap({});
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json.success === false) throw new Error(json.error?.message || 'Couldn’t add members');
+      toast.success(count === 1 ? `Added to ${projectName}` : `${count} people added to ${projectName}`);
       onSuccess();
       onClose();
-    } catch (err: any) {
-      console.error('[AddProjectMembersModal] Batch add error:', err);
-      toast.error(err.message || 'Failed to add selected members');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Couldn’t add members');
     } finally {
       setSubmitting(false);
     }
@@ -326,376 +150,165 @@ export default function AddProjectMembersModal({
 
   if (!isOpen) return null;
 
+  const hasCandidates = candidates.length > 0;
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 animate-in fade-in duration-150"
       onClick={() => !submitting && onClose()}
     >
       <div
-        className="bg-white rounded-t-2xl sm:rounded-2xl border border-[#E5E7EB] shadow-2xl w-full max-w-2xl max-h-[92dvh] sm:max-h-[90vh] flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-150 overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-members-title"
+        className="bg-white w-full sm:max-w-lg max-h-[92dvh] sm:max-h-[85vh] rounded-t-2xl sm:rounded-xl border border-[#E5E7EB] shadow-[0_24px_48px_-12px_rgba(17,17,17,0.25)] flex flex-col overflow-hidden animate-in slide-in-from-bottom-2 sm:zoom-in-[0.98] duration-150"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[#F3F4F6] shrink-0 bg-white">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-[#2563EB] shrink-0">
-              <UserPlus className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-[16.5px] font-bold text-[#111111] tracking-tight">
-                Add Team Members
-              </h3>
-              <p className="text-[12px] text-gray-500 mt-0.5">
-                Invite anyone by email, or add people from your organization to <span className="font-semibold text-gray-800">{projectName}</span>
-              </p>
-            </div>
+        <div className="flex items-start justify-between gap-3 px-5 pt-4 pb-3 border-b border-[#F0F0F0]">
+          <div className="min-w-0">
+            <h3 id="add-members-title" className="text-[15px] font-semibold text-[#111111]">
+              Add members
+            </h3>
+            <p className="mt-0.5 text-[12.5px] text-[rgba(17,17,17,0.55)] truncate">
+              to <span className="text-[#111111] font-medium">{projectName}</span>
+            </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[#F3F4F6] text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+            aria-label="Close"
+            className="-mr-1.5 w-8 h-8 rounded-lg flex items-center justify-center text-[#9CA3AF] hover:text-[#111111] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Scrollable body: invite by email first, then people already in the organization */}
-        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
-        <InviteByEmail projectId={projectId} projectName={projectName} onInvited={onInvited} />
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <InviteByEmail projectId={projectId} roleOptions={roleOptions} onInvited={onInvited} />
 
-        <div className="px-4 sm:px-6 pt-3 pb-1 bg-[#FAFAFB]">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-[rgba(17,17,17,0.45)]">
-            Or add people already in your organization
-          </p>
-        </div>
+          {/* People already in the company */}
+          <section className="px-5 pt-4 pb-3 border-t border-[#F0F0F0]" aria-labelledby="company-people-title">
+            <h4 id="company-people-title" className="text-[12.5px] font-medium text-[rgba(17,17,17,0.6)]">
+              People in your company
+            </h4>
 
-        {/* Search, Filter & Bulk Controls Toolbar */}
-        <div className="p-4 border-b border-[#F3F4F6] bg-[#FAFAFB] shrink-0 space-y-3">
-          {/* Search bar */}
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              placeholder="Search by name, email, job title, or skill..."
-              className="w-full pl-9 pr-4 py-2 text-xs border border-[#E5E7EB] rounded-xl bg-white outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-all font-medium text-gray-900 placeholder:text-gray-400"
-            />
-          </div>
-
-          {/* Role Filter Chips */}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-            <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mr-1 shrink-0 flex items-center gap-1">
-              <Filter className="w-3 h-3" />
-              Role:
-            </span>
-            {[
-              { id: 'ALL', label: 'All' },
-              { id: 'ADMIN', label: 'Admins' },
-              { id: 'PM', label: 'Project Managers' },
-              { id: 'MEMBER', label: 'Members' },
-            ].map(f => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setRoleFilter(f.id as any)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer shrink-0 ${
-                  roleFilter === f.id
-                    ? 'bg-[#2563EB] text-white shadow-2xs'
-                    : 'bg-white border border-[#E5E7EB] text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Quick Skill Filters */}
-          <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto pr-1">
-            {COMMON_SKILLS.map(skill => {
-              const isSelected = selectedSkills.includes(skill);
-              return (
-                <button
-                  key={skill}
-                  type="button"
-                  onClick={() =>
-                    setSelectedSkills(prev =>
-                      prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill]
-                    )
-                  }
-                  className={`px-2 py-0.5 rounded-md text-[10.5px] font-medium transition-all cursor-pointer flex items-center gap-1 ${
-                    isSelected
-                      ? 'bg-blue-600 text-white font-semibold shadow-2xs'
-                      : 'bg-white text-gray-600 border border-[#E5E7EB] hover:border-gray-300'
-                  }`}
-                >
-                  {isSelected && <Check className="w-2.5 h-2.5" />}
-                  {skill}
-                </button>
-              );
-            })}
-            {selectedSkills.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setSelectedSkills([])}
-                className="text-[10.5px] font-semibold text-[#2563EB] hover:underline px-1 cursor-pointer"
-              >
-                Clear skills
-              </button>
-            )}
-          </div>
-
-          {/* Multi-Selection Control Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#E5E7EB] text-xs">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={handleSelectAll}
-                className="font-semibold text-[#2563EB] hover:text-[#1D4ED8] flex items-center gap-1 cursor-pointer"
-              >
-                <CheckSquare className="w-3.5 h-3.5" />
-                Select All ({availableCandidates.length})
-              </button>
-              {selectedCount > 0 && (
-                <button
-                  type="button"
-                  onClick={handleClearAll}
-                  className="font-medium text-gray-500 hover:text-gray-800 cursor-pointer"
-                >
-                  Clear Selection
-                </button>
-              )}
-            </div>
-
-            {selectedCount > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-gray-500 text-[11px] font-medium">Default Role:</span>
-                {isAdmin ? (
-                  <select
-                    value={bulkRole}
-                    onChange={e => handleApplyBulkRole(e.target.value as ProjectRole)}
-                    className="text-[11.5px] font-semibold border border-[#E5E7EB] rounded-lg px-2 py-1 bg-white text-gray-700 outline-none focus:border-[#2563EB]"
-                  >
-                    <option value="Member">Member</option>
-                    <option value="Project Manager">Project Manager</option>
-                    <option value="Admin">Admin</option>
-                  </select>
-                ) : (
-                  <span className="text-[11.5px] font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded">Member</span>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Candidate List */}
-        <div className="flex-1 p-4 space-y-2.5 bg-white">
-          {loadingUsers ? (
-            <div className="py-16 text-center text-xs text-gray-400 flex flex-col items-center justify-center gap-2">
-              <Loader2 className="w-5 h-5 animate-spin text-[#2563EB]" />
-              <span>Loading organization team members...</span>
-            </div>
-          ) : availableCandidates.length === 0 ? (
-            <div className="py-12 text-center text-xs text-gray-500 px-4">
-              <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-              <p className="font-semibold text-gray-700">No available candidates found</p>
-              <p className="text-gray-400 text-[11.5px] mt-0.5">
-                {searchTerm || selectedSkills.length > 0 || roleFilter !== 'ALL'
-                  ? 'Try adjusting your search terms or filters.'
-                  : 'All users in your organization are already enrolled in this project.'}
+            {loading ? (
+              <ul className="mt-2" aria-hidden="true">
+                {[0, 1, 2].map(i => (
+                  <li key={i} className="flex items-center gap-3 h-12">
+                    <span className="w-4 h-4 rounded bg-[#F3F4F6]" />
+                    <span className="w-8 h-8 rounded-full bg-[#F3F4F6]" />
+                    <span className="flex-1 space-y-1.5">
+                      <span className="block h-2.5 w-32 rounded bg-[#F3F4F6]" />
+                      <span className="block h-2 w-44 rounded bg-[#F5F5F5]" />
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : !hasCandidates ? (
+              <p className="mt-2 py-3 text-[13px] text-[rgba(17,17,17,0.5)]">
+                Everyone in your company is already in this project. Invite someone new by email.
               </p>
-            </div>
-          ) : (
-            availableCandidates.map(user => {
-              const isSelected = Boolean(selectedMap[user.id]);
-              const userRoleInProject = selectedMap[user.id] || bulkRole;
-              const isAddingSingle = singleAddingId === user.id;
-              const userSkills: string[] = Array.isArray(user.expertise) ? user.expertise : [];
+            ) : (
+              <>
+                {candidates.length > 5 && (
+                  <div className="relative mt-2">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] pointer-events-none" />
+                    <input
+                      type="text"
+                      value={query}
+                      onChange={e => setQuery(e.target.value)}
+                      placeholder="Search by name or email"
+                      aria-label="Search people"
+                      className="w-full h-9 pl-9 pr-3 rounded-lg border border-[#E5E7EB] bg-white text-[13px] text-[#111111] placeholder-[#9CA3AF] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] transition-[border-color,box-shadow] duration-150 ease-out"
+                    />
+                  </div>
+                )}
 
-              return (
-                <div
-                  key={user.id}
-                  className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border transition-all ${
-                    isSelected
-                      ? 'border-[#2563EB] bg-blue-50/40 ring-1 ring-[#2563EB]/20 shadow-2xs'
-                      : 'border-[#E5E7EB] bg-white hover:border-gray-300'
-                  }`}
-                >
-                  {/* Left: Checkbox + Avatar + Info */}
-                  <div className="flex items-start gap-3 min-w-0">
-                    <button
-                      type="button"
-                      onClick={() => toggleSelectUser(user.id)}
-                      className="mt-1 text-gray-400 hover:text-[#2563EB] cursor-pointer shrink-0"
-                    >
-                      {isSelected ? (
-                        <div className="w-4 h-4 rounded bg-[#2563EB] text-white flex items-center justify-center">
-                          <Check className="w-3 h-3 stroke-[3]" />
-                        </div>
-                      ) : (
-                        <div className="w-4 h-4 rounded border border-gray-300 hover:border-[#2563EB]" />
-                      )}
-                    </button>
-
-                    {renderAvatar(user.avatar, user.name)}
-
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-bold text-gray-900 truncate">{user.name}</span>
-                        <span className="text-[10.5px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">
-                          {normalizeDesignation(user.role)}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-gray-400 truncate">{user.email}</div>
-
-                      {/* Skills Tags */}
-                      {userSkills.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1.5">
-                          {userSkills.slice(0, 4).map((skill, si) => (
+                {visible.length === 0 ? (
+                  <p className="py-6 text-center text-[13px] text-[rgba(17,17,17,0.5)]">No one matches “{query.trim()}”.</p>
+                ) : (
+                  <ul className="mt-1">
+                    {visible.map(user => {
+                      const role = selected[user.id];
+                      const isSelected = Boolean(role);
+                      return (
+                        <li key={user.id} className="flex items-center gap-3 min-h-12 py-1.5">
+                          <button
+                            type="button"
+                            onClick={() => toggle(user.id)}
+                            aria-pressed={isSelected}
+                            className="flex flex-1 min-w-0 items-center gap-3 text-left -mx-2 px-2 py-1 rounded-lg hover:bg-[#F9FAFB] transition-colors duration-100 ease-out cursor-pointer"
+                          >
                             <span
-                              key={si}
-                              className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200"
+                              className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors duration-100 ${
+                                isSelected ? 'bg-[#2563EB] border-[#2563EB] text-white' : 'border-[#D1D5DB] bg-white'
+                              }`}
                             >
-                              {skill}
+                              {isSelected && <Check className="w-3 h-3" strokeWidth={3} />}
                             </span>
-                          ))}
-                          {userSkills.length > 4 && (
-                            <span className="text-[10px] text-gray-400 font-medium">
-                              +{userSkills.length - 4} more
+                            <Avatar name={user.name} avatar={user.avatar} />
+                            <span className="min-w-0">
+                              <span className="block truncate text-[13.5px] font-medium text-[#111111]">{user.name}</span>
+                              <span className="block truncate text-[12px] text-[rgba(17,17,17,0.5)]">{user.email}</span>
                             </span>
+                          </button>
+
+                          {isSelected && (
+                            <SelectMenu
+                              ariaLabel={`Role for ${user.name}`}
+                              value={role}
+                              options={roleOptions}
+                              onChange={v => v && setSelected(prev => ({ ...prev, [user.id]: v }))}
+                              triggerClassName="h-8 px-2 inline-flex items-center gap-1 rounded-md text-[12.5px] text-[rgba(17,17,17,0.8)] hover:bg-[#F3F4F6] transition-colors duration-100 ease-out cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#DBEAFE] shrink-0"
+                              renderValue={opt => (
+                                <>
+                                  <span>{opt?.label ?? role}</span>
+                                  <Chevron />
+                                </>
+                              )}
+                            />
                           )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </>
+            )}
+          </section>
+        </div>
 
-                  {/* Right: Role selection & Action */}
-                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-center pl-7 sm:pl-0">
-                    {isAdmin ? (
-                      <select
-                        value={userRoleInProject}
-                        onChange={e => {
-                          const newRole = e.target.value as ProjectRole;
-                          setRoleForUser(user.id, newRole);
-                        }}
-                        className="text-xs border border-[#E5E7EB] rounded-lg px-2.5 py-1.5 bg-white font-medium text-gray-700 outline-none focus:border-[#2563EB]"
-                      >
-                        <option value="Member">Member</option>
-                        <option value="Project Manager">Project Manager</option>
-                        <option value="Admin">Admin</option>
-                      </select>
-                    ) : (
-                      <span className="text-xs font-semibold text-gray-700 bg-gray-100 px-2.5 py-1 rounded-lg">Member</span>
-                    )}
-
-                    <button
-                      type="button"
-                      disabled={isAddingSingle || submitting}
-                      onClick={() => handleAddSingle(user.id, userRoleInProject)}
-                      className="px-3 py-1.5 text-xs font-semibold bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                    >
-                      {isAddingSingle ? (
-                        <>
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                          <span>Adding...</span>
-                        </>
-                      ) : (
-                        <span>Add</span>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              );
-            })
-          )}
-
-          {/* Already Enrolled Section (Collapsible Accordion) */}
-          {alreadyEnrolledUsers.length > 0 && (
-            <div className="pt-3 border-t border-[#F3F4F6]">
+        {/* Footer */}
+        <div className="flex items-center justify-between gap-3 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-[#F0F0F0]">
+          <span className="text-[12.5px] text-[rgba(17,17,17,0.5)]">
+            {hasCandidates && count > 0 ? `${count} selected` : ''}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={submitting}
+              className="h-9 px-3.5 rounded-lg text-[13px] font-medium text-[rgba(17,17,17,0.7)] hover:text-[#111111] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+            >
+              {hasCandidates ? 'Cancel' : 'Done'}
+            </button>
+            {hasCandidates && (
               <button
                 type="button"
-                onClick={() => setShowAlreadyEnrolled(prev => !prev)}
-                className="text-xs font-semibold text-gray-500 hover:text-gray-800 flex items-center gap-1.5 cursor-pointer"
+                onClick={handleAdd}
+                disabled={submitting || count === 0}
+                className="h-9 px-4 inline-flex items-center gap-1.5 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[13px] font-medium transition-colors duration-100 ease-out disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
-                <span>Already enrolled members ({alreadyEnrolledUsers.length})</span>
-                <span className="text-[11px] text-gray-400">
-                  {showAlreadyEnrolled ? '▲ Hide' : '▼ View'}
-                </span>
+                {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {count > 1 ? `Add ${count} people` : 'Add'}
               </button>
-
-              {showAlreadyEnrolled && (
-                <div className="mt-2 space-y-2 opacity-75">
-                  {alreadyEnrolledUsers.map(user => (
-                    <div
-                      key={user.id}
-                      className="flex items-center justify-between p-2.5 rounded-lg border border-gray-200 bg-gray-50/70"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        {renderAvatar(user.avatar, user.name)}
-                        <div className="min-w-0">
-                          <div className="text-xs font-medium text-gray-700 truncate">{user.name}</div>
-                          <div className="text-[11px] text-gray-400 truncate">{user.email}</div>
-                        </div>
-                      </div>
-                      <span className="text-[10.5px] font-semibold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <Check className="w-3 h-3 text-green-600" />
-                        Active Member
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        </div>
-        {/* end scrollable body */}
-
-        {/* Modal Footer */}
-        <div className="px-4 sm:px-6 py-3 sm:py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] border-t border-[#F3F4F6] bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shrink-0">
-          <div className="text-xs text-gray-600">
-            {selectedCount > 0 ? (
-              <span className="font-semibold text-blue-900 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">
-                {selectedCount} member{selectedCount === 1 ? '' : 's'} selected
-              </span>
-            ) : (
-              <span className="text-gray-400">Select candidates or click Add</span>
             )}
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={submitting || selectedCount === 0}
-              onClick={handleAddBatch}
-              className="px-5 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-xl shadow-md shadow-blue-500/20 active:scale-[0.99] transition-all flex items-center gap-2 disabled:opacity-40 cursor-pointer"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Adding {selectedCount} Members...</span>
-                </>
-              ) : (
-                <>
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span>Add Selected ({selectedCount}) Members</span>
-                </>
-              )}
-            </button>
           </div>
         </div>
       </div>
     </div>
   );
 }
-
