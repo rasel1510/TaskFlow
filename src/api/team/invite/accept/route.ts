@@ -37,6 +37,17 @@ const AcceptInviteSchema = z.object({
 const fail = (status: number, code: string, message: string, extra?: Record<string, unknown>) =>
   NextResponse.json({ success: false, error: { code, message, ...extra } }, { status });
 
+/**
+ * The signed-in user, but only if their account still exists. A browser can keep a session for an
+ * account that was deleted; treating that as signed in would make acceptance fail.
+ */
+async function currentUser() {
+  const session = await getSessionUser();
+  if (!session) return null;
+  const exists = await prisma.user.findUnique({ where: { id: session.id }, select: { id: true } });
+  return exists ? session : null;
+}
+
 /** Find a user by email regardless of letter case (older rows may not be lower-cased). */
 function findUserByEmail(email: string) {
   return prisma.user.findFirst({
@@ -64,7 +75,7 @@ export async function GET(req: NextRequest) {
       }
 
       const existing = await findUserByEmail(inv.email);
-      const session = await getSessionUser();
+      const session = await currentUser();
       const alreadyMember = existing
         ? Boolean(
             await prisma.projectMember.findUnique({
@@ -150,11 +161,11 @@ export async function POST(req: NextRequest) {
     const { token, name, password } = parsed.data;
 
     const inv = await loadProjectInvite(token);
-    if (inv) return acceptProjectInvite(inv, name, password);
-    return acceptTeamInvite(token, name, password);
+    if (inv) return await acceptProjectInvite(inv, name, password);
+    return await acceptTeamInvite(token, name, password);
   } catch (error) {
     console.error('[POST /api/invite/accept] Error:', error);
-    return fail(500, 'INTERNAL_ERROR', 'Failed to process invitation acceptance');
+    return fail(500, 'INTERNAL_ERROR', 'Something went wrong while accepting the invitation. Please try again.');
   }
 }
 
@@ -169,7 +180,7 @@ async function acceptProjectInvite(
   }
 
   const inviteEmail = inv.email.toLowerCase();
-  const session = await getSessionUser();
+  const session = await currentUser();
 
   // Decide who is accepting (and verify it is really the invited person)
   let existingUserId: string | null = null;
@@ -288,7 +299,7 @@ async function acceptTeamInvite(token: string, name: string | undefined, passwor
   const inviteEmail = invitation.email.toLowerCase();
   const assignedRole =
     invitation.role === 'ADMIN' ? 'Admin' : invitation.role === 'PROJECT_MANAGER' ? 'Project Manager' : 'Member';
-  const session = await getSessionUser();
+  const session = await currentUser();
   let onboardingNeeded = false;
 
   if (session) {

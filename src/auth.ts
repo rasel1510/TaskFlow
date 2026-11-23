@@ -327,6 +327,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               teamName: freshUser.team?.name,
             });
             token.lastSynced = now;
+          } else {
+            // The account was deleted — end this session so the browser signs out cleanly
+            return null;
           }
         } catch {
           // Fallback if DB query fails
