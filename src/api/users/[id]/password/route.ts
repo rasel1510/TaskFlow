@@ -59,9 +59,6 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     const { currentPassword, newPassword } = parsed.data;
 
-    const { findStoredUserById, findStoredUserByEmail, updateStoredUser } = await import('@/data/userStore');
-    const stored = findStoredUserById(id) || (session.user.email ? findStoredUserByEmail(session.user.email) : null);
-
     let user = null;
     try {
       user = await prisma.user.findUnique({
@@ -72,14 +69,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       console.warn('[PATCH /api/users/:id/password] DB lookup error:', e);
     }
 
-    if (!user && !stored) {
+    if (!user) {
       return NextResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'User not found' } },
         { status: 404 }
       );
     }
 
-    const currentHash = user?.password || stored?.password;
+    const currentHash = user.password;
 
     // If user has a password stored, verify it
     if (currentHash) {
@@ -106,36 +103,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     // Hash with bcrypt work factor 12 (OWASP recommended minimum)
     const hashedPassword = await bcrypt.hash(newPassword, 12);
 
-    try {
-      if (user) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { password: hashedPassword },
-        });
-      } else if (stored) {
-        await prisma.user.upsert({
-          where: { id: stored.id },
-          create: {
-            id: stored.id,
-            name: stored.name,
-            email: stored.email,
-            password: hashedPassword,
-            role: stored.role || 'User',
-            avatar: stored.avatar || 'U',
-            expertise: stored.expertise || [],
-            createdAt: new Date(stored.createdAt),
-          },
-          update: {
-            password: hashedPassword,
-          },
-        });
-      }
-    } catch (dbErr) {
-      console.warn('[PATCH /api/users/:id/password] Prisma update failed:', dbErr);
-    }
-
-    // Always update local userStore
-    updateStoredUser(id, { password: hashedPassword });
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
+    });
 
     return NextResponse.json(
       { success: true, data: { message: 'Password updated successfully' } },

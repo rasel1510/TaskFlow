@@ -58,52 +58,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         },
       });
     } catch (dbErr) {
-      console.warn('[GET /api/users/:id] DB query warning, falling back to local store/session:', dbErr);
-    }
-
-    if (!user) {
-      const { findStoredUserById, findStoredUserByEmail } = await import('@/data/userStore');
-      const stored = findStoredUserById(id) || (session.user.email ? findStoredUserByEmail(session.user.email) : null);
-      if (stored) {
-        user = {
-          id: stored.id,
-          name: stored.name,
-          email: stored.email,
-          role: stored.role,
-          avatar: stored.avatar,
-          expertise: stored.expertise || [],
-          createdAt: new Date(stored.createdAt),
-        };
-
-        // Self-heal DB in the background if connection is alive
-        try {
-          prisma.user.upsert({
-            where: { id: stored.id },
-            create: {
-              id: stored.id,
-              name: stored.name,
-              email: stored.email.toLowerCase().trim(),
-              password: stored.password || null,
-              role: stored.role || 'User',
-              avatar: stored.avatar || 'U',
-              expertise: stored.expertise || [],
-              emailVerified: stored.emailVerified ? new Date(stored.emailVerified) : null,
-              createdAt: new Date(stored.createdAt),
-            },
-            update: {},
-          }).catch(() => {});
-        } catch (_) {}
-      } else if (session?.user?.id === id) {
-        user = {
-          id: session.user.id,
-          name: session.user.name || 'User',
-          email: session.user.email || '',
-          role: (session.user as { role?: string }).role || 'User',
-          avatar: (session.user as { avatar?: string }).avatar || 'U',
-          expertise: [],
-          createdAt: new Date(),
-        };
-      }
+      console.warn('[GET /api/users/:id] DB query failed:', dbErr);
     }
 
     if (!user) {
@@ -284,104 +239,28 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (parsed.data.avatar !== undefined && parsed.data.avatar !== null) updateData.avatar = parsed.data.avatar;
     if (parsed.data.expertise !== undefined) updateData.expertise = parsed.data.expertise;
 
-    const { findStoredUserById, findStoredUserByEmail, updateStoredUser } = await import('@/data/userStore');
-    const stored = findStoredUserById(id) || (session.user.email ? findStoredUserByEmail(session.user.email) : null);
-
-    let updatedPrismaUser = null;
-
-    try {
-      // 1. Check if user exists by id in DB
-      const dbUser = await prisma.user.findUnique({
-        where: { id },
-        select: { id: true, email: true },
-      });
-
-      if (dbUser) {
-        updatedPrismaUser = await prisma.user.update({
-          where: { id },
-          data: updateData,
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            avatar: true,
-            expertise: true,
-            createdAt: true,
-          },
-        });
-      } else {
-        // User not found by id in DB. Check by email or provision record
-        const userEmail = (stored?.email || session.user.email || '').toLowerCase().trim();
-        let dbUserByEmail = null;
-        if (userEmail) {
-          dbUserByEmail = await prisma.user.findUnique({
-            where: { email: userEmail },
-            select: { id: true },
-          });
-        }
-
-        if (dbUserByEmail) {
-          updatedPrismaUser = await prisma.user.update({
-            where: { id: dbUserByEmail.id },
-            data: updateData,
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true,
-              avatar: true,
-              expertise: true,
-              createdAt: true,
-            },
-          });
-        } else if (userEmail) {
-          // Provision in Prisma with custom id to preserve relations
-          updatedPrismaUser = await prisma.user.create({
-            data: {
-              id,
-              name: updateData.name ?? stored?.name ?? session.user.name ?? 'User',
-              email: userEmail,
-              role: updateData.role ?? stored?.role ?? (session.user as { role?: string })?.role ?? 'User',
-              avatar: updateData.avatar ?? stored?.avatar ?? (session.user as { avatar?: string })?.avatar ?? 'U',
-              expertise: updateData.expertise ?? stored?.expertise ?? [],
-              password: stored?.password || null,
-              emailVerified: stored?.emailVerified ? new Date(stored.emailVerified) : null,
-              createdAt: stored?.createdAt ? new Date(stored.createdAt) : new Date(),
-            },
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true,
-              avatar: true,
-              expertise: true,
-              createdAt: true,
-            },
-          });
-        }
-      }
-    } catch (dbError) {
-      console.warn('[PATCH /api/users/:id] Prisma update error, falling back to userStore:', dbError);
+    // The account must exist — a session for a deleted account never re-creates it
+    const exists = await prisma.user.findUnique({ where: { id }, select: { id: true } });
+    if (!exists) {
+      return NextResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'User not found' } },
+        { status: 404 }
+      );
     }
 
-    // Always update local store if applicable
-    const updatedStored = updateStoredUser(id, {
-      ...(updateData.name !== undefined && { name: updateData.name }),
-      ...(updateData.role !== undefined && { role: updateData.role }),
-      ...(updateData.avatar !== undefined && { avatar: updateData.avatar }),
-      ...(updateData.expertise !== undefined && { expertise: updateData.expertise }),
+    const responseData = await prisma.user.update({
+      where: { id },
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        avatar: true,
+        expertise: true,
+        createdAt: true,
+      },
     });
-
-    const responseData = updatedPrismaUser || {
-      id,
-      name: updateData.name ?? updatedStored?.name ?? (currentUserId === id ? session.user.name : 'User'),
-      email: updatedStored?.email ?? (currentUserId === id ? session.user.email ?? '' : ''),
-      role: updateData.role ?? updatedStored?.role ?? (currentUserId === id ? (session.user as { role?: string })?.role ?? 'User' : 'User'),
-      avatar: updateData.avatar ?? updatedStored?.avatar ?? (currentUserId === id ? (session.user as { avatar?: string })?.avatar ?? 'U' : 'U'),
-      expertise: updateData.expertise ?? updatedStored?.expertise ?? [],
-      createdAt: updatedStored?.createdAt ? new Date(updatedStored.createdAt) : new Date(),
-    };
 
     return NextResponse.json({ success: true, data: responseData }, { status: 200 });
   } catch (error) {

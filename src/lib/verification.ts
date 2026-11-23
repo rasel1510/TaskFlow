@@ -2,7 +2,6 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import prisma from '@/lib/prisma';
-import { findStoredUserByEmail, saveStoredUser } from '@/data/userStore';
 
 interface VerificationRecord {
   email: string;
@@ -201,15 +200,6 @@ export async function verifyOtp(
     ).catch(() => {});
   } catch {
     // Non-critical
-  }
-
-  // Update in local userStore
-  const localUser = findStoredUserByEmail(normalizedEmail);
-  if (localUser) {
-    saveStoredUser({
-      ...localUser,
-      emailVerified: verifiedAt.toISOString(),
-    });
   }
 
   return {

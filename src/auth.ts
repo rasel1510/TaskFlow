@@ -3,7 +3,6 @@ import Credentials from 'next-auth/providers/credentials';
 import Google from 'next-auth/providers/google';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
-import { findStoredUserByEmail } from '@/data/userStore';
 import { sendLoginNotificationEmail, sendSignupNotificationEmail } from '@/lib/mail';
 import { isSuperAdmin } from '@/lib/permissions';
 
@@ -120,33 +119,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               hasCompletedOnboarding: Boolean((dbUser.hasCompletedOnboarding && dbUser.teamId) || dbUser.teamId),
             };
           }
-        } catch {
-          // Prisma database connection fallback
-        }
-
-        // Check persistent local user store (registered users)
-        try {
-          const storedUser = findStoredUserByEmail(email);
-          if (storedUser) {
-            if (!storedUser.password) {
-              return null;
-            }
-            const isValid = await bcrypt.compare(password, storedUser.password);
-            if (!isValid) {
-              return null;
-            }
-            return {
-              id: storedUser.id,
-              name: storedUser.name,
-              email: storedUser.email,
-              image: storedUser.avatar,
-              role: storedUser.role,
-              teamId: storedUser.teamId,
-              teamName: storedUser.teamName,
-            };
-          }
-        } catch (storeError) {
-          console.warn('[auth.ts] Error checking local user store:', storeError);
+        } catch (err) {
+          console.error('[auth] Credentials sign-in failed (database unavailable):', err);
         }
 
         return null;

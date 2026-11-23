@@ -23,7 +23,6 @@ import {
   validationError,
 } from '@/lib/validators';
 import { ROLE_DESCRIPTIONS, type ProjectRole, normalizeDesignation } from '@/lib/permissions';
-import { getAllStoredUsers } from '@/data/userStore';
 import redisCache from '@/lib/redis';
 import { getOrProvisionUserTeam } from '@/lib/tenant';
 
@@ -318,56 +317,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
         role: u.role || 'Member',
         expertise: u.expertise || [],
       });
-    }
-
-    // Check stored fallback users strictly matching this company's teamId
-    const allStored = getAllStoredUsers();
-    for (const rawId of requestedUserIds) {
-      if (!resolvedUserMap.has(rawId) && !resolvedUserMap.has(rawId.toLowerCase())) {
-        const found = allStored.find(
-          (u) =>
-            (u.id === rawId || u.email.toLowerCase() === rawId.toLowerCase()) &&
-            (!projectTeamId || u.teamId === projectTeamId)
-        );
-        if (found) {
-          // Ensure user exists in Prisma DB with project's teamId
-          try {
-            const upserted = await prisma.user.upsert({
-              where: { id: found.id },
-              create: {
-                id: found.id,
-                name: found.name,
-                email: found.email,
-                role: found.role || 'Member',
-                teamId: projectTeamId || undefined,
-                avatar: found.avatar || found.name.slice(0, 2).toUpperCase(),
-                expertise: (found as any).expertise || [],
-              },
-              update: {
-                ...(projectTeamId ? { teamId: projectTeamId } : {}),
-              },
-              select: { id: true, name: true, email: true, avatar: true, role: true, expertise: true },
-            });
-            resolvedUserMap.set(found.id, {
-              id: upserted.id,
-              name: upserted.name,
-              email: upserted.email,
-              avatar: upserted.avatar || upserted.name.slice(0, 2).toUpperCase(),
-              role: upserted.role || 'Member',
-              expertise: upserted.expertise || [],
-            });
-          } catch (_) {
-            resolvedUserMap.set(found.id, {
-              id: found.id,
-              name: found.name,
-              email: found.email,
-              avatar: found.avatar || found.name.slice(0, 2).toUpperCase(),
-              role: found.role || 'Member',
-              expertise: (found as any).expertise || [],
-            });
-          }
-        }
-      }
     }
 
     // 4. Enroll each valid member into project

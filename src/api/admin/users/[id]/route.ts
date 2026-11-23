@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifySuperAdmin } from '@/lib/superadmin';
 import { normalizeDesignation, isSuperAdmin } from '@/lib/permissions';
-import redisCache from '@/lib/redis';
+import { purgeUser } from '@/lib/accountPurge';
 
 export const dynamic = 'force-dynamic';
 
@@ -142,89 +142,10 @@ export async function DELETE(
       );
     }
 
-    // Atomic cascade deletion of user and all related data
-    await prisma.$transaction(async (tx) => {
-      // 1. Invoices
-      await tx.invoice.deleteMany({ where: { userId: id } });
-
-      // 2. Email verification codes
-      if (existingUser.email) {
-        await tx.verificationCode.deleteMany({
-          where: { email: existingUser.email.toLowerCase().trim() },
-        });
-      }
-
-      // 3. User notifications
-      await tx.notification.deleteMany({ where: { userId: id } });
-
-      // 4. Comments & replies authored by user
-      await tx.comment.updateMany({
-        where: { userId: id, replyToId: { not: null } },
-        data: { replyToId: null },
-      });
-      await tx.comment.deleteMany({ where: { userId: id } });
-
-      // 5. Project memberships, invitations, and join requests
-      await tx.projectMember.deleteMany({ where: { userId: id } });
-      await tx.projectJoinRequest.deleteMany({ where: { userId: id } });
-      await tx.projectInvitation.deleteMany({ where: { invitedById: id } });
-      await tx.teamInvitation.deleteMany({ where: { invitedById: id } });
-
-      // 6. Detach user from assigned or created tasks
-      await tx.task.updateMany({
-        where: { OR: [{ assigneeId: id }, { creatorId: id }] },
-        data: { assigneeId: null, creatorId: null },
-      });
-
-      // 7. Projects owned by this user
-      const ownedProjects = await tx.project.findMany({
-        where: { ownerId: id },
-        select: { id: true },
-      });
-      const ownedProjectIds = ownedProjects.map((p) => p.id);
-
-      if (ownedProjectIds.length > 0) {
-        const tasksInOwned = await tx.task.findMany({
-          where: { projectId: { in: ownedProjectIds } },
-          select: { id: true },
-        });
-        const taskIdsInOwned = tasksInOwned.map((t) => t.id);
-
-        if (taskIdsInOwned.length > 0) {
-          await tx.notification.deleteMany({ where: { taskId: { in: taskIdsInOwned } } });
-          await tx.comment.updateMany({
-            where: { taskId: { in: taskIdsInOwned }, replyToId: { not: null } },
-            data: { replyToId: null },
-          });
-          await tx.comment.deleteMany({ where: { taskId: { in: taskIdsInOwned } } });
-          await tx.activity.deleteMany({ where: { taskId: { in: taskIdsInOwned } } });
-          await tx.task.deleteMany({ where: { id: { in: taskIdsInOwned } } });
-        }
-
-        await tx.projectMember.deleteMany({ where: { projectId: { in: ownedProjectIds } } });
-        await tx.projectInvitation.deleteMany({ where: { projectId: { in: ownedProjectIds } } });
-        await tx.projectJoinRequest.deleteMany({ where: { projectId: { in: ownedProjectIds } } });
-        await tx.project.deleteMany({ where: { id: { in: ownedProjectIds } } });
-      }
-
-      // 8. Delete user record
-      await tx.user.delete({ where: { id } });
-    });
-
-    // Invalidate caches
-    try {
-      await Promise.allSettled([
-        redisCache.del(`user:${id}`),
-        redisCache.del(`tenant:${id}`),
-        redisCache.delPattern('admin:users:*'),
-        redisCache.delPattern('admin:metrics:*'),
-        redisCache.delPattern('notifs:*'),
-        redisCache.delPattern('projects:*'),
-        redisCache.delPattern('tasks:*'),
-      ]);
-    } catch (cacheErr) {
-      console.warn('[Admin User DELETE Cache Warning]:', cacheErr);
-    }
+    // The person and all of their data are removed permanently in one transaction; projects they
+    // own in a company that still exists are handed to its Admin. See src/lib/accountPurge.ts.
+    const summary = await purgeUser(id);
+    console.log(`[Admin User DELETE] ${existingUser.email}:`, summary);
 
     return NextResponse.json({
       success: true,

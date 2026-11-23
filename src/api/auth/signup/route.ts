@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
-import { findStoredUserByEmail, saveStoredUser } from '@/data/userStore';
 import { SignupSchema, validationError } from '@/lib/validators';
 import { generateOtp, storeVerificationOtp } from '@/lib/verification';
 import { sendVerificationOtpEmail } from '@/lib/mail';
@@ -44,15 +43,6 @@ export async function POST(req: Request) {
 
     const avatar = getInitials(name);
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // First check fallback store for existing account
-    const existingStored = findStoredUserByEmail(normalizedEmail);
-    if (existingStored) {
-      return NextResponse.json(
-        { message: 'An account with this email already exists' },
-        { status: 409 }
-      );
-    }
 
     let createdUserId: string | undefined;
 
@@ -105,16 +95,6 @@ export async function POST(req: Request) {
 
         createdUserId = updatedUser.id;
 
-        saveStoredUser({
-          id: updatedUser.id,
-          name: updatedUser.name,
-          email: updatedUser.email,
-          password: hashedPassword,
-          role: updatedUser.role,
-          avatar: updatedUser.avatar,
-          teamId: targetTeamId || '',
-          teamName: cleanTeamName,
-        });
       } else if (pendingInvite) {
         // Brand new user accepting team invitation via signup
         const targetRole =
@@ -139,16 +119,6 @@ export async function POST(req: Request) {
 
         createdUserId = newUser.id;
 
-        saveStoredUser({
-          id: newUser.id,
-          name: newUser.name,
-          email: newUser.email,
-          password: hashedPassword,
-          role: newUser.role,
-          avatar: newUser.avatar,
-          teamId: pendingInvite.teamId,
-          teamName: pendingInvite.team.name,
-        });
       } else {
         // Standard user signup — account created first without company
         // Company will be created later on /onboarding/organization where this user becomes Admin
@@ -167,34 +137,13 @@ export async function POST(req: Request) {
 
         createdUserId = newUser.id;
 
-        // Also persist to local userStore for seamless failover
-        saveStoredUser({
-          id: newUser.id,
-          name: newUser.name,
-          email: newUser.email,
-          password: hashedPassword,
-          role: newUser.role,
-          avatar: newUser.avatar,
-          teamId: '',
-          teamName: '',
-        });
       }
     } catch (dbError) {
-      // Database unavailable / auth failure — persist safely to userStore
-      console.warn('[POST /api/auth/signup] Prisma unavailable, saving to local store:', dbError);
-
-      const fallbackTeamId = `team_${Date.now()}`;
-      const storedUser = saveStoredUser({
-        name: (name as string).trim(),
-        email: normalizedEmail,
-        password: hashedPassword,
-        role: normalizedRole,
-        avatar,
-        teamId: fallbackTeamId,
-        teamName: cleanTeamName,
-      });
-
-      createdUserId = storedUser.id;
+      console.error('[POST /api/auth/signup] Could not create the account:', dbError);
+      return NextResponse.json(
+        { message: 'We couldn’t create your account right now. Please try again in a moment.' },
+        { status: 503 }
+      );
     }
 
     // --- SMTP Verification Phase ---

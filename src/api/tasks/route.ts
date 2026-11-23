@@ -52,7 +52,6 @@ function parseSafeDate(raw: unknown): Date | undefined {
 }
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
-import { getAllStoredUsers, findStoredUserByEmail } from '@/data/userStore';
 import { auth } from '@/auth';
 import { CreateTaskSchema, TaskQuerySchema, validationError } from '@/lib/validators';
 import { logActivity } from '@/lib/activity';
@@ -104,15 +103,6 @@ export async function GET(request: NextRequest) {
 
     if (resolvedDbUserId) {
       userIdSet.add(resolvedDbUserId);
-    }
-
-    // If we have an email, check memory store first (0ms)
-    if (targetUserEmail) {
-      const stored = findStoredUserByEmail(targetUserEmail.toLowerCase().trim());
-      if (stored?.id) {
-        userIdSet.add(stored.id);
-        if (!resolvedDbUserId) resolvedDbUserId = stored.id;
-      }
     }
 
     // Fallback: only if userIdSet is still empty, do a single DB lookup
@@ -280,30 +270,7 @@ export async function POST(request: NextRequest) {
     if (!dbUser && resolvedId) {
       try {
         dbUser = await prisma.user.findUnique({ where: { id: resolvedId } });
-      } catch { /* try local store next */ }
-    }
-    if (!dbUser) {
-      // Try local userStore
-      const storedUsers = getAllStoredUsers();
-      const storedUser = storedUsers.find(u =>
-        (resolvedEmail && u.email.toLowerCase() === resolvedEmail) ||
-        (resolvedId && u.id === resolvedId)
-      );
-      if (storedUser) {
-        try {
-          dbUser = await prisma.user.upsert({
-            where: { email: storedUser.email },
-            update: { name: storedUser.name, avatar: storedUser.avatar, role: storedUser.role },
-            create: {
-              id: storedUser.id,
-              name: storedUser.name,
-              email: storedUser.email,
-              avatar: storedUser.avatar,
-              role: storedUser.role,
-            },
-          });
-        } catch { dbUser = null; }
-      }
+      } catch { /* not found */ }
     }
     if (!dbUser) {
       return NextResponse.json(

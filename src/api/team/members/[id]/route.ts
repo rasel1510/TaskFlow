@@ -5,7 +5,6 @@ import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
 import { normalizeDesignation, isSuperAdmin } from '@/lib/permissions';
 import { getOrProvisionUserTeam } from '@/lib/tenant';
-import { updateStoredUser } from '@/data/userStore';
 import { isCompanyRole, toCompanyRole } from '@/lib/companyRoles';
 
 interface RouteContext {
@@ -157,10 +156,6 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       },
     });
 
-    // Update local user store for resilience
-    try {
-      updateStoredUser(targetMemberId, { role: newRole });
-    } catch (_) {}
     redisCache.delPattern('team:*').catch(() => {});
 
     return NextResponse.json({

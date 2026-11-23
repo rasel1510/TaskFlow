@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { generateOtp, storeVerificationOtp } from '@/lib/verification';
 import { sendVerificationOtpEmail } from '@/lib/mail';
-import { findStoredUserByEmail } from '@/data/userStore';
 import prisma from '@/lib/prisma';
 
 const ResendOtpSchema = z.object({
@@ -48,19 +47,14 @@ export async function POST(req: Request) {
 
     // Lookup user name if available
     let userName: string | undefined;
-    const localUser = findStoredUserByEmail(normalizedEmail);
-    if (localUser) {
-      userName = localUser.name;
-    } else {
-      try {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: normalizedEmail },
-          select: { name: true },
-        });
-        if (dbUser) userName = dbUser.name;
-      } catch {
-        // fallback
-      }
+    try {
+      const dbUser = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+        select: { name: true },
+      });
+      if (dbUser) userName = dbUser.name;
+    } catch {
+      // name is optional in the email
     }
 
     // Generate new OTP

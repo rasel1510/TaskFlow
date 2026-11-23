@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { generateOtp, storeVerificationOtp } from '@/lib/verification';
 import { sendVerificationOtpEmail } from '@/lib/mail';
-import { findStoredUserByEmail } from '@/data/userStore';
 import prisma from '@/lib/prisma';
 
 const ForgotPasswordSchema = z.object({
@@ -46,27 +45,20 @@ export async function POST(req: Request) {
       );
     }
 
-    // Lookup user — local store first (O(1)), then DB
+    // Look the account up in the database
     let userName: string | undefined;
     let userFound = false;
-
-    const localUser = findStoredUserByEmail(normalizedEmail);
-    if (localUser) {
-      userName = localUser.name;
-      userFound = true;
-    } else {
-      try {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: normalizedEmail },
-          select: { name: true },
-        });
-        if (dbUser) {
-          userName = dbUser.name ?? undefined;
-          userFound = true;
-        }
-      } catch {
-        // non-critical — proceed
+    try {
+      const dbUser = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+        select: { name: true },
+      });
+      if (dbUser) {
+        userName = dbUser.name ?? undefined;
+        userFound = true;
       }
+    } catch {
+      // non-critical — respond the same way either way
     }
 
     rateLimitMap.set(normalizedEmail, now);

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
-import { getAllStoredUsers } from '@/data/userStore';
 import redisCache from '@/lib/redis';
 import { getOrProvisionUserTeam } from '@/lib/tenant';
 
@@ -100,13 +99,6 @@ export async function GET(request: NextRequest) {
         console.warn('[GET /api/users] DB user fetch error:', dbErr);
       }
 
-      // 2. Filter local stored fallback users strictly by matching teamId
-      const allStored = getAllStoredUsers();
-      const matchedStored = allStored.filter(
-        (u) => u.teamId && u.teamId === companyTeamId
-      );
-
-      // Merge uniquely by user ID
       const userMap = new Map<string, {
         id: string;
         name: string;
@@ -116,21 +108,7 @@ export async function GET(request: NextRequest) {
         expertise?: string[];
       }>();
 
-      // Add matching stored users
-      for (const u of matchedStored) {
-        userMap.set(u.id, {
-          id: u.id,
-          name: u.name,
-          email: u.email,
-          role: u.role,
-          avatar: u.avatar || u.name.slice(0, 2).toUpperCase(),
-          expertise: ((u as { expertise?: string[] }).expertise?.length)
-            ? (u as { expertise?: string[] }).expertise
-            : [],
-        });
-      }
-
-      // Add DB users (highest priority)
+      // Company members from the database
       for (const u of dbUsers) {
         userMap.set(u.id, {
           id: u.id,

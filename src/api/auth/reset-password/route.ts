@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { consumeResetToken } from '@/lib/resetTokenStore';
-import { findStoredUserByEmail, saveStoredUser } from '@/data/userStore';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
@@ -59,13 +58,7 @@ export async function POST(req: Request) {
       console.error('[reset-password] DB update error:', err);
     }
 
-    // Update in local store (fallback / cache layer)
-    const localUser = findStoredUserByEmail(normalizedEmail);
-    if (localUser) {
-      saveStoredUser({ ...localUser, password: hashedPassword });
-    }
-
-    if (!dbUpdated && !localUser) {
+    if (!dbUpdated) {
       return NextResponse.json(
         { success: false, message: 'Account not found. Please sign up.' },
         { status: 404 }
