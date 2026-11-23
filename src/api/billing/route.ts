@@ -1,46 +1,35 @@
+/**
+ * src/api/billing/route.ts
+ *
+ * GET  /api/billing                 — plan, access and invoice history for the signed-in user
+ *      ?session_id=cs_…             — after Stripe Checkout: verify that session (it must belong to
+ *                                     this user) and unlock Pro
+ * POST /api/billing { action }      — create_checkout_session | apply_promo_code |
+ *                                     create_customer_portal_session | downgrade_to_basic |
+ *                                     select_basic_plan
+ *
+ * Card details are only ever entered on Stripe's hosted Checkout page. Pro is unlocked by a
+ * verified Checkout Session or a signed Stripe webhook — never by anything the browser claims.
+ */
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
 import { stripe } from '@/lib/stripe';
+import {
+  appBaseUrl,
+  createProCheckout,
+  ensureStripeCustomer,
+  findPromotionCode,
+  fulfilCheckoutSession,
+  liveSubscriptions,
+  paymentsConfigProblem,
+  setWorkspacePlan,
+  toBillingError,
+} from '@/lib/billing';
 
-/* -------------------------------------------------------------------------- */
-/*                                CARD HELPERS                                */
-/* -------------------------------------------------------------------------- */
-
-function detectCardBrand(cardNumber: string): string {
-  const clean = cardNumber.replace(/\D/g, '');
-  if (/^4/.test(clean)) return 'visa';
-  if (/^(5[1-5]|2[2-7])/.test(clean)) return 'mastercard';
-  if (/^3[47]/.test(clean)) return 'amex';
-  if (/^6(011|5)/.test(clean)) return 'discover';
-  return 'card';
+function fail(status: number, error: string, extra: Record<string, unknown> = {}) {
+  return NextResponse.json({ success: false, error, ...extra }, { status });
 }
-
-function generateInvoiceNumber(): string {
-  const year = new Date().getFullYear();
-  const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-  return `INV-${year}-${randomSuffix}`;
-}
-
-function getBaseUrl(req?: Request): string {
-  if (req) {
-    const origin = req.headers.get('origin');
-    if (origin) return origin;
-    const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
-    const proto = req.headers.get('x-forwarded-proto') || 'http';
-    if (host) return `${proto}://${host}`;
-  }
-  return process.env.APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
-}
-
-const VALID_PROMO_CODES = new Set([
-  'FLOWVIP',
-  'SUPERVISOR100',
-  'LAUNCH2026',
-  'PROMO20',
-  'TASKFLOW100',
-  'STRIPE2026',
-]);
 
 /* -------------------------------------------------------------------------- */
 /*                            GET /api/billing                                */
@@ -80,116 +69,23 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
 
-    // If returning from Stripe Checkout with ?session_id=...
-    if (sessionId) {
+    // Returning from Stripe Checkout: verify the session (must be this user's) and unlock Pro
+    if (sessionId && /^cs_[A-Za-z0-9_]+$/.test(sessionId) && user.plan !== 'pro') {
       try {
-        const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId, {
-          expand: ['subscription', 'customer', 'invoice'],
-        });
-
-        if (checkoutSession.payment_status === 'paid' || checkoutSession.status === 'complete') {
-          const customerId =
-            typeof checkoutSession.customer === 'string'
-              ? checkoutSession.customer
-              : checkoutSession.customer?.id || user.stripeCustomerId;
-
-          // 1. Activate Pro Plan
-          user = await prisma.user.update({
+        if (await fulfilCheckoutSession(sessionId, user.id)) {
+          const refreshed = await prisma.user.findUnique({
             where: { id: user.id },
-            data: {
-              plan: 'pro',
-              subscriptionStatus: 'active',
-              stripeCustomerId: customerId || undefined,
-              failedPaymentAttempts: 0,
-            },
             select: {
-              id: true,
-              name: true,
-              email: true,
-              plan: true,
-              teamId: true,
-              billingCycle: true,
-              subscriptionStatus: true,
-              stripeCustomerId: true,
-              failedPaymentAttempts: true,
+              id: true, name: true, email: true, plan: true, teamId: true, billingCycle: true,
+              subscriptionStatus: true, stripeCustomerId: true, failedPaymentAttempts: true,
               hasCompletedOnboarding: true,
-              invoices: {
-                orderBy: { createdAt: 'desc' },
-                take: 20,
-              },
+              invoices: { orderBy: { createdAt: 'desc' }, take: 20 },
             },
           });
-
-          // Cascade Pro plan to all members in company/team
-          if (user.teamId) {
-            await prisma.user.updateMany({
-              where: { teamId: user.teamId },
-              data: { plan: 'pro' },
-            });
-          }
-
-          // 2. Ensure paid Invoice is recorded in database
-          const existingInvoice = await prisma.invoice.findFirst({
-            where: {
-              userId: user.id,
-              status: 'paid',
-              createdAt: { gte: new Date(Date.now() - 1000 * 60 * 60) }, // last 1h
-            },
-          });
-
-          const custDetails = (checkoutSession as any).customer_details;
-          const custAddress = custDetails?.address || (typeof checkoutSession.customer === 'object' ? (checkoutSession.customer as any)?.address : null);
-          const customerName = custDetails?.name || (typeof checkoutSession.customer === 'object' ? (checkoutSession.customer as any)?.name : null) || user.name || user.email?.split('@')[0] || 'FlowSync Customer';
-          const customerEmail = custDetails?.email || user.email || undefined;
-          const customerLocation = custAddress
-            ? [custAddress.city, custAddress.state, custAddress.country].filter(Boolean).join(', ') || custAddress.country || 'Global'
-            : 'Global';
-
-          if (!existingInvoice) {
-            const amountTotal = checkoutSession.amount_total ? checkoutSession.amount_total / 100 : 20.0;
-            const invoiceNumber =
-              (typeof checkoutSession.invoice === 'string'
-                ? checkoutSession.invoice
-                : (checkoutSession.invoice as any)?.number) || generateInvoiceNumber();
-
-            await prisma.invoice.create({
-              data: {
-                userId: user.id,
-                invoiceNumber,
-                amount: amountTotal,
-                currency: checkoutSession.currency || 'usd',
-                status: 'paid',
-                planName: 'Pro Plan',
-                billingCycle: 'monthly',
-                paymentMethod: 'stripe',
-                last4: '4242',
-                brand: 'visa',
-                customerName,
-                customerEmail,
-                customerLocation,
-              },
-            });
-
-            // Re-fetch invoices to include newly created
-            const updatedInvoices = await prisma.invoice.findMany({
-              where: { userId: user.id },
-              orderBy: { createdAt: 'desc' },
-              take: 20,
-            });
-            user.invoices = updatedInvoices;
-          } else if (!existingInvoice.customerName || !existingInvoice.customerLocation) {
-            await prisma.invoice.update({
-              where: { id: existingInvoice.id },
-              data: {
-                customerName: existingInvoice.customerName || customerName,
-                customerEmail: existingInvoice.customerEmail || customerEmail,
-                customerLocation: existingInvoice.customerLocation || customerLocation,
-              },
-            });
-          }
+          if (refreshed) user = refreshed;
         }
-      } catch (stripeErr: any) {
-        console.error('[Stripe Session Verification Error]:', stripeErr.message || stripeErr);
+      } catch (err) {
+        toBillingError(err, 'Checkout session verification');
       }
     }
 
@@ -198,7 +94,7 @@ export async function GET(req: Request) {
     // Free and Basic plan users do not have Stripe billing or invoices
     const mappedInvoices = isPro
       ? (user.invoices || [])
-          .filter(inv => inv.status === 'paid' && (inv.amount || 0) > 0)
+          .filter(inv => inv.status === 'paid')
           .map(inv => ({
             ...inv,
             customerName: (inv as any).customerName || user.name || user.email?.split('@')[0] || 'FlowSync Customer',
@@ -209,14 +105,10 @@ export async function GET(req: Request) {
 
     const latestInvoice = isPro && mappedInvoices.length > 0 ? mappedInvoices[0] : null;
 
-    // Payment method only exists for Pro users who have paid via Stripe
-    const paymentMethod = isPro && latestInvoice
-      ? {
-          brand: latestInvoice?.brand || 'visa',
-          last4: latestInvoice?.last4 || '4242',
-          expMonth: 12,
-          expYear: 2028,
-        }
+    // The card on file, as recorded from Stripe (none for promotion-only subscriptions)
+    const cardInvoice = isPro ? mappedInvoices.find(inv => inv.last4 && inv.brand) : null;
+    const paymentMethod = cardInvoice
+      ? { brand: cardInvoice.brand as string, last4: cardInvoice.last4 as string, expMonth: null, expYear: null }
       : null;
 
     const hasPaid =
@@ -288,441 +180,126 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
 
-    /* ------------------------------------------------------------------------
-       ACTION: CREATE STRIPE CHECKOUT SESSION (OFFICIAL HOSTED PAYMENT GATEWAY)
-       ------------------------------------------------------------------------ */
-    if (action === 'create_checkout_session') {
-      // Guard: Pro plan users cannot pay again
+    /* ── Start Stripe Checkout for Pro (optionally with a promotion code) ── */
+    if (action === 'create_checkout_session' || action === 'apply_promo_code') {
       if (user.plan === 'pro') {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'You are using it currently.',
-            alreadyPro: true,
-          },
-          { status: 400 }
-        );
+        return fail(400, 'Your workspace is already on the Pro plan.', { alreadyPro: true });
+      }
+      const problem = paymentsConfigProblem();
+      if (problem) {
+        console.error(`[billing] Checkout unavailable: ${problem}`);
+        return fail(503, 'Payments are temporarily unavailable. Please try again later or contact support.', {
+          code: 'PAYMENTS_UNAVAILABLE',
+        });
       }
 
-      let stripeCustomerId = user.stripeCustomerId;
-
-      if (!stripeCustomerId && user.email) {
-        try {
-          const existing = await stripe.customers.list({ email: user.email, limit: 1 });
-          if (existing.data.length > 0) {
-            stripeCustomerId = existing.data[0].id;
-          } else {
-            const customer = await stripe.customers.create({
-              email: user.email,
-              name: user.name || undefined,
-              metadata: { userId: user.id },
-            });
-            stripeCustomerId = customer.id;
-          }
-
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { stripeCustomerId },
-          });
-        } catch (custErr) {
-          console.warn('[Stripe] Customer retrieval non-critical:', custErr);
+      try {
+        // A promotion code is checked with Stripe first, then applied on the Checkout page
+        let promotionCodeId: string | undefined;
+        if (action === 'apply_promo_code') {
+          const promo = await findPromotionCode(String(body.promoCode || ''));
+          if (!promo) return fail(400, 'That promotion code isn’t valid or has expired.', { code: 'INVALID_PROMO' });
+          promotionCodeId = promo.id;
         }
+
+        // Never charge twice: if Stripe already has a live subscription, just restore Pro
+        const customerId = await ensureStripeCustomer(user);
+        if ((await liveSubscriptions(customerId)).length > 0) {
+          await setWorkspacePlan(user, 'pro', { subscriptionStatus: 'active', stripeCustomerId: customerId });
+          return fail(400, 'Your workspace is already on the Pro plan.', { alreadyPro: true });
+        }
+
+        const checkout = await createProCheckout({
+          user: { ...user, stripeCustomerId: customerId },
+          baseUrl: appBaseUrl(req),
+          promotionCodeId,
+        });
+        return NextResponse.json({ success: true, data: checkout });
+      } catch (err) {
+        const e = toBillingError(err, 'Create checkout session');
+        return fail(e.status, e.message, { code: e.code });
       }
-
-      const baseUrl = getBaseUrl(req);
-      const priceId = process.env.STRIPE_PRO_PRICE_ID || 'price_1UY73F3G3sadP8zGQfn5AR1E';
-
-      console.log(`[Stripe Checkout] Creating session with Price: ${priceId}, BaseURL: ${baseUrl}`);
-
-      const successUrl = body.returnUrl || (user.teamId
-        ? `${baseUrl}/app?view=billing&payment_success=true&session_id={CHECKOUT_SESSION_ID}`
-        : `${baseUrl}/onboarding/organization?session_id={CHECKOUT_SESSION_ID}`);
-      const cancelUrl = body.cancelUrl || (user.teamId
-        ? `${baseUrl}/app?view=billing`
-        : `${baseUrl}/onboarding/plans`);
-
-      const checkoutSession = await stripe.checkout.sessions.create({
-        customer: stripeCustomerId || undefined,
-        customer_email: stripeCustomerId ? undefined : (user.email || undefined),
-        line_items: [
-          {
-            price: priceId,
-            quantity: 1,
-          },
-        ],
-        mode: 'subscription',
-        billing_address_collection: 'auto',
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-        metadata: {
-          userId: user.id,
-          userEmail: user.email,
-          plan: 'pro',
-        },
-        subscription_data: {
-          metadata: {
-            userId: user.id,
-            userEmail: user.email,
-            plan: 'pro',
-          },
-        },
-      });
-
-      return NextResponse.json({
-        success: true,
-        data: {
-          url: checkoutSession.url,
-          sessionId: checkoutSession.id,
-        },
-      });
     }
 
-    /* ------------------------------------------------------------------------
-       ACTION: CREATE STRIPE CUSTOMER PORTAL SESSION (PRO PLAN MANAGEMENT)
-       ------------------------------------------------------------------------ */
+    /* ── Stripe Customer Portal (update card, download invoices, cancel) ── */
     if (action === 'create_customer_portal_session') {
-      let stripeCustomerId = user.stripeCustomerId;
-
-      if (!stripeCustomerId && user.email) {
-        try {
-          const existing = await stripe.customers.list({ email: user.email, limit: 1 });
-          if (existing.data.length > 0) {
-            stripeCustomerId = existing.data[0].id;
-            await prisma.user.update({
-              where: { id: user.id },
-              data: { stripeCustomerId },
-            });
-          }
-        } catch (custErr) {
-          console.warn('[Stripe Portal] Customer lookup non-critical:', custErr);
-        }
+      if (!user.stripeCustomerId) {
+        return fail(400, 'There’s no Stripe billing account for this workspace yet.', { code: 'NO_CUSTOMER' });
       }
-
-      if (!stripeCustomerId) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'No active Stripe customer found for this account. If you redeemed a promotion, your workspace has direct Pro access without card billing.',
-          },
-          { status: 400 }
-        );
-      }
-
-      const baseUrl = getBaseUrl(req);
       try {
-        const portalSession = await stripe.billingPortal.sessions.create({
-          customer: stripeCustomerId,
-          return_url: `${baseUrl}/app?view=billing`,
+        const portal = await stripe.billingPortal.sessions.create({
+          customer: user.stripeCustomerId,
+          return_url: `${appBaseUrl(req)}/app?view=billing`,
         });
+        return NextResponse.json({ success: true, data: { url: portal.url } });
+      } catch (err) {
+        const e = toBillingError(err, 'Create customer portal session');
+        return fail(503, 'The billing portal isn’t available right now. Please try again later.', { code: e.code });
+      }
+    }
 
+    /* ── Downgrade Pro → Basic ────────────────────────────────────────────── */
+    if (action === 'downgrade_to_basic') {
+      try {
+        const subs = user.stripeCustomerId ? await liveSubscriptions(user.stripeCustomerId) : [];
+        if (subs.length > 0) {
+          // Stop renewal; Pro stays until the end of the paid period, then the webhook moves to Basic
+          let periodEnd = 0;
+          for (const sub of subs) {
+            const updated = await stripe.subscriptions.update(sub.id, { cancel_at_period_end: true });
+            const raw = updated as unknown as {
+              current_period_end?: number;
+              items?: { data?: { current_period_end?: number }[] };
+            };
+            periodEnd = Math.max(periodEnd, raw.items?.data?.[0]?.current_period_end ?? raw.current_period_end ?? 0);
+          }
+          await setWorkspacePlan(user, 'pro', { subscriptionStatus: 'canceling' });
+          const until = periodEnd
+            ? new Date(periodEnd * 1000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+            : null;
+          return NextResponse.json({
+            success: true,
+            data: {
+              plan: 'pro',
+              subscriptionStatus: 'canceling',
+              cancelAt: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+              message: until
+                ? `Your Pro plan won’t renew. You keep Pro until ${until}, then move to Basic.`
+                : 'Your Pro plan won’t renew and moves to Basic at the end of the billing period.',
+            },
+          });
+        }
+
+        await setWorkspacePlan(user, 'basic', { subscriptionStatus: 'active' });
         return NextResponse.json({
           success: true,
-          data: {
-            url: portalSession.url,
-          },
+          data: { plan: 'basic', subscriptionStatus: 'active', message: 'Your workspace is now on the Basic plan.' },
         });
-      } catch (portalErr: any) {
-        console.warn('[Stripe Customer Portal Error]:', portalErr.message || portalErr);
-        return NextResponse.json(
-          {
-            success: false,
-            error:
-              portalErr.message ||
-              'Stripe Customer Portal is currently in test mode or not activated in your Stripe dashboard.',
-          },
-          { status: 400 }
-        );
+      } catch (err) {
+        const e = toBillingError(err, 'Downgrade');
+        return fail(e.status, 'We couldn’t change your plan right now. Please try again.', { code: e.code });
       }
     }
 
-    /* ------------------------------------------------------------------------
-       ACTION: DOWNGRADE TO BASIC PLAN ($0)
-       ------------------------------------------------------------------------ */
-    if (action === 'downgrade_to_basic') {
-      const updated = await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          plan: 'basic',
-          subscriptionStatus: 'active',
-          failedPaymentAttempts: 0,
-        },
-      });
-
-      if (user.teamId) {
-        await prisma.user.updateMany({
-          where: { teamId: user.teamId },
-          data: { plan: 'basic' },
-        });
-      }
-
-      return NextResponse.json({
-        success: true,
-        data: {
-          plan: updated.plan,
-          message: 'Workspace downgraded to Basic Plan successfully.',
-        },
-      });
-    }
-
-    /* ------------------------------------------------------------------------
-       ACTION 1: SELECT BASIC PLAN ($0)
-       ------------------------------------------------------------------------ */
+    /* ── Choose the free Basic plan during onboarding ─────────────────────── */
     if (action === 'select_basic_plan') {
+      if (user.plan === 'pro') return fail(400, 'Your workspace is already on the Pro plan.', { alreadyPro: true });
       const updated = await prisma.user.update({
         where: { id: user.id },
-        data: {
-          plan: 'basic',
-          subscriptionStatus: 'active',
-          failedPaymentAttempts: 0,
-        },
+        data: { plan: 'basic', subscriptionStatus: 'active', failedPaymentAttempts: 0 },
+        select: { plan: true },
       });
-
-      return NextResponse.json({
-        success: true,
-        data: {
-          plan: updated.plan,
-          message: 'Basic plan selected successfully.',
-        },
-      });
+      return NextResponse.json({ success: true, data: { plan: updated.plan, message: 'Basic plan selected.' } });
     }
 
-    /* ------------------------------------------------------------------------
-       ACTION 2: INSERT PROMO CODE (100% DISCOUNT / BYPASS PAYMENT)
-       ------------------------------------------------------------------------ */
-    if (action === 'apply_promo_code') {
-      const code = String(body.promoCode || '').trim().toUpperCase();
-
-      if (!VALID_PROMO_CODES.has(code)) {
-        return NextResponse.json(
-          { success: false, error: 'Invalid or expired promotional code.' },
-          { status: 400 }
-        );
-      }
-
-      // Create zero-cost promotional invoice
-      const invoice = await prisma.invoice.create({
-        data: {
-          userId: user.id,
-          invoiceNumber: generateInvoiceNumber(),
-          amount: 0.0,
-          currency: 'usd',
-          status: 'paid',
-          planName: 'Pro Plan (Promo 100% Off)',
-          billingCycle: 'monthly',
-          paymentMethod: 'promo_code',
-          last4: 'FREE',
-          brand: 'promo',
-          customerName: user.name || user.email?.split('@')[0] || 'FlowSync Customer',
-          customerEmail: user.email,
-          customerLocation: 'Global',
-        },
-      });
-
-      const updated = await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          plan: 'pro',
-          subscriptionStatus: 'active',
-          failedPaymentAttempts: 0,
-        },
-      });
-
-      if (user.teamId) {
-        await prisma.user.updateMany({
-          where: { teamId: user.teamId },
-          data: { plan: 'pro' },
-        });
-      }
-
-      return NextResponse.json({
-        success: true,
-        data: {
-          plan: updated.plan,
-          invoice,
-          message: 'Promo code applied successfully! Full Pro features unlocked.',
-        },
-      });
-    }
-
-    /* ------------------------------------------------------------------------
-       ACTION 3: PROCESS LIVE STRIPE PAYMENT ($20 PRO PLAN - SERVER DIRECT FALLBACK)
-       ------------------------------------------------------------------------ */
+    // Card numbers are never accepted by FlowSync's servers — payments happen on Stripe Checkout
     if (action === 'pay_with_stripe' || action === 'process_payment') {
-      const { cardNumber = '', expMonth = '12', expYear = '2028', cvc = '123', name = '', zip = '94107', simulateDecline } = body;
-
-      // ─── Enforce Supervisor Mandate: LIMIT TO 5 TIMES FOR THE USER ───
-      const currentAttempts = user.failedPaymentAttempts || 0;
-      if (currentAttempts >= 5) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Security Limit Exceeded: Maximum payment attempts (5 of 5) reached. Please contact support or use a promo waiver.',
-            attemptsExceeded: true,
-            attempts: currentAttempts,
-          },
-          { status: 403 }
-        );
-      }
-
-      const cleanNumber = String(cardNumber).replace(/\D/g, '');
-      let stripePaymentSucceeded = false;
-      let finalBrand = detectCardBrand(cleanNumber);
-      let finalLast4 = cleanNumber.slice(-4) || '4242';
-      let stripeCustomerId = user.stripeCustomerId;
-      let paymentIntentId: string | null = null;
-      let stripeErrorMessage: string | null = null;
-
-      try {
-        if (!stripeCustomerId && user.email) {
-          const customer = await stripe.customers.create({
-            email: user.email,
-            name: user.name || (name as string) || undefined,
-            metadata: { userId: user.id },
-          });
-          stripeCustomerId = customer.id;
-        }
-
-        let testToken = 'tok_visa';
-        if (simulateDecline || cleanNumber.endsWith('0002')) {
-          testToken = 'tok_chargeDeclined';
-        } else if (cleanNumber.endsWith('0005')) {
-          testToken = 'tok_chargeDeclinedInsufficientFunds';
-        } else if (cleanNumber.endsWith('0069')) {
-          testToken = 'tok_chargeDeclinedExpiredCard';
-        } else if (cleanNumber.endsWith('0127')) {
-          testToken = 'tok_chargeDeclinedIncorrectCvc';
-        } else if (cleanNumber.startsWith('5')) {
-          testToken = 'tok_mastercard';
-        } else if (cleanNumber.startsWith('34') || cleanNumber.startsWith('37')) {
-          testToken = 'tok_amex';
-        } else if (cleanNumber.startsWith('6')) {
-          testToken = 'tok_discover';
-        } else {
-          testToken = 'tok_visa';
-        }
-
-        const paymentMethod = await stripe.paymentMethods.create({
-          type: 'card',
-          card: {
-            token: testToken,
-          },
-          billing_details: {
-            name: String(name || user.name || 'Cardholder'),
-            address: { postal_code: String(zip || '94107') },
-            email: user.email,
-          },
-        });
-
-        if (stripeCustomerId) {
-          try {
-            await stripe.paymentMethods.attach(paymentMethod.id, { customer: stripeCustomerId });
-          } catch (attachErr) {
-            console.warn('[Stripe] Attach customer non-critical:', attachErr);
-          }
-        }
-
-        finalBrand = paymentMethod.card?.brand || finalBrand;
-        finalLast4 = paymentMethod.card?.last4 || finalLast4;
-
-        const paymentIntent = await stripe.paymentIntents.create({
-          amount: 2000,
-          currency: 'usd',
-          customer: stripeCustomerId || undefined,
-          payment_method: paymentMethod.id,
-          confirm: true,
-          off_session: false,
-          automatic_payment_methods: {
-            enabled: true,
-            allow_redirects: 'never',
-          },
-          description: 'FlowSync Pro Plan ($20.00/month)',
-          metadata: {
-            userId: user.id,
-            userEmail: user.email,
-          },
-        });
-
-        if (paymentIntent.status === 'succeeded') {
-          stripePaymentSucceeded = true;
-          paymentIntentId = paymentIntent.id;
-        } else {
-          stripeErrorMessage = `Payment status: ${paymentIntent.status}. Please check your card.`;
-        }
-      } catch (stripeErr: any) {
-        console.error('[Stripe API Error]:', stripeErr.message || stripeErr);
-        stripeErrorMessage = stripeErr.message || 'Your card was declined by Stripe.';
-      }
-
-      if (!stripePaymentSucceeded) {
-        const nextAttempts = currentAttempts + 1;
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { failedPaymentAttempts: nextAttempts },
-        });
-
-        const remaining = Math.max(0, 5 - nextAttempts);
-        return NextResponse.json(
-          {
-            success: false,
-            error: nextAttempts >= 5
-              ? `Payment failed: ${stripeErrorMessage}. Maximum retry limit (5) reached.`
-              : `Payment failed: ${stripeErrorMessage} (${remaining} attempts remaining)`,
-            attempts: nextAttempts,
-            remainingAttempts: remaining,
-            attemptsExceeded: nextAttempts >= 5,
-          },
-          { status: 400 }
-        );
-      }
-
-      const invoiceNumber = generateInvoiceNumber();
-      const customerLocation = [zip, 'US'].filter(Boolean).join(', ') || 'Global';
-      const customerName = String(name || user.name || user.email?.split('@')[0] || 'FlowSync Customer');
-      const invoice = await prisma.invoice.create({
-        data: {
-          userId: user.id,
-          invoiceNumber,
-          amount: 20.0,
-          currency: 'usd',
-          status: 'paid',
-          planName: 'Pro Plan',
-          billingCycle: 'monthly',
-          paymentMethod: 'stripe',
-          last4: finalLast4,
-          brand: finalBrand,
-          customerName,
-          customerEmail: user.email,
-          customerLocation,
-        },
-      });
-
-      const updated = await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          plan: 'pro',
-          subscriptionStatus: 'active',
-          stripeCustomerId: stripeCustomerId || undefined,
-          failedPaymentAttempts: 0,
-        },
-      });
-
-      return NextResponse.json({
-        success: true,
-        data: {
-          plan: updated.plan,
-          invoice,
-          paymentIntentId,
-          message: 'Payment of $20.00 processed successfully via Stripe.',
-        },
-      });
+      return fail(410, 'Please pay on the secure Stripe checkout page.', { code: 'USE_CHECKOUT' });
     }
 
-    return NextResponse.json({ success: false, error: 'Invalid billing action' }, { status: 400 });
+    return fail(400, 'Invalid billing action');
   } catch (err: any) {
     console.error('POST /api/billing error:', err);
-    return NextResponse.json(
-      { success: false, error: 'Payment processing error. Please try again.' },
-      { status: 500 }
-    );
+    return fail(500, 'Something went wrong. Please try again.');
   }
 }

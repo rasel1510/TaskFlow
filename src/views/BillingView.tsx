@@ -27,8 +27,8 @@ interface BillingData {
   paymentMethod: {
     brand: string;
     last4: string;
-    expMonth: number;
-    expYear: number;
+    expMonth: number | null;
+    expYear: number | null;
   };
   invoices: InvoiceData[];
 }
@@ -168,6 +168,20 @@ export default function BillingView() {
           </div>
         )}
 
+        {/* ─── Subscription state from Stripe ─── */}
+        {billing?.plan === 'pro' && billing.subscriptionStatus === 'past_due' && (
+          <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs">
+            <span className="font-semibold">Your last Pro payment didn’t go through.</span> Stripe will retry the card. Update it
+            under Manage Plan → Manage billing to keep Pro.
+          </div>
+        )}
+        {billing?.plan === 'pro' && billing.subscriptionStatus === 'canceling' && (
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs">
+            <span className="font-semibold">Pro won’t renew.</span> Your workspace keeps Pro until the end of this billing period,
+            then moves to Basic. You can resume it from Manage Plan → Manage billing.
+          </div>
+        )}
+
         {/* ─── 3 Top Stats Cards (Mobbin UI Architecture) ─── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
           
@@ -224,7 +238,10 @@ export default function BillingView() {
                     •••• •••• •••• {billing.paymentMethod.last4}
                   </div>
                   <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Expires {billing.paymentMethod.expMonth}/{billing.paymentMethod.expYear} • {billing.paymentMethod.brand.toUpperCase()}
+                    {billing.paymentMethod.expMonth && billing.paymentMethod.expYear
+                      ? `Expires ${billing.paymentMethod.expMonth}/${billing.paymentMethod.expYear} • `
+                      : ''}
+                    {billing.paymentMethod.brand.toUpperCase()}
                   </div>
                 </div>
               </div>
@@ -378,14 +395,14 @@ export default function BillingView() {
 
                       {/* Amount */}
                       <td className="py-3.5 px-5 font-bold text-slate-950 dark:text-white">
-                        ${(inv.amount || 20).toFixed(2)} USD
+                        ${(inv.amount ?? 0).toFixed(2)} {(inv.currency || 'usd').toUpperCase()}
                       </td>
 
                       {/* Payment Channel */}
                       <td className="py-3.5 px-5 text-slate-500 dark:text-slate-400">
                         <span className="inline-flex items-center gap-1.5 font-mono text-[11px] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
                           <CreditCard size={12} className="text-slate-400" />
-                          <span>{inv.brand?.toUpperCase() || 'CARD'} •••• {inv.last4 || '4242'}</span>
+                          <span>{inv.last4 ? `${(inv.brand || 'card').toUpperCase()} •••• ${inv.last4}` : inv.amount === 0 ? 'PROMOTION' : 'STRIPE'}</span>
                         </span>
                       </td>
 

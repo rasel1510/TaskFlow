@@ -24,8 +24,8 @@ interface ManagePlanModalProps {
   paymentMethod?: {
     brand: string;
     last4: string;
-    expMonth: number;
-    expYear: number;
+    expMonth: number | null;
+    expYear: number | null;
   } | null;
   onSuccess: (newPlan: string) => void;
 }
@@ -85,11 +85,7 @@ export default function ManagePlanModal({
       const res = await fetch('/api/billing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'create_checkout_session',
-          returnUrl: `${window.location.origin}/app?view=billing&payment_success=true&session_id={CHECKOUT_SESSION_ID}`,
-          cancelUrl: `${window.location.origin}/app?view=billing`,
-        }),
+        body: JSON.stringify({ action: 'create_checkout_session' }),
       });
 
       const data = await res.json();
@@ -102,12 +98,12 @@ export default function ManagePlanModal({
       if (data.success && data.data?.url) {
         window.location.href = data.data.url;
       } else {
-        setErrorMsg(data.error || 'Failed to initiate Stripe Checkout. Please try again.');
+        setErrorMsg(data.error || 'We couldn’t open the payment page. Please try again.');
         setLoadingCheckout(false);
       }
     } catch (err: any) {
       console.error('Stripe Checkout Error:', err);
-      setErrorMsg('A connection error occurred. Please try again.');
+      setErrorMsg('Check your internet connection and try again.');
       setLoadingCheckout(false);
     }
   };
@@ -129,16 +125,12 @@ export default function ManagePlanModal({
       if (data.success && data.data?.url) {
         window.location.href = data.data.url;
       } else {
-        // Fallback message for test environment or promo-upgraded users without card
-        setErrorMsg(
-          data.error ||
-          'Stripe Customer Portal is currently unavailable in test mode. Your active Pro subscription is managed securely.'
-        );
+        setErrorMsg(data.error || 'The billing portal isn’t available right now. Please try again later.');
         setLoadingPortal(false);
       }
     } catch (err: any) {
       console.error('Customer Portal Error:', err);
-      setErrorMsg('Failed to open Stripe Customer Portal. Please try again.');
+      setErrorMsg('Check your internet connection and try again.');
       setLoadingPortal(false);
     }
   };
@@ -158,9 +150,9 @@ export default function ManagePlanModal({
 
       const data = await res.json();
       if (data.success) {
-        setSuccessMsg('Your workspace has been downgraded to the Basic Plan.');
+        setSuccessMsg(data.data?.message || 'Your workspace is now on the Basic plan.');
         setShowDowngradeConfirm(false);
-        onSuccess('basic');
+        onSuccess(data.data?.plan === 'pro' ? 'pro' : 'basic');
         setTimeout(() => {
           onClose();
         }, 1200);
@@ -187,25 +179,20 @@ export default function ManagePlanModal({
       const res = await fetch('/api/billing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'apply_promo_code',
-          promoCode: promoCode.trim().toUpperCase(),
-        }),
+        body: JSON.stringify({ action: 'apply_promo_code', promoCode: promoCode.trim() }),
       });
 
-      const data = await res.json();
-      if (data.success) {
-        setPromoSuccess('🎉 You are upgraded to pro plan!');
-        onSuccess('pro');
-        setTimeout(() => {
-          onClose();
-        }, 1500);
-      } else {
-        setPromoError(data.error || 'Invalid promotional code.');
+      const data = await res.json().catch(() => ({}));
+      if (data.success && data.data?.url) {
+        // Valid code → Stripe Checkout with the discount applied
+        setPromoSuccess('Code accepted. Opening checkout…');
+        window.location.href = data.data.url;
+        return;
       }
+      setPromoError(data.error || 'That promotion code isn’t valid or has expired.');
+      setPromoLoading(false);
     } catch (err) {
-      setPromoError('Network error while verifying promo code.');
-    } finally {
+      setPromoError('Check your internet connection and try again.');
       setPromoLoading(false);
     }
   };
@@ -478,11 +465,12 @@ export default function ManagePlanModal({
                   </button>
                 ) : (
                   <button
-                    onClick={handleProPaymentAttempt}
-                    className="w-full py-2.5 px-4 rounded-lg text-xs font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] transition-all cursor-pointer shadow-xs flex items-center justify-center gap-2"
+                    onClick={handleManageStripePortal}
+                    disabled={loadingPortal}
+                    className="w-full py-2.5 px-4 rounded-lg text-xs font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] transition-all cursor-pointer shadow-xs flex items-center justify-center gap-2 disabled:opacity-60"
                   >
-                    <CreditCard size={14} />
-                    <span>Go to payment</span>
+                    {loadingPortal ? <Loader2 size={13} className="animate-spin" /> : <CreditCard size={14} />}
+                    <span>{loadingPortal ? 'Opening Stripe…' : 'Manage billing'}</span>
                   </button>
                 )}
               </div>

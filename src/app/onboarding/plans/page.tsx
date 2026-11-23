@@ -97,17 +97,21 @@ export default function OnboardingPlansPage() {
         body: JSON.stringify({ action: 'create_checkout_session' }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (data.success && data.data?.url) {
-        // Send user directly to Stripe Hosted Payment Gateway
+        // Card details are entered on Stripe's secure Checkout page
         window.location.href = data.data.url;
-      } else {
-        setProError(data.error || 'Unable to connect to Stripe payment gateway. Please try again.');
-        setProLoading(false);
+        return;
       }
+      if (data.alreadyPro) {
+        router.push('/onboarding/organization');
+        return;
+      }
+      setProError(data.error || 'We couldn’t open the payment page. Please try again.');
+      setProLoading(false);
     } catch {
-      setProError('Network error connecting to Stripe. Please try again.');
+      setProError('Check your internet connection and try again.');
       setProLoading(false);
     }
   };
@@ -131,20 +135,22 @@ export default function OnboardingPlansPage() {
         }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
-      if (!res.ok || !data.success) {
-        setPromoError(data.error || 'Invalid promotion code. Please verify and try again.');
+      if (data.success && data.data?.url) {
+        // Valid code → Stripe Checkout with the discount applied (no card needed for 100% off)
+        setPromoSuccess('Code accepted. Opening checkout…');
+        window.location.href = data.data.url;
         return;
       }
-
-      setPromoSuccess(data.data.message || 'Promo code applied! 100% off Pro Plan.');
-      setTimeout(() => {
+      if (data.alreadyPro) {
         router.push('/onboarding/organization');
-      }, 1000);
+        return;
+      }
+      setPromoError(data.error || 'That promotion code isn’t valid or has expired.');
+      setPromoLoading(false);
     } catch {
-      setPromoError('Network error applying promo code. Please try again.');
-    } finally {
+      setPromoError('Check your internet connection and try again.');
       setPromoLoading(false);
     }
   };
