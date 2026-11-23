@@ -9,7 +9,6 @@ import Header from '@/components/Header';
 import TaskDetail from '@/components/TaskDetail';
 import CreateTaskModal from '@/components/CreateTaskModal';
 import CommandPalette from '@/components/CommandPalette';
-import OnboardingModal from '@/components/OnboardingModal';
 import Dashboard from '@/views/Dashboard';
 import MyTasks from '@/views/MyTasks';
 import KanbanBoard from '@/views/KanbanBoard';
@@ -79,20 +78,15 @@ function AppContent() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [isPWAModalOpen, setIsPWAModalOpen] = useState(false);
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
   const [isVerifying, setIsVerifying] = useState(true);
 
-  // Handle post-invite onboarding and deep linking to project, task, or specific view (e.g. billing)
+  // Deep linking to a project, task, or specific view (e.g. billing)
   useEffect(() => {
     if (searchParams) {
-      const isOnboardingParam = searchParams.get('onboarding') === 'true';
       const targetPid = searchParams.get('projectId');
       const targetTaskId = searchParams.get('task') || searchParams.get('taskId');
       const targetView = searchParams.get('view') as View;
 
-      if (isOnboardingParam || session?.user?.name === 'New Member') {
-        setShowOnboarding(true);
-      }
       if (targetPid) {
         setSelectedProjectId(targetPid);
         setView('project-detail');
@@ -104,7 +98,7 @@ function AppContent() {
         setView(targetView);
       }
     }
-  }, [searchParams, session?.user?.name]);
+  }, [searchParams]);
 
   // Authoritative Payment & Company Setup Gates:
   // If registered user signs in without payment, ALWAYS redirect to Payment page (/onboarding/plans).
@@ -535,16 +529,6 @@ function AppContent() {
         {/* Floating Draggable FlowAi Trigger Button */}
         <DraggableFlowAiButton onClick={() => setIsCopilotOpen(true)} />
 
-        {/* Post-Invitation Profile Setup / Onboarding Modal */}
-        <OnboardingModal
-          isOpen={showOnboarding}
-          onClose={() => setShowOnboarding(false)}
-          targetProjectId={selectedProjectId}
-          onCompleteProjectNav={id => {
-            setSelectedProjectId(id);
-            setView('project-detail');
-          }}
-        />
       </div>
     </TaskProvider>
   );

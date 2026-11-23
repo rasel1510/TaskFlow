@@ -100,10 +100,9 @@ function InviteAcceptContent() {
     load();
   }, [load]);
 
-  const projectUrl = (isNew: boolean) =>
-    info?.type === 'project' && info.projectId
-      ? `/app?projectId=${encodeURIComponent(info.projectId)}${isNew ? '&onboarding=true' : ''}`
-      : `/app${isNew ? '?onboarding=true' : ''}`;
+  // After joining, go straight into the app (the project, for project invitations)
+  const projectUrl = () =>
+    info?.type === 'project' && info.projectId ? `/app?projectId=${encodeURIComponent(info.projectId)}` : '/app';
 
   const handleAccept = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -142,19 +141,18 @@ function InviteAcceptContent() {
         return;
       }
 
-      const isNew = Boolean(json.data?.isNewAccount || json.data?.onboardingNeeded);
       setView('joined');
 
       if (!signedIn) {
         const result = await signIn('credentials', { email: info.email, password, redirect: false });
         if (result?.error) {
           // Joined, but automatic sign-in failed — send them to the login page, then to the project
-          window.location.assign(`/auth/login?callbackUrl=${encodeURIComponent(projectUrl(isNew))}`);
+          window.location.assign(`/auth/login?callbackUrl=${encodeURIComponent(projectUrl())}`);
           return;
         }
       }
       // Full navigation so the app starts with the fresh session
-      window.location.assign(projectUrl(isNew));
+      window.location.assign(projectUrl());
     } catch {
       setError('Something went wrong. Please try again.');
       setBusy(false);
@@ -272,7 +270,7 @@ function InviteAcceptContent() {
               <div className="mt-5 text-center">
                 <p className="text-[13.5px] leading-relaxed text-[rgba(17,17,17,0.6)]">{info.statusMessage}</p>
                 {info.status === 'accepted' && info.signedInMatches && info.projectId ? (
-                  <a href={projectUrl(false)} className={`${primaryBtn} mt-5`}>
+                  <a href={projectUrl()} className={`${primaryBtn} mt-5`}>
                     Open {info.projectName} <ArrowRight className="w-4 h-4" />
                   </a>
                 ) : (
