@@ -12,7 +12,7 @@
  */
 import { NextResponse } from 'next/server';
 import type Stripe from 'stripe';
-import { stripe } from '@/lib/stripe';
+import { stripe, readEnv } from '@/lib/stripe';
 import {
   fulfilCheckoutSession,
   invoiceSubscriptionId,
@@ -34,7 +34,7 @@ async function subscriptionUserId(subscriptionId: string | null): Promise<string
 }
 
 export async function POST(req: Request) {
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const webhookSecret = readEnv('STRIPE_WEBHOOK_SECRET');
   const signature = req.headers.get('stripe-signature');
 
   // Without signature verification anyone could POST a fake event and unlock Pro

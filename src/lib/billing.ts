@@ -11,20 +11,23 @@
 
 import type Stripe from 'stripe';
 import prisma from '@/lib/prisma';
-import { stripe, isStripeTestMode } from '@/lib/stripe';
+import { stripe, isStripeTestMode, readEnv, stripeKeyKind } from '@/lib/stripe';
 
 /** The $20/month Pro price in the FlowSync Stripe *test* account — used only with a test key. */
 const TEST_MODE_PRO_PRICE = 'price_1UY73F3G3sadP8zGQfn5AR1E';
 
 export function getProPriceId(): string | null {
-  const fromEnv = process.env.STRIPE_PRO_PRICE_ID?.trim();
+  const fromEnv = readEnv('STRIPE_PRO_PRICE_ID');
   if (fromEnv) return fromEnv;
   return isStripeTestMode ? TEST_MODE_PRO_PRICE : null;
 }
 
 /** Why payments can't run right now (server misconfiguration), or null when they can. */
 export function paymentsConfigProblem(): string | null {
-  if (!process.env.STRIPE_SECRET_KEY) return 'STRIPE_SECRET_KEY is not set';
+  const kind = stripeKeyKind();
+  if (kind === 'missing') return 'STRIPE_SECRET_KEY is not set';
+  if (kind === 'publishable') return 'STRIPE_SECRET_KEY holds a publishable key (pk_…) — it needs the secret key (sk_…)';
+  if (kind === 'malformed') return 'STRIPE_SECRET_KEY is not a valid Stripe secret key';
   if (!getProPriceId()) return 'STRIPE_PRO_PRICE_ID is not set (required with a live key)';
   return null;
 }
