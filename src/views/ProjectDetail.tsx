@@ -2435,7 +2435,7 @@ export default function ProjectDetail({
                                 <span className={`${PINNED_TASK_CELL} -my-2 py-2`}>
                                   <span
                                     className={`truncate text-[13.5px] ${
-                                      isDone ? 'line-through text-[rgba(17,17,17,0.4)]' : 'text-[#111111]'
+                                      isDone ? 'text-[rgba(17,17,17,0.4)]' : 'text-[#111111]'
                                     }`}
                                     title={task.title}
                                   >

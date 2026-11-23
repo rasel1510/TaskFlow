@@ -934,7 +934,7 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
                             }}
                             className={`flex items-center gap-1.5 px-2 py-0.5 sm:py-1 rounded-md text-[11px] font-medium border cursor-pointer transition-all truncate group/pill ${
                               isDone
-                                ? 'bg-[#F9FAFB] border-[#E5E7EB] text-[#9CA3AF] line-through'
+                                ? 'bg-[#F9FAFB] border-[#E5E7EB] text-[#9CA3AF]'
                                 : 'bg-white hover:bg-[#F8FAFC] border-[#E5E7EB] hover:border-[#93C5FD] text-[#111111] shadow-2xs'
                             }`}
                             title={task.title}
@@ -1081,7 +1081,7 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
 
                         <h4
                           className={`text-[13px] font-semibold text-[#111111] ${
-                            isDone ? 'line-through text-[#9CA3AF]' : ''
+                            isDone ? 'text-[#9CA3AF]' : ''
                           }`}
                         >
                           {task.title}
@@ -1202,7 +1202,7 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
 
                             <h4
                               className={`text-[12px] font-semibold text-[#111111] line-clamp-2 leading-snug ${
-                                isDone ? 'line-through text-[#9CA3AF]' : ''
+                                isDone ? 'text-[#9CA3AF]' : ''
                               }`}
                             >
                               {task.title}
@@ -1336,7 +1336,7 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
                                 <div className="flex items-center gap-2">
                                   <h4
                                     className={`text-[13px] font-semibold text-[#111111] truncate ${
-                                      isDone ? 'line-through text-[#9CA3AF]' : ''
+                                      isDone ? 'text-[#9CA3AF]' : ''
                                     }`}
                                   >
                                     {task.title}
@@ -1449,7 +1449,7 @@ export default function CalendarView({ onTaskClick, onCreateTask }: CalendarView
                       <div className="flex items-center gap-1.5 truncate">
                         <h4
                           className={`text-[12px] font-semibold text-[#111111] truncate ${
-                            isDone ? 'line-through text-[#9CA3AF]' : ''
+                            isDone ? 'text-[#9CA3AF]' : ''
                           }`}
                         >
                           {task.title}

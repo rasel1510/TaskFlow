@@ -744,7 +744,7 @@ export default function MyTasks({ onTaskClick, onCreateTask }: MyTasksProps) {
                           className="w-3.5 h-3.5 rounded border-[#D1D5DB] accent-[#2563EB] cursor-pointer shrink-0"
                         />
                         <span
-                          className={`truncate text-[13.5px] ${isDone ? 'line-through text-[rgba(17,17,17,0.4)]' : 'text-[#111111] font-medium'}`}
+                          className={`truncate text-[13.5px] ${isDone ? 'text-[rgba(17,17,17,0.4)]' : 'text-[#111111] font-medium'}`}
                           title={task.title}
                         >
                           {task.title}

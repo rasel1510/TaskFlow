@@ -624,7 +624,7 @@ export default function TimelineView({ onTaskClick, onCreateTask }: TimelineView
                               <span
                                 className={`text-[12px] truncate ${
                                   isDone
-                                    ? 'line-through text-[#9CA3AF]'
+                                    ? 'text-[#9CA3AF]'
                                     : 'font-medium text-[#111111] group-hover:text-[#2563EB]'
                                 }`}
                               >
