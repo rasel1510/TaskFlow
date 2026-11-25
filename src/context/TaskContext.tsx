@@ -3,9 +3,10 @@
 
 
 
-import React, { createContext, useContext, useCallback, useEffect, useState } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useToast } from '@/components/ui/Toast';
+import { useLiveRefresh } from '@/lib/liveSync';
 
 // -------------------------------------------------------------------------
 // Types
@@ -162,6 +163,37 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   const refreshTasks = useCallback(async () => {
     await fetchTasks();
   }, [fetchTasks]);
+
+  // Live updates: reload quietly when tasks change elsewhere — but never while one of this
+  // person's own changes is still saving (that would briefly undo it); retry right after.
+  const savingRef = useRef(0);
+  const lastSaveRef = useRef(0);
+  const liveRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const liveReload = useCallback(() => {
+    if (liveRetryRef.current) clearTimeout(liveRetryRef.current);
+    if (savingRef.current > 0 || Date.now() - lastSaveRef.current < 1500) {
+      liveRetryRef.current = setTimeout(liveReload, 1500);
+      return;
+    }
+    fetchTasks();
+  }, [fetchTasks]);
+  useLiveRefresh(['tasks'], liveReload);
+  useEffect(() => () => {
+    if (liveRetryRef.current) clearTimeout(liveRetryRef.current);
+  }, []);
+  const tracked = useCallback(
+    <A extends unknown[], R>(fn: (...args: A) => Promise<R>) =>
+      async (...args: A): Promise<R> => {
+        savingRef.current++;
+        try {
+          return await fn(...args);
+        } finally {
+          savingRef.current--;
+          lastSaveRef.current = Date.now();
+        }
+      },
+    []
+  );
 
   // ── createTask — optimistic insert with temp ID, replaced on server confirm ──
   const createTask = useCallback(async (payload: CreateTaskPayload): Promise<DBTask> => {
@@ -356,6 +388,17 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks, sessionUserId, sessionUserEmail, toast]);
 
+  // Stable identities for the wrapped actions (same as the originals' useCallback stability)
+  const trackedActions = useMemo(
+    () => ({
+      createTask: tracked(createTask),
+      updateTaskStatus: tracked(updateTaskStatus),
+      updateTask: tracked(updateTask),
+      deleteTask: tracked(deleteTask),
+    }),
+    [tracked, createTask, updateTaskStatus, updateTask, deleteTask]
+  );
+
   return (
     <TaskContext.Provider
       value={{
@@ -363,10 +406,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         users,
         isLoading,
         error,
-        createTask,
-        updateTaskStatus,
-        updateTask,
-        deleteTask,
+        ...trackedActions,
         refreshTasks,
       }}
     >

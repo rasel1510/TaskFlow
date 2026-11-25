@@ -29,6 +29,7 @@ import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import PWAModal from '@/components/PWAModal';
 import CopilotDrawer from '@/components/copilot/CopilotDrawer';
 import DraggableFlowAiButton from '@/components/copilot/DraggableFlowAiButton';
+import { useLiveSyncEngine } from '@/lib/liveSync';
 
 type View =
   | 'dashboard'
@@ -46,6 +47,8 @@ type View =
   | 'super-admin';
 
 function AppContent() {
+  // Live updates: comments, tasks, notifications and team changes appear without Refresh
+  useLiveSyncEngine();
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();

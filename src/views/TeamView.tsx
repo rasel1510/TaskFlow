@@ -14,6 +14,7 @@ import { Check, Copy, Eye, EyeOff, Loader2, Plus, RefreshCw, Search, X } from 'l
 import { SelectMenu, type SelectOption } from '@/components/ui/Pickers';
 import { useToast } from '@/components/ui/Toast';
 import { useWorkspaces } from '@/lib/useWorkspaces';
+import { useLiveRefresh } from '@/lib/liveSync';
 
 /* ─────────────── types ─────────────── */
 
@@ -195,6 +196,11 @@ export default function TeamView() {
       setIsRefreshing(false);
     }
   }, []);
+
+  // Live updates: people, roles and invitations changed elsewhere appear without Refresh
+  useLiveRefresh(['team', 'projects'], () => {
+    fetchTeamData();
+  });
 
   useEffect(() => {
     fetchTeamData();

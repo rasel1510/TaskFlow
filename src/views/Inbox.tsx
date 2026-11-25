@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/components/ui/Toast';
+import { useLiveRefresh } from '@/lib/liveSync';
 
 export interface NotificationItem {
   id: string;
@@ -41,6 +42,11 @@ export default function Inbox({ onTaskClick, onProjectClick, onNavigate }: Inbox
       if (!signal?.aborted) setLoading(false);
     }
   }, []);
+
+  // Live updates: new notifications appear without Refresh
+  useLiveRefresh(['notifications'], () => {
+    fetchNotifications();
+  });
 
   useEffect(() => {
     const controller = new AbortController();

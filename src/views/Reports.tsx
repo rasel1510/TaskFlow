@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { healthColors, type ProjectHealth } from '../data/mockData';
 import { useToast } from '@/components/ui/Toast';
+import { useLiveRefresh } from '@/lib/liveSync';
 
 interface VelocityItem {
   day: string;
@@ -134,6 +135,9 @@ export default function Reports() {
   const toast = useToast();
 
   const { data: session } = useSession();
+  // Live updates: re-read the report quietly when tasks or projects change
+  const [liveTick, setLiveTick] = useState(0);
+  useLiveRefresh(['tasks', 'projects'], () => setLiveTick(t => t + 1));
 
   useEffect(() => {
     const controller = new AbortController();
@@ -149,7 +153,7 @@ export default function Reports() {
       .catch(err => { if (err.name !== 'AbortError') console.error('[Reports] Error loading report data:', err); })
       .finally(() => setLoading(false));
     return () => controller.abort();
-  }, [session?.user]);
+  }, [session?.user, liveTick]);
 
   const handleExportCSV = useCallback(async () => {
     setExporting(true);

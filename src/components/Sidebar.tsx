@@ -221,9 +221,12 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
 
     fetchUnreadCount();
     const interval = setInterval(fetchUnreadCount, 25000);
+    // Live updates: refresh the unread count as soon as notifications change
+    window.addEventListener('live:notifications', fetchUnreadCount);
     return () => {
       isMounted = false;
       clearInterval(interval);
+      window.removeEventListener('live:notifications', fetchUnreadCount);
     };
   }, [currentView]);
 

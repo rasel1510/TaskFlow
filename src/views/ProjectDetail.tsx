@@ -41,6 +41,7 @@ import {
   UserPlus,
   X,
 } from 'lucide-react';
+import { useLiveRefresh } from '@/lib/liveSync';
 
 interface ProjectTask {
   id: string;
@@ -660,8 +661,8 @@ export default function ProjectDetail({
     }
   }, [projectId]);
 
-  const fetchMembers = useCallback(async () => {
-    setMembersLoading(true);
+  const fetchMembers = useCallback(async (opts?: { silent?: boolean }) => {
+    if (opts?.silent !== true) setMembersLoading(true);
     try {
       const res = await fetch(`/api/projects/${projectId}/members`);
       const json = await res.json();
@@ -670,8 +671,8 @@ export default function ProjectDetail({
     finally { setMembersLoading(false); }
   }, [projectId]);
 
-  const fetchJoinRequests = useCallback(async () => {
-    setJoinRequestsLoading(true);
+  const fetchJoinRequests = useCallback(async (opts?: { silent?: boolean }) => {
+    if (opts?.silent !== true) setJoinRequestsLoading(true);
     try {
       const res = await fetch(`/api/projects/${projectId}/requests`);
       const json = await res.json();
@@ -680,8 +681,8 @@ export default function ProjectDetail({
     finally { setJoinRequestsLoading(false); }
   }, [projectId]);
 
-  const fetchInvitations = useCallback(async () => {
-    setInvitationsLoading(true);
+  const fetchInvitations = useCallback(async (opts?: { silent?: boolean }) => {
+    if (opts?.silent !== true) setInvitationsLoading(true);
     try {
       const res = await fetch(`/api/projects/${projectId}/invitations`);
       const json = await res.json();
@@ -695,6 +696,16 @@ export default function ProjectDetail({
     }
   }, [projectId]);
 
+
+  // Live updates: quietly reload what this project shows when it changes elsewhere
+  useLiveRefresh(['tasks', 'projects', 'comments'], () => {
+    fetchProject();
+  });
+  useLiveRefresh(['team', 'projects'], () => {
+    fetchMembers({ silent: true });
+    fetchJoinRequests({ silent: true });
+    fetchInvitations({ silent: true });
+  });
 
   const fetchAvailableUsers = async () => {
     setAvailableUsersLoading(true);

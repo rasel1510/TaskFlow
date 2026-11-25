@@ -49,6 +49,7 @@ import {
   Check,
   MessageSquare,
 } from 'lucide-react';
+import { useLiveRefresh } from '@/lib/liveSync';
 
 interface TaskDetailProps {
   taskId: string | null;
@@ -318,9 +319,9 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
 
 
 
-  const loadComments = useCallback(async (signal?: AbortSignal) => {
+  const loadComments = useCallback(async (signal?: AbortSignal, silent = false) => {
     if (!taskId) return;
-    setLoadingComments(true);
+    if (!silent) setLoadingComments(true);
     try {
       const res = await fetch(`/api/tasks/${taskId}/comments`, { signal });
       const envelope = await res.json();
@@ -334,9 +335,9 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
     }
   }, [taskId]);
 
-  const loadActivities = useCallback(async (signal?: AbortSignal) => {
+  const loadActivities = useCallback(async (signal?: AbortSignal, silent = false) => {
     if (!taskId) return;
-    setLoadingActivities(true);
+    if (!silent) setLoadingActivities(true);
     try {
       const res = await fetch(`/api/tasks/${taskId}/activities`, { signal });
       const envelope = await res.json();
@@ -357,6 +358,12 @@ export default function TaskDetail({ taskId, onClose }: TaskDetailProps) {
       controller.abort();
     };
   }, [taskId, loadActivities]);
+
+  // Live updates: new comments and activity on this task appear without Refresh
+  useLiveRefresh(['comments'], () => {
+    loadComments(undefined, true);
+    loadActivities(undefined, true);
+  });
 
   useEffect(() => {
     const controller = new AbortController();

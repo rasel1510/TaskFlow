@@ -9,6 +9,7 @@ import { ProjectCardSkeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/EmptyState';
 import { useToast } from '@/components/ui/Toast';
 import { UserPlus } from 'lucide-react';
+import { useLiveRefresh } from '@/lib/liveSync';
 
 interface ProjectsProps {
   onViewChange?: (view: 'kanban') => void;
@@ -144,6 +145,11 @@ export default function Projects({ onViewChange, onSelectProject }: ProjectsProp
       if (!signal?.aborted) setLoading(false);
     }
   }, []);
+
+  // Live updates: projects added, changed or removed elsewhere appear without Refresh
+  useLiveRefresh(['projects', 'tasks'], () => {
+    fetchProjects();
+  });
 
   useEffect(() => {
     const controller = new AbortController();
