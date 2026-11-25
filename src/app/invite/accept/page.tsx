@@ -46,11 +46,6 @@ const primaryBtn =
 const secondaryBtn =
   'w-full h-10 inline-flex items-center justify-center gap-2 rounded-lg border border-[#E5E7EB] bg-white hover:bg-[#F9FAFB] text-[14px] font-medium text-[#374151] transition-colors disabled:opacity-60 cursor-pointer';
 
-function formatRole(role: string): string {
-  if (!role) return 'Member';
-  return /[a-z]/.test(role) ? role : role.charAt(0) + role.slice(1).toLowerCase();
-}
-
 function passwordProblem(pw: string): string | null {
   if (pw.length < 8) return 'At least 8 characters';
   if (!/[A-Za-z]/.test(pw) || !/[0-9]/.test(pw)) return 'Include a letter and a number';
@@ -226,37 +221,7 @@ function InviteAcceptContent() {
               <h1 className="mt-3 text-[19px] font-semibold tracking-tight text-[#111111]">
                 {view === 'declined' ? 'Invitation declined' : view === 'joined' ? `Welcome to ${title}` : `Join ${title}`}
               </h1>
-              {view !== 'declined' && view !== 'joined' && (
-                <p className="mt-1.5 text-[13.5px] leading-relaxed text-[rgba(17,17,17,0.6)]">
-                  <span className="font-medium text-[#111111]">{info.inviterName}</span>
-                  {info.inviterEmail ? <span> ({info.inviterEmail})</span> : null} invited you to collaborate
-                  {info.organizationName ? (
-                    <>
-                      {' '}
-                      at <span className="font-medium text-[#111111]">{info.organizationName}</span>
-                    </>
-                  ) : null}
-                  .
-                </p>
-              )}
             </div>
-
-            {(view === 'form' || view === 'confirmDecline') && (
-              <dl className="mt-5 rounded-xl bg-[#F9FAFB] border border-[#F0F0F0] px-4 py-3 space-y-2 text-[13px]">
-                <div className="flex justify-between gap-4">
-                  <dt className="text-[rgba(17,17,17,0.5)]">{info.type === 'project' ? 'Project' : 'Organization'}</dt>
-                  <dd className="font-medium text-[#111111] text-right truncate">{title}</dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-[rgba(17,17,17,0.5)]">Your role</dt>
-                  <dd className="font-medium text-[#111111]">{formatRole(info.role)}</dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-[rgba(17,17,17,0.5)]">Invited email</dt>
-                  <dd className="font-medium text-[#111111] text-right truncate">{info.email}</dd>
-                </div>
-              </dl>
-            )}
 
             {error && (view === 'form' || view === 'confirmDecline') && (
               <div role="alert" className="mt-4 flex items-start gap-2 rounded-lg border border-[#FECACA] bg-[#FEF2F2] px-3 py-2.5 text-[13px] text-[#B91C1C]">
@@ -340,9 +305,6 @@ function InviteAcceptContent() {
 
                 {!info.signedInEmail && info.account === 'none' && (
                   <>
-                    <p className="text-[13px] text-[rgba(17,17,17,0.6)]">
-                      Create your FlowSync account to join. You&apos;ll sign in with <span className="font-medium text-[#111111]">{info.email}</span>.
-                    </p>
                     <div>
                       <label htmlFor="inv-name" className="block text-[12.5px] font-medium text-[#374151] mb-1.5">
                         Full name
