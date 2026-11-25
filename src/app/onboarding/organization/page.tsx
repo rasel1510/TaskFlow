@@ -84,8 +84,8 @@ function OnboardingOrganizationContent() {
             return;
           }
 
-          // If user already created an organization, do not show organization creation page again: send directly to Dashboard (/app)
-          if ((json.data?.hasCompletedOnboarding && json.data?.teamId) || json.data?.teamId) {
+          // Inside a company already → the app. (A new team is created from the Personal workspace.)
+          if (json.data?.workspace?.kind === 'company') {
             router.replace('/app');
             return;
           }

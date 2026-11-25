@@ -16,6 +16,7 @@ import {
 import InvoiceModal, { InvoiceData } from '@/components/onboarding/InvoiceModal';
 import ManagePlanModal from '@/components/billing/ManagePlanModal';
 import { useToast } from '@/components/ui/Toast';
+import { useWorkspaces } from '@/lib/useWorkspaces';
 
 interface BillingData {
   plan: string;
@@ -34,6 +35,7 @@ interface BillingData {
 }
 
 export default function BillingView() {
+  const workspace = useWorkspaces().current;
   const { data: session } = useSession();
   const toast = useToast();
   const [billing, setBilling] = useState<BillingData | null>(null);
@@ -121,6 +123,34 @@ export default function BillingView() {
   );
 
   const isPro = billing?.plan === 'pro';
+
+  // Personal workspace: nothing to bill — show its plan status and the way to create a team
+  if (workspace?.kind === 'personal') {
+    const status =
+      workspace.state === 'free'
+        ? 'Free use approved — no time limit.'
+        : workspace.state === 'expired'
+          ? 'Your free trial has ended. Your work is read-only.'
+          : `Free trial · ${workspace.daysLeft} day${workspace.daysLeft === 1 ? '' : 's'} left.`;
+    return (
+      <div className="flex-1 h-full overflow-y-auto bg-[#FCFCFD]">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 md:px-10 pt-6 md:pt-8 pb-24">
+          <h1 className="text-[20px] font-semibold text-[#111111] tracking-tight">Billing</h1>
+          <section className="mt-6 rounded-xl border border-[#E5E7EB] bg-white p-5">
+            <p className="text-[12.5px] font-medium text-[rgba(17,17,17,0.5)]">Personal workspace</p>
+            <p className="mt-1 text-[15px] font-semibold text-[#111111]">No billing</p>
+            <p className="mt-1 text-[13px] text-[rgba(17,17,17,0.6)]">{status}</p>
+            <div className="mt-5 pt-4 border-t border-[#F0F0F0] flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+              <p className="text-[13px] text-[rgba(17,17,17,0.6)]">Plans and invoices belong to teams. Create a team to choose Basic or Pro.</p>
+              <a href="/onboarding/plans" className="shrink-0 h-9 px-4 inline-flex items-center justify-center rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[13px] font-medium">
+                Create a team
+              </a>
+            </div>
+          </section>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50/50 dark:bg-slate-950/50 min-h-full">

@@ -36,16 +36,16 @@ export default function OnboardingPlansPage() {
         const res = await fetch('/api/billing', { cache: 'no-store' });
         if (res.ok) {
           const json = await res.json();
-          const { hasPaid, hasCompletedOnboarding, teamId } = json?.data || {};
+          const { hasPaid, workspace } = json?.data || {};
 
-          // If already paid AND completed company setup, redirect to Company Billing with Manage Plan open
-          if (hasPaid && ((hasCompletedOnboarding && teamId) || teamId)) {
+          // Inside a company, plans are managed on its Billing page
+          if (workspace?.kind === 'company') {
             router.replace('/app?view=billing&manage=true');
             return;
           }
 
-          // If already paid but company setup pending, redirect directly to organization setup
-          if (hasPaid && (!hasCompletedOnboarding || !teamId)) {
+          // Creating a team from Personal: once its plan is chosen (and paid, for Pro), set up the company
+          if (hasPaid) {
             router.replace('/onboarding/organization');
             return;
           }

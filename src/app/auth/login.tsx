@@ -45,14 +45,8 @@ function LoginForm() {
   // If already authenticated with a valid session, navigate forward according to onboarding status
   React.useEffect(() => {
     if (status === 'authenticated' && session?.user) {
-      const user = session.user as any;
-      if ((user.hasCompletedOnboarding && user.teamId) || user.teamId) {
-        router.replace(targetUrl || '/app');
-      } else if (user.hasPaid) {
-        router.replace('/onboarding/organization');
-      } else {
-        router.replace('/onboarding/plans');
-      }
+      // Everyone has a workspace — their Personal one at least — so signed-in people go to the app
+      router.replace(targetUrl || '/app');
     }
   }, [status, session, targetUrl, router]);
 

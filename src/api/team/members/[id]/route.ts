@@ -6,6 +6,7 @@ import { auth } from '@/auth';
 import { normalizeDesignation, isSuperAdmin } from '@/lib/permissions';
 import { getOrProvisionUserTeam } from '@/lib/tenant';
 import { isCompanyRole, toCompanyRole } from '@/lib/companyRoles';
+import { removeMembership } from '@/lib/workspaces';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -110,15 +111,14 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     }
     const storedRole = normalizeDesignation(newRole) === 'Super Admin' ? 'Super Admin' : toCompanyRole(newRole);
 
-    // Ensure target member belongs to the same team
-    const targetMember = await prisma.user.findFirst({
-      where: {
-        id: targetMemberId,
-        teamId: teamContext.teamId,
-      },
+    // Ensure target member belongs to this company (their role here lives on the membership)
+    const membership = await prisma.teamMembership.findUnique({
+      where: { teamId_userId: { teamId: teamContext.teamId, userId: targetMemberId } },
+      select: { role: true, user: { select: { teamId: true, role: true } } },
     });
+    const targetMember = membership ? { role: membership.role } : null;
 
-    if (!targetMember) {
+    if (!membership || !targetMember) {
       return NextResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Member not found in your team' } },
         { status: 404 }
@@ -127,7 +127,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     // Safety check: Cannot demote the last admin
     if (targetMember.role.toLowerCase() === 'admin' && storedRole !== 'Admin') {
-      const adminCount = await prisma.user.count({
+      const adminCount = await prisma.teamMembership.count({
         where: {
           teamId: teamContext.teamId,
           role: { in: ['Admin', 'ADMIN', 'admin'] },
@@ -142,10 +142,17 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       }
     }
 
-    // Update in database
+    // Update their role in this company; mirror it on the user only while this company is open
+    await prisma.teamMembership.update({
+      where: { teamId_userId: { teamId: teamContext.teamId, userId: targetMemberId } },
+      data: { role: storedRole === 'Super Admin' ? 'Admin' : storedRole },
+    });
+    const mirror =
+      membership.user.teamId === teamContext.teamId &&
+      (membership.user.role || '').toLowerCase().replace(/_/g, ' ').trim() !== 'super admin';
     const updated = await prisma.user.update({
       where: { id: targetMemberId },
-      data: { role: storedRole },
+      data: mirror ? { role: storedRole } : {},
       select: {
         id: true,
         name: true,
@@ -155,6 +162,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         expertise: true,
       },
     });
+    updated.role = storedRole;
 
     redisCache.delPattern('team:*').catch(() => {});
 
@@ -212,10 +220,10 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
 
     // Cannot remove self if only admin
     if (targetMemberId === currentUserId) {
-      const adminCount = await prisma.user.count({
+      const adminCount = await prisma.teamMembership.count({
         where: {
           teamId: teamContext.teamId,
-          role: 'Admin',
+          role: { in: ['Admin', 'ADMIN', 'admin'] },
         },
       });
 
@@ -227,16 +235,8 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
       }
     }
 
-    // Unlink member from team
-    await prisma.user.updateMany({
-      where: {
-        id: targetMemberId,
-        teamId: teamContext.teamId,
-      },
-      data: {
-        teamId: null,
-      },
-    });
+    // Remove them from this company only — their account and other workspaces stay
+    await removeMembership(targetMemberId, teamContext.teamId);
     redisCache.delPattern('team:*').catch(() => {});
 
     return NextResponse.json({

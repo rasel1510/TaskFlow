@@ -19,6 +19,7 @@ import prisma from '@/lib/prisma';
 import redisCache from '@/lib/redis';
 import { getSessionUser } from '@/lib/access';
 import { joinCompany, toCompanyRole } from '@/lib/companyMembership';
+import { addMembership, switchWorkspace } from '@/lib/workspaces';
 import {
   effectiveInviteStatus,
   initialsFor,
@@ -244,6 +245,9 @@ async function acceptProjectInvite(
           select: { id: true },
         });
         uid = created.id;
+        if (inv.project.teamId) {
+          await tx.teamMembership.create({ data: { teamId: inv.project.teamId, userId: uid, role: toCompanyRole(inv.role) } });
+        }
       }
 
       await tx.projectMember.upsert({
@@ -260,8 +264,12 @@ async function acceptProjectInvite(
     throw err;
   }
 
-  // An existing account joins the project's company too, with the invited role
-  if (!newAccount) await joinCompany(userId, inv.project.teamId, inv.role).catch(() => 'skipped');
+  // An existing account joins the project's company too, with the invited role — keeping every
+  // other company and their personal workspace — and lands in this company's project
+  if (inv.project.teamId) {
+    if (!newAccount) await joinCompany(userId, inv.project.teamId, inv.role).catch(() => 'skipped');
+    await switchWorkspace(userId, inv.project.teamId).catch(() => null);
+  }
 
   if (!actorName) {
     const u = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
@@ -310,7 +318,8 @@ async function acceptTeamInvite(token: string, name: string | undefined, passwor
         `This invitation was sent to ${invitation.email}, but you're signed in as ${session.email}. Sign out and open the link again.`
       );
     }
-    await prisma.user.update({ where: { id: session.id }, data: { teamId: invitation.teamId, role: assignedRole } });
+    await addMembership(session.id, invitation.teamId, assignedRole);
+    await switchWorkspace(session.id, invitation.teamId);
   } else {
     const existing = await findUserByEmail(inviteEmail);
     if (existing) {
@@ -321,15 +330,16 @@ async function acceptTeamInvite(token: string, name: string | undefined, passwor
       if (!(await bcrypt.compare(password, existing.password))) {
         return fail(401, 'INVALID_PASSWORD', 'Incorrect password for this account.');
       }
-      await prisma.user.update({
-        where: { id: existing.id },
-        data: { teamId: invitation.teamId, role: assignedRole, emailVerified: existing.emailVerified || new Date() },
-      });
+      if (!existing.emailVerified) {
+        await prisma.user.update({ where: { id: existing.id }, data: { emailVerified: new Date() } });
+      }
+      await addMembership(existing.id, invitation.teamId, assignedRole);
+      await switchWorkspace(existing.id, invitation.teamId);
     } else {
       const passwordError = validateNewPassword(password || '');
       if (passwordError) return fail(422, 'WEAK_PASSWORD', passwordError);
       const userName = (name || '').trim() || inviteEmail.split('@')[0];
-      await prisma.user.create({
+      const created = await prisma.user.create({
         data: {
           name: userName,
           email: inviteEmail,
@@ -340,7 +350,9 @@ async function acceptTeamInvite(token: string, name: string | undefined, passwor
           emailVerified: new Date(),
           hasCompletedOnboarding: true,
         },
+        select: { id: true },
       });
+      await addMembership(created.id, invitation.teamId, assignedRole);
       onboardingNeeded = true;
     }
   }

@@ -21,18 +21,23 @@ export async function GET(
       where: { id },
       include: {
         _count: {
-          select: { members: true, projects: true, invitations: true },
+          select: { memberships: true, projects: true, invitations: true },
         },
-        members: {
+        memberships: {
           select: {
-            id: true,
-            name: true,
-            email: true,
             role: true,
-            avatar: true,
-            plan: true,
-            subscriptionStatus: true,
-            createdAt: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                avatar: true,
+                plan: true,
+                subscriptionStatus: true,
+                createdAt: true,
+              },
+            },
           },
         },
         projects: {
@@ -50,7 +55,16 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ success: true, data: team });
+    // Same shape as before: members (with their role in this company) and counts
+    const { memberships, _count, ...rest } = team;
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...rest,
+        _count: { ..._count, members: _count.memberships },
+        members: memberships.map(m => ({ ...m.user, role: m.role })),
+      },
+    });
   } catch (error) {
     console.error('[Admin Company GET Detail Error]:', error);
     return NextResponse.json(
@@ -94,6 +108,8 @@ export async function PATCH(
 
     // 2. Cascade plan change to all company members
     if (plan && ['free', 'pro'].includes(plan.toLowerCase())) {
+      await prisma.team.update({ where: { id }, data: { plan: plan.toLowerCase() } });
+      // Mirror on people who have this company open
       await prisma.user.updateMany({
         where: { teamId: id },
         data: { plan: plan.toLowerCase() },
@@ -102,6 +118,7 @@ export async function PATCH(
 
     // 3. Cascade subscription status change to all company members
     if (status && ['active', 'past_due', 'suspended'].includes(status.toLowerCase())) {
+      await prisma.team.update({ where: { id }, data: { subscriptionStatus: status.toLowerCase() } });
       await prisma.user.updateMany({
         where: { teamId: id },
         data: { subscriptionStatus: status.toLowerCase() },

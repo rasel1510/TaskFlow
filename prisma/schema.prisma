@@ -41,7 +41,37 @@ model Team {
   projects    Project[]
   invitations TeamInvitation[]
 
+  // Workspaces: "company" (a team) or "personal" (one person's own space)
+  kind                  String    @default("company")
+  // A company's plan (free | basic | pro). Each workspace is billed on its own.
+  plan                  String    @default("free")
+  subscriptionStatus    String    @default("active")
+  billingUserId         String?
+  // Personal workspace only — one per person, with a 14-day trial and optional approved free use
+  personalOwnerId       String?   @unique
+  trialEndsAt           DateTime?
+  freeAccess            String    @default("none") // none | requested | approved | declined
+  freeAccessRequestedAt DateTime?
+  freeAccessDecidedAt   DateTime?
+  memberships           TeamMembership[]
+
   @@index([slug])
+  @@index([kind, freeAccess])
+}
+
+/// Every workspace a person belongs to, with their role in it. User.teamId / User.role mirror the
+/// workspace that is currently open (the "active" one).
+model TeamMembership {
+  id        String   @id @default(cuid())
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @default("Member")
+  createdAt DateTime @default(now())
+
+  @@unique([teamId, userId])
+  @@index([userId])
 }
 
 enum InviteStatus {
@@ -84,7 +114,7 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  // Tenant Scoping — Exactly one Team per User
+  // The workspace currently open (memberships list every workspace the person belongs to)
   teamId        String?
   team          Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
 
@@ -98,6 +128,10 @@ model User {
 
   // Per-user notification settings (Settings → Notifications); null = defaults
   notificationPrefs      Json?
+
+  // Plan chosen for a team that is still being created (set while in the personal workspace)
+  pendingTeamPlan        String?
+  workspaceMemberships   TeamMembership[]
 
   invoices               Invoice[]
 

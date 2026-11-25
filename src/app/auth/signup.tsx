@@ -302,7 +302,8 @@ export default function SignupPage() {
       if (signInRes?.error) {
         router.push('/auth/login?verified=true');
       } else {
-        router.push('/onboarding/plans');
+        // New accounts start in their Personal workspace (14-day free trial) — no plan or payment first
+        router.push('/app');
         router.refresh();
       }
     } catch {

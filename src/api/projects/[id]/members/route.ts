@@ -16,6 +16,8 @@ import { requireProjectAccess } from '@/lib/access';
 import prisma from '@/lib/prisma';
 import { recipientsWanting, wantsNotification } from '@/lib/notificationPrefs';
 import { joinCompany, toCompanyRole } from '@/lib/companyMembership';
+import { inTeam } from '@/lib/workspaces';
+import { personalNoInvitesResponse } from '@/lib/workspaces';
 import {
   ProjectMemberInviteSchema,
   BatchProjectMemberInviteSchema,
@@ -147,6 +149,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
         select: { id: true, name: true, ownerId: true, teamId: true },
       });
     } catch (_) {}
+    if (project?.teamId) {
+      const personalBlock = await personalNoInvitesResponse(project.teamId);
+      if (personalBlock) return personalBlock;
+    }
 
     if (!project) {
       return NextResponse.json(
@@ -269,7 +275,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       dbUsers = await prisma.user.findMany({
         where: {
           AND: [
-            ...(projectTeamId ? [{ teamId: projectTeamId }] : []),
+            ...(projectTeamId ? [inTeam(projectTeamId)] : []),
             {
               OR: [
                 { id: { in: requestedUserIds } },

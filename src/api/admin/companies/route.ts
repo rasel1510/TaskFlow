@@ -11,26 +11,33 @@ export async function GET() {
   }
 
   try {
+    // Companies only — personal workspaces are listed under free-use requests instead
     const teams = await prisma.team.findMany({
+      where: { kind: 'company' },
       orderBy: { createdAt: 'desc' },
       include: {
         _count: {
           select: {
-            members: true,
+            memberships: true,
             projects: true,
             invitations: true,
           },
         },
-        members: {
+        memberships: {
           select: {
-            id: true,
-            name: true,
-            email: true,
             role: true,
-            avatar: true,
-            plan: true,
-            subscriptionStatus: true,
-            createdAt: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                avatar: true,
+                plan: true,
+                subscriptionStatus: true,
+                createdAt: true,
+              },
+            },
           },
           orderBy: { createdAt: 'asc' },
         },
@@ -52,7 +59,9 @@ export async function GET() {
       },
     });
 
-    const enrichedTeams = teams.map(team => {
+    const enrichedTeams = teams.map(t => {
+      // Everyone who belongs to the company, with their role in it
+      const team = { ...t, members: t.memberships.map(m => ({ ...m.user, role: m.role })) };
       const isPlatformOwner = team.name.toLowerCase().trim() === 'flowsync';
       
       // Determine primary company admin / owner
@@ -62,12 +71,11 @@ export async function GET() {
         null;
 
       // Determine company plan tier
-      const hasPro = team.members.some(m => m.plan === 'pro');
-      const plan = hasPro ? 'pro' : 'free';
+      const plan = team.plan === 'pro' ? 'pro' : 'free';
 
       // Determine company subscription status
-      const isSuspended = team.members.some(m => m.subscriptionStatus === 'suspended');
-      const isPastDue = team.members.some(m => m.subscriptionStatus === 'past_due');
+      const isSuspended = team.subscriptionStatus === 'suspended';
+      const isPastDue = team.subscriptionStatus === 'past_due';
       const status = isSuspended ? 'suspended' : isPastDue ? 'past_due' : 'active';
 
       // Total tasks in company projects
@@ -82,7 +90,7 @@ export async function GET() {
         updatedAt: team.updatedAt,
         plan,
         status,
-        membersCount: team._count.members,
+        membersCount: team._count.memberships,
         projectsCount: team._count.projects,
         tasksCount: totalTasks,
         owner: primaryAdmin

@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
+import PersonalPlanBanner from '@/components/workspace/PersonalPlanBanner';
 import TaskDetail from '@/components/TaskDetail';
 import CreateTaskModal from '@/components/CreateTaskModal';
 import CommandPalette from '@/components/CommandPalette';
@@ -371,6 +372,8 @@ function AppContent() {
             onProjectClick={handleOpenProject}
           />
           {/* Main content area — on mobile, reserve space for the bottom nav (56px) */}
+          {/* Personal workspace: trial / free-use status and the way to create a team */}
+          <PersonalPlanBanner />
           <main className="flex flex-1 overflow-hidden min-h-0">
             <ErrorBoundary viewName={view}>
               {renderView()}

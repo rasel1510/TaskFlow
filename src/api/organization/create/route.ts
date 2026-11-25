@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
 import { hasActivePlan } from '@/lib/billing';
+import { stripe } from '@/lib/stripe';
+import { switchWorkspace } from '@/lib/workspaces';
 
 export async function POST(req: Request) {
   try {
@@ -18,6 +20,10 @@ export async function POST(req: Request) {
         { success: false, error: 'Please enter a valid organization or company name (min 2 characters)' },
         { status: 400 }
       );
+    }
+    // "FlowSync" is reserved for the platform owner's organization
+    if (name.replace(/\s+/g, '').toLowerCase() === 'flowsync') {
+      return NextResponse.json({ success: false, error: 'That name is reserved. Please choose another name.' }, { status: 400 });
     }
 
     const user = await prisma.user.findFirst({
@@ -40,9 +46,14 @@ export async function POST(req: Request) {
         { status: 402 }
       );
     }
-    if (user.teamId) {
+    // A new team is created from the Personal workspace (its plan was chosen there). From inside a
+    // company, the open plan belongs to that company and must not be reused for a new team.
+    const openTeam = user.teamId
+      ? await prisma.team.findUnique({ where: { id: user.teamId }, select: { kind: true } })
+      : null;
+    if (openTeam?.kind === 'company') {
       return NextResponse.json(
-        { success: false, error: 'Your company is already set up.', alreadyOnboarded: true },
+        { success: false, error: 'Switch to your personal workspace to create a new team.', alreadyOnboarded: true },
         { status: 409 }
       );
     }
@@ -50,24 +61,33 @@ export async function POST(req: Request) {
     const baseSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'workspace';
     const uniqueSlug = `${baseSlug}-${Math.random().toString(36).substring(2, 6)}`;
 
-    // Create Team
+    // Create the company with the plan chosen for it; the creator is its first Admin.
+    // DO NOT seed any default tasks or projects — company workspace starts 100% fresh & empty
+    const plan = user.plan === 'pro' ? 'pro' : 'basic';
     const team = await prisma.team.create({
       data: {
         name,
         slug: uniqueSlug,
+        kind: 'company',
+        plan,
+        ...(plan === 'pro' ? { billingUserId: user.id } : {}),
+        memberships: { create: { userId: user.id, role: 'Admin' } },
       },
     });
+    await prisma.user.update({ where: { id: user.id }, data: { pendingTeamPlan: null } });
+    // Open the new company (sets role Admin and mirrors its plan)
+    await switchWorkspace(user.id, team.id);
 
-    // Update User with new team, Admin role, and mark onboarding as complete
-    // DO NOT seed any default tasks or projects — company workspace starts 100% fresh & empty
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        teamId: team.id,
-        role: 'Admin',
-        hasCompletedOnboarding: true,
-      },
-    });
+    // Tag the Pro subscription that paid for this team, so renewals keep it on Pro (best effort)
+    if (plan === 'pro' && user.stripeCustomerId) {
+      try {
+        const subs = await stripe.subscriptions.list({ customer: user.stripeCustomerId, status: 'active', limit: 10 });
+        const untagged = subs.data.find(sub => !sub.metadata?.teamId);
+        if (untagged) await stripe.subscriptions.update(untagged.id, { metadata: { ...untagged.metadata, teamId: team.id } });
+      } catch (err) {
+        console.warn('[organization/create] Could not tag the subscription with the new team:', (err as Error)?.message);
+      }
+    }
 
     return NextResponse.json({
       success: true,

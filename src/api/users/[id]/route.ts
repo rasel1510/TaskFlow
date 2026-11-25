@@ -15,6 +15,7 @@ import { auth } from '@/auth';
 import { normalizeDesignation, isSuperAdmin } from '@/lib/permissions';
 import { UpdateProfileSchema, validationError } from '@/lib/validators';
 import { isCompanyRole, toCompanyRole } from '@/lib/companyRoles';
+import { inTeam } from '@/lib/workspaces';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -128,7 +129,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       const teamContext = await getOrProvisionUserTeam(currentUserId).catch(() => null);
       const targetInTeam = teamContext?.teamId
         ? await prisma.user.findFirst({
-            where: { id, teamId: teamContext.teamId },
+            where: { id, ...inTeam(teamContext.teamId) },
             select: { id: true },
           })
         : null;
@@ -210,7 +211,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
           if (target?.role?.toLowerCase() === 'admin' && toCompanyRole(newRole) !== 'Admin') {
             if (target.teamId) {
-              const adminCount = await prisma.user.count({
+              const adminCount = await prisma.teamMembership.count({
                 where: {
                   teamId: target.teamId,
                   role: { in: ['Admin', 'ADMIN', 'admin'] },
@@ -246,6 +247,17 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         { success: false, error: { code: 'NOT_FOUND', message: 'User not found' } },
         { status: 404 }
       );
+    }
+
+    // A role is per company: record it on the membership in the open company, and mirror it on
+    // the person only while that company is the one they have open
+    if (updateData.role !== undefined && updateData.role !== 'Super Admin') {
+      const actor = await prisma.user.findUnique({ where: { id: currentUserId }, select: { teamId: true } });
+      if (actor?.teamId) {
+        await prisma.teamMembership.updateMany({ where: { teamId: actor.teamId, userId: id }, data: { role: updateData.role } });
+        const target = await prisma.user.findUnique({ where: { id }, select: { teamId: true } });
+        if (target?.teamId !== actor.teamId) delete updateData.role;
+      }
     }
 
     const responseData = await prisma.user.update({

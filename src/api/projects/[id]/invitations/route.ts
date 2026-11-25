@@ -18,6 +18,7 @@ import { sendProjectInviteEmail } from '@/lib/mail';
 import { getAppOrigin } from '@/lib/origin';
 import { ROLE_DESCRIPTIONS, type ProjectRole } from '@/lib/permissions';
 import { COMPANY_ROLES, toCompanyRole } from '@/lib/companyRoles';
+import { personalNoInvitesResponse } from '@/lib/workspaces';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -112,6 +113,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (!canManageProject(access.value)) {
       return forbidden('Only the project owner, Admins or project managers can invite people');
     }
+    const personalBlock = await personalNoInvitesResponse(access.value.project.teamId);
+    if (personalBlock) return personalBlock;
     const inviter = access.value.user;
 
     let body: unknown;

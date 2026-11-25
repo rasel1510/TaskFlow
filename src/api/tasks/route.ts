@@ -59,6 +59,9 @@ import { recomputeProjectProgress } from '@/lib/projectProgress';
 import redisCache from '@/lib/redis';
 import { isSuperAdmin } from '@/lib/permissions';
 import { enqueueBackgroundTask } from '@/lib/asyncQueue';
+import { readOnlyResponseFor } from '@/lib/workspaces';
+import { getOrProvisionUserTeam } from '@/lib/tenant';
+import { getSessionUser } from '@/lib/access';
 import { recipientsWanting, wantsNotification } from '@/lib/notificationPrefs';
 
 // Prisma-generated enum types (used for strict typing in create/update calls)
@@ -161,8 +164,11 @@ export async function GET(request: NextRequest) {
     if (query.projectId) where.projectId = query.projectId;
     if (query.search) where.title = { contains: query.search, mode: 'insensitive' };
 
+    // Only the open workspace's tasks (tasks outside any project stay visible everywhere)
     const primaryId = resolvedDbUserId || Array.from(userIdSet)[0];
-    const cacheKey = `tasks:${primaryId}:${JSON.stringify(query)}`;
+    const openTeamId = primaryId ? (await getOrProvisionUserTeam(primaryId))?.teamId ?? null : null;
+    if (openTeamId) where.AND = [{ OR: [{ projectId: null }, { project: { teamId: openTeamId } }] }];
+    const cacheKey = `tasks:${primaryId}:${openTeamId || 'none'}:${JSON.stringify(query)}`;
 
     // Tiered cache — 30s TTL
     const result = await redisCache.wrap(cacheKey, 30, async () => {
@@ -234,6 +240,13 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) return validationError(parsed.error);
 
     const { title, projectId, assigneeId, status, priority, dueDate, description, estimate, labels, completedAt, timeSpent, customFields } = parsed.data;
+
+    // Work in a personal workspace whose trial ended is read-only
+    {
+      const actor = await getSessionUser();
+      const readOnly = await readOnlyResponseFor(projectId, actor?.teamId);
+      if (readOnly) return readOnly;
+    }
 
     // Initial custom-column values (e.g. notes typed while adding the task); nulls/empties are dropped
     const initialCustomFields = Object.fromEntries(

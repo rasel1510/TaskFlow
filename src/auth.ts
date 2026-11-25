@@ -263,7 +263,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // Sync latest user details from DB periodically (at most once every 60s per session)
       const now = Date.now();
       const lastSynced = (token.lastSynced as number) || 0;
-      if (token.id && !user && trigger !== 'update' && (now - lastSynced > 60000 || !token.teamId)) {
+      // After switching workspace the client calls update({ refreshWorkspace: true }) to re-sync now
+      const refreshNow = trigger === 'update' && Boolean((session as { refreshWorkspace?: boolean } | undefined)?.refreshWorkspace);
+      if (token.id && !user && (refreshNow || (trigger !== 'update' && (now - lastSynced > 60000 || !token.teamId)))) {
         try {
           const freshUser = await prisma.user.findUnique({
             where: { id: token.id as string },

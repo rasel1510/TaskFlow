@@ -36,19 +36,23 @@ export async function GET() {
     const payload = await redisCache.wrap(cacheKey, 15, async () => {
       // Parallel DB queries — cuts Neon round-trip latency in half
       const [members, invitations, memberships] = await Promise.all([
-        prisma.user.findMany({
-          where: { teamId: teamContext.teamId },
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            avatar: true,
-            expertise: true,
-            createdAt: true,
-          },
-          orderBy: { createdAt: 'asc' },
-        }),
+        // Everyone who belongs to this company (wherever they are working right now), with their
+        // role in this company. The platform owner keeps their Super Admin label.
+        prisma.teamMembership
+          .findMany({
+            where: { teamId: teamContext.teamId },
+            select: {
+              role: true,
+              user: { select: { id: true, name: true, email: true, role: true, avatar: true, expertise: true, createdAt: true } },
+            },
+            orderBy: { createdAt: 'asc' },
+          })
+          .then(rows =>
+            rows.map(r => ({
+              ...r.user,
+              role: (r.user.role || '').toLowerCase().replace(/_/g, ' ').trim() === 'super admin' ? r.user.role : r.role,
+            }))
+          ),
         prisma.teamInvitation.findMany({
           where: {
             teamId: teamContext.teamId,

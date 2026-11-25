@@ -8,6 +8,7 @@ import { auth } from '@/auth';
 import { getOrProvisionUserTeam } from '@/lib/tenant';
 import { sendTeamInviteEmail } from '@/lib/mail';
 import { getAppOrigin } from '@/lib/origin';
+import { inTeam, personalNoInvitesResponse } from '@/lib/workspaces';
 
 const InviteMemberSchema = z.object({
   email: z.string().email('Please enter a valid work email address').toLowerCase().trim(),
@@ -153,11 +154,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // A personal workspace is just for its owner
+    const personalBlock = await personalNoInvitesResponse(teamContext.teamId);
+    if (personalBlock) return personalBlock;
+
     // Check if the user is ALREADY an active member of this team
     const existingMember = await prisma.user.findFirst({
       where: {
         email,
-        teamId: teamContext.teamId,
+        ...inTeam(teamContext.teamId),
       },
       select: { id: true, name: true },
     });

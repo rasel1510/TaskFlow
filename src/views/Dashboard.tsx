@@ -327,7 +327,15 @@ export default function Dashboard({ onTaskClick, onViewChange }: DashboardProps)
                 </span>
               )}
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-600/10 dark:bg-blue-500/20 backdrop-blur-md text-blue-700 dark:text-blue-300 border border-blue-500/30 shadow-xs">
-                {billing?.plan?.toLowerCase() === 'pro' ? 'Pro' : 'Basic'}
+                {(billing as { workspace?: { kind?: string; state?: string } } | null)?.workspace?.kind === 'personal'
+                  ? ((billing as { workspace?: { state?: string } }).workspace?.state === 'free'
+                      ? 'Free'
+                      : (billing as { workspace?: { state?: string } }).workspace?.state === 'expired'
+                        ? 'Trial ended'
+                        : 'Free trial')
+                  : billing?.plan?.toLowerCase() === 'pro'
+                    ? 'Pro'
+                    : 'Basic'}
               </span>
             </div>
           </div>

@@ -23,13 +23,14 @@ import {
 
 const customerIdOf = (c: string | { id: string } | null | undefined) => (typeof c === 'string' ? c : c?.id ?? null);
 
-async function subscriptionUserId(subscriptionId: string | null): Promise<string | null> {
-  if (!subscriptionId) return null;
+/** Who the subscription belongs to and which company it pays for (from its metadata). */
+async function subscriptionMeta(subscriptionId: string | null): Promise<{ userId: string | null; teamId: string | null }> {
+  if (!subscriptionId) return { userId: null, teamId: null };
   try {
     const sub = await stripe.subscriptions.retrieve(subscriptionId);
-    return sub.metadata?.userId || null;
+    return { userId: sub.metadata?.userId || null, teamId: sub.metadata?.teamId || null };
   } catch {
-    return null;
+    return { userId: null, teamId: null };
   }
 }
 
@@ -69,7 +70,8 @@ export async function POST(req: Request) {
         const invoice = event.data.object as Stripe.Invoice;
         const subId = invoiceSubscriptionId(invoice);
         if (!subId) break; // not a subscription invoice
-        const user = await userForCustomer(customerIdOf(invoice.customer), await subscriptionUserId(subId));
+        const meta = await subscriptionMeta(subId);
+        const user = await userForCustomer(customerIdOf(invoice.customer), meta.userId, meta.teamId);
         if (!user) {
           console.warn(`[Stripe Webhook] ${event.type}: no FlowSync user for customer ${customerIdOf(invoice.customer)}`);
           break;
@@ -83,14 +85,15 @@ export async function POST(req: Request) {
         const invoice = event.data.object as Stripe.Invoice;
         const subId = invoiceSubscriptionId(invoice);
         if (!subId) break;
-        const user = await userForCustomer(customerIdOf(invoice.customer), await subscriptionUserId(subId));
+        const meta = await subscriptionMeta(subId);
+        const user = await userForCustomer(customerIdOf(invoice.customer), meta.userId, meta.teamId);
         if (user) await setWorkspacePlan(user, 'pro', { subscriptionStatus: 'past_due' });
         break;
       }
 
       case 'customer.subscription.updated': {
         const sub = event.data.object as Stripe.Subscription;
-        const user = await userForCustomer(customerIdOf(sub.customer), sub.metadata?.userId);
+        const user = await userForCustomer(customerIdOf(sub.customer), sub.metadata?.userId, sub.metadata?.teamId);
         if (!user) break;
         if (sub.status === 'active' || sub.status === 'trialing') {
           await setWorkspacePlan(user, 'pro', {
@@ -104,7 +107,7 @@ export async function POST(req: Request) {
 
       case 'customer.subscription.deleted': {
         const sub = event.data.object as Stripe.Subscription;
-        const user = await userForCustomer(customerIdOf(sub.customer), sub.metadata?.userId);
+        const user = await userForCustomer(customerIdOf(sub.customer), sub.metadata?.userId, sub.metadata?.teamId);
         if (user) {
           // Back to the free Basic plan — the workspace keeps working, just without Pro features
           await setWorkspacePlan(user, 'basic', { subscriptionStatus: 'canceled' });

@@ -18,6 +18,7 @@ import { useToast } from '@/components/ui/Toast';
 import { SelectMenu, type SelectOption } from '@/components/ui/Pickers';
 import InviteByEmail, { Chevron } from '@/components/project/InviteByEmail';
 import { toCompanyRole, type CompanyRole } from '@/lib/companyRoles';
+import { useWorkspaces } from '@/lib/useWorkspaces';
 
 export interface AvailableUser {
   id: string;
@@ -69,6 +70,7 @@ export default function AddProjectMembersModal({
 }: AddProjectMembersModalProps) {
   const toast = useToast();
   const { data: session } = useSession();
+  const workspaceKind = useWorkspaces().current?.kind;
   const isAdmin = toCompanyRole((session?.user as { role?: string })?.role) === 'Admin';
   // Only company Admins can make someone an Admin
   const roleOptions = useMemo(() => (isAdmin ? ALL_ROLES : ALL_ROLES.filter(r => r.value !== 'Admin')), [isAdmin]);
@@ -149,6 +151,34 @@ export default function AddProjectMembersModal({
   };
 
   if (!isOpen) return null;
+
+  // A personal workspace is just for its owner — working with others starts with a team
+  if (workspaceKind === 'personal') {
+    return (
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40" onClick={onClose}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="personal-members-title"
+          className="bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-xl border border-[#E5E7EB] p-5 shadow-[0_24px_48px_-12px_rgba(17,17,17,0.25)]"
+          onClick={e => e.stopPropagation()}
+        >
+          <h3 id="personal-members-title" className="text-[15px] font-semibold text-[#111111]">Your personal workspace</h3>
+          <p className="mt-1.5 text-[13px] text-[rgba(17,17,17,0.6)]">
+            It’s just for you. To work with others, create a team — you can invite people there.
+          </p>
+          <div className="mt-5 flex justify-end gap-2">
+            <button type="button" onClick={onClose} className="h-9 px-3.5 rounded-lg text-[13px] font-medium text-[rgba(17,17,17,0.7)] hover:bg-[#F3F4F6] cursor-pointer">
+              Not now
+            </button>
+            <a href="/onboarding/plans" className="h-9 px-4 inline-flex items-center rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[13px] font-medium">
+              Create a team
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const hasCandidates = candidates.length > 0;
 

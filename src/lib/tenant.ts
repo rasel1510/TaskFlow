@@ -1,5 +1,6 @@
 import prisma from '@/lib/prisma';
 import redisCache from '@/lib/redis';
+import { switchWorkspace } from '@/lib/workspaces';
 
 export interface UserTeamContext {
   userId: string;
@@ -12,7 +13,7 @@ export interface UserTeamContext {
 }
 
 /**
- * Resolves the authenticated user's single team in O(1) time.
+ * Resolves the authenticated user's open workspace (a company or their Personal workspace).
  * Results are cached in L1 memory/Redis with a 5-minute TTL to eliminate
  * redundant database network roundtrips on every API request.
  */
@@ -55,52 +56,20 @@ export async function getOrProvisionUserTeam(userId: string): Promise<UserTeamCo
         };
       }
 
-      // If user has not completed company setup onboarding, do NOT auto-provision a ghost team
-      if (!user.hasCompletedOnboarding) {
-        return null;
-      }
-
-      // Auto-provision team for unassigned user (e.g. initial setup or legacy records)
-      const baseSlug = (user.name || 'team')
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '-')
-        .replace(/-+/g, '-')
-        .slice(0, 24);
-      const uniqueSlug = `${baseSlug}-${Date.now().toString(36)}`;
-      const teamName = `${user.name || 'My'}'s Team`;
-
-      const newTeam = await prisma.team.create({
-        data: {
-          name: teamName,
-          slug: uniqueSlug,
-        },
-      });
-
-      // Link user to this team
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { teamId: newTeam.id },
-      });
-
-      // Also associate any projects previously created by this user that lacked a teamId
-      await prisma.project.updateMany({
-        where: {
-          ownerId: user.id,
-          teamId: null,
-        },
-        data: {
-          teamId: newTeam.id,
-        },
-      });
-
+      // No workspace open yet → open their Personal workspace (created on first use)
+      const personal = await switchWorkspace(user.id, 'personal');
+      if (!personal) return null;
+      const team = await prisma.team.findUnique({ where: { id: personal.id }, select: { id: true, name: true, slug: true } });
+      if (!team) return null;
+      const refreshed = await prisma.user.findUnique({ where: { id: user.id }, select: { role: true } });
       return {
         userId: user.id,
         userName: user.name,
         userEmail: user.email,
-        userRole: user.role,
-        teamId: newTeam.id,
-        teamName: newTeam.name,
-        teamSlug: newTeam.slug,
+        userRole: refreshed?.role ?? user.role,
+        teamId: team.id,
+        teamName: team.name,
+        teamSlug: team.slug,
       };
     } catch (error) {
       console.error('[tenant.ts] Error resolving user team:', error);

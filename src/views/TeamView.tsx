@@ -13,6 +13,7 @@ import { useSession } from 'next-auth/react';
 import { Check, Copy, Eye, EyeOff, Loader2, Plus, RefreshCw, Search, X } from 'lucide-react';
 import { SelectMenu, type SelectOption } from '@/components/ui/Pickers';
 import { useToast } from '@/components/ui/Toast';
+import { useWorkspaces } from '@/lib/useWorkspaces';
 
 /* ─────────────── types ─────────────── */
 
@@ -203,7 +204,9 @@ export default function TeamView() {
   const currentUserRole = data?.currentUserRole || (session?.user as { role?: string })?.role || 'Member';
   const isAdmin = roleKind(currentUserRole) === 'admin';
   const isPM = roleKind(currentUserRole) === 'manager';
-  const canInvite = isAdmin || isPM;
+  // A personal workspace is just for its owner — inviting people starts with a team
+  const isPersonal = useWorkspaces().current?.kind === 'personal';
+  const canInvite = (isAdmin || isPM) && !isPersonal;
 
   // Reset the invite dialog each time it opens (PMs can only invite Members)
   useEffect(() => {
@@ -420,7 +423,16 @@ export default function TeamView() {
           <div className="min-w-0">
             <h1 className="text-[20px] font-semibold text-[#111111] tracking-tight">Team</h1>
             <p className="mt-1 text-[13px] text-[rgba(17,17,17,0.55)]">
-              Everyone at <span className="text-[#111111] font-medium">{data.team.name}</span> and the projects they work in.
+              {isPersonal ? (
+                <>
+                  Your personal workspace is just for you.{' '}
+                  <a href="/onboarding/plans" className="text-[#2563EB] hover:underline">Create a team</a> to work with others.
+                </>
+              ) : (
+                <>
+                  Everyone at <span className="text-[#111111] font-medium">{data.team.name}</span> and the projects they work in.
+                </>
+              )}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">

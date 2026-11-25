@@ -21,6 +21,7 @@ import redisCache from '@/lib/redis';
 import { stripe } from '@/lib/stripe';
 import { isSuperAdmin } from '@/lib/permissions';
 import { toCompanyRole } from '@/lib/companyRoles';
+import { switchWorkspace } from '@/lib/workspaces';
 
 type Tx = Prisma.TransactionClient;
 
@@ -75,12 +76,12 @@ async function deletePeople(
   for (const project of owned) {
     let successor: string | null = null;
     if (project.teamId) {
-      const admin = await tx.user.findFirst({
-        where: { teamId: project.teamId, id: { notIn: ids }, role: { in: ['Admin', 'ADMIN', 'admin'] } },
+      const admin = await tx.teamMembership.findFirst({
+        where: { teamId: project.teamId, userId: { notIn: ids }, role: { in: ['Admin', 'ADMIN', 'admin'] } },
         orderBy: { createdAt: 'asc' },
-        select: { id: true },
+        select: { userId: true },
       });
-      successor = admin?.id ?? null;
+      successor = admin?.userId ?? null;
     }
     if (!successor) {
       const rank = { Admin: 2, 'Project Manager': 1, Member: 0 } as const;
@@ -142,7 +143,16 @@ async function deletePeople(
   await tx.projectJoinRequest.deleteMany({ where: { userId: { in: ids } } });
   await tx.projectMember.deleteMany({ where: { userId: { in: ids } } });
 
-  // 6. The accounts themselves
+  // 6. Their personal workspaces (with anything left in them)
+  const personalTeams = (await tx.team.findMany({ where: { personalOwnerId: { in: ids } }, select: { id: true } })).map(t => t.id);
+  if (personalTeams.length) {
+    const left = (await tx.project.findMany({ where: { teamId: { in: personalTeams } }, select: { id: true } })).map(p => p.id);
+    tasks += await deleteProjects(tx, left);
+    projects += left.length;
+    await tx.team.deleteMany({ where: { id: { in: personalTeams } } });
+  }
+
+  // 7. The accounts themselves (their workspace memberships go with them)
   const deleted = await tx.user.deleteMany({ where: { id: { in: ids } } });
   return { users: deleted.count, projects, tasks, reassigned };
 }
@@ -176,20 +186,33 @@ async function clearCaches(userIds: string[]): Promise<void> {
 
 /** Permanently deletes a company and everything in it. Super Admins in it are only detached. */
 export async function purgeCompany(teamId: string): Promise<PurgeSummary> {
+  // Everyone who belongs to the company (wherever they are working right now)
   const people = await prisma.user.findMany({
-    where: { teamId },
-    select: { id: true, email: true, role: true, stripeCustomerId: true, team: { select: { name: true } } },
+    where: { OR: [{ teamId }, { workspaceMemberships: { some: { teamId } } }] },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      teamId: true,
+      stripeCustomerId: true,
+      team: { select: { name: true } },
+      workspaceMemberships: { where: { teamId: { not: teamId } }, select: { team: { select: { kind: true, _count: { select: { projects: true } } } } } },
+    },
   });
   const isPlatformOwner = (p: (typeof people)[number]) =>
     isSuperAdmin({ email: p.email, role: p.role, teamName: p.team?.name });
-  const toDelete = people.filter(p => !isPlatformOwner(p));
-  const toDetach = people.filter(isPlatformOwner).map(p => p.id);
+  // People with another company, or with their own personal work, keep their account and just
+  // leave this company; people for whom this company was everything are removed completely.
+  const hasLifeElsewhere = (p: (typeof people)[number]) =>
+    p.workspaceMemberships.some(m => m.team.kind === 'company' || m.team._count.projects > 0);
+  const toDelete = people.filter(p => !isPlatformOwner(p) && !hasLifeElsewhere(p));
+  const toDetach = people.filter(p => isPlatformOwner(p) || hasLifeElsewhere(p)).map(p => p.id);
 
   const summary = await prisma.$transaction(async tx => {
     const projectIds = (await tx.project.findMany({ where: { teamId }, select: { id: true } })).map(p => p.id);
     const tasks = await deleteProjects(tx, projectIds);
     const people = await deletePeople(tx, toDelete, teamId);
-    if (toDetach.length) await tx.user.updateMany({ where: { id: { in: toDetach } }, data: { teamId: null } });
+    if (toDetach.length) await tx.user.updateMany({ where: { id: { in: toDetach }, teamId }, data: { teamId: null } });
     await tx.teamInvitation.deleteMany({ where: { teamId } });
     await tx.team.delete({ where: { id: teamId } });
     return {
@@ -201,6 +224,11 @@ export async function purgeCompany(teamId: string): Promise<PurgeSummary> {
   }, TX_OPTIONS);
 
   await cancelBilling(toDelete.map(p => p.stripeCustomerId));
+  // People who stay open another of their workspaces next time (Personal if nothing else)
+  for (const id of toDetach) {
+    const next = await prisma.teamMembership.findFirst({ where: { userId: id, team: { kind: 'company' } }, select: { teamId: true } });
+    await switchWorkspace(id, next?.teamId ?? 'personal').catch(() => null);
+  }
   await clearCaches(people.map(p => p.id));
   return summary;
 }
@@ -212,16 +240,25 @@ export async function purgeUser(userId: string): Promise<PurgeSummary> {
     select: { id: true, email: true, teamId: true, stripeCustomerId: true },
   });
   if (!person) return { users: 0, projects: 0, tasks: 0, projectsReassigned: 0 };
+  const companies = (
+    await prisma.teamMembership.findMany({ where: { userId, team: { kind: 'company' } }, select: { teamId: true } })
+  ).map(m => m.teamId);
+  if (person.teamId && !companies.includes(person.teamId)) companies.push(person.teamId);
 
   const result = await prisma.$transaction(async tx => {
     const r = await deletePeople(tx, [person]);
-    // A company left with nobody in it is removed too (with any projects still in it)
-    if (person.teamId && (await tx.user.count({ where: { teamId: person.teamId } })) === 0) {
-      const left = (await tx.project.findMany({ where: { teamId: person.teamId }, select: { id: true } })).map(p => p.id);
+    // Any company of theirs left with nobody in it is removed too (with any projects still in it)
+    for (const teamId of companies) {
+      const team = await tx.team.findUnique({ where: { id: teamId }, select: { kind: true } });
+      if (!team || team.kind !== 'company') continue;
+      const remaining = await tx.teamMembership.count({ where: { teamId } });
+      const activeHere = await tx.user.count({ where: { teamId } });
+      if (remaining > 0 || activeHere > 0) continue;
+      const left = (await tx.project.findMany({ where: { teamId }, select: { id: true } })).map(p => p.id);
       r.tasks += await deleteProjects(tx, left);
       r.projects += left.length;
-      await tx.teamInvitation.deleteMany({ where: { teamId: person.teamId } });
-      await tx.team.delete({ where: { id: person.teamId } });
+      await tx.teamInvitation.deleteMany({ where: { teamId } });
+      await tx.team.delete({ where: { id: teamId } });
     }
     return r;
   }, TX_OPTIONS);

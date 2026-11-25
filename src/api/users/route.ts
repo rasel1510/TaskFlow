@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
 import redisCache from '@/lib/redis';
 import { getOrProvisionUserTeam } from '@/lib/tenant';
+import { inTeam } from '@/lib/workspaces';
 
 /**
  * GET /api/users
@@ -84,7 +85,7 @@ export async function GET(request: NextRequest) {
 
       try {
         dbUsers = await prisma.user.findMany({
-          where: { teamId: companyTeamId },
+          where: inTeam(companyTeamId),
           select: {
             id: true,
             name: true,

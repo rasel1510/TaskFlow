@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useTaskContext } from '@/context/TaskContext';
 import { isSuperAdmin } from '@/lib/permissions';
+import WorkspaceSwitcher from '@/components/workspace/WorkspaceSwitcher';
 
 type View =
   | 'dashboard'
@@ -281,6 +282,9 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
           </svg>
         </button>
       </div>
+
+      {/* Workspace switcher (Personal + companies) */}
+      <WorkspaceSwitcher collapsed={collapsed} />
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-2 px-2">

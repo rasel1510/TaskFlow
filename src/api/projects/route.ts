@@ -16,6 +16,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { recipientsWanting, wantsNotification } from '@/lib/notificationPrefs';
 import { toCompanyRole } from '@/lib/companyRoles';
+import { readOnlyResponse } from '@/lib/workspaces';
+import { inTeam } from '@/lib/workspaces';
 import { auth } from '@/auth';
 import { CreateProjectSchema, validationError } from '@/lib/validators';
 import redisCache from '@/lib/redis';
@@ -69,19 +71,19 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(Math.max(Number(searchParams.get('limit')) || 50, 1), 100);
     const cursor = searchParams.get('cursor') || undefined;
 
-    // Fast-path tenant resolution: check session first for zero-latency in-memory resolution
-    let resolvedTeamId = sessionTeamId;
+    // The open workspace (from the database — the session can lag right after switching workspace)
+    let resolvedTeamId = (await getOrProvisionUserTeam(currentUserId))?.teamId ?? sessionTeamId;
     if (!resolvedTeamId) {
       const teamContext = await getOrProvisionUserTeam(currentUserId);
       resolvedTeamId = teamContext?.teamId;
     }
 
+    // Only the open workspace's projects (each workspace — Personal or a company — is separate)
     const teamFilter = resolvedTeamId
       ? {
           OR: [
             { teamId: resolvedTeamId },
-            { ownerId: currentUserId },
-            { members: { some: { userId: currentUserId } } },
+            { teamId: null, ownerId: currentUserId },
           ],
         }
       : {
@@ -333,6 +335,8 @@ export async function POST(request: NextRequest) {
 
     // Resolve PM's team
     const teamContext = await getOrProvisionUserTeam(validOwnerId);
+    const readOnly = await readOnlyResponse(teamContext?.teamId);
+    if (readOnly) return readOnly;
 
     let newProject: any;
     let populatedMembers: any[] = [];
@@ -388,7 +392,7 @@ export async function POST(request: NextRequest) {
             const validUsers = await prisma.user.findMany({
               where: {
                 id: { in: candidateIds },
-                ...(teamContext?.teamId ? { teamId: teamContext.teamId } : {}),
+                ...(teamContext?.teamId ? inTeam(teamContext.teamId) : {}),
               },
               select: { id: true },
             });

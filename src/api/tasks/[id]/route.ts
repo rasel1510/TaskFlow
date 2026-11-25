@@ -38,6 +38,7 @@ function parseSafeDate(raw: unknown): Date | undefined {
 
 
 import prisma from '@/lib/prisma';
+import { readOnlyResponseFor } from '@/lib/workspaces';
 import { recipientsWanting, wantsNotification } from '@/lib/notificationPrefs';
 import { UpdateTaskSchema, validationError } from '@/lib/validators';
 import { logActivity } from '@/lib/activity';
@@ -133,6 +134,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     const access = await requireTaskAccess(id);
     if (!access.ok) return access.response;
+    {
+      const readOnly = await readOnlyResponseFor(access.value.task.projectId, access.value.user.teamId);
+      if (readOnly) return readOnly;
+    }
 
     let body: Record<string, unknown>;
     try {
@@ -210,7 +215,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         const trimmed = rawId.trim();
         const candidate = await prisma.user.findFirst({
           where: { OR: [{ id: trimmed }, { email: trimmed.toLowerCase() }] },
-          select: { id: true, teamId: true },
+          select: { id: true, teamId: true, workspaceMemberships: { select: { teamId: true } } },
         });
         if (!candidate) {
           return NextResponse.json(
@@ -223,16 +228,18 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         const targetProjectId =
           (typeof body.projectId === 'string' && body.projectId.trim()) || existing.projectId || null;
         let allowed = candidate.id === requester.id;
+        // Every company the candidate belongs to (not only the one they have open)
+        const candidateTeams = new Set(candidate.workspaceMemberships.map(m => m.teamId));
         if (!allowed && targetProjectId) {
           const proj = await prisma.project.findUnique({
             where: { id: targetProjectId },
             select: { ownerId: true, teamId: true, members: { where: { userId: candidate.id }, select: { id: true }, take: 1 } },
           });
           allowed = Boolean(
-            proj && (proj.ownerId === candidate.id || proj.members.length > 0 || (proj.teamId && proj.teamId === candidate.teamId))
+            proj && (proj.ownerId === candidate.id || proj.members.length > 0 || (proj.teamId && candidateTeams.has(proj.teamId)))
           );
         } else if (!allowed) {
-          allowed = Boolean(candidate.teamId && candidate.teamId === requester.teamId);
+          allowed = Boolean(requester.teamId && candidateTeams.has(requester.teamId));
         }
         if (!allowed) {
           return NextResponse.json(
@@ -423,6 +430,10 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
         );
       }
       return access.response;
+    }
+    {
+      const readOnly = await readOnlyResponseFor(access.value.task.projectId, access.value.user.teamId);
+      if (readOnly) return readOnly;
     }
 
     // High-performance single-query atomic delete

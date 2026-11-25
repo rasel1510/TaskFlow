@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useToast } from '@/components/ui/Toast';
+import FreeAccessRequests from '@/components/admin/FreeAccessRequests';
 
 interface CompanyOwner {
   id: string;
@@ -104,7 +105,7 @@ interface PlatformMetrics {
   paidInvoicesCount: number;
 }
 
-type TabType = 'companies' | 'users' | 'invoices' | 'system';
+type TabType = 'companies' | 'users' | 'invoices' | 'free' | 'system';
 
 export default function SuperAdminView() {
   const { data: session } = useSession();
@@ -494,6 +495,15 @@ export default function SuperAdminView() {
               Billing & Invoices ({invoices.length})
             </button>
             <button
+              onClick={() => setActiveTab('free')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${activeTab === 'free'
+                  ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 shadow-xs'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                }`}
+            >
+              Free-use requests
+            </button>
+            <button
               onClick={() => setActiveTab('system')}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${activeTab === 'system'
                   ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 shadow-xs'
@@ -843,6 +853,9 @@ export default function SuperAdminView() {
             </table>
           </div>
         )}
+
+        {/* ─── FREE-USE REQUESTS (personal workspaces) ─── */}
+        {activeTab === 'free' && <FreeAccessRequests query={searchQuery} />}
 
         {/* ─── TAB 4: SYSTEM HEALTH ─── */}
         {activeTab === 'system' && (

@@ -15,6 +15,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
 import { stripe } from '@/lib/stripe';
+import { activeWorkspace, switchWorkspace } from '@/lib/workspaces';
 import {
   appBaseUrl,
   createProCheckout,
@@ -70,6 +71,21 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
 
+    // No workspace open yet (new sign-up, or an older account without a company) → Personal
+    if (!user.teamId) {
+      await switchWorkspace(user.id, 'personal');
+      const reloaded = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: {
+          id: true, name: true, email: true, plan: true, teamId: true, billingCycle: true,
+          subscriptionStatus: true, stripeCustomerId: true, failedPaymentAttempts: true,
+          hasCompletedOnboarding: true,
+          invoices: { orderBy: { createdAt: 'desc' }, take: 20 },
+        },
+      });
+      if (reloaded) user = reloaded;
+    }
+
     // Returning from Stripe Checkout: verify the session (must be this user's) and unlock Pro
     if (sessionId && /^cs_[A-Za-z0-9_]+$/.test(sessionId) && user.plan !== 'pro') {
       try {
@@ -118,19 +134,19 @@ export async function GET(req: Request) {
 
     // App access: paying users, members of a company whose account is paid (team invites), and
     // anyone who has been added to a project (project invites) — invited people never hit the paywall.
+    const workspace = await activeWorkspace(user.teamId);
     let isProjectMember = false;
     let teamCovered = false;
-    if (!hasPaid) {
-      const [membershipCount, paidTeammates] = await Promise.all([
+    if (!hasPaid && workspace?.kind === 'company') {
+      const [membershipCount, team] = await Promise.all([
         prisma.projectMember.count({ where: { userId: user.id } }),
-        user.teamId
-          ? prisma.user.count({ where: { teamId: user.teamId, plan: { in: ['pro', 'basic'] } } })
-          : Promise.resolve(0),
+        prisma.team.findUnique({ where: { id: workspace.id }, select: { plan: true } }),
       ]);
       isProjectMember = membershipCount > 0;
-      teamCovered = paidTeammates > 0;
+      teamCovered = hasActivePlan(team?.plan);
     }
-    const hasAccess = hasPaid || teamCovered || isProjectMember;
+    // A Personal workspace is always usable (read-only once its trial ends without free use)
+    const hasAccess = workspace?.kind === 'personal' || hasPaid || teamCovered || isProjectMember;
 
     return NextResponse.json({
       success: true,
@@ -141,6 +157,7 @@ export async function GET(req: Request) {
         ...(checkout ? { checkout } : {}),
         isProjectMember,
         teamId: user.teamId,
+        workspace,
         billingCycle: isPro ? (user.billingCycle || 'monthly') : 'free',
         subscriptionStatus: user.subscriptionStatus || 'active',
         failedPaymentAttempts: user.failedPaymentAttempts || 0,
@@ -203,11 +220,20 @@ export async function POST(req: Request) {
           promotionCodeId = promo.id;
         }
 
-        // Never charge twice: if Stripe already has a live subscription, just restore Pro
+        // Never charge twice for the same company: if Stripe already has a live subscription for the
+        // open company, just restore Pro. (A team being created from Personal always gets its own.)
         const customerId = await ensureStripeCustomer(user);
-        if ((await liveSubscriptions(customerId)).length > 0) {
-          await setWorkspacePlan(user, 'pro', { subscriptionStatus: 'active', stripeCustomerId: customerId });
-          return fail(400, 'Your workspace is already on the Pro plan.', { alreadyPro: true });
+        const openTeam = user.teamId
+          ? await prisma.team.findUnique({ where: { id: user.teamId }, select: { id: true, kind: true, billingUserId: true } })
+          : null;
+        if (openTeam?.kind === 'company') {
+          const forThisTeam = (await liveSubscriptions(customerId)).filter(sub =>
+            sub.metadata?.teamId ? sub.metadata.teamId === openTeam.id : openTeam.billingUserId === user.id
+          );
+          if (forThisTeam.length > 0) {
+            await setWorkspacePlan(user, 'pro', { subscriptionStatus: 'active', stripeCustomerId: customerId });
+            return fail(400, 'Your workspace is already on the Pro plan.', { alreadyPro: true });
+          }
         }
 
         const checkout = await createProCheckout({
@@ -242,7 +268,12 @@ export async function POST(req: Request) {
     /* ── Downgrade Pro → Basic ────────────────────────────────────────────── */
     if (action === 'downgrade_to_basic') {
       try {
-        const subs = user.stripeCustomerId ? await liveSubscriptions(user.stripeCustomerId) : [];
+        const openTeam = user.teamId
+          ? await prisma.team.findUnique({ where: { id: user.teamId }, select: { id: true, billingUserId: true } })
+          : null;
+        const subs = (user.stripeCustomerId ? await liveSubscriptions(user.stripeCustomerId) : []).filter(sub =>
+          !openTeam ? true : sub.metadata?.teamId ? sub.metadata.teamId === openTeam.id : openTeam.billingUserId === user.id
+        );
         if (subs.length > 0) {
           // Stop renewal; Pro stays until the end of the paid period, then the webhook moves to Basic
           let periodEnd = 0;
@@ -287,7 +318,7 @@ export async function POST(req: Request) {
       if (user.plan === 'pro') return fail(400, 'Your workspace is already on the Pro plan.', { alreadyPro: true });
       const updated = await prisma.user.update({
         where: { id: user.id },
-        data: { plan: 'basic', subscriptionStatus: 'active', failedPaymentAttempts: 0 },
+        data: { plan: 'basic', pendingTeamPlan: 'basic', subscriptionStatus: 'active', failedPaymentAttempts: 0 },
         select: { plan: true },
       });
       return NextResponse.json({ success: true, data: { plan: updated.plan, message: 'Basic plan selected.' } });

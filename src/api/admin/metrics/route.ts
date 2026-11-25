@@ -22,7 +22,7 @@ export async function GET() {
       recentInvoices,
       totalInvoicesAmount,
     ] = await Promise.all([
-      prisma.team.count(),
+      prisma.team.count({ where: { kind: 'company' } }),
       prisma.user.count(),
       prisma.project.count(),
       prisma.task.count(),
@@ -35,17 +35,8 @@ export async function GET() {
         _count: { id: true },
       }),
       prisma.team.findMany({
-        select: {
-          id: true,
-          name: true,
-          createdAt: true,
-          members: {
-            select: {
-              plan: true,
-              subscriptionStatus: true,
-            },
-          },
-        },
+        where: { kind: 'company' },
+        select: { id: true, name: true, createdAt: true, plan: true, subscriptionStatus: true },
       }),
       prisma.invoice.findMany({
         take: 10,
@@ -72,8 +63,7 @@ export async function GET() {
     let proCompanies = 0;
     let freeCompanies = 0;
     teams.forEach(team => {
-      const hasProMember = team.members.some(m => m.plan === 'pro');
-      if (hasProMember) {
+      if (team.plan === 'pro') {
         proCompanies++;
       } else {
         freeCompanies++;

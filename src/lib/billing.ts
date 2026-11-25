@@ -84,27 +84,54 @@ export function toBillingError(err: unknown, context: string): BillingError {
 
 type Plan = 'free' | 'basic' | 'pro';
 
-/** Puts the user's whole workspace on `plan` (one company, one plan). */
+/**
+ * Puts a company on `plan`. `user.teamId` names the company being billed. When it is not a company
+ * (the person is in their Personal workspace, choosing a plan for a team they are about to create),
+ * the plan is kept on the person as "pending" and given to that team when it is created.
+ * Each company is billed on its own — paying for one never changes another.
+ */
 export async function setWorkspacePlan(
   user: { id: string; teamId: string | null },
   plan: Plan,
   extra: { subscriptionStatus?: string; stripeCustomerId?: string | null } = {}
 ): Promise<void> {
+  const status = extra.subscriptionStatus ? { subscriptionStatus: extra.subscriptionStatus } : {};
+  const team = user.teamId
+    ? await prisma.team.findUnique({ where: { id: user.teamId }, select: { id: true, kind: true } })
+    : null;
+
+  // The payer's own billing details
   await prisma.user.update({
     where: { id: user.id },
     data: {
-      plan,
-      ...(extra.subscriptionStatus ? { subscriptionStatus: extra.subscriptionStatus } : {}),
       ...(extra.stripeCustomerId ? { stripeCustomerId: extra.stripeCustomerId } : {}),
       ...(plan === 'pro' ? { failedPaymentAttempts: 0 } : {}),
+      ...(team?.kind === 'company' ? {} : { plan, pendingTeamPlan: plan, ...status }),
     },
   });
-  if (user.teamId) {
-    await prisma.user.updateMany({
-      where: { teamId: user.teamId, id: { not: user.id } },
-      data: { plan, ...(extra.subscriptionStatus ? { subscriptionStatus: extra.subscriptionStatus } : {}) },
+
+  if (team?.kind === 'company') {
+    await prisma.team.update({
+      where: { id: team.id },
+      data: { plan, ...status, ...(plan === 'pro' ? { billingUserId: user.id } : {}) },
     });
+    // Mirror on everyone who has this company open
+    await prisma.user.updateMany({ where: { teamId: team.id }, data: { plan, ...status } });
   }
+}
+
+/** The company a person pays for (newest first), used to apply Stripe renewals to the right team. */
+export async function billedCompanyFor(userId: string, preferredTeamId?: string | null): Promise<string | null> {
+  if (preferredTeamId) {
+    const t = await prisma.team.findUnique({ where: { id: preferredTeamId }, select: { id: true, kind: true } });
+    if (t?.kind === 'company') return t.id;
+  }
+  const billed = await prisma.team.findFirst({
+    where: { billingUserId: userId, kind: 'company' },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true },
+  });
+  return billed?.id ?? null;
 }
 
 /* ─────────────────────────────── customers ─────────────────────────────── */
@@ -171,13 +198,18 @@ export async function createProCheckout(opts: {
   const priceId = getProPriceId()!;
   const customer = await ensureStripeCustomer(user);
 
-  // Success returns to the workspace's billing page, or to company setup during onboarding
-  const successUrl = user.teamId
+  // In a company: upgrade that company. Otherwise (Personal or no workspace): Pro for the team
+  // being created next, so success continues to company setup.
+  const team = user.teamId
+    ? await prisma.team.findUnique({ where: { id: user.teamId }, select: { id: true, kind: true } })
+    : null;
+  const upgradingCompany = team?.kind === 'company';
+  const successUrl = upgradingCompany
     ? `${baseUrl}/app?view=billing&payment_success=true&session_id={CHECKOUT_SESSION_ID}`
     : `${baseUrl}/onboarding/organization?session_id={CHECKOUT_SESSION_ID}`;
-  const cancelUrl = user.teamId ? `${baseUrl}/app?view=billing` : `${baseUrl}/onboarding/plans?payment=cancelled`;
+  const cancelUrl = upgradingCompany ? `${baseUrl}/app?view=billing` : `${baseUrl}/onboarding/plans?payment=cancelled`;
 
-  const metadata = { userId: user.id, plan: 'pro' };
+  const metadata: Record<string, string> = { userId: user.id, plan: 'pro', ...(upgradingCompany ? { teamId: team!.id } : {}) };
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     customer,
@@ -320,8 +352,10 @@ export async function fulfilCheckoutSession(
   const user = await prisma.user.findUnique({ where: { id: ownerId }, select: { id: true, teamId: true } });
   if (!user) return false;
 
+  // Upgrade checkouts name their company; checkouts for a new team keep Pro pending until it exists
+  const targetTeamId = session.metadata?.teamId || null;
   const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null;
-  await setWorkspacePlan(user, 'pro', { subscriptionStatus: 'active', stripeCustomerId: customerId });
+  await setWorkspacePlan({ id: user.id, teamId: targetTeamId }, 'pro', { subscriptionStatus: 'active', stripeCustomerId: customerId });
 
   const invoiceId = typeof session.invoice === 'string' ? session.invoice : session.invoice?.id;
   if (invoiceId) await recordStripeInvoice(user.id, invoiceId);
@@ -331,16 +365,19 @@ export async function fulfilCheckoutSession(
 /** Finds the FlowSync user behind a Stripe customer (stored id first, then subscription metadata). */
 export async function userForCustomer(
   customerId: string | null | undefined,
-  metadataUserId?: string | null
+  metadataUserId?: string | null,
+  metadataTeamId?: string | null
 ): Promise<{ id: string; teamId: string | null } | null> {
+  let user: { id: string } | null = null;
   if (customerId) {
-    const byCustomer = await prisma.user.findFirst({ where: { stripeCustomerId: customerId }, select: { id: true, teamId: true } });
-    if (byCustomer) return byCustomer;
+    user = await prisma.user.findFirst({ where: { stripeCustomerId: customerId }, select: { id: true } });
   }
-  if (metadataUserId) {
-    return prisma.user.findUnique({ where: { id: metadataUserId }, select: { id: true, teamId: true } });
+  if (!user && metadataUserId) {
+    user = await prisma.user.findUnique({ where: { id: metadataUserId }, select: { id: true } });
   }
-  return null;
+  if (!user) return null;
+  // teamId here is the company being billed (null → the plan waits for the team being created)
+  return { id: user.id, teamId: await billedCompanyFor(user.id, metadataTeamId) };
 }
 
 export { invoiceSubscriptionId };

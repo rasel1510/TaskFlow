@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { recipientsWanting, wantsNotification } from '@/lib/notificationPrefs';
+import { inTeam } from '@/lib/workspaces';
 import { auth } from '@/auth';
 import { timeAgo } from '@/lib/timeAgo';
 import { requireTaskAccess } from '@/lib/access';
@@ -217,7 +218,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           const mentionTeamId = access.value.user.teamId;
           const allUsers = mentionTeamId
             ? await prisma.user.findMany({
-                where: { teamId: mentionTeamId },
+                where: inTeam(mentionTeamId),
                 select: { id: true, name: true, email: true },
               })
             : [];
