@@ -141,6 +141,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
       sessionUserRole = (session?.user as { role?: string })?.role;
     } catch (_) {}
 
+    // Adding people always requires a signed-in user with permission (checked below)
+    if (!sessionUserId) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
+        { status: 401 }
+      );
+    }
+
     // Verify project exists
     let project: { id: string; name: string; ownerId: string; teamId: string | null } | null = null;
     try {

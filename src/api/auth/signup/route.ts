@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { SignupSchema, validationError } from '@/lib/validators';
 import { generateOtp, storeVerificationOtp } from '@/lib/verification';
 import { sendVerificationOtpEmail } from '@/lib/mail';
+import { overLimit, HOUR } from '@/lib/abuseGuard';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -40,6 +41,14 @@ export async function POST(req: Request) {
     // Whoever creates account will be Admin automatically
     const normalizedRole = 'Admin';
     const cleanTeamName = teamName?.trim() || `${(name as string).trim()}'s Team`;
+
+    // Durable per-address limit on sign-up code emails
+    if (await overLimit('mail', normalizedEmail, 5, HOUR)) {
+      return NextResponse.json(
+        { message: 'Too many sign-up attempts for this email. Please try again in an hour.' },
+        { status: 429 }
+      );
+    }
 
     const avatar = getInitials(name);
     const hashedPassword = await bcrypt.hash(password, 10);

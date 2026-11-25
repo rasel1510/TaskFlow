@@ -1,4 +1,16 @@
-import NextAuth from 'next-auth';
+import NextAuth, { CredentialsSignin } from 'next-auth';
+import { attemptCount, clearAttempts, recordAttempt, MINUTE } from '@/lib/abuseGuard';
+
+/** Shown to the person as "Too many attempts" (wrong passwords stay a generic error). */
+class TooManyAttempts extends CredentialsSignin {
+  code = 'too_many_attempts';
+}
+/** Shown as "Verify your email first" — only after the correct password was given. */
+class EmailNotVerified extends CredentialsSignin {
+  code = 'email_not_verified';
+}
+const MAX_LOGIN_FAILURES = 10;
+const LOGIN_WINDOW_MS = 15 * MINUTE;
 import Credentials from 'next-auth/providers/credentials';
 import Google from 'next-auth/providers/google';
 import bcrypt from 'bcryptjs';
@@ -80,6 +92,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const email = String(credentials.email).toLowerCase().trim();
         const password = String(credentials.password);
 
+        // Stops password guessing: 10 wrong passwords per email lock sign-in for 15 minutes
+        if ((await attemptCount('login', email)) >= MAX_LOGIN_FAILURES) {
+          throw new TooManyAttempts();
+        }
+
         // ─── 2. Standard Credentials Login ───
         try {
           // Attempt to find user in database with team information
@@ -95,12 +112,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             // Accounts without a password (e.g. Google-only sign-ups) must never be
             // reachable through the credentials provider — reject instead of skipping the check.
             if (!dbUser.password) {
+              await recordAttempt('login', email, LOGIN_WINDOW_MS);
               return null;
             }
             const isValid = await bcrypt.compare(password, dbUser.password);
             if (!isValid) {
+              await recordAttempt('login', email, LOGIN_WINDOW_MS);
               return null;
             }
+            // The email must be proven (signup code, invitation link or Google) before sign-in —
+            // otherwise anyone could register someone else's address and keep access to it.
+            if (!dbUser.emailVerified) {
+              throw new EmailNotVerified();
+            }
+            await clearAttempts('login', email);
             const hasPaid =
               dbUser.plan === 'pro' ||
               dbUser.plan === 'basic';
@@ -119,6 +144,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             };
           }
         } catch (err) {
+          if (err instanceof CredentialsSignin) throw err;
           console.error('[auth] Credentials sign-in failed (database unavailable):', err);
         }
 
@@ -171,13 +197,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               signupMethod: 'Google OAuth 2.0',
             }).catch(err => console.error('[Google signup email notification error]:', err));
           } else {
-            // Update emailVerified / avatar if needed
+            // Update emailVerified / avatar if needed. Google proves the person owns this email, so a
+            // password set on a never-verified account (possibly by someone else) is removed.
             if (!dbUser.emailVerified || (!dbUser.avatar && user.image)) {
               dbUser = await prisma.user.update({
                 where: { id: dbUser.id },
                 data: {
                   emailVerified: dbUser.emailVerified || new Date(),
                   avatar: dbUser.avatar || user.image || undefined,
+                  ...(!dbUser.emailVerified && dbUser.password ? { password: null } : {}),
                 },
                 include: {
                   team: { select: { id: true, name: true, slug: true } },
@@ -247,25 +275,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         });
       }
 
-      if (trigger === 'update' && session) {
-        if (session.name) token.name = session.name;
-        if (session.avatar) token.avatar = session.avatar;
-        if (session.role) token.role = session.role;
-        if (session.teamName) token.teamName = session.teamName;
-        token.isSuperAdmin = isSuperAdmin({
-          email: token.email as string,
-          role: token.role as string,
-          teamName: token.teamName as string,
-        });
-      }
+      // SECURITY: values sent by the browser through update() are never trusted (anyone can call
+      // the session endpoint with any data — e.g. role: "Super Admin"). An update only asks the
+      // server to re-read the person from the database below.
 
       // Sync latest user details from DB so token stays fresh across reloads
       // Sync latest user details from DB periodically (at most once every 60s per session)
       const now = Date.now();
       const lastSynced = (token.lastSynced as number) || 0;
-      // After switching workspace the client calls update({ refreshWorkspace: true }) to re-sync now
-      const refreshNow = trigger === 'update' && Boolean((session as { refreshWorkspace?: boolean } | undefined)?.refreshWorkspace);
-      if (token.id && !user && (refreshNow || (trigger !== 'update' && (now - lastSynced > 60000 || !token.teamId)))) {
+      // Any session update (workspace switch, profile save) re-reads from the database right away
+      const refreshNow = trigger === 'update';
+      if (token.id && !user && (refreshNow || now - lastSynced > 60000 || !token.teamId)) {
         try {
           const freshUser = await prisma.user.findUnique({
             where: { id: token.id as string },

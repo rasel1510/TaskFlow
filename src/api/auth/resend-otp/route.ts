@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { generateOtp, storeVerificationOtp } from '@/lib/verification';
 import { sendVerificationOtpEmail } from '@/lib/mail';
 import prisma from '@/lib/prisma';
+import { overLimit, HOUR } from '@/lib/abuseGuard';
 
 const ResendOtpSchema = z.object({
   email: z.string().email('Please provide a valid email address'),
@@ -45,17 +46,24 @@ export async function POST(req: Request) {
       );
     }
 
-    // Lookup user name if available
-    let userName: string | undefined;
-    try {
-      const dbUser = await prisma.user.findUnique({
-        where: { email: normalizedEmail },
-        select: { name: true },
-      });
-      if (dbUser) userName = dbUser.name;
-    } catch {
-      // name is optional in the email
+    // Durable per-address limit on code emails (shared by every server instance)
+    if (await overLimit('mail', normalizedEmail, 5, HOUR)) {
+      return NextResponse.json(
+        { success: false, message: 'Too many codes requested for this email. Please try again in an hour.' },
+        { status: 429 }
+      );
     }
+
+    // Codes are only sent to accounts still waiting for email verification. The reply is the same
+    // either way, so this can't be used to discover accounts or to email arbitrary addresses.
+    let userName: string | undefined;
+    const dbUser = await prisma.user
+      .findUnique({ where: { email: normalizedEmail }, select: { name: true, emailVerified: true } })
+      .catch(() => null);
+    if (!dbUser || dbUser.emailVerified) {
+      return NextResponse.json({ success: true, message: 'A fresh verification code has been dispatched.' });
+    }
+    userName = dbUser.name;
 
     // Generate new OTP
     const otp = generateOtp();

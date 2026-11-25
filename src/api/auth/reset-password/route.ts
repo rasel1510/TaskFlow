@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     const normalizedEmail = email.toLowerCase().trim();
 
     // Validate and consume the reset token (single-use, 15-min TTL)
-    const valid = consumeResetToken(normalizedEmail, resetToken);
+    const valid = await consumeResetToken(normalizedEmail, resetToken);
     if (!valid) {
       return NextResponse.json(
         { success: false, message: 'Reset session expired or invalid. Please start over.' },

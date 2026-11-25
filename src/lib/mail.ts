@@ -312,13 +312,18 @@ export async function sendTeamInviteEmail({
   const transporter = getSmtpTransporter();
   const isLocalhost = inviteUrl.includes('localhost') || inviteUrl.includes('127.0.0.1');
 
+  // Names come from people's input — escape them in the HTML so they can't inject markup
+  const safeTeam = escapeHtml(teamName);
+  const safeInviter = escapeHtml(inviterName);
+  const safeRole = escapeHtml(role);
+  const safePassword = escapeHtml(password ?? '');
   const html = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Invitation to join ${teamName} on FlowSync</title>
+  <title>Invitation to join ${safeTeam} on FlowSync</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -431,9 +436,9 @@ export async function sendTeamInviteEmail({
         <span class="brand-name">FlowSync</span>
       </div>
 
-      <h1>Join ${teamName}</h1>
+      <h1>Join ${safeTeam}</h1>
       <p>Hello,</p>
-      <p><strong>${inviterName}</strong> has invited you to collaborate in <strong>${teamName}</strong> as a <strong>${role}</strong> on FlowSync.</p>
+      <p><strong>${safeInviter}</strong> has invited you to collaborate in <strong>${safeTeam}</strong> as a <strong>${safeRole}</strong> on FlowSync.</p>
 
       <div class="credentials-box">
         <p style="font-size: 13.5px; font-weight: 600; color: #0F172A; margin: 0 0 12px 0;">
@@ -443,7 +448,7 @@ export async function sendTeamInviteEmail({
           <tr>
             <td style="padding: 6px 0; color: #64748B; width: 140px; font-weight: 500;">company name:</td>
             <td style="padding: 6px 0; color: #0F172A; font-weight: 700;">
-              <span style="background-color: #EEF2F6; color: #0284C7; padding: 3px 8px; border-radius: 6px; font-family: monospace; font-size: 13px;">${teamName}</span>
+              <span style="background-color: #EEF2F6; color: #0284C7; padding: 3px 8px; border-radius: 6px; font-family: monospace; font-size: 13px;">${safeTeam}</span>
             </td>
           </tr>
           ${
@@ -452,7 +457,7 @@ export async function sendTeamInviteEmail({
           <tr>
             <td style="padding: 6px 0; color: #64748B; width: 140px; font-weight: 500;">Password :</td>
             <td style="padding: 6px 0; color: #0F172A; font-weight: 700;">
-              <span style="background-color: #EEF2F6; color: #0F172A; padding: 3px 8px; border-radius: 6px; font-family: monospace; font-size: 13px; letter-spacing: 0.5px;">${password}</span>
+              <span style="background-color: #EEF2F6; color: #0F172A; padding: 3px 8px; border-radius: 6px; font-family: monospace; font-size: 13px; letter-spacing: 0.5px;">${safePassword}</span>
             </td>
           </tr>
           `
@@ -510,10 +515,10 @@ export async function sendTeamInviteEmail({
     console.log('\n======================================================');
     console.log('📨 [SMTP DEV MODE] FlowSync Team Invitation Dispatch');
     console.log(`To:           ${to}`);
-    console.log(`Inviter:      ${inviterName}`);
-    console.log(`Team/Company: ${teamName} (Role: ${role})`);
+    console.log(`Inviter:      ${safeInviter}`);
+    console.log(`Team/Company: ${safeTeam} (Role: ${safeRole})`);
     if (password) {
-      console.log(`Password:     ${password}`);
+      console.log(`Password:     ${safePassword}`);
     }
     console.log(`Invite URL:   >>> [ ${inviteUrl} ] <<<`);
     console.log(`Expires:      ${expiresInDays} days`);
@@ -529,10 +534,10 @@ export async function sendTeamInviteEmail({
   try {
     const plainText = `Hello,
 
-${inviterName} has invited you to join ${teamName} as a ${role} on FlowSync.
+${safeInviter} has invited you to join ${safeTeam} as a ${safeRole} on FlowSync.
 
 Please sign up using:
-company name: ${teamName}
+company name: ${safeTeam}
 Password : ${password || 'Provided by your administrator'}
 
 You can also click the link below to accept your invitation directly:

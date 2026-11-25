@@ -54,6 +54,10 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           // `payment` is left allowed so Stripe's embedded checkout can offer Apple Pay / Google Pay
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+          // Always HTTPS (the site is only served over HTTPS)
+          { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
+          // No framing, no plugins, no <base> hijacking (scripts/styles are left unrestricted on purpose)
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'" },
         ],
       },
       {

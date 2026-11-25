@@ -86,12 +86,15 @@ export async function GET(request: NextRequest) {
           }
         : { id: 'none' };
 
+      // This company's project tasks, plus the person's own tasks that have no project
+      // (never other companies' tasks — people can belong to several companies)
       const taskWhere = userTeamId
         ? {
             OR: [
               { project: { teamId: userTeamId } },
-              { assignee: { teamId: userTeamId } },
-              { creator: { teamId: userTeamId } },
+              ...(targetUserId
+                ? [{ projectId: null, OR: [{ assigneeId: targetUserId }, { creatorId: targetUserId }] }]
+                : []),
             ],
           }
         : targetUserId
@@ -150,10 +153,14 @@ export async function GET(request: NextRequest) {
         }),
         prisma.task.findMany({
           where: {
-            ...taskWhere,
-            OR: [
-              { createdAt: { gte: sevenDaysAgo } },
-              { updatedAt: { gte: sevenDaysAgo }, status: 'done' },
+            AND: [
+              taskWhere,
+              {
+                OR: [
+                  { createdAt: { gte: sevenDaysAgo } },
+                  { updatedAt: { gte: sevenDaysAgo }, status: 'done' },
+                ],
+              },
             ],
           },
           select: {

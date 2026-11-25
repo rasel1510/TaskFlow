@@ -9,6 +9,12 @@ import { getOrProvisionUserTeam } from '@/lib/tenant';
 import { sendTeamInviteEmail } from '@/lib/mail';
 import { getAppOrigin } from '@/lib/origin';
 import { inTeam, personalNoInvitesResponse } from '@/lib/workspaces';
+import { toCompanyRole } from '@/lib/companyRoles';
+import { overLimit, HOUR } from '@/lib/abuseGuard';
+
+/** Only Admins and Project Managers of the open company manage invitations and see their secrets. */
+const managesInvites = (role: string | null | undefined, isPlatformOwner?: boolean) =>
+  Boolean(isPlatformOwner) || ['Admin', 'Project Manager'].includes(toCompanyRole(role));
 
 const InviteMemberSchema = z.object({
   email: z.string().email('Please enter a valid work email address').toLowerCase().trim(),
@@ -63,12 +69,14 @@ export async function GET() {
       take: 50,
     });
 
+    // Invite links and starting passwords are credentials — only Admins / Project Managers see them
+    const canSeeSecrets = managesInvites(teamContext.userRole, (session.user as { isSuperAdmin?: boolean })?.isSuperAdmin);
     return NextResponse.json({
       success: true,
       data: {
         teamName: teamContext.teamName,
         teamId: teamContext.teamId,
-        invites,
+        invites: canSeeSecrets ? invites : invites.map(i => ({ ...i, token: '', initialPassword: null })),
       },
     });
   } catch (error) {
@@ -113,6 +121,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Invitation emails are limited per sender (stops using FlowSync to spam addresses)
+    if (await overLimit('invite', userId, 50, HOUR)) {
+      return NextResponse.json(
+        { success: false, error: { code: 'RATE_LIMITED', message: 'Too many invitations sent. Please try again in an hour.' } },
+        { status: 429 }
+      );
+    }
+
     let body: Record<string, unknown>;
     try {
       body = await req.json();
@@ -134,7 +150,8 @@ export async function POST(req: NextRequest) {
     const { email, role, password: inputPassword } = parsed.data;
 
     // Resolve given password or auto-generate secure temporary password
-    const givenPassword = inputPassword?.trim() || `FlowSync@${Math.floor(1000 + Math.random() * 9000)}`;
+    // A generated starting password must not be guessable (was only 9,000 possibilities)
+    const givenPassword = inputPassword?.trim() || `Fs-${crypto.randomBytes(9).toString('base64url')}7a`;
     const hashedPassword = await bcrypt.hash(givenPassword, 10);
 
     // PM can only invite standard members, not PMs or Admins
@@ -321,13 +338,34 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'No team found' }, { status: 404 });
     }
 
+    if (!managesInvites(teamContext.userRole, (session.user as { isSuperAdmin?: boolean })?.isSuperAdmin)) {
+      return NextResponse.json({ success: false, error: 'Only Admins or Project Managers can cancel invitations' }, { status: 403 });
+    }
+
     redisCache.delPattern('team:*').catch(() => {});
+    const invite = await prisma.teamInvitation.findFirst({
+      where: { id: inviteId, teamId: teamContext.teamId },
+      select: { email: true, status: true },
+    });
     await prisma.teamInvitation.deleteMany({
       where: {
         id: inviteId,
         teamId: teamContext.teamId,
       },
     });
+    // Remove the placeholder account the invitation created, if it was never used
+    if (invite && invite.status === 'pending') {
+      await prisma.user
+        .deleteMany({
+          where: {
+            email: invite.email.toLowerCase(),
+            emailVerified: null,
+            workspaceMemberships: { none: {} },
+            projectsOwned: { none: {} },
+          },
+        })
+        .catch(() => {});
+    }
 
     return NextResponse.json({ success: true, message: 'Invitation cancelled' });
   } catch (error) {

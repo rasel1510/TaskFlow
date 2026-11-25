@@ -39,21 +39,7 @@ export async function verifySuperAdmin(): Promise<SuperAdminAuthResult> {
   const email = session.user.email?.toLowerCase().trim();
   const sessionUser = session.user as any;
 
-  // Direct check against session
-  if (isSuperAdmin(sessionUser)) {
-    return {
-      authorized: true,
-      user: {
-        id: sessionUser.id,
-        email: sessionUser.email,
-        name: sessionUser.name,
-        role: sessionUser.role,
-        teamId: sessionUser.teamId,
-        teamName: sessionUser.teamName,
-      },
-    };
-  }
-
+  // SECURITY: decided from the database only — session contents are never trusted for this
   // Authoritative check against database
   if (email || sessionUser.id) {
     try {

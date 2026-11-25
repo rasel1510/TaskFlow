@@ -1,62 +1,15 @@
 import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
 import prisma from '@/lib/prisma';
+import { attemptCount, clearAttempts, recordAttempt, MINUTE } from '@/lib/abuseGuard';
 
-interface VerificationRecord {
-  email: string;
-  code: string;
-  expiresAt: string; // ISO string for JSON serialization
-}
+/**
+ * Email verification codes (6 digits), stored in the database only — never in memory or files —
+ * so every server instance sees the same code. Wrong guesses are limited: after 5 wrong codes
+ * the code is cancelled and a new one must be requested (stops brute-forcing 900,000 codes).
+ */
 
-const OTPS_FILE = path.join(process.cwd(), 'src', 'data', 'otps.json');
-
-// Global memory cache attached to globalThis to survive Next.js HMR reloads
-const globalForOtp = globalThis as unknown as {
-  __flowsyncOtpStore?: Map<string, VerificationRecord>;
-};
-
-if (!globalForOtp.__flowsyncOtpStore) {
-  globalForOtp.__flowsyncOtpStore = new Map<string, VerificationRecord>();
-}
-
-const memoryOtpStore = globalForOtp.__flowsyncOtpStore;
-
-// File persistence helpers
-function loadOtpsFromFile(): Map<string, VerificationRecord> {
-  try {
-    if (fs.existsSync(OTPS_FILE)) {
-      const raw = fs.readFileSync(OTPS_FILE, 'utf-8');
-      const list = JSON.parse(raw);
-      if (Array.isArray(list)) {
-        list.forEach((item: VerificationRecord) => {
-          if (item?.email && item?.code) {
-            memoryOtpStore.set(item.email.toLowerCase().trim(), item);
-          }
-        });
-      }
-    }
-  } catch (err) {
-    console.warn('[verification] Warning reading otps.json:', err);
-  }
-  return memoryOtpStore;
-}
-
-function saveOtpsToFile(): void {
-  try {
-    const dir = path.dirname(OTPS_FILE);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    const list = Array.from(memoryOtpStore.values());
-    fs.writeFileSync(OTPS_FILE, JSON.stringify(list, null, 2), 'utf-8');
-  } catch (err) {
-    console.warn('[verification] Warning writing otps.json:', err);
-  }
-}
-
-// Initial load
-loadOtpsFromFile();
+const MAX_WRONG_GUESSES = 5;
+const GUESS_WINDOW_MS = 15 * MINUTE;
 
 /**
  * Generate a cryptographically secure 6-digit numeric OTP
@@ -66,7 +19,8 @@ export function generateOtp(): string {
 }
 
 /**
- * Store a 6-digit OTP code for an email with an expiration window (default 10 minutes)
+ * Store a 6-digit OTP code for an email with an expiration window (default 10 minutes).
+ * Replaces any earlier code for that email and resets its wrong-guess count.
  */
 export async function storeVerificationOtp(
   email: string,
@@ -76,37 +30,16 @@ export async function storeVerificationOtp(
   const normalizedEmail = email.toLowerCase().trim();
   const expiresAt = new Date(Date.now() + expiresInMinutes * 60 * 1000);
 
-  const record: VerificationRecord = {
-    email: normalizedEmail,
-    code: code.trim(),
-    expiresAt: expiresAt.toISOString(),
-  };
-
-  // 1. Store in memory map
-  memoryOtpStore.set(normalizedEmail, record);
-
-  // 2. Persist to file
-  saveOtpsToFile();
-
-  // 3. Persist to database if available
-  try {
-    // Try raw query or Prisma client
-    await prisma.$executeRawUnsafe(
-      `DELETE FROM "VerificationCode" WHERE "email" = $1`,
-      normalizedEmail
-    ).catch(() => {});
-
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO "VerificationCode" ("id", "email", "code", "expiresAt", "createdAt")
-       VALUES ($1, $2, $3, $4, NOW())`,
-      `otp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      normalizedEmail,
-      code.trim(),
-      expiresAt
-    ).catch(() => {});
-  } catch {
-    // DB write non-critical since file and memory stores are persistent
-  }
+  await prisma.verificationCode.deleteMany({ where: { email: normalizedEmail } });
+  await prisma.verificationCode.create({
+    data: {
+      id: `otp_${crypto.randomBytes(9).toString('hex')}`,
+      email: normalizedEmail,
+      code: code.trim(),
+      expiresAt,
+    },
+  });
+  await clearAttempts('otp', normalizedEmail);
 }
 
 /**
@@ -119,88 +52,46 @@ export async function verifyOtp(
 ): Promise<{ success: boolean; message: string }> {
   const normalizedEmail = email.toLowerCase().trim();
   const trimmedCode = code.trim();
+  const invalid = {
+    success: false,
+    message: 'Invalid verification code. Please check your email or request a new code.',
+  };
 
-  // Refresh from file to be sure
-  loadOtpsFromFile();
-
-  let matchedRecord: VerificationRecord | null = null;
-
-  // 1. Check persistent memory/file store
-  const fileRecord = memoryOtpStore.get(normalizedEmail);
-  if (fileRecord) {
-    matchedRecord = fileRecord;
+  // Too many wrong guesses → the code is cancelled; a new one must be requested
+  if ((await attemptCount('otp', normalizedEmail)) >= MAX_WRONG_GUESSES) {
+    await prisma.verificationCode.deleteMany({ where: { email: normalizedEmail } }).catch(() => {});
+    return { success: false, message: 'Too many incorrect codes. Please request a new code.' };
   }
 
-  // 2. Check database
-  if (!matchedRecord) {
-    try {
-      const rows = await prisma.$queryRawUnsafe<Array<{ email: string; code: string; expiresAt: Date }>>(
-        `SELECT "email", "code", "expiresAt" FROM "VerificationCode"
-         WHERE "email" = $1 ORDER BY "createdAt" DESC LIMIT 1`,
-        normalizedEmail
-      );
+  const record = await prisma.verificationCode.findFirst({
+    where: { email: normalizedEmail },
+    orderBy: { createdAt: 'desc' },
+    select: { code: true, expiresAt: true },
+  });
+  if (!record) return invalid;
 
-      if (rows && rows.length > 0) {
-        matchedRecord = {
-          email: rows[0].email,
-          code: rows[0].code,
-          expiresAt: new Date(rows[0].expiresAt).toISOString(),
-        };
-      }
-    } catch {
-      // DB check fallback
-    }
+  const a = Buffer.from(record.code);
+  const b = Buffer.from(trimmedCode);
+  const matches = a.length === b.length && crypto.timingSafeEqual(a, b);
+  if (!matches) {
+    await recordAttempt('otp', normalizedEmail, GUESS_WINDOW_MS);
+    return invalid;
   }
 
-  if (!matchedRecord) {
-    return {
-      success: false,
-      message: 'Invalid verification code. Please check your email or request a new code.',
-    };
-  }
-
-  // Check code match
-  if (matchedRecord.code !== trimmedCode) {
-    return {
-      success: false,
-      message: 'Invalid verification code. Please check your email or request a new code.',
-    };
-  }
-
-  // Check expiration
-  if (new Date() > new Date(matchedRecord.expiresAt)) {
-    memoryOtpStore.delete(normalizedEmail);
-    saveOtpsToFile();
+  if (record.expiresAt.getTime() < Date.now()) {
+    await prisma.verificationCode.deleteMany({ where: { email: normalizedEmail } }).catch(() => {});
     return {
       success: false,
       message: 'This verification code has expired. Please request a new one.',
     };
   }
 
-  // Valid! Clear the code
-  memoryOtpStore.delete(normalizedEmail);
-  saveOtpsToFile();
-
-  try {
-    await prisma.$executeRawUnsafe(
-      `DELETE FROM "VerificationCode" WHERE "email" = $1`,
-      normalizedEmail
-    ).catch(() => {});
-  } catch {
-    // Non-critical
-  }
+  // Valid — the code is single-use
+  await prisma.verificationCode.deleteMany({ where: { email: normalizedEmail } }).catch(() => {});
+  await clearAttempts('otp', normalizedEmail);
 
   // Mark user as verified in database
-  const verifiedAt = new Date();
-  try {
-    await prisma.$executeRawUnsafe(
-      `UPDATE "User" SET "emailVerified" = $1 WHERE "email" = $2`,
-      verifiedAt,
-      normalizedEmail
-    ).catch(() => {});
-  } catch {
-    // Non-critical
-  }
+  await prisma.user.updateMany({ where: { email: normalizedEmail }, data: { emailVerified: new Date() } }).catch(() => {});
 
   return {
     success: true,

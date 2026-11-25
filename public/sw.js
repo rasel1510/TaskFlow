@@ -3,7 +3,7 @@
  *
  * Caching strategy:
  * - App Shell (HTML, JS, CSS): Cache-first with background update
- * - API routes (/api/*): Network-first, stale fallback
+ * - API routes (/api/*): never cached — always the network (private data)
  * - Static assets (_next/static/*): Immutable cache (hashed filenames)
  * - Images/fonts: Stale-while-revalidate (30 days)
  *
@@ -33,9 +33,9 @@ if (isDev) {
   });
 } else {
 
-const CACHE_NAME = 'flowsync-v10';
-const STATIC_CACHE = 'flowsync-static-v10';
-const API_CACHE = 'flowsync-api-v10';
+const CACHE_NAME = 'flowsync-v11';
+const STATIC_CACHE = 'flowsync-static-v11';
+// API responses are never cached (private data; live updates). Older API caches are deleted.
 
 // Assets to precache on install (app shell)
 const PRECACHE_URLS = [
@@ -59,7 +59,7 @@ self.addEventListener('install', (event) => {
 
 // ── Activate: remove stale caches ────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  const VALID_CACHES = new Set([CACHE_NAME, STATIC_CACHE, API_CACHE]);
+  const VALID_CACHES = new Set([CACHE_NAME, STATIC_CACHE]);
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -116,18 +116,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. API routes — Network-first, fallback to cache (read-only endpoints)
+  // 2. API routes — always straight to the network, never stored on the device. They carry
+  //    private, per-person data (and must not leak to the next person on a shared device).
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            caches.open(API_CACHE).then((cache) => cache.put(request, response.clone()));
-          }
-          return response;
-        })
-        .catch(() => caches.match(request))
-    );
     return;
   }
 

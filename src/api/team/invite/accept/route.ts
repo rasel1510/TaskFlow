@@ -357,7 +357,8 @@ async function acceptTeamInvite(token: string, name: string | undefined, passwor
     }
   }
 
-  await prisma.teamInvitation.update({ where: { id: invitation.id }, data: { status: 'accepted' } });
+  // The starting password is no longer needed once the invitation is used
+  await prisma.teamInvitation.update({ where: { id: invitation.id }, data: { status: 'accepted', initialPassword: null } });
   await redisCache.delPattern('team:members:*').catch(() => {});
 
   return NextResponse.json({

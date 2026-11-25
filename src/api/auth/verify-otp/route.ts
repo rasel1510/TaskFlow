@@ -45,7 +45,7 @@ export async function POST(req: Request) {
 
     // For password-reset flow, issue a short-lived server-side reset token
     if (purpose === 'password-reset') {
-      const resetToken = issueResetToken(email);
+      const resetToken = await issueResetToken(email);
       return NextResponse.json({
         success: true,
         verified: true,

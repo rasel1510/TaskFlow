@@ -82,7 +82,15 @@ export async function PATCH(
     const updatedUser = await prisma.user.update({
       where: { id },
       data: updateData,
-      include: {
+      // Never return the password hash or other secrets — only the fields the admin screen shows
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        plan: true,
+        subscriptionStatus: true,
+        teamId: true,
         team: { select: { id: true, name: true, slug: true } },
       },
     });

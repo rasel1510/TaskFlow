@@ -184,8 +184,27 @@ export function appBaseUrl(req: Request): string {
   const configured = process.env.APP_URL || process.env.NEXTAUTH_URL;
   const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
   const proto = req.headers.get('x-forwarded-proto') || (host?.startsWith('localhost') ? 'http' : 'https');
-  if (host) return `${proto}://${host}`;
-  return configured || 'http://localhost:3000';
+  // The request's host is only trusted when it is one of this app's own addresses — a forged
+  // Host header must never decide where Stripe sends people back to.
+  const hostOf = (u?: string) => {
+    if (!u) return null;
+    try {
+      return new URL(u.includes('://') ? u : `https://${u}`).host.toLowerCase();
+    } catch {
+      return null;
+    }
+  };
+  const own = new Set(
+    [configured, process.env.VERCEL_URL, process.env.VERCEL_BRANCH_URL, process.env.VERCEL_PROJECT_PRODUCTION_URL]
+      .map(hostOf)
+      .filter((h): h is string => Boolean(h))
+  );
+  const reqHost = host?.toLowerCase() ?? '';
+  const isLocal = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(reqHost);
+  if (reqHost && (own.has(reqHost) || isLocal)) return `${proto}://${host}`;
+  if (configured) return configured.replace(/\/+$/, '');
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  return 'http://localhost:3000';
 }
 
 /** Creates a Stripe Checkout Session for the Pro subscription; returns its hosted URL. */

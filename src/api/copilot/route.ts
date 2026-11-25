@@ -14,6 +14,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runFlowSyncAgent } from '@/lib/mcp/agent';
 import { auth } from '@/auth';
+import { overLimit, HOUR } from '@/lib/abuseGuard';
+
+// Limits that keep AI costs bounded
+const MAX_MESSAGES = 30;
+const MAX_MESSAGE_CHARS = 4000;
+const MAX_REQUESTS_PER_HOUR = 60;
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,8 +63,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Bounded conversation size and per-person hourly limit (stops runaway AI spend)
+    const trimmed = messages
+      .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+      .slice(-MAX_MESSAGES)
+      .map(m => ({ role: m.role, content: m.content.slice(0, MAX_MESSAGE_CHARS) }));
+    if (trimmed.length === 0) {
+      return NextResponse.json({ success: false, message: 'Messages array is required and cannot be empty.', status: 400 }, { status: 400 });
+    }
+    if (await overLimit('copilot', sessionUserId, MAX_REQUESTS_PER_HOUR, HOUR)) {
+      return NextResponse.json(
+        { success: false, message: 'You’ve reached the FlowAi limit for this hour. Please try again later.', status: 429 },
+        { status: 429 }
+      );
+    }
+
     const result = await runFlowSyncAgent(
-      messages,
+      trimmed,
       {
         userId: sessionUserId,
         userEmail: sessionUserEmail,
@@ -74,10 +95,10 @@ export async function POST(request: NextRequest) {
       status: 200,
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'An error occurred during Copilot execution.';
+    // Details stay in the server log; the person sees a plain message
     console.error('Copilot Agent error:', error);
     return NextResponse.json(
-      { success: false, message, status: 500 },
+      { success: false, message: 'FlowAi couldn’t answer right now. Please try again.', status: 500 },
       { status: 500 }
     );
   }

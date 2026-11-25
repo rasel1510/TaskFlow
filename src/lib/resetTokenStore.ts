@@ -1,59 +1,44 @@
 import crypto from 'crypto';
+import prisma from '@/lib/prisma';
 
 /**
- * Shared in-memory store for password-reset tokens.
+ * Password-reset tokens, stored in the database (works across every server instance).
  *
- * Uses globalThis so the same Map instance survives Next.js HMR reloads
- * and is shared across all API route module instances in the same process.
- * (Same pattern as the OTP store in src/lib/verification.ts)
+ * A token is issued only after the emailed 6-digit code is verified. Only a SHA-256 hash of the
+ * token is stored (row key "reset:<email>" in VerificationCode); it is single-use and expires
+ * after 15 minutes.
  */
-interface ResetEntry {
-  token: string;
-  expiresAt: number; // ms epoch
-}
 
-const g = globalThis as unknown as {
-  __flowsyncResetTokenStore?: Map<string, ResetEntry>;
-};
-
-if (!g.__flowsyncResetTokenStore) {
-  g.__flowsyncResetTokenStore = new Map<string, ResetEntry>();
-}
-
-const store = g.__flowsyncResetTokenStore;
-
-// TTL: 15 minutes
 const RESET_TOKEN_TTL_MS = 15 * 60 * 1000;
+const keyFor = (email: string) => `reset:${email.toLowerCase().trim()}`;
+const hash = (token: string) => crypto.createHash('sha256').update(token).digest('hex');
 
-/**
- * Issue a cryptographically-secure single-use reset token for an email.
- * Called after successful OTP verification.
- */
-export function issueResetToken(email: string): string {
-  const normalizedEmail = email.toLowerCase().trim();
+/** Issue a cryptographically secure single-use reset token for an email. */
+export async function issueResetToken(email: string): Promise<string> {
   const token = crypto.randomBytes(24).toString('hex');
-  store.set(normalizedEmail, {
-    token,
-    expiresAt: Date.now() + RESET_TOKEN_TTL_MS,
+  const key = keyFor(email);
+  await prisma.verificationCode.deleteMany({ where: { email: key } });
+  await prisma.verificationCode.create({
+    data: {
+      id: `reset_${crypto.randomBytes(9).toString('hex')}`,
+      email: key,
+      code: hash(token),
+      expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+    },
   });
   return token;
 }
 
 /**
- * Validate and consume a reset token.
- * Returns true if valid; false if missing, mismatched, or expired.
- * The token is always deleted after this call (single-use guarantee).
+ * Validate and consume a reset token. Returns true only if it matches and has not expired.
+ * The stored token is always deleted (single-use, even on failure).
  */
-export function consumeResetToken(email: string, token: string): boolean {
-  const normalizedEmail = email.toLowerCase().trim();
-  const entry = store.get(normalizedEmail);
-
-  // Always delete — prevents timing-based replay even on failure
-  store.delete(normalizedEmail);
-
-  if (!entry) return false;
-  if (Date.now() > entry.expiresAt) return false;
-  if (entry.token !== token) return false;
-
-  return true;
+export async function consumeResetToken(email: string, token: string): Promise<boolean> {
+  const key = keyFor(email);
+  const row = await prisma.verificationCode.findFirst({ where: { email: key }, orderBy: { createdAt: 'desc' } });
+  await prisma.verificationCode.deleteMany({ where: { email: key } });
+  if (!row || !token || row.expiresAt.getTime() < Date.now()) return false;
+  const a = Buffer.from(row.code);
+  const b = Buffer.from(hash(token));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }

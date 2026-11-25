@@ -88,12 +88,15 @@ function toDto(row: MessageRow): ProjectMessage {
 const fail = (status: number, message: string) =>
   NextResponse.json({ success: false, error: message }, { status });
 
-/** Accept only image data URLs or http(s) URLs, within the size limit. */
+/**
+ * Accept only uploaded image data (data:image/...), within the size limit. Links to outside
+ * images are refused so a message can't make every reader's browser call a third-party server.
+ */
 function validImageUrl(value: unknown): string | null | undefined {
   if (value === undefined || value === null || value === '') return null;
   if (typeof value !== 'string') return undefined;
   if (value.length > MAX_IMAGE_URL_LENGTH) return undefined;
-  if (/^data:image\/(png|jpe?g|gif|webp);base64,/i.test(value) || /^https?:\/\//i.test(value)) return value;
+  if (/^data:image\/(png|jpe?g|gif|webp);base64,/i.test(value)) return value;
   return undefined;
 }
 

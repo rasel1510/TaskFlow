@@ -16,6 +16,7 @@ import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
 import { stripe } from '@/lib/stripe';
 import { activeWorkspace, switchWorkspace } from '@/lib/workspaces';
+import { toCompanyRole } from '@/lib/companyRoles';
 import {
   appBaseUrl,
   createProCheckout,
@@ -269,8 +270,12 @@ export async function POST(req: Request) {
     if (action === 'downgrade_to_basic') {
       try {
         const openTeam = user.teamId
-          ? await prisma.team.findUnique({ where: { id: user.teamId }, select: { id: true, billingUserId: true } })
+          ? await prisma.team.findUnique({ where: { id: user.teamId }, select: { id: true, kind: true, billingUserId: true } })
           : null;
+        // Only the company's Admin (or the person who pays for it) can change its plan
+        if (openTeam?.kind === 'company' && toCompanyRole(user.role) !== 'Admin' && openTeam.billingUserId !== user.id) {
+          return fail(403, 'Only a company Admin can change the plan.', { code: 'FORBIDDEN' });
+        }
         const subs = (user.stripeCustomerId ? await liveSubscriptions(user.stripeCustomerId) : []).filter(sub =>
           !openTeam ? true : sub.metadata?.teamId ? sub.metadata.teamId === openTeam.id : openTeam.billingUserId === user.id
         );

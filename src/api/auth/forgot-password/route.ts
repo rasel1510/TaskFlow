@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { generateOtp, storeVerificationOtp } from '@/lib/verification';
 import { sendVerificationOtpEmail } from '@/lib/mail';
 import prisma from '@/lib/prisma';
+import { overLimit, HOUR } from '@/lib/abuseGuard';
 
 const ForgotPasswordSchema = z.object({
   email: z.string().email('Please provide a valid email address'),
@@ -41,6 +42,14 @@ export async function POST(req: Request) {
       const waitSeconds = Math.ceil((30_000 - (now - lastSent)) / 1000);
       return NextResponse.json(
         { success: false, message: `Please wait ${waitSeconds}s before requesting a new code.` },
+        { status: 429 }
+      );
+    }
+
+    // Durable per-address limit on code emails (shared by every server instance)
+    if (await overLimit('mail', normalizedEmail, 5, HOUR)) {
+      return NextResponse.json(
+        { success: false, message: 'Too many codes requested for this email. Please try again in an hour.' },
         { status: 429 }
       );
     }

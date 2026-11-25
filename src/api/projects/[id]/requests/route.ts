@@ -12,7 +12,7 @@ import prisma from '@/lib/prisma';
 import { recipientsWanting, wantsNotification } from '@/lib/notificationPrefs';
 import { joinCompany, toCompanyRole } from '@/lib/companyMembership';
 import { auth } from '@/auth';
-import { requireProjectAccess } from '@/lib/access';
+import { requireProjectAccess, canManageProject, isProjectAdmin } from '@/lib/access';
 import redisCache from '@/lib/redis';
 
 interface RouteContext {
@@ -227,8 +227,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       );
     }
 
-    // Permission check: only Project Manager / owner or Admin can review requests
-    const isAuthorized = project.ownerId === currentUserId || currentUserRole === 'Project Manager' || currentUserRole === 'Admin';
+    // Permission check: the project's owner, its Admins / Project Managers, or this company's
+    // Admins / Project Managers (roles are checked for THIS project's company, not the open one)
+    const isAuthorized = canManageProject(access.value);
     if (!isAuthorized) {
       return NextResponse.json(
         { success: false, error: { code: 'FORBIDDEN', message: 'Only the Project Manager can approve or reject join requests' } },
@@ -280,7 +281,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       // 2. Add to ProjectMember
       // Roles are always Admin / Project Manager / Member; only the owner or a company Admin grants Admin
       let memberRole = toCompanyRole(role || 'Member');
-      if (memberRole === 'Admin' && project.ownerId !== currentUserId && (currentUserRole || '').toLowerCase() !== 'admin') {
+      if (memberRole === 'Admin' && !isProjectAdmin(access.value)) {
         memberRole = 'Project Manager';
       }
       await prisma.projectMember.upsert({

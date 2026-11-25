@@ -38,7 +38,10 @@ function LoginForm() {
   );
 
   const callback = searchParams.get('callbackUrl');
-  const targetUrl = callback && callback !== '/' && !callback.startsWith('/auth') ? callback : '/app';
+  // Only paths inside FlowSync are allowed (blocks redirects to other sites, e.g. //evil.com)
+  const isSafePath = (u: string | null): u is string =>
+    Boolean(u && u.startsWith('/') && !u.startsWith('//') && !u.includes(String.fromCharCode(92)) && !u.includes('://'));
+  const targetUrl = isSafePath(callback) && callback !== '/' && !callback.startsWith('/auth') ? callback : '/app';
 
   const { data: session, status } = useSession();
 
@@ -81,7 +84,14 @@ function LoginForm() {
       });
 
       if (res?.error) {
-        setError('Invalid email or password. Please verify and try again.');
+        const code = (res as { code?: string }).code;
+        setError(
+          code === 'too_many_attempts'
+            ? 'Too many sign-in attempts. Please wait 15 minutes, or reset your password.'
+            : code === 'email_not_verified'
+              ? 'Please verify your email first — open your invitation link, or use the 6-digit code we sent when you signed up.'
+              : 'Invalid email or password. Please verify and try again.'
+        );
         setLoading(false);
         return;
       }
