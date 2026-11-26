@@ -204,7 +204,8 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
     };
   }, [userId]);
 
-  // Poll unread notifications count
+  // Unread notifications count: loaded once, then refreshed by live updates (the shared live-sync
+  // check already watches unread notifications, so no separate timer is needed)
   useEffect(() => {
     let isMounted = true;
     async function fetchUnreadCount() {
@@ -220,12 +221,10 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
     }
 
     fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, 25000);
     // Live updates: refresh the unread count as soon as notifications change
     window.addEventListener('live:notifications', fetchUnreadCount);
     return () => {
       isMounted = false;
-      clearInterval(interval);
       window.removeEventListener('live:notifications', fetchUnreadCount);
     };
   }, [currentView]);

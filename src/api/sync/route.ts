@@ -20,6 +20,7 @@ type Row = {
   comments: string;
   notifications: string;
   team: string;
+  messages: string;
 };
 
 export async function GET() {
@@ -63,7 +64,9 @@ export async function GET() {
            || ':' || coalesce(floor(extract(epoch FROM (SELECT max("updatedAt") FROM "TeamInvitation" WHERE "teamId" = ${teamId})) * 1000)::text, '0')
            || ':' || coalesce(floor(extract(epoch FROM (SELECT max("updatedAt") FROM "ProjectInvitation" WHERE "projectId" IN (SELECT id FROM ws_projects))) * 1000)::text, '0')
            || ':' || coalesce(floor(extract(epoch FROM (SELECT max("updatedAt") FROM "ProjectJoinRequest" WHERE "projectId" IN (SELECT id FROM ws_projects))) * 1000)::text, '0')
-        ) AS team
+        ) AS team,
+        (SELECT count(*) || ':' || coalesce(floor(extract(epoch FROM max("updatedAt")) * 1000)::text, '0')
+           FROM "ProjectMessage" WHERE "projectId" IN (SELECT id FROM ws_projects)) AS messages
     `;
     const row = rows[0];
     return NextResponse.json(
@@ -77,6 +80,7 @@ export async function GET() {
             comments: row?.comments ?? '',
             notifications: row?.notifications ?? '',
             team: row?.team ?? '',
+            messages: row?.messages ?? '',
           },
         },
       },

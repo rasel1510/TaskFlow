@@ -11,23 +11,37 @@
  *   live:comments       comments or activity on tasks
  *   live:notifications  new or read notifications (also fires 'notifications-updated')
  *   live:team           people, roles, invitations or join requests changed
+ *   live:messages       project chat messages sent, edited, reacted to or deleted
  *
  * Cost-aware scheduling (no wasted requests):
  *   - every 5 s while the tab is visible and the person was active in the last 2 minutes
  *   - every 30 s while visible but idle; paused completely in background tabs
  *   - an immediate check when the tab regains focus or the network comes back
  *   - exponential back-off (up to 60 s) while the server can't be reached
+ *   - on mobile data, slow networks or with Data Saver on: every 15 s active / 60 s idle, so the
+ *     phone's radio can sleep between checks (where the browser reports the connection type)
  */
 
 import { useEffect, useRef } from 'react';
 
-export type LiveTopic = 'tasks' | 'projects' | 'comments' | 'notifications' | 'team';
-const TOPICS: LiveTopic[] = ['tasks', 'projects', 'comments', 'notifications', 'team'];
+export type LiveTopic = 'tasks' | 'projects' | 'comments' | 'notifications' | 'team' | 'messages';
+const TOPICS: LiveTopic[] = ['tasks', 'projects', 'comments', 'notifications', 'team', 'messages'];
 
 const ACTIVE_MS = 5_000;
 const IDLE_MS = 30_000;
 const IDLE_AFTER_MS = 120_000;
 const MAX_BACKOFF_MS = 60_000;
+const METERED_ACTIVE_MS = 15_000;
+const METERED_IDLE_MS = 60_000;
+
+type NetInfo = { saveData?: boolean; type?: string; effectiveType?: string };
+
+/** True on cellular data, slow connections or with Data Saver on (Chromium browsers report this). */
+function isMeteredConnection(): boolean {
+  const c = (navigator as Navigator & { connection?: NetInfo }).connection;
+  if (!c) return false;
+  return Boolean(c.saveData) || c.type === 'cellular' || ['slow-2g', '2g', '3g'].includes(c.effectiveType ?? '');
+}
 
 let started = false;
 let subscribers = 0;
@@ -45,7 +59,9 @@ function emit(topic: LiveTopic) {
 
 function nextDelay(): number {
   if (failures > 0) return Math.min(MAX_BACKOFF_MS, ACTIVE_MS * 2 ** failures);
-  return Date.now() - lastActivity < IDLE_AFTER_MS ? ACTIVE_MS : IDLE_MS;
+  const active = Date.now() - lastActivity < IDLE_AFTER_MS;
+  if (isMeteredConnection()) return active ? METERED_ACTIVE_MS : METERED_IDLE_MS;
+  return active ? ACTIVE_MS : IDLE_MS;
 }
 
 function schedule(delay = nextDelay()) {

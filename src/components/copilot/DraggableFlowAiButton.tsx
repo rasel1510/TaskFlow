@@ -8,11 +8,20 @@ interface DraggableFlowAiButtonProps {
 
 const STORAGE_KEY = 'flowai_pill_position_v1';
 const PADDING = 16; // Minimum distance from screen edge in px
+// The button's effects play briefly after it appears, then rest until hovered, focused or dragged —
+// a constantly animating element keeps the device redrawing and drains battery on every screen.
+const INTRO_MS = 4000;
 
 export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButtonProps) {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [intro, setIntro] = useState(true);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setIntro(false), INTRO_MS);
+    return () => window.clearTimeout(t);
+  }, []);
 
   // Mutable refs for zero-latency, 120fps hardware-accelerated drag tracking
   const currentPos = useRef({ x: 0, y: 0 });
@@ -254,7 +263,7 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
           : 'translate3d(calc(100vw - 136px), calc(100vh - 68px), 0)',
         willChange: 'transform',
       }}
-      className={`flowai-fab group fixed z-40 flex items-center justify-center rounded-full w-11 h-11 md:w-auto md:h-auto md:px-4 md:py-2.5 [isolation:isolate] select-none touch-none focus:outline-none ${
+      className={`flowai-fab ${intro || isDragging ? 'flowai-awake' : ''} group fixed z-40 flex items-center justify-center rounded-full w-11 h-11 md:w-auto md:h-auto md:px-4 md:py-2.5 [isolation:isolate] select-none touch-none focus:outline-none ${
         isDragging
           ? 'cursor-grabbing scale-105 shadow-[0_0_50px_0px_rgba(234,88,12,0.85)] transition-none'
           : 'cursor-grab hover:scale-[1.03] active:scale-95 shadow-xl shadow-black/40 hover:shadow-[0_0_45px_-8px_rgba(234,88,12,0.65)] transition-transform duration-200 ease-out'
@@ -262,10 +271,13 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
     >
       <style>{`
         @keyframes beam-spin { to { transform: rotate(360deg); } }
-        @keyframes dots-move { 
-          0% { background-position: 0 0; } 
-          100% { background-position: 24px 24px; } 
-        }
+        @keyframes dots-move { to { transform: translate3d(12px, 12px, 0); } }
+        @keyframes flowai-pulse { 50% { opacity: 0.5; } }
+        /* Effects rest (paused) unless the button is new, hovered, focused or being dragged */
+        .flowai-fab { --flowai-play: paused; }
+        .flowai-fab.flowai-awake, .flowai-fab:focus-visible { --flowai-play: running; }
+        @media (hover: hover) { .flowai-fab:hover { --flowai-play: running; } }
+        @media (prefers-reduced-motion: reduce) { .flowai-fab { --flowai-play: paused !important; } }
       `}</style>
 
       {/* Surrounding Ambient Gradient Background Light (Outer Soft Halo) - Displays on Hover */}
@@ -296,7 +308,7 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
       <div className="absolute inset-0 -z-10 rounded-full overflow-hidden p-[1px] pointer-events-none">
         <div
           className="absolute inset-[-150%] bg-[conic-gradient(from_0deg,transparent_0_280deg,#ea580c_340deg,#fdba74_360deg)]"
-          style={{ animation: 'beam-spin 3s linear infinite' }}
+          style={{ animation: 'beam-spin 3s linear infinite var(--flowai-play, paused)' }}
         />
         <div className="absolute inset-[1px] rounded-full bg-black" />
       </div>
@@ -306,13 +318,18 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
         {/* Light Monotone Gradient Background */}
         <div className="absolute inset-0 bg-gradient-to-b from-zinc-800/60 to-transparent" />
 
-        {/* Animated Dots Pattern */}
+        {/* Animated Dots Pattern — moved with a GPU transform (one 12px tile per loop) instead of
+            animating background-position, which forces a repaint on every frame */}
         <div
-          className="opacity-30 mix-blend-overlay absolute inset-0"
+          className="opacity-30 mix-blend-overlay absolute"
           style={{
+            top: -12,
+            left: -12,
+            right: 0,
+            bottom: 0,
             backgroundImage: 'radial-gradient(rgba(255,255,255,0.6) 1px, transparent 1px)',
             backgroundSize: '12px 12px',
-            animation: 'dots-move 8s linear infinite',
+            animation: 'dots-move 4s linear infinite var(--flowai-play, paused)',
           }}
         />
 
@@ -332,7 +349,7 @@ export default function DraggableFlowAiButton({ onClick }: DraggableFlowAiButton
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="animate-pulse"
+            style={{ animation: 'flowai-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite var(--flowai-play, paused)' }}
           >
             <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
           </svg>

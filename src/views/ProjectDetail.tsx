@@ -959,63 +959,14 @@ export default function ProjectDetail({
     }
   }, [projectId]);
 
-  // Messages are stored in the database; poll quietly while the tab is open so new messages
-  // arrive even when the live stream is served by a different server instance (e.g. on Vercel).
-  useEffect(() => {
-    if (activeTab !== 'messages') return;
-    const controller = new AbortController();
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === 'visible') fetchMessages(controller.signal, true);
-    }, 5000);
-    return () => {
-      window.clearInterval(timer);
-      controller.abort();
-    };
-  }, [activeTab, fetchMessages]);
-
-  // Real-time Server-Sent Events (SSE) stream for instant live delivery
-  useEffect(() => {
-    if (activeTab !== 'messages') return;
-
-    let es: EventSource | null = null;
-    try {
-      es = new EventSource(`/api/projects/${projectId}/messages/stream`);
-
-      es.onmessage = (event) => {
-        try {
-          const payload = JSON.parse(event.data);
-          if (payload.type === 'message:created' && payload.data) {
-            const newMsg: ProjectMessage = payload.data;
-            setMessages(prev => {
-              // Avoid duplicate if already added by sender's optimistic update
-              if (prev.some(m => m.id === newMsg.id)) return prev;
-              return [...prev, newMsg];
-            });
-          } else if (payload.type === 'message:updated' && payload.data) {
-            const updatedMsg: ProjectMessage = payload.data;
-            setMessages(prev => prev.map(m => (m.id === updatedMsg.id ? updatedMsg : m)));
-          } else if (payload.type === 'message:deleted' && payload.data?.id) {
-            const deletedId = payload.data.id;
-            setMessages(prev => prev.filter(m => m.id !== deletedId));
-          }
-        } catch {
-          // Non-JSON stream chunk or ping
-        }
-      };
-
-      es.onerror = () => {
-        // Handled silently
-      };
-    } catch (err) {
-      console.warn('[SSE] EventSource init failed:', err);
-    }
-
-    return () => {
-      if (es) {
-        es.close();
-      }
-    };
-  }, [activeTab, projectId]);
+  // New, edited and deleted messages arrive through the shared live-update check: the message
+  // list is reloaded only when chat actually changed (no separate timer or open connection, and
+  // images are not downloaded again every few seconds).
+  const messagesTabOpen = useRef(false);
+  messagesTabOpen.current = activeTab === 'messages';
+  useLiveRefresh(['messages'], () => {
+    if (messagesTabOpen.current) fetchMessages(undefined, true);
+  });
 
   // Scroll to bottom when messages change or tab opens
   useEffect(() => {
