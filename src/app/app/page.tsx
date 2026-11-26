@@ -30,6 +30,15 @@ import PWAModal from '@/components/PWAModal';
 import CopilotDrawer from '@/components/copilot/CopilotDrawer';
 import DraggableFlowAiButton from '@/components/copilot/DraggableFlowAiButton';
 import { useLiveSyncEngine } from '@/lib/liveSync';
+import dynamic from 'next/dynamic';
+
+// Software Company suite screens — loaded only when opened (other companies never download them)
+const suiteLoading = () => <div className="flex-1 p-6"><div className="h-6 w-40 rounded bg-neutral-100" /></div>;
+const EngineeringHub = dynamic(() => import('@/views/suite/EngineeringHub'), { loading: suiteLoading });
+const SalesHub = dynamic(() => import('@/views/suite/SalesHub'), { loading: suiteLoading });
+const MarketingHub = dynamic(() => import('@/views/suite/MarketingHub'), { loading: suiteLoading });
+const CustomersHub = dynamic(() => import('@/views/suite/CustomersHub'), { loading: suiteLoading });
+const InsightsHub = dynamic(() => import('@/views/suite/InsightsHub'), { loading: suiteLoading });
 
 type View =
   | 'dashboard'
@@ -44,7 +53,14 @@ type View =
   | 'billing'
   | 'settings'
   | 'inbox'
-  | 'super-admin';
+  | 'super-admin'
+  | 'engineering'
+  | 'sales'
+  | 'marketing'
+  | 'customers'
+  | 'insights';
+
+const SUITE_VIEWS = ['engineering', 'sales', 'marketing', 'customers', 'insights'];
 
 function AppContent() {
   // Live updates: comments, tasks, notifications and team changes appear without Refresh
@@ -98,7 +114,7 @@ function AppContent() {
       if (targetTaskId) {
         setSelectedTask(targetTaskId);
       }
-      if (targetView && ['dashboard', 'tasks', 'kanban', 'projects', 'project-detail', 'team', 'calendar', 'timeline', 'reports', 'billing', 'settings', 'inbox', 'super-admin'].includes(targetView)) {
+      if (targetView && ['dashboard', 'tasks', 'kanban', 'projects', 'project-detail', 'team', 'calendar', 'timeline', 'reports', 'billing', 'settings', 'inbox', 'super-admin', ...SUITE_VIEWS].includes(targetView)) {
         setView(targetView);
       }
     }
@@ -335,6 +351,16 @@ function AppContent() {
         return <Settings />;
       case 'super-admin':
         return <SuperAdminView />;
+      case 'engineering':
+        return <EngineeringHub onTaskClick={handleSelectTask} onOpenProject={id => handleOpenProject(id, 'overview')} />;
+      case 'sales':
+        return <SalesHub onOpenProject={id => handleOpenProject(id, 'overview')} />;
+      case 'marketing':
+        return <MarketingHub />;
+      case 'customers':
+        return <CustomersHub onTaskClick={handleSelectTask} />;
+      case 'insights':
+        return <InsightsHub />;
       default:
         return null;
     }

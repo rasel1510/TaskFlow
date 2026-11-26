@@ -15,6 +15,7 @@ import { SelectMenu, type SelectOption } from '@/components/ui/Pickers';
 import { useToast } from '@/components/ui/Toast';
 import { useWorkspaces } from '@/lib/useWorkspaces';
 import { useLiveRefresh } from '@/lib/liveSync';
+import { DepartmentsPanel } from '@/components/suite/SuitePanels';
 
 /* ─────────────── types ─────────────── */
 
@@ -690,6 +691,9 @@ export default function TeamView() {
             )}
           </section>
         )}
+
+        {/* Software companies: department and job title of every member */}
+        {filter !== 'invites' && <DepartmentsPanel />}
       </div>
 
       {/* Invite dialog */}

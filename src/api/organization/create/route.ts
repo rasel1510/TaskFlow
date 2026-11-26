@@ -14,6 +14,9 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const name = String(body.name || '').trim();
+    // Company type: "software" switches on the Software Company suite; anything else is "general"
+    const workspaceType = body.workspaceType === 'software' ? 'software' : 'general';
+    const industry = typeof body.industry === 'string' ? body.industry.trim().slice(0, 80) || null : null;
 
     if (!name || name.length < 2) {
       return NextResponse.json(
@@ -69,9 +72,13 @@ export async function POST(req: Request) {
         name,
         slug: uniqueSlug,
         kind: 'company',
+        workspaceType,
+        industry,
         plan,
         ...(plan === 'pro' ? { billingUserId: user.id } : {}),
-        memberships: { create: { userId: user.id, role: 'Admin' } },
+        memberships: {
+          create: { userId: user.id, role: 'Admin', ...(workspaceType === 'software' ? { department: 'leadership', jobTitle: 'CEO / Founder' } : {}) },
+        },
       },
     });
     await prisma.user.update({ where: { id: user.id }, data: { pendingTeamPlan: null } });

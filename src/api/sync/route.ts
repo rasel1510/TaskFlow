@@ -21,6 +21,7 @@ type Row = {
   notifications: string;
   team: string;
   messages: string;
+  suite: string;
 };
 
 export async function GET() {
@@ -66,7 +67,9 @@ export async function GET() {
            || ':' || coalesce(floor(extract(epoch FROM (SELECT max("updatedAt") FROM "ProjectJoinRequest" WHERE "projectId" IN (SELECT id FROM ws_projects))) * 1000)::text, '0')
         ) AS team,
         (SELECT count(*) || ':' || coalesce(floor(extract(epoch FROM max("updatedAt")) * 1000)::text, '0')
-           FROM "ProjectMessage" WHERE "projectId" IN (SELECT id FROM ws_projects)) AS messages
+           FROM "ProjectMessage" WHERE "projectId" IN (SELECT id FROM ws_projects)) AS messages,
+        (SELECT count(*) || ':' || coalesce(floor(extract(epoch FROM max("createdAt")) * 1000)::text, '0')
+           FROM "AuditLog" WHERE "teamId" = ${teamId}) AS suite
     `;
     const row = rows[0];
     return NextResponse.json(
@@ -81,6 +84,7 @@ export async function GET() {
             notifications: row?.notifications ?? '',
             team: row?.team ?? '',
             messages: row?.messages ?? '',
+            suite: row?.suite ?? '',
           },
         },
       },

@@ -4,6 +4,8 @@ import { useSession, signOut } from 'next-auth/react';
 import { useTaskContext } from '@/context/TaskContext';
 import { isSuperAdmin } from '@/lib/permissions';
 import WorkspaceSwitcher from '@/components/workspace/WorkspaceSwitcher';
+import { useSuite } from '@/lib/suite/useSuite';
+import { MODULE_LABELS, type SuiteModule } from '@/lib/suite/departments';
 
 type View =
   | 'dashboard'
@@ -17,7 +19,8 @@ type View =
   | 'billing'
   | 'settings'
   | 'inbox'
-  | 'super-admin';
+  | 'super-admin'
+  | SuiteModule;
 
 interface SidebarProps {
   currentView: View;
@@ -51,6 +54,15 @@ function Icon({ path, size = 18 }: { path: string; size?: number }) {
     </svg>
   );
 }
+
+/** Software Company suite modules (shown only to software companies, filtered by department) */
+const SUITE_ICONS: Record<SuiteModule, string> = {
+  engineering: 'M16 18l6-6-6-6 M8 6l-6 6 6 6',
+  sales: 'M3 3v18h18 M7 14l4-4 4 4 5-6',
+  marketing: 'M3 11l18-8v18L3 13v-2z M11 13v6a2 2 0 0 1-4 0v-6',
+  customers: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M8 14s1.5 2 4 2 4-2 4-2 M9 9h.01 M15 9h.01',
+  insights: 'M21 12a9 9 0 1 1-9-9v9z M21 12h-9',
+};
 
 const navItems: NavItem[] = [
   {
@@ -126,6 +138,8 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
 
   const { data: session } = useSession();
   const userId = (session?.user as { id?: string })?.id;
+  const { suite } = useSuite();
+  const suiteModules = suite?.enabled ? suite.modules || [] : [];
   const [customName, setCustomName] = useState('');
   const [customAvatar, setCustomAvatar] = useState('');
   const [customRole, setCustomRole] = useState('');
@@ -350,7 +364,30 @@ export default function Sidebar({ currentView, onNavigate, collapsed, onToggle, 
           );
         })}
 
-
+        {/* Software Company suite — only for software companies, filtered by department */}
+        {suiteModules.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-neutral-100">
+            <p className={`px-3 pb-1.5 text-[11px] font-medium text-neutral-400 md:${collapsed ? 'hidden' : 'block'}`}>Company</p>
+            {suiteModules.map(m => {
+              const active = currentView === m;
+              return (
+                <button
+                  key={m}
+                  onClick={() => handleNavigate(m)}
+                  title={collapsed ? MODULE_LABELS[m] : undefined}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 md:py-2 rounded-lg text-[13.5px] font-medium mb-0.5 transition-colors ${
+                    active ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[rgba(17,17,17,0.65)] hover:bg-[#F3F4F6] hover:text-[#111111]'
+                  }`}
+                >
+                  <span className={`shrink-0 ${active ? 'text-[#2563EB]' : 'text-[rgba(17,17,17,0.5)]'}`}>
+                    <Icon path={SUITE_ICONS[m]} />
+                  </span>
+                  <span className={`flex-1 text-left md:${collapsed ? 'hidden' : 'block'}`}>{MODULE_LABELS[m]}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </nav>
 
       {/* Bottom section */}

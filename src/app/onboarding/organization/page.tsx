@@ -36,6 +36,8 @@ function OnboardingOrganizationContent() {
 
   const [orgName, setOrgName] = useState('');
   const [industry, setIndustry] = useState('Software & Technology');
+  // "software" switches on the Software Company suite (engineering, sales, marketing, customers)
+  const [companyType, setCompanyType] = useState<'general' | 'software'>('general');
   const [size, setSize] = useState('6-20');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -136,6 +138,7 @@ function OnboardingOrganizationContent() {
           name: orgName.trim(),
           industry,
           teamSize: size,
+          workspaceType: companyType,
         }),
       });
 
@@ -211,6 +214,38 @@ function OnboardingOrganizationContent() {
                   autoFocus
                   className="w-full px-4 py-3 rounded-xl text-sm bg-slate-50/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-600 transition-all placeholder:text-slate-400"
                 />
+              </div>
+            </div>
+
+            {/* Company type */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                Company type
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="Company type">
+                {([
+                  { id: 'general', title: 'General', hint: 'Projects and tasks for any team' },
+                  { id: 'software', title: 'Software development', hint: 'Adds engineering, sales, marketing and customer tools' },
+                ] as const).map(opt => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={companyType === opt.id}
+                    onClick={() => setCompanyType(opt.id)}
+                    disabled={loading || checkingPayment}
+                    className={`text-left p-3 rounded-xl border transition-colors duration-150 ease-out cursor-pointer ${
+                      companyType === opt.id
+                        ? 'bg-blue-50 dark:bg-blue-950/70 border-blue-600'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                    }`}
+                  >
+                    <span className={`block text-xs font-semibold ${companyType === opt.id ? 'text-blue-700 dark:text-blue-300' : 'text-slate-800 dark:text-slate-200'}`}>
+                      {opt.title}
+                    </span>
+                    <span className="block mt-0.5 text-[11px] leading-snug text-slate-500 dark:text-slate-400">{opt.hint}</span>
+                  </button>
+                ))}
               </div>
             </div>
 

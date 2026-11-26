@@ -31,29 +31,66 @@ enum ProjectHealth {
 }
 
 model Team {
-  id          String           @id @default(cuid())
-  name        String
-  slug        String           @unique
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   members     User[]
   projects    Project[]
   invitations TeamInvitation[]
 
   // Workspaces: "company" (a team) or "personal" (one person's own space)
-  kind                  String    @default("company")
+  kind                  String           @default("company")
   // A company's plan (free | basic | pro). Each workspace is billed on its own.
-  plan                  String    @default("free")
-  subscriptionStatus    String    @default("active")
+  plan                  String           @default("free")
+  subscriptionStatus    String           @default("active")
   billingUserId         String?
   // Personal workspace only — one per person, with a 14-day trial and optional approved free use
-  personalOwnerId       String?   @unique
+  personalOwnerId       String?          @unique
   trialEndsAt           DateTime?
-  freeAccess            String    @default("none") // none | requested | approved | declined
+  freeAccess            String           @default("none") // none | requested | approved | declined
   freeAccessRequestedAt DateTime?
   freeAccessDecidedAt   DateTime?
   memberships           TeamMembership[]
+
+  // Company type chosen at setup. "software" switches on the Software Company suite
+  // (engineering, sales, marketing and customer modules); everything else is "general".
+  workspaceType String  @default("general")
+  industry      String?
+  // Software suite options (automations on/off and similar company-level switches)
+  suiteSettings Json?
+
+  products          Product[]
+  sprints           Sprint[]
+  releases          Release[]
+  integrations      Integration[]
+  codeLinks         CodeLink[]
+  deployments       Deployment[]
+  incidents         Incident[]
+  onCallShifts      OnCallShift[]
+  docPages          DocPage[]
+  testCases         TestCase[]
+  testRuns          TestRun[]
+  infraAssets       InfraAsset[]
+  auditLogs         AuditLog[]
+  contacts          Contact[]
+  deals             Deal[]
+  salesActivities   SalesActivity[]
+  proposals         Proposal[]
+  salesTargets      SalesTarget[]
+  campaigns         Campaign[]
+  contentItems      ContentItem[]
+  brandAssets       BrandAsset[]
+  customerAccounts  CustomerAccount[]
+  tickets           Ticket[]
+  featureRequests   FeatureRequest[]
+  npsResponses      NpsResponse[]
+  shareLinks        ShareLink[]
+  changeRequests    ChangeRequest[]
+  timeEntries       TimeEntry[]
+  paymentMilestones PaymentMilestone[]
 
   @@index([slug])
   @@index([kind, freeAccess])
@@ -62,13 +99,17 @@ model Team {
 /// Every workspace a person belongs to, with their role in it. User.teamId / User.role mirror the
 /// workspace that is currently open (the "active" one).
 model TeamMembership {
-  id        String   @id @default(cuid())
-  teamId    String
-  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      String   @default("Member")
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  teamId     String
+  team       Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       String   @default("Member")
+  // Software companies: department (engineering | product | sales | marketing | customer | leadership)
+  // and job title. Permissions still come from `role`.
+  department String?
+  jobTitle   String?
+  createdAt  DateTime @default(now())
 
   @@unique([teamId, userId])
   @@index([userId])
@@ -83,19 +124,19 @@ enum InviteStatus {
 }
 
 model TeamInvitation {
-  id          String       @id @default(cuid())
-  teamId      String
-  team        Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  email       String
-  role        String       @default("MEMBER")
-  token       String       @unique
+  id              String       @id @default(cuid())
+  teamId          String
+  team            Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  email           String
+  role            String       @default("MEMBER")
+  token           String       @unique
   initialPassword String?
-  status      InviteStatus @default(pending)
-  invitedById String
-  invitedBy   User         @relation("SentTeamInvites", fields: [invitedById], references: [id], onDelete: Cascade)
-  expiresAt   DateTime
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  status          InviteStatus @default(pending)
+  invitedById     String
+  invitedBy       User         @relation("SentTeamInvites", fields: [invitedById], references: [id], onDelete: Cascade)
+  expiresAt       DateTime
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
   @@index([teamId, status])
   @@index([email])
@@ -103,8 +144,8 @@ model TeamInvitation {
 }
 
 model User {
-  id        String    @id @default(cuid())
-  name      String
+  id            String    @id @default(cuid())
+  name          String
   avatar        String
   role          String
   expertise     String[]  @default([])
@@ -115,47 +156,47 @@ model User {
   updatedAt     DateTime  @updatedAt
 
   // The workspace currently open (memberships list every workspace the person belongs to)
-  teamId        String?
-  team          Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  teamId String?
+  team   Team?   @relation(fields: [teamId], references: [id], onDelete: SetNull)
 
   // Subscription & Onboarding fields
-  plan                   String    @default("free")
-  billingCycle           String    @default("monthly")
-  subscriptionStatus     String    @default("active")
+  plan                   String  @default("free")
+  billingCycle           String  @default("monthly")
+  subscriptionStatus     String  @default("active")
   stripeCustomerId       String?
-  hasCompletedOnboarding Boolean   @default(false)
-  failedPaymentAttempts  Int       @default(0)
+  hasCompletedOnboarding Boolean @default(false)
+  failedPaymentAttempts  Int     @default(0)
 
   // Per-user notification settings (Settings → Notifications); null = defaults
-  notificationPrefs      Json?
+  notificationPrefs Json?
 
   // Plan chosen for a team that is still being created (set while in the personal workspace)
-  pendingTeamPlan        String?
-  workspaceMemberships   TeamMembership[]
+  pendingTeamPlan      String?
+  workspaceMemberships TeamMembership[]
 
-  invoices               Invoice[]
+  invoices Invoice[]
 
-  tasksAssigned Task[]               @relation("TaskAssignee")
-  tasksCreated  Task[]               @relation("TaskCreator")
-  projectsOwned Project[]            @relation("ProjectOwner")
-  memberships   ProjectMember[]
-  joinRequests  ProjectJoinRequest[]
-  comments      Comment[]
+  tasksAssigned      Task[]               @relation("TaskAssignee")
+  tasksCreated       Task[]               @relation("TaskCreator")
+  projectsOwned      Project[]            @relation("ProjectOwner")
+  memberships        ProjectMember[]
+  joinRequests       ProjectJoinRequest[]
+  comments           Comment[]
   notifications      Notification[]
-  sentTeamInvites    TeamInvitation[]    @relation("SentTeamInvites")
-  sentProjectInvites ProjectInvitation[] @relation("SentProjectInvites")
+  sentTeamInvites    TeamInvitation[]     @relation("SentTeamInvites")
+  sentProjectInvites ProjectInvitation[]  @relation("SentProjectInvites")
   projectMessages    ProjectMessage[]
 
   @@index([teamId])
 }
 
 model Project {
-  id          String        @id @default(cuid())
-  name        String
-  description String
-  color       String        @default("#2563EB")
-  health      ProjectHealth @default(on_track)
-  progress    Int           @default(0)
+  id             String        @id @default(cuid())
+  name           String
+  description    String
+  color          String        @default("#2563EB")
+  health         ProjectHealth @default(on_track)
+  progress       Int           @default(0)
   startDate      DateTime?
   dueDate        DateTime?
   lifecycleState String        @default("ACTIVE")
@@ -166,8 +207,8 @@ model Project {
   updatedAt      DateTime      @updatedAt
 
   // Tenant Scoping — Project belongs to a Team
-  teamId       String?
-  team         Team?         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  teamId String?
+  team   Team?   @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   ownerId      String
   owner        User                 @relation("ProjectOwner", fields: [ownerId], references: [id])
@@ -234,7 +275,7 @@ model ProjectJoinRequest {
 
 model Task {
   id               String    @id @default(cuid())
-  taskNumber       String?   // e.g. "TF-001"
+  taskNumber       String? // e.g. "TF-001"
   title            String
   description      String?
   status           Status    @default(todo)
@@ -254,27 +295,43 @@ model Task {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  projectId        String?
-  project          Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  assigneeId       String?
-  assignee         User?     @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assigneeId String?
+  assignee   User?   @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
 
-  creatorId        String?
-  creator          User?     @relation("TaskCreator", fields: [creatorId], references: [id], onDelete: SetNull)
+  creatorId String?
+  creator   User?   @relation("TaskCreator", fields: [creatorId], references: [id], onDelete: SetNull)
 
-  comments         Comment[]
-  activities       Activity[]
+  comments   Comment[]
+  activities Activity[]
 
+  // Software suite: work item type (task | epic | story | bug | spike | tech_debt | chore),
+  // story points, bug severity (sev1..sev4) and bug details { steps, expected, actual, environment, device }
+  itemType    String   @default("task")
+  storyPoints Int?
+  severity    String?
+  bugDetails  Json?
+  sprintId    String?
+  sprint      Sprint?  @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+  releaseId   String?
+  release     Release? @relation(fields: [releaseId], references: [id], onDelete: SetNull)
+  parentId    String?
+  parent      Task?    @relation("TaskChildren", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Task[]   @relation("TaskChildren")
+
+  @@index([sprintId])
+  @@index([releaseId])
+  @@index([parentId])
   // Performance indexes — required for scalable queries
-  @@index([assigneeId])                // GET /api/tasks?userId=...
+  @@index([assigneeId]) // GET /api/tasks?userId=...
   @@index([creatorId])
-  @@index([projectId, status])         // GET /api/tasks?projectId=...&status=...
-  @@index([assigneeId, dueDate])       // upcoming deadlines, overdue checks
-  @@index([status])                    // filter by status alone
-  @@index([createdAt])                 // ordering
+  @@index([projectId, status]) // GET /api/tasks?projectId=...&status=...
+  @@index([assigneeId, dueDate]) // upcoming deadlines, overdue checks
+  @@index([status]) // filter by status alone
+  @@index([createdAt]) // ordering
 }
-
 
 model Comment {
   id        String    @id @default(cuid())
@@ -284,18 +341,18 @@ model Comment {
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
 
-  taskId    String
-  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   replyToId String?
   replyTo   Comment?  @relation("CommentReplies", fields: [replyToId], references: [id], onDelete: SetNull)
   replies   Comment[] @relation("CommentReplies")
 
-  @@index([taskId])   // load all comments for a task
-  @@index([userId])   // load all comments by a user
+  @@index([taskId]) // load all comments for a task
+  @@index([userId]) // load all comments by a user
   @@index([replyToId])
 }
 
@@ -305,17 +362,17 @@ model Activity {
   icon      String   @default("🔄")
   createdAt DateTime @default(now())
 
-  taskId    String
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
-  @@index([taskId])   // load all activities for a task
+  @@index([taskId]) // load all activities for a task
 }
 
 model Notification {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      String   // task_assigned, comment_mention, task_overdue, status_change
+  type      String // task_assigned, comment_mention, task_overdue, status_change
   title     String
   body      String
   taskId    String?
@@ -329,7 +386,7 @@ model Notification {
 model VerificationCode {
   id        String   @id @default(cuid())
   email     String
-  code      String   // 6-digit numeric OTP
+  code      String // 6-digit numeric OTP
   expiresAt DateTime
   createdAt DateTime @default(now())
 
@@ -337,24 +394,24 @@ model VerificationCode {
 }
 
 model Invoice {
-  id            String   @id @default(cuid())
-  invoiceNumber String   @unique
-  amount        Float    @default(20.00)
-  currency      String   @default("usd")
-  status        String   @default("paid")
-  planName      String   @default("Pro Plan")
-  billingCycle  String   @default("monthly")
-  paymentMethod String   @default("card")
-  last4         String?
-  brand         String?
-  pdfUrl        String?
+  id               String   @id @default(cuid())
+  invoiceNumber    String   @unique
+  amount           Float    @default(20.00)
+  currency         String   @default("usd")
+  status           String   @default("paid")
+  planName         String   @default("Pro Plan")
+  billingCycle     String   @default("monthly")
+  paymentMethod    String   @default("card")
+  last4            String?
+  brand            String?
+  pdfUrl           String?
   customerName     String?
   customerEmail    String?
   customerLocation String?
-  createdAt     DateTime @default(now())
+  createdAt        DateTime @default(now())
 
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([invoiceNumber])
@@ -378,4 +435,633 @@ model ProjectMessage {
   updatedAt DateTime @updatedAt
 
   @@index([projectId, createdAt])
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * SOFTWARE COMPANY SUITE — only used by companies whose Team.workspaceType is "software".
+ * Every record belongs to one company (teamId) and is removed with it. People are referenced by
+ * user id (ownerId, assigneeId …) without a foreign key, so removing a person never deletes the
+ * company's records; the UI shows "Former member" for ids that no longer resolve.
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ */
+
+/// A product the company builds, made of components (web app, API, mobile app …)
+model Product {
+  id          String   @id @default(cuid())
+  teamId      String
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  name        String
+  description String   @default("")
+  status      String   @default("active") // active | maintained | retired
+  ownerId     String?
+  color       String   @default("#2563EB")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  components ProductComponent[]
+  releases   Release[]
+
+  @@index([teamId, status])
+}
+
+model ProductComponent {
+  id              String   @id @default(cuid())
+  teamId          String
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name            String
+  kind            String   @default("web") // web | mobile | api | admin | worker | other
+  techStack       String[] @default([])
+  repoFullName    String? // GitHub "owner/repo"
+  vercelProjectId String?
+  liveUrl         String?
+  stagingUrl      String?
+  docsUrl         String?
+  ownerId         String?
+  status          String   @default("active")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([teamId])
+  @@index([productId])
+}
+
+model Sprint {
+  id          String    @id @default(cuid())
+  teamId      String
+  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  projectId   String?
+  name        String
+  goal        String    @default("")
+  startDate   DateTime
+  endDate     DateTime
+  status      String    @default("planned") // planned | active | completed
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tasks Task[]
+
+  @@index([teamId, status])
+}
+
+model Release {
+  id            String    @id @default(cuid())
+  teamId        String
+  team          Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  productId     String?
+  product       Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  version       String
+  title         String    @default("")
+  kind          String    @default("minor") // major | minor | patch | hotfix
+  stage         String    @default("planned") // planned | development | code_freeze | qa | staging | released | rolled_back
+  targetDate    DateTime?
+  releasedAt    DateTime?
+  notes         String    @default("")
+  // [{ id, label, done }] and [{ role, userId, at }]
+  checklist     Json?
+  signoffs      Json?
+  supportEndsAt DateTime?
+  createdById   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tasks Task[]
+
+  @@index([teamId, stage])
+  @@index([productId])
+}
+
+/// A connection to an outside service (github | vercel | slack | teams | discord).
+/// Tokens and webhook URLs are stored only encrypted (AES-256-GCM).
+model Integration {
+  id               String    @id @default(cuid())
+  teamId           String
+  team             Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  provider         String
+  status           String    @default("connected") // connected | error | disconnected
+  accountLabel     String    @default("")
+  secretEnc        String
+  webhookSecretEnc String?
+  config           Json?
+  lastSyncAt       DateTime?
+  lastError        String?
+  connectedById    String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([teamId, provider])
+}
+
+/// Pull requests, commits and branches from GitHub, linked to work items by key (e.g. TF-123)
+model CodeLink {
+  id          String    @id @default(cuid())
+  teamId      String
+  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  provider    String    @default("github")
+  kind        String    @default("pull_request") // pull_request | commit | branch
+  externalId  String
+  repo        String
+  number      Int?
+  title       String
+  url         String
+  state       String    @default("open") // open | draft | merged | closed
+  author      String?
+  branch      String?
+  reviewState String? // approved | changes_requested | pending
+  checks      String? // success | failure | pending
+  taskId      String?
+  mergedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([teamId, provider, externalId])
+  @@index([teamId, taskId])
+  @@index([teamId, updatedAt])
+}
+
+model Deployment {
+  id            String    @id @default(cuid())
+  teamId        String
+  team          Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  provider      String    @default("vercel")
+  externalId    String
+  componentId   String?
+  projectName   String
+  environment   String    @default("preview") // production | staging | preview | development
+  state         String    @default("ready") // queued | building | ready | error | canceled
+  url           String?
+  commitSha     String?
+  commitMessage String?
+  branch        String?
+  creator       String?
+  version       String?
+  deployedAt    DateTime  @default(now())
+  readyAt       DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@unique([teamId, provider, externalId])
+  @@index([teamId, environment, deployedAt])
+}
+
+model Incident {
+  id          String    @id @default(cuid())
+  teamId      String
+  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  title       String
+  severity    String    @default("sev3") // sev1 | sev2 | sev3 | sev4
+  status      String    @default("investigating") // investigating | identified | monitoring | resolved
+  ownerId     String?
+  componentId String?
+  summary     String    @default("")
+  // [{ at, userId, status, message }]
+  updates     Json?
+  postmortem  String    @default("")
+  startedAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([teamId, status])
+  @@index([teamId, startedAt])
+}
+
+model OnCallShift {
+  id        String   @id @default(cuid())
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId    String
+  startsAt  DateTime
+  endsAt    DateTime
+  note      String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([teamId, startsAt])
+}
+
+/// Wiki pages and templates: wiki | prd | tech_spec | decision | runbook | meeting
+model DocPage {
+  id           String    @id @default(cuid())
+  teamId       String
+  team         Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  productId    String?
+  title        String
+  kind         String    @default("wiki")
+  body         String    @default("")
+  status       String    @default("draft") // draft | in_review | approved
+  authorId     String?
+  approvedById String?
+  approvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([teamId, kind])
+  @@index([teamId, updatedAt])
+}
+
+model TestCase {
+  id          String   @id @default(cuid())
+  teamId      String
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  productId   String?
+  title       String
+  steps       String   @default("")
+  expected    String   @default("")
+  priority    String   @default("medium")
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([teamId])
+}
+
+model TestRun {
+  id            String    @id @default(cuid())
+  teamId        String
+  team          Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  releaseId     String?
+  name          String
+  // { [testCaseId]: "pass" | "fail" | "blocked" | "untested" }
+  results       Json?
+  status        String    @default("open") // open | signed_off
+  signedOffById String?
+  signedOffAt   DateTime?
+  createdById   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([teamId, releaseId])
+}
+
+/// Domains, cloud services, paid tools, licenses and the secrets register (names only — never values)
+model InfraAsset {
+  id            String    @id @default(cuid())
+  teamId        String
+  team          Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  category      String // domain | service | tool | license | secret
+  name          String
+  provider      String    @default("")
+  ownerId       String?
+  costCents     Int?
+  currency      String    @default("USD")
+  billingCycle  String    @default("monthly") // monthly | yearly | one_time
+  renewsAt      DateTime?
+  expiresAt     DateTime?
+  location      String    @default("") // secrets: where the value is kept (e.g. "Vercel env")
+  lastRotatedAt DateTime?
+  notes         String    @default("")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([teamId, category])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  actorId   String?
+  action    String
+  target    String   @default("")
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([teamId, createdAt])
+}
+
+/**
+ * ── Sales ───────────────────────────────────────────────────────────────────────────────────
+ */
+
+model Contact {
+  id          String   @id @default(cuid())
+  teamId      String
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  name        String
+  email       String?
+  phone       String?
+  companyName String   @default("")
+  jobTitle    String   @default("")
+  source      String   @default("other") // website | referral | linkedin | facebook | event | cold_call | campaign | other
+  campaignId  String?
+  ownerId     String?
+  notes       String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  deals Deal[]
+
+  @@index([teamId, updatedAt])
+  @@index([teamId, email])
+}
+
+model Deal {
+  id              String    @id @default(cuid())
+  teamId          String
+  team            Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  title           String
+  contactId       String?
+  contact         Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  companyName     String    @default("")
+  valueCents      Int       @default(0)
+  currency        String    @default("USD")
+  stage           String    @default("new") // new | contacted | qualified | demo | proposal | negotiation | won | lost
+  probability     Int       @default(10)
+  expectedCloseAt DateTime?
+  ownerId         String?
+  productId       String?
+  nextStep        String    @default("")
+  requirements    String    @default("")
+  lostReason      String    @default("")
+  wonAt           DateTime?
+  lostAt          DateTime?
+  projectId       String?
+  source          String    @default("other")
+  campaignId      String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  activities SalesActivity[]
+
+  @@index([teamId, stage])
+  @@index([teamId, ownerId])
+}
+
+model SalesActivity {
+  id        String    @id @default(cuid())
+  teamId    String
+  team      Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  dealId    String?
+  deal      Deal?     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  contactId String?
+  type      String    @default("follow_up") // call | meeting | email | note | follow_up | demo
+  subject   String
+  dueAt     DateTime?
+  doneAt    DateTime?
+  ownerId   String?
+  createdAt DateTime  @default(now())
+
+  @@index([teamId, ownerId, dueAt])
+  @@index([dealId])
+}
+
+model Proposal {
+  id          String    @id @default(cuid())
+  teamId      String
+  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  dealId      String?
+  title       String
+  // [{ name, qty, priceCents }]
+  items       Json?
+  currency    String    @default("USD")
+  status      String    @default("draft") // draft | sent | viewed | accepted | declined
+  validUntil  DateTime?
+  sentAt      DateTime?
+  viewedAt    DateTime?
+  decidedAt   DateTime?
+  notes       String    @default("")
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([teamId, status])
+}
+
+model SalesTarget {
+  id          String   @id @default(cuid())
+  teamId      String
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId      String? // null = whole sales team
+  period      String // "2026-11" (month) or "2026-Q4" (quarter)
+  amountCents Int
+  currency    String   @default("USD")
+  createdAt   DateTime @default(now())
+
+  @@index([teamId, period])
+}
+
+/**
+ * ── Marketing ───────────────────────────────────────────────────────────────────────────────
+ */
+
+model Campaign {
+  id          String    @id @default(cuid())
+  teamId      String
+  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  name        String
+  goal        String    @default("")
+  channels    String[]  @default([])
+  budgetCents Int?
+  spentCents  Int?
+  currency    String    @default("USD")
+  clicks      Int?
+  startDate   DateTime?
+  endDate     DateTime?
+  status      String    @default("planned") // planned | active | completed
+  ownerId     String?
+  releaseId   String?
+  notes       String    @default("")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([teamId, status])
+}
+
+model ContentItem {
+  id         String    @id @default(cuid())
+  teamId     String
+  team       Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  campaignId String?
+  releaseId  String?
+  title      String
+  channel    String    @default("blog") // blog | social | email | video | newsletter | website | announcement
+  stage      String    @default("idea") // idea | writing | design | review | scheduled | published
+  publishAt  DateTime?
+  ownerId    String?
+  url        String    @default("")
+  notes      String    @default("")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([teamId, stage])
+  @@index([teamId, publishAt])
+}
+
+model BrandAsset {
+  id        String   @id @default(cuid())
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  name      String
+  kind      String   @default("link") // logo | color | font | image | template | guideline | link
+  value     String // URL, colour hex, font name or an uploaded image (data URL)
+  notes     String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([teamId, kind])
+}
+
+/**
+ * ── Customers ───────────────────────────────────────────────────────────────────────────────
+ */
+
+model CustomerAccount {
+  id          String    @id @default(cuid())
+  teamId      String
+  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  name        String
+  plan        String    @default("")
+  mrrCents    Int       @default(0)
+  currency    String    @default("USD")
+  status      String    @default("onboarding") // onboarding | active | at_risk | churned
+  managerId   String?
+  startDate   DateTime?
+  renewalDate DateTime?
+  // [{ id, label, done }]
+  onboarding  Json?
+  dealId      String?
+  notes       String    @default("")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([teamId, status])
+  @@index([teamId, renewalDate])
+}
+
+model Ticket {
+  id              String    @id @default(cuid())
+  teamId          String
+  team            Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  accountId       String?
+  contactEmail    String    @default("")
+  subject         String
+  description     String    @default("")
+  priority        String    @default("normal") // low | normal | high | urgent
+  status          String    @default("open") // open | pending | resolved | closed
+  assigneeId      String?
+  slaDueAt        DateTime?
+  firstResponseAt DateTime?
+  resolvedAt      DateTime?
+  bugTaskId       String?
+  createdById     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([teamId, status])
+  @@index([teamId, bugTaskId])
+}
+
+model FeatureRequest {
+  id          String   @id @default(cuid())
+  teamId      String
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  title       String
+  description String   @default("")
+  status      String   @default("open") // open | planned | in_progress | shipped | declined
+  productId   String?
+  epicTaskId  String?
+  releaseId   String?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  votes FeatureVote[]
+
+  @@index([teamId, status])
+}
+
+model FeatureVote {
+  id        String         @id @default(cuid())
+  requestId String
+  request   FeatureRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  accountId String?
+  userId    String?
+  note      String         @default("")
+  createdAt DateTime       @default(now())
+
+  @@index([requestId])
+}
+
+model NpsResponse {
+  id        String   @id @default(cuid())
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  accountId String?
+  score     Int
+  comment   String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([teamId, createdAt])
+}
+
+/**
+ * ── Client work & public pages ──────────────────────────────────────────────────────────────
+ */
+
+/// Public, read-only links: client_portal (a project) | changelog (a product) | status (a product)
+model ShareLink {
+  id        String   @id @default(cuid())
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  kind      String
+  targetId  String
+  token     String   @unique
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([teamId, kind, targetId])
+}
+
+model ChangeRequest {
+  id            String    @id @default(cuid())
+  teamId        String
+  team          Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  projectId     String
+  title         String
+  description   String    @default("")
+  estimateHours Int?
+  priceCents    Int?
+  currency      String    @default("USD")
+  status        String    @default("requested") // requested | estimated | approved | rejected
+  requestedBy   String    @default("")
+  decidedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([teamId, projectId])
+}
+
+model TimeEntry {
+  id        String   @id @default(cuid())
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  projectId String?
+  taskId    String?
+  userId    String
+  minutes   Int
+  billable  Boolean  @default(true)
+  rateCents Int?
+  note      String   @default("")
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@index([teamId, projectId, date])
+  @@index([teamId, userId, date])
+}
+
+model PaymentMilestone {
+  id          String    @id @default(cuid())
+  teamId      String
+  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  projectId   String
+  title       String
+  amountCents Int
+  currency    String    @default("USD")
+  dueDate     DateTime?
+  status      String    @default("pending") // pending | invoiced | paid
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([teamId, projectId])
 }

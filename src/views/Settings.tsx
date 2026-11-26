@@ -24,6 +24,7 @@ import { useSession } from 'next-auth/react';
 import { useToast } from '@/components/ui/Toast';
 import { Eye, EyeOff, Send, RefreshCw, Check, X, Lock } from 'lucide-react';
 import { toCompanyRole } from '@/lib/companyRoles';
+import { SuiteSettingsPanel } from '@/components/suite/SuitePanels';
 
 /* ─────────────── types ─────────────── */
 
@@ -944,6 +945,7 @@ export default function Settings() {
             <p className="mt-3 text-[12px] text-[rgba(17,17,17,0.5)]">
               Workspace details are set when the workspace is created. Invite and manage people from the Team page.
             </p>
+            <SuiteSettingsPanel />
           </div>
         )}
 

@@ -12,6 +12,7 @@
  *   live:notifications  new or read notifications (also fires 'notifications-updated')
  *   live:team           people, roles, invitations or join requests changed
  *   live:messages       project chat messages sent, edited, reacted to or deleted
+ *   live:suite          software company suite records (products, sprints, deals, tickets …)
  *
  * Cost-aware scheduling (no wasted requests):
  *   - every 5 s while the tab is visible and the person was active in the last 2 minutes
@@ -24,8 +25,8 @@
 
 import { useEffect, useRef } from 'react';
 
-export type LiveTopic = 'tasks' | 'projects' | 'comments' | 'notifications' | 'team' | 'messages';
-const TOPICS: LiveTopic[] = ['tasks', 'projects', 'comments', 'notifications', 'team', 'messages'];
+export type LiveTopic = 'tasks' | 'projects' | 'comments' | 'notifications' | 'team' | 'messages' | 'suite';
+const TOPICS: LiveTopic[] = ['tasks', 'projects', 'comments', 'notifications', 'team', 'messages', 'suite'];
 
 const ACTIVE_MS = 5_000;
 const IDLE_MS = 30_000;

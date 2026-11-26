@@ -30,7 +30,12 @@ type View =
   | 'billing'
   | 'settings'
   | 'inbox'
-  | 'super-admin';
+  | 'super-admin'
+  | 'engineering'
+  | 'sales'
+  | 'marketing'
+  | 'customers'
+  | 'insights';
 
 const pageTitles: Record<View, string> = {
   dashboard: 'Dashboard',
@@ -45,6 +50,11 @@ const pageTitles: Record<View, string> = {
   settings: 'Settings',
   inbox: 'Inbox',
   'super-admin': 'Platform Console',
+  engineering: 'Engineering',
+  sales: 'Sales',
+  marketing: 'Marketing',
+  customers: 'Customers',
+  insights: 'Insights',
 };
 
 
