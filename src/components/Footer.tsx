@@ -1,319 +1,125 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import FlyingBirds from './FlyingBirds';
-import {
-  Globe,
-  ChevronDown,
-  Mail,
-  Phone,
-  MapPin,
-  Check,
-} from 'lucide-react';
 
 interface FooterProps {
   onOpenPWA?: () => void;
 }
 
-function LinkedInIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" {...props}>
-      <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9h2.77v8.37H6.46V10.9M7.85 6.46a1.62 1.62 0 1 0 0 3.24 1.62 1.62 0 0 0 0-3.24" />
-    </svg>
-  );
-}
+type FooterLink = { label: string; href?: string; onClick?: 'pwa' };
 
-function InstagramIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-    </svg>
-  );
-}
+/*
+ * Every link points to something that really exists in FlowSync:
+ *   - landing page sections (#features, #integrations, #developer-platform, #faq)
+ *   - app screens via /app?view=… (signed-out visitors sign in first, then land on that screen)
+ *   - the developer documentation (/docs) and the install-app dialog
+ * A support email is shown only when NEXT_PUBLIC_SUPPORT_EMAIL is configured.
+ */
+const COLUMNS: { title: string; links: FooterLink[] }[] = [
+  {
+    title: 'Product',
+    links: [
+      { label: 'Features', href: '/#features' },
+      { label: 'Integrations', href: '/#integrations' },
+      { label: 'Install the app', onClick: 'pwa' },
+      { label: 'FAQ', href: '/#faq' },
+    ],
+  },
+  {
+    title: 'Workspace',
+    links: [
+      { label: 'Dashboard', href: '/app?view=dashboard' },
+      { label: 'Projects', href: '/app?view=projects' },
+      { label: 'My Tasks', href: '/app?view=tasks' },
+      { label: 'Board', href: '/app?view=kanban' },
+      { label: 'Calendar', href: '/app?view=calendar' },
+      { label: 'Timeline', href: '/app?view=timeline' },
+      { label: 'Reports', href: '/app?view=reports' },
+    ],
+  },
+  {
+    title: 'Developers',
+    links: [
+      { label: 'API documentation', href: '/docs' },
+      { label: 'MCP server', href: '/docs' },
+      { label: 'Developer platform', href: '/#developer-platform' },
+    ],
+  },
+];
 
-function FacebookIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" {...props}>
-      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-    </svg>
-  );
-}
+const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || '';
 
-function YouTubeIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" {...props}>
-      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-    </svg>
-  );
-}
+const linkClass =
+  'text-[13.5px] text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors duration-150 ease-out';
 
 export default function Footer({ onOpenPWA }: FooterProps) {
-  const [selectedLanguage, setSelectedLanguage] = useState('English (US)');
-  const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
-
-  const languages = [
-    { code: 'en', label: 'English (US)' },
-    { code: 'pt', label: 'Português' },
-    { code: 'de', label: 'Deutsch' },
-    { code: 'es', label: 'Español' },
-    { code: 'fr', label: 'Français' },
-  ];
+  const year = new Date().getFullYear();
 
   return (
-    <footer className="relative w-full bg-white dark:bg-[#0c0d0e] text-[#1f242e] dark:text-[#f0f2f5] pt-12 sm:pt-16 pb-0 transition-colors duration-200 font-sans overflow-hidden">
+    <footer className="relative w-full bg-white dark:bg-[#0c0d0e] text-[#1f242e] dark:text-[#f0f2f5] pt-14 sm:pt-16 pb-0 transition-colors duration-200 font-sans overflow-hidden">
       <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
-        {/* ─────────────────────────────────────────────────────────────────────────
-            NAVIGATION COLUMNS, CONTACT INFO, LANGUAGE & SOCIAL
-            ───────────────────────────────────────────────────────────────────────── */}
-        <div className="pb-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 lg:gap-8 items-start">
-          {/* Column 1: Company / Platform - 3 cols on lg */}
-          <div className="lg:col-span-3 space-y-4">
-            <h3 className="text-[15px] font-semibold tracking-tight text-neutral-900 dark:text-white">
-              Company
-            </h3>
-            <ul className="flex flex-col space-y-3 text-[14px]">
-              <li>
-                <Link
-                  href="#features"
-                  className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white transition-colors"
-                >
-                  About FlowSync
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#features"
-                  className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white transition-colors"
-                >
-                  Features & Workflows
-                </Link>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={onOpenPWA}
-                  className="text-left text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white transition-colors cursor-pointer"
-                >
-                  Desktop & PWA App
-                </button>
-              </li>
-              <li>
-                <Link
-                  href="#developer-platform"
-                  className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white transition-colors"
-                >
-                  MCP & ChatGPT Integration
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#developer-platform"
-                  className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white transition-colors"
-                >
-                  REST API & Documentation
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#faq"
-                  className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white transition-colors"
-                >
-                  Security & Compliance
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#faq"
-                  className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white transition-colors"
-                >
-                  Support & FAQ
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Column 2: Platform Views - 3 cols on lg */}
-          <div className="lg:col-span-3 space-y-4">
-            <h3 className="text-[15px] font-semibold tracking-tight text-neutral-900 dark:text-white">
-              Platform Views
-            </h3>
-            <ul className="flex flex-col space-y-3 text-[14px]">
-              <li>
-                <Link
-                  href="/app"
-                  className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white transition-colors"
-                >
-                  Workspace Dashboard
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/app"
-                  className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white transition-colors"
-                >
-                  Kanban Boards
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/app"
-                  className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white transition-colors"
-                >
-                  Sprint Backlog
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/app"
-                  className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white transition-colors"
-                >
-                  Timeline & Gantt
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/app"
-                  className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white transition-colors"
-                >
-                  Calendar Scheduling
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Column 3: Direct Contact with subtle outlined icon badges - 3 cols on lg */}
-          <div className="lg:col-span-3 space-y-4">
-            <h3 className="text-[15px] font-semibold tracking-tight text-neutral-900 dark:text-white">
-              Direct Contact
-            </h3>
-            <ul className="flex flex-col space-y-3.5 text-[14px]">
-              {/* Email item */}
-              <li>
-                <a
-                  href="mailto:support@flowsync.dev"
-                  className="group flex items-center gap-3 text-neutral-700 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-white transition-colors"
-                >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50 text-blue-600 dark:text-blue-400 transition-colors group-hover:border-blue-400 dark:group-hover:border-blue-500">
-                    <Mail className="h-4 w-4" />
-                  </div>
-                  <span className="text-[13.5px] tracking-tight">support@flowsync.dev</span>
-                </a>
-              </li>
-
-              {/* Phone item */}
-              <li>
-                <a
-                  href="tel:+15552348275"
-                  className="group flex items-center gap-3 text-neutral-700 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-white transition-colors"
-                >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50 text-blue-600 dark:text-blue-400 transition-colors group-hover:border-blue-400 dark:group-hover:border-blue-500">
-                    <Phone className="h-4 w-4" />
-                  </div>
-                  <span className="text-[13.5px] tracking-tight">+1 (555) 234-TASK</span>
-                </a>
-              </li>
-
-              {/* Location item */}
-              <li>
-                <div className="flex items-center gap-3 text-neutral-700 dark:text-neutral-300">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50 text-blue-600 dark:text-blue-400">
-                    <MapPin className="h-4 w-4" />
-                  </div>
-                  <span className="text-[13.5px] tracking-tight">San Francisco, CA</span>
-                </div>
-              </li>
-            </ul>
-          </div>
-
-          {/* Column 4: Language Selector & Social Icon Buttons - 3 cols on lg */}
-          <div className="lg:col-span-3 flex flex-col items-start lg:items-end justify-between space-y-6 lg:h-full">
-            {/* Language Selector Dropdown matching Image 2 */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
-                className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-3.5 py-2 text-[13.5px] font-medium text-neutral-700 dark:text-neutral-200 shadow-2xs hover:border-neutral-300 dark:hover:border-neutral-700 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                aria-haspopup="listbox"
-                aria-expanded={isLangDropdownOpen}
-              >
-                <Globe className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
-                <span>{selectedLanguage}</span>
-                <ChevronDown
-                  className={`h-3.5 w-3.5 text-neutral-400 transition-transform duration-200 ${
-                    isLangDropdownOpen ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
-
-              {/* Dropdown Menu */}
-              {isLangDropdownOpen && (
-                <div className="absolute right-0 bottom-full mb-2 w-44 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 py-1.5 shadow-lg z-30 transition-all">
-                  {languages.map((lang) => (
-                    <button
-                      key={lang.code}
-                      type="button"
-                      onClick={() => {
-                        setSelectedLanguage(lang.label);
-                        setIsLangDropdownOpen(false);
-                      }}
-                      className="flex w-full items-center justify-between px-3.5 py-2 text-[13px] text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-left cursor-pointer"
-                    >
-                      <span>{lang.label}</span>
-                      {selectedLanguage === lang.label && (
-                        <Check className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Social Media Rounded Square Icon Buttons matching Image 2 */}
-            <div className="flex items-center gap-2.5">
-              <a
-                href="https://linkedin.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="LinkedIn"
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:text-black dark:hover:text-white hover:border-neutral-400 dark:hover:border-neutral-600 transition-all shadow-2xs hover:scale-105"
-              >
-                <LinkedInIcon />
-              </a>
-              <a
-                href="https://instagram.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Instagram"
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:text-black dark:hover:text-white hover:border-neutral-400 dark:hover:border-neutral-600 transition-all shadow-2xs hover:scale-105"
-              >
-                <InstagramIcon />
-              </a>
-              <a
-                href="https://facebook.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Facebook"
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:text-black dark:hover:text-white hover:border-neutral-400 dark:hover:border-neutral-600 transition-all shadow-2xs hover:scale-105"
-              >
-                <FacebookIcon />
-              </a>
-              <a
-                href="https://youtube.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="YouTube"
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:text-black dark:hover:text-white hover:border-neutral-400 dark:hover:border-neutral-600 transition-all shadow-2xs hover:scale-105"
-              >
-                <YouTubeIcon />
-              </a>
+        <div className="grid grid-cols-2 gap-x-8 gap-y-10 lg:grid-cols-12 lg:gap-8">
+          {/* Brand */}
+          <div className="col-span-2 lg:col-span-4 lg:pr-8">
+            <Link aria-label="FlowSync home" href="/" className="inline-flex items-center gap-2.5">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-black text-white dark:bg-white dark:text-black">
+                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 50 50" aria-hidden="true">
+                  <path d="M27.5308 40.1395C27.5757 35.5502 26.4122 31.8182 24.9322 31.8037C23.4521 31.7893 22.2159 35.4979 22.1711 40.0871C22.1262 44.6764 23.2897 48.4085 24.7697 48.4229C26.2498 48.4374 27.486 44.7288 27.5308 40.1395Z" />
+                  <path d="M18.947 39.0972C21.4661 35.2608 22.5052 31.4922 21.268 30.6798C20.0307 29.8674 16.9856 32.3188 14.4666 36.1552C11.9475 39.9916 10.9084 43.7601 12.1456 44.5726C13.3829 45.385 16.4279 42.9336 18.947 39.0972Z" />
+                  <path d="M12.2792 33.593C16.4726 31.7278 19.3843 29.1194 18.7827 27.767C18.1812 26.4146 14.2942 26.8304 10.1008 28.6957C5.90744 30.5609 2.99571 33.1693 3.59726 34.5217C4.1988 35.8741 8.08584 35.4583 12.2792 33.593Z" />
+                </svg>
+              </span>
+              <span className="text-lg font-bold tracking-tight text-neutral-900 dark:text-white">FlowSync</span>
+            </Link>
+            <p className="mt-4 max-w-xs text-[13.5px] leading-relaxed text-neutral-500 dark:text-neutral-400">
+              Projects, tasks, boards and reports for your team — in one simple workspace.
+            </p>
+            <div className="mt-5 flex items-center gap-4 text-[13.5px] font-medium">
+              <Link href="/auth/login" className="text-neutral-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-150 ease-out">
+                Sign in
+              </Link>
+              <span className="h-3.5 w-px bg-neutral-200 dark:bg-neutral-800" aria-hidden="true" />
+              <Link href="/auth/signup" className="text-neutral-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-150 ease-out">
+                Create free account
+              </Link>
             </div>
           </div>
+
+          {/* Link columns */}
+          {COLUMNS.map(col => (
+            <nav key={col.title} aria-label={col.title} className="lg:col-span-2 lg:first-of-type:col-start-7">
+              <h3 className="text-[13px] font-semibold text-neutral-900 dark:text-white">{col.title}</h3>
+              <ul className="mt-4 space-y-2.5">
+                {col.links.map(link => (
+                  <li key={link.label}>
+                    {link.onClick === 'pwa' ? (
+                      <button type="button" onClick={onOpenPWA} className={`${linkClass} text-left cursor-pointer`}>
+                        {link.label}
+                      </button>
+                    ) : (
+                      <Link href={link.href!} className={linkClass}>
+                        {link.label}
+                      </Link>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ))}
         </div>
 
+        {/* Bottom bar */}
+        <div className="mt-12 flex flex-col gap-3 border-t border-neutral-100 dark:border-neutral-800/80 py-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[12.5px] text-neutral-400 dark:text-neutral-500">© {year} FlowSync. All rights reserved.</p>
+          {SUPPORT_EMAIL && (
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-[12.5px] text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors duration-150 ease-out">
+              {SUPPORT_EMAIL}
+            </a>
+          )}
+        </div>
       </div>
 
       {/* ─────────────────────────────────────────────────────────────────────────
