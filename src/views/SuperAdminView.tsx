@@ -347,9 +347,6 @@ export default function SuperAdminView() {
               <h1 className="text-xl font-bold text-neutral-900 dark:text-white tracking-tight">
                 Platform Operations
               </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
-                FlowSync Headquarters
-              </span>
             </div>
           </div>
 
