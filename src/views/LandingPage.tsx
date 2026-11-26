@@ -255,8 +255,9 @@ export default function LandingPage({ onLaunchApp }: LandingPageProps) {
   };
 
   const getTryFlowSyncHref = () => {
+    // Signed-out visitors go straight to sign-in (new people can create an account from there)
     if (!isAuthenticated) {
-      return '/auth/signup';
+      return '/auth/login';
     }
     const user = session?.user as any;
     // If admin/user has already created an organization and paid, send directly to Dashboard (/app)
